@@ -48,4 +48,44 @@ public class Friend {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    /**
+     * 친구 관계가 수락 상태인지 확인합니다.
+     */
+    public boolean isAccepted() {
+        return status == FriendStatus.ACCEPTED;
+    }
+
+    /**
+     * 친구 관계가 차단 상태인지 확인합니다.
+     */
+    public boolean isBlocked() {
+        return status == FriendStatus.BLOCKED;
+    }
+
+    /**
+     * 친구 관계가 대기 상태인지 확인합니다.
+     */
+    public boolean isPending() {
+        return status == FriendStatus.PENDING;
+    }
+
+    /**
+     * 지정된 사용자가 이 친구 관계의 당사자인지 확인합니다.
+     */
+    public boolean involves(Long checkUserId) {
+        return userId.equals(checkUserId) || friendId.equals(checkUserId);
+    }
+
+    /**
+     * 지정된 사용자의 친구 ID를 반환합니다.
+     */
+    public Long getOtherUserId(Long currentUserId) {
+        if (userId.equals(currentUserId)) {
+            return friendId;
+        } else if (friendId.equals(currentUserId)) {
+            return userId;
+        }
+        throw new IllegalArgumentException("사용자가 이 친구 관계에 속하지 않습니다.");
+    }
 }
