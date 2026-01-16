@@ -4,12 +4,12 @@ import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.Message.MessageType;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.ChatRoomNotFoundException;
 import com.cotalk.domain.port.inbound.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,11 +27,12 @@ public class SendMessageService implements SendMessageUseCase {
     private final UserRepository userRepository;
     private final SnowflakeIdGenerator idGenerator;
     private final SendPushNotificationUseCase sendPushNotificationUseCase;
+    private final ChatRoomMemberValidator chatRoomMemberValidator;
 
     @Override
     public Message sendMessage(Long chatRoomId, Long senderId, String content) {
         // 채팅방 멤버인지 확인
-        validateChatRoomMember(chatRoomId, senderId);
+        chatRoomMemberValidator.validateMembership(chatRoomId, senderId);
 
         // 메시지 생성
         Message message = Message.builder()
@@ -56,7 +57,7 @@ public class SendMessageService implements SendMessageUseCase {
     @Override
     public Message sendFileMessage(Long chatRoomId, Long senderId, FileMessageCommand command) {
         // 채팅방 멤버인지 확인
-        validateChatRoomMember(chatRoomId, senderId);
+        chatRoomMemberValidator.validateMembership(chatRoomId, senderId);
 
         // 파일 메시지 생성
         Message message = Message.builder()
@@ -84,11 +85,6 @@ public class SendMessageService implements SendMessageUseCase {
         sendPushNotificationsToOtherMembers(chatRoomId, senderId, notificationContent);
 
         return savedMessage;
-    }
-
-    private void validateChatRoomMember(Long chatRoomId, Long userId) {
-        chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId)
-                .orElseThrow(() -> new ChatRoomNotFoundException(chatRoomId));
     }
 
     private void sendPushNotificationsToOtherMembers(Long chatRoomId, Long senderId, String content) {
