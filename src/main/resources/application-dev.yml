@@ -1,0 +1,13 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cotalk_dev
+
+logging:
+  level:
+    com.cotalk: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG

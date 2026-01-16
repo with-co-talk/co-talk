@@ -1,0 +1,99 @@
+spring:
+  application:
+    name: co-talk-backend
+  
+  # Virtual Threads 활성화
+  threads:
+    virtual:
+      enabled: true
+  
+  # Database 설정
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cotalk
+    username: ${DB_USERNAME:cotalk}
+    password: ${DB_PASSWORD:cotalk}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+    open-in-view: false
+  
+  # Redis 설정
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+  
+  # Cache 설정
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000 # 1시간
+
+# 서버 설정
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+    include-exception: false
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-change-in-production-min-256-bits}
+  expiration: ${JWT_EXPIRATION:604800000} # 7일 (밀리초)
+
+# 로깅 설정
+logging:
+  level:
+    root: INFO
+    com.cotalk: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/application.log
+    max-size: 10MB
+    max-history: 30
+
+# Actuator 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# 애플리케이션 정보
+info:
+  app:
+    name: Co-Talk Backend
+    description: 대화에 집중한 커뮤니케이션 플랫폼 백엔드
+    version: 0.0.1-SNAPSHOT
