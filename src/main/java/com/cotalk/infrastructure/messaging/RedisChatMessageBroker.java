@@ -36,4 +36,17 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
             throw new RuntimeException("메시지 직렬화에 실패했습니다.", e);
         }
     }
+
+    @Override
+    public void publishReaction(Long roomId, Object reactionEvent) {
+        String channel = CHANNEL_PREFIX + roomId + ":reaction";
+        try {
+            String jsonMessage = objectMapper.writeValueAsString(reactionEvent);
+            redisTemplate.convertAndSend(channel, jsonMessage);
+            log.debug("Published reaction event to channel {}: {}", channel, reactionEvent);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize reaction event: {}", reactionEvent, e);
+            throw new RuntimeException("반응 이벤트 직렬화에 실패했습니다.", e);
+        }
+    }
 }

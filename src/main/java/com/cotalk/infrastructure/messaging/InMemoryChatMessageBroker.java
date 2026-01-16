@@ -55,6 +55,15 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
         );
     }
 
+    @Override
+    public void publishReaction(Long roomId, Object reactionEvent) {
+        log.debug("InMemory broadcast reaction to room {}: {}", roomId, reactionEvent);
+        
+        // 직접 WebSocket으로 브로드캐스트 (단일 서버 환경)
+        String destination = "/topic/chat/room/" + roomId + "/reaction";
+        messagingTemplate.convertAndSend(destination, reactionEvent);
+    }
+
     public record WebSocketMessage(
             Long messageId,
             Long senderId,

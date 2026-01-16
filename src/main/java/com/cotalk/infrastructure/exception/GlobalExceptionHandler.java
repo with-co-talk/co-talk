@@ -9,8 +9,10 @@ import com.cotalk.domain.exception.FriendNotFoundException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
+import com.cotalk.domain.exception.InvalidEmojiException;
 import com.cotalk.domain.exception.MessageAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
+import com.cotalk.domain.exception.MessageReactionNotFoundException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -104,6 +106,20 @@ public class GlobalExceptionHandler {
         log.warn("Message access denied: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new ErrorResponse(e.getMessage(), "MESSAGE_ACCESS_DENIED", LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(InvalidEmojiException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidEmojiException(InvalidEmojiException e) {
+        log.warn("Invalid emoji: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(e.getMessage(), "INVALID_EMOJI", LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(MessageReactionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleMessageReactionNotFoundException(MessageReactionNotFoundException e) {
+        log.warn("Message reaction not found: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(e.getMessage(), "MESSAGE_REACTION_NOT_FOUND", LocalDateTime.now()));
     }
 
     @ExceptionHandler(DomainException.class)

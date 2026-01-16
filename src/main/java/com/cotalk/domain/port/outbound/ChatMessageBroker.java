@@ -15,6 +15,14 @@ public interface ChatMessageBroker {
     void publish(Long roomId, ChatBroadcastMessage message);
 
     /**
+     * 채팅방에 반응 이벤트 발행
+     *
+     * @param roomId 채팅방 ID
+     * @param reactionEvent 반응 이벤트
+     */
+    void publishReaction(Long roomId, Object reactionEvent);
+
+    /**
      * 브로드캐스트할 채팅 메시지
      */
     record ChatBroadcastMessage(

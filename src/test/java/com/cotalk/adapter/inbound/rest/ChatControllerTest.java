@@ -6,9 +6,12 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.port.inbound.CreateChatRoomUseCase;
 import com.cotalk.domain.port.inbound.GetChatRoomsUseCase;
 import com.cotalk.domain.port.inbound.GetMessageHistoryUseCase;
+import com.cotalk.domain.port.inbound.AddMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.DeleteMessageUseCase;
+import com.cotalk.domain.port.inbound.GetMessageReactionsUseCase;
 import com.cotalk.domain.port.inbound.LeaveChatRoomUseCase;
 import com.cotalk.domain.port.inbound.MarkAsReadUseCase;
+import com.cotalk.domain.port.inbound.RemoveMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.UpdateMessageUseCase;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
@@ -66,6 +69,15 @@ class ChatControllerTest {
 
     @MockBean
     private DeleteMessageUseCase deleteMessageUseCase;
+
+    @MockBean
+    private AddMessageReactionUseCase addMessageReactionUseCase;
+
+    @MockBean
+    private RemoveMessageReactionUseCase removeMessageReactionUseCase;
+
+    @MockBean
+    private GetMessageReactionsUseCase getMessageReactionsUseCase;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
