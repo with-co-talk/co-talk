@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/nhn/Desktop/DEV/cursor-workspace/with-co-talk/co-talk-docs"
+      ]
+    }
+  }
+}
