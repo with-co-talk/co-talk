@@ -1,6 +1,7 @@
 package com.cotalk.adapter.outbound.persistence;
 
 import com.cotalk.domain.entity.Friend;
+import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -42,6 +43,11 @@ public class FriendRepositoryAdapter implements FriendRepository {
     @Override
     public void delete(Friend friend) {
         friendJpaRepository.delete(friend);
+    }
+
+    @Override
+    public List<User> findAcceptedFriendsWithUserData(Long userId) {
+        return friendJpaRepository.findAcceptedFriendsWithUserData(userId);
     }
 
     @Override
