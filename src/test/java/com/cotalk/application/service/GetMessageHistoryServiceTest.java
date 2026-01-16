@@ -5,10 +5,11 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.validator.ChatRoomMemberValidator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -29,8 +30,15 @@ class GetMessageHistoryServiceTest {
     @Mock
     private ChatRoomMemberRepository chatRoomMemberRepository;
 
-    @InjectMocks
+    private ChatRoomMemberValidator chatRoomMemberValidator;
+
     private GetMessageHistoryService getMessageHistoryService;
+
+    @BeforeEach
+    void setUp() {
+        chatRoomMemberValidator = new ChatRoomMemberValidator(chatRoomMemberRepository);
+        getMessageHistoryService = new GetMessageHistoryService(messageRepository, chatRoomMemberValidator);
+    }
 
     @Test
     @DisplayName("커서 기반 메시지 조회 - 최신 메시지부터 (beforeMessageId가 null)")

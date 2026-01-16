@@ -1,9 +1,10 @@
 package com.cotalk.application.service;
 
 import com.cotalk.domain.entity.ChatRoomMember;
-import com.cotalk.domain.exception.DomainException;
+import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.inbound.MarkAsReadUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,11 +27,14 @@ class MarkAsReadServiceTest {
     @Mock
     private ChatRoomMemberRepository chatRoomMemberRepository;
 
+    private ChatRoomMemberValidator chatRoomMemberValidator;
+
     private MarkAsReadUseCase markAsReadUseCase;
 
     @BeforeEach
     void setUp() {
-        markAsReadUseCase = new MarkAsReadService(chatRoomMemberRepository);
+        chatRoomMemberValidator = new ChatRoomMemberValidator(chatRoomMemberRepository);
+        markAsReadUseCase = new MarkAsReadService(chatRoomMemberRepository, chatRoomMemberValidator);
     }
 
     @Test
@@ -68,8 +72,7 @@ class MarkAsReadServiceTest {
 
         // when & then
         assertThatThrownBy(() -> markAsReadUseCase.markAsRead(userId, chatRoomId))
-                .isInstanceOf(DomainException.class)
-                .hasMessageContaining("채팅방 멤버가 아닙니다");
+                .isInstanceOf(ChatRoomAccessDeniedException.class);
     }
 
     @Test

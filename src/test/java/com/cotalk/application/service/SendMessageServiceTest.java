@@ -3,11 +3,12 @@ package com.cotalk.application.service;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.ChatRoomNotFoundException;
+import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.inbound.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,12 +49,15 @@ class SendMessageServiceTest {
     @Mock
     private SendPushNotificationUseCase sendPushNotificationUseCase;
 
+    private ChatRoomMemberValidator chatRoomMemberValidator;
+
     private SendMessageService sendMessageService;
 
     @BeforeEach
     void setUp() {
+        chatRoomMemberValidator = new ChatRoomMemberValidator(chatRoomMemberRepository);
         sendMessageService = new SendMessageService(
-                messageRepository, chatRoomMemberRepository, userRepository, idGenerator, sendPushNotificationUseCase);
+                messageRepository, chatRoomMemberRepository, userRepository, idGenerator, sendPushNotificationUseCase, chatRoomMemberValidator);
     }
 
     @Nested
@@ -165,7 +169,7 @@ class SendMessageServiceTest {
 
             // when & then
             assertThatThrownBy(() -> sendMessageService.sendMessage(chatRoomId, senderId, "메시지"))
-                    .isInstanceOf(ChatRoomNotFoundException.class);
+                    .isInstanceOf(ChatRoomAccessDeniedException.class);
         }
 
         @Test
