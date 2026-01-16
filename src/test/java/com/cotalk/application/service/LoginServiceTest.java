@@ -2,6 +2,7 @@ package com.cotalk.application.service;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DomainException;
+import com.cotalk.domain.port.inbound.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,11 +33,14 @@ class LoginServiceTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
+    @Mock
+    private UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
+
     private LoginService loginService;
 
     @BeforeEach
     void setUp() {
-        loginService = new LoginService(userRepository, passwordEncoder, jwtTokenProvider);
+        loginService = new LoginService(userRepository, passwordEncoder, jwtTokenProvider, updateUserOnlineStatusUseCase);
     }
 
     @Nested
@@ -68,6 +72,8 @@ class LoginServiceTest {
 
             // then
             assertThat(result).isEqualTo(expectedToken);
+            // 로그인 시 온라인 상태로 변경되는지 확인
+            org.mockito.Mockito.verify(updateUserOnlineStatusUseCase).setOnline(userId);
         }
     }
 

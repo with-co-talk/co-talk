@@ -38,8 +38,20 @@ public class User {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "online_status", nullable = false)
+    @Builder.Default
+    private OnlineStatus onlineStatus = OnlineStatus.OFFLINE;
+
+    @Column(name = "last_active_at")
+    private LocalDateTime lastActiveAt;
+
     public enum UserStatus {
         ACTIVE, INACTIVE, SUSPENDED
+    }
+
+    public enum OnlineStatus {
+        ONLINE, OFFLINE, AWAY
     }
 
     @PrePersist
@@ -81,5 +93,28 @@ public class User {
 
     public boolean isActive() {
         return this.status == UserStatus.ACTIVE;
+    }
+
+    public void setOnline() {
+        this.onlineStatus = OnlineStatus.ONLINE;
+        this.lastActiveAt = LocalDateTime.now();
+    }
+
+    public void setOffline() {
+        this.onlineStatus = OnlineStatus.OFFLINE;
+        this.lastActiveAt = LocalDateTime.now();
+    }
+
+    public void setAway() {
+        this.onlineStatus = OnlineStatus.AWAY;
+        this.lastActiveAt = LocalDateTime.now();
+    }
+
+    public void updateLastActiveAt() {
+        this.lastActiveAt = LocalDateTime.now();
+    }
+
+    public boolean isOnline() {
+        return this.onlineStatus == OnlineStatus.ONLINE;
     }
 }

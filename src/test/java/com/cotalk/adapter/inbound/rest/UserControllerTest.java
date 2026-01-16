@@ -3,6 +3,7 @@ package com.cotalk.adapter.inbound.rest;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.SearchUserUseCase;
 import com.cotalk.domain.port.inbound.UpdateProfileUseCase;
+import com.cotalk.domain.port.inbound.UpdateUserOnlineStatusUseCase;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +41,9 @@ class UserControllerTest {
 
     @MockBean
     private UpdateProfileUseCase updateProfileUseCase;
+
+    @MockBean
+    private UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
