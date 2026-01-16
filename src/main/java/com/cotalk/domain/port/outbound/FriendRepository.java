@@ -13,4 +13,5 @@ public interface FriendRepository {
     List<Friend> findAcceptedFriendsByUserId(Long userId);
     boolean existsByUserIdAndFriendId(Long userId, Long friendId);
     void delete(Friend friend);
+    void deleteByUserId(Long userId);
 }

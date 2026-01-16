@@ -8,6 +8,7 @@ import com.cotalk.domain.exception.FileUploadException;
 import com.cotalk.domain.exception.FriendNotFoundException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
+import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -80,6 +81,13 @@ public class GlobalExceptionHandler {
         log.warn("File upload failed: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(e.getMessage(), "FILE_UPLOAD_ERROR", LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(InvalidPasswordResetTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPasswordResetTokenException(InvalidPasswordResetTokenException e) {
+        log.warn("Invalid password reset token: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(e.getMessage(), "INVALID_PASSWORD_RESET_TOKEN", LocalDateTime.now()));
     }
 
     @ExceptionHandler(DomainException.class)

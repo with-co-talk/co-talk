@@ -43,4 +43,9 @@ public class UserRepositoryAdapter implements UserRepository {
     public boolean existsByNickname(String nickname) {
         return userJpaRepository.existsByNickname(nickname);
     }
+
+    @Override
+    public void delete(User user) {
+        userJpaRepository.delete(user);
+    }
 }

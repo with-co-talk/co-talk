@@ -13,4 +13,5 @@ public interface UserRepository {
     List<User> findByNicknameContaining(String nickname);
     boolean existsByEmail(String email);
     boolean existsByNickname(String nickname);
+    void delete(User user);
 }

@@ -12,4 +12,5 @@ public interface FriendRequestRepository {
     List<FriendRequest> findPendingByReceiverId(Long receiverId);
     boolean existsByRequesterIdAndReceiverId(Long requesterId, Long receiverId);
     void delete(FriendRequest friendRequest);
+    void deleteByUserId(Long userId);
 }

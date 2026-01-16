@@ -38,4 +38,9 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
     public void delete(ChatRoomMember member) {
         chatRoomMemberJpaRepository.delete(member);
     }
+
+    @Override
+    public void deleteByUserId(Long userId) {
+        chatRoomMemberJpaRepository.deleteByUserId(userId);
+    }
 }

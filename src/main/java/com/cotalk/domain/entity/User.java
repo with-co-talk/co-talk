@@ -63,4 +63,23 @@ public class User {
     public void updateAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
     }
+
+    public void updatePassword(String newPasswordHash) {
+        if (newPasswordHash == null || newPasswordHash.trim().isEmpty()) {
+            throw new IllegalArgumentException("비밀번호는 비어있을 수 없습니다.");
+        }
+        this.passwordHash = newPasswordHash;
+    }
+
+    public void deactivate() {
+        this.status = UserStatus.INACTIVE;
+    }
+
+    public void suspend() {
+        this.status = UserStatus.SUSPENDED;
+    }
+
+    public boolean isActive() {
+        return this.status == UserStatus.ACTIVE;
+    }
 }

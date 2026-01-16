@@ -12,4 +12,5 @@ public interface ChatRoomMemberRepository {
     List<ChatRoomMember> findByChatRoomId(Long chatRoomId);
     List<ChatRoomMember> findByUserId(Long userId);
     void delete(ChatRoomMember member);
+    void deleteByUserId(Long userId);
 }

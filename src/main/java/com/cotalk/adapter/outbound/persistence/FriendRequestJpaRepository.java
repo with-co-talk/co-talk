@@ -8,4 +8,5 @@ import java.util.List;
 public interface FriendRequestJpaRepository extends JpaRepository<FriendRequest, Long> {
     List<FriendRequest> findByReceiverIdAndStatus(Long receiverId, FriendRequest.RequestStatus status);
     boolean existsByRequesterIdAndReceiverId(Long requesterId, Long receiverId);
+    void deleteByRequesterIdOrReceiverId(Long requesterId, Long receiverId);
 }

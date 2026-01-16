@@ -85,6 +85,28 @@ file:
   upload:
     max-size: ${FILE_MAX_SIZE:10485760} # 10MB
 
+# 이메일 설정 (SMTP)
+spring.mail:
+  host: ${MAIL_HOST:}
+  port: ${MAIL_PORT:587}
+  username: ${MAIL_USERNAME:}
+  password: ${MAIL_PASSWORD:}
+  properties:
+    mail:
+      smtp:
+        auth: true
+        starttls:
+          enable: true
+
+# 앱 설정
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  password-reset:
+    expiration-minutes: ${PASSWORD_RESET_EXPIRATION:30}
+  terms:
+    service-version: "1.0"
+    privacy-version: "1.0"
+
 # 로깅 설정
 logging:
   level:

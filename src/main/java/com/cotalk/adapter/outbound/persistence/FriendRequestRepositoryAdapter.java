@@ -38,4 +38,9 @@ public class FriendRequestRepositoryAdapter implements FriendRequestRepository {
     public void delete(FriendRequest friendRequest) {
         friendRequestJpaRepository.delete(friendRequest);
     }
+
+    @Override
+    public void deleteByUserId(Long userId) {
+        friendRequestJpaRepository.deleteByRequesterIdOrReceiverId(userId, userId);
+    }
 }

@@ -43,4 +43,9 @@ public class FriendRepositoryAdapter implements FriendRepository {
     public void delete(Friend friend) {
         friendJpaRepository.delete(friend);
     }
+
+    @Override
+    public void deleteByUserId(Long userId) {
+        friendJpaRepository.deleteByUserIdOrFriendId(userId, userId);
+    }
 }
