@@ -106,6 +106,35 @@ app:
   terms:
     service-version: "1.0"
     privacy-version: "1.0"
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    endpoints:
+      # 인증 API - IP별 제한 (무차별 대입 공격 방지)
+      "/api/v1/auth/login":
+        requests-per-minute: 5
+        per-user: false
+      "/api/v1/auth/signup":
+        requests-per-minute: 3
+        per-user: false
+      # 비밀번호 재설정 - IP별 제한 (이메일 스팸 방지)
+      "/api/v1/password/reset-request":
+        requests-per-minute: 2
+        requests-per-hour: 5
+        per-user: false
+      # 파일 업로드 - 사용자별 제한
+      "/api/v1/files/upload":
+        requests-per-minute: 10
+        requests-per-hour: 50
+        per-user: true
+      # 친구 검색 - 사용자별 제한
+      "/api/v1/users/search":
+        requests-per-minute: 30
+        per-user: true
+      # 메시지 전송 - 사용자별 제한 (스팸 방지)
+      "/api/v1/chat/messages":
+        requests-per-second: 10
+        requests-per-minute: 60
+        per-user: true
 
 # 로깅 설정
 logging:

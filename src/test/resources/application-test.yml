@@ -28,3 +28,7 @@ jwt:
 
 firebase:
   enabled: false
+
+app:
+  rate-limit:
+    enabled: false
