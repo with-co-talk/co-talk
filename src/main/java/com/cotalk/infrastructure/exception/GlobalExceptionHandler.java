@@ -4,15 +4,20 @@ import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.ChatRoomNotFoundException;
 import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.exception.DuplicateEmailException;
+import com.cotalk.domain.exception.DuplicateNicknameException;
 import com.cotalk.domain.exception.FileUploadException;
 import com.cotalk.domain.exception.FriendNotFoundException;
+import com.cotalk.domain.exception.FriendRequestAccessDeniedException;
+import com.cotalk.domain.exception.FriendRequestNotFoundException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
+import com.cotalk.domain.exception.InvalidEmojiException;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
-import com.cotalk.domain.exception.InvalidEmojiException;
 import com.cotalk.domain.exception.MessageAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.exception.MessageReactionNotFoundException;
+import com.cotalk.domain.exception.RateLimitExceededException;
+import com.cotalk.domain.exception.TermsAgreementException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -73,11 +78,39 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(e.getMessage(), "FRIEND_NOT_FOUND", LocalDateTime.now()));
     }
 
+    @ExceptionHandler(FriendRequestNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFriendRequestNotFoundException(FriendRequestNotFoundException e) {
+        log.warn("Friend request not found: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(e.getMessage(), "FRIEND_REQUEST_NOT_FOUND", LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(FriendRequestAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleFriendRequestAccessDeniedException(FriendRequestAccessDeniedException e) {
+        log.warn("Friend request access denied: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(e.getMessage(), "FRIEND_REQUEST_ACCESS_DENIED", LocalDateTime.now()));
+    }
+
     @ExceptionHandler(InvalidFriendRequestException.class)
     public ResponseEntity<ErrorResponse> handleInvalidFriendRequestException(InvalidFriendRequestException e) {
         log.warn("Invalid friend request: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(e.getMessage(), "INVALID_FRIEND_REQUEST", LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(DuplicateNicknameException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateNicknameException(DuplicateNicknameException e) {
+        log.warn("Duplicate nickname: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(e.getMessage(), "DUPLICATE_NICKNAME", LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(TermsAgreementException.class)
+    public ResponseEntity<ErrorResponse> handleTermsAgreementException(TermsAgreementException e) {
+        log.warn("Terms agreement required: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(e.getMessage(), "TERMS_AGREEMENT_REQUIRED", LocalDateTime.now()));
     }
 
     @ExceptionHandler(FileUploadException.class)
@@ -120,6 +153,14 @@ public class GlobalExceptionHandler {
         log.warn("Message reaction not found: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse(e.getMessage(), "MESSAGE_REACTION_NOT_FOUND", LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceededException(RateLimitExceededException e) {
+        log.warn("Rate limit exceeded: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(e.getRetryAfterSeconds()))
+                .body(new ErrorResponse(e.getMessage(), "RATE_LIMIT_EXCEEDED", LocalDateTime.now()));
     }
 
     @ExceptionHandler(DomainException.class)
