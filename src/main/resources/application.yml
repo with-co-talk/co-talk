@@ -65,6 +65,26 @@ jwt:
   secret: ${JWT_SECRET:your-secret-key-change-in-production-min-256-bits}
   expiration: ${JWT_EXPIRATION:604800000} # 7일 (밀리초)
 
+# Firebase 설정 (푸시 알림)
+firebase:
+  enabled: ${FIREBASE_ENABLED:false}
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:firebase-service-account.json}
+
+# MinIO 설정 (파일 저장소)
+minio:
+  enabled: ${MINIO_ENABLED:false}
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket: ${MINIO_BUCKET:cotalk}
+  public-url: ${MINIO_PUBLIC_URL:}
+  region: ${MINIO_REGION:us-east-1}
+
+# 파일 업로드 설정
+file:
+  upload:
+    max-size: ${FILE_MAX_SIZE:10485760} # 10MB
+
 # 로깅 설정
 logging:
   level:
