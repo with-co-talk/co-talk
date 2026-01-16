@@ -38,5 +38,14 @@ Co-Talk은 Java/Spring Boot 기반의 백엔드 프로젝트입니다.
   - test: 테스트 추가/수정
 - 브랜치: `feature/기능명`, `fix/버그명`
 
+## Development Methodology
+- **TDD (Test-Driven Development) 필수**
+  - RED: 실패하는 테스트 먼저 작성
+  - GREEN: 테스트를 통과하는 최소한의 코드 구현
+  - REFACTOR: 코드 개선
+- 모든 비즈니스 로직(Application 서비스)은 테스트 먼저 작성
+- 컨트롤러는 테스트 먼저 작성 후 구현
+- 테스트 없이 프로덕션 코드 작성 금지
+
 ## Response Language
 - 한국어로 응답
