@@ -1,26 +1,16 @@
 package com.cotalk.adapter.outbound.persistence;
 
 import com.cotalk.domain.entity.Message;
-import com.cotalk.domain.port.outbound.persistence.MessageRepository;
+import com.cotalk.domain.port.outbound.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
-/**
- * 메시지 Repository 어댑터.
- * 
- * <p>도메인 Repository 인터페이스를 JPA Repository로 구현합니다.
- *
- * @author Co-Talk Team
- * @since 1.0
- */
-@Component
+@Repository
 @RequiredArgsConstructor
 public class MessageRepositoryAdapter implements MessageRepository {
 
@@ -32,26 +22,33 @@ public class MessageRepositoryAdapter implements MessageRepository {
     }
 
     @Override
-    public Optional<Message> findById(UUID id) {
+    public Optional<Message> findById(Long id) {
         return messageJpaRepository.findById(id);
     }
 
     @Override
-    public List<Message> findByChatRoomIdOrderByCreatedAtDesc(UUID chatRoomId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return messageJpaRepository.findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, pageable);
+    public List<Message> findByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId, int page, int size) {
+        return messageJpaRepository.findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, PageRequest.of(page, size));
     }
 
     @Override
-    public List<Message> findByChatRoomIdAndCreatedAtBeforeOrderByCreatedAtDesc(
-            UUID chatRoomId, LocalDateTime before, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return messageJpaRepository.findByChatRoomIdAndCreatedAtBeforeOrderByCreatedAtDesc(
-                chatRoomId, before, pageable);
+    public long countUnreadMessages(Long chatRoomId, Long userId, LocalDateTime lastReadAt) {
+        if (lastReadAt == null) {
+            return 0;
+        }
+        return messageJpaRepository.countUnreadMessages(chatRoomId, lastReadAt);
     }
 
     @Override
-    public long countUnreadMessages(UUID chatRoomId, UUID userId, LocalDateTime lastReadAt) {
-        return messageJpaRepository.countUnreadMessages(chatRoomId, userId, lastReadAt);
+    public Optional<Message> findTopByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId) {
+        return messageJpaRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId);
+    }
+
+    @Override
+    public List<Message> findByChatRoomIdBeforeMessageId(Long chatRoomId, Long beforeMessageId, int size) {
+        if (beforeMessageId == null) {
+            return messageJpaRepository.findByChatRoomIdOrderByIdDesc(chatRoomId, PageRequest.of(0, size));
+        }
+        return messageJpaRepository.findByChatRoomIdAndIdLessThan(chatRoomId, beforeMessageId, PageRequest.of(0, size));
     }
 }
