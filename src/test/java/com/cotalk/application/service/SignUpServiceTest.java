@@ -3,6 +3,7 @@ package com.cotalk.application.service;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.validator.UserValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,11 +34,14 @@ class SignUpServiceTest {
     @Mock
     private SnowflakeIdGenerator idGenerator;
 
+    private UserValidator userValidator;
+
     private SignUpService signUpService;
 
     @BeforeEach
     void setUp() {
-        signUpService = new SignUpService(userRepository, passwordEncoder, idGenerator);
+        userValidator = new UserValidator();
+        signUpService = new SignUpService(userRepository, passwordEncoder, idGenerator, userValidator);
     }
 
     @Nested
