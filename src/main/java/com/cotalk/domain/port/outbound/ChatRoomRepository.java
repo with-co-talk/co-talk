@@ -11,4 +11,5 @@ public interface ChatRoomRepository {
     Optional<ChatRoom> findById(Long id);
     List<ChatRoom> findByUserId(Long userId);
     Optional<ChatRoom> findDirectChatRoomByUserIds(Long userId1, Long userId2);
+    void delete(ChatRoom chatRoom);
 }

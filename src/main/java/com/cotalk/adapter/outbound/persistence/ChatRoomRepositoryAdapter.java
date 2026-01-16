@@ -33,4 +33,9 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
     public Optional<ChatRoom> findDirectChatRoomByUserIds(Long userId1, Long userId2) {
         return chatRoomJpaRepository.findDirectChatRoomByUserIds(userId1, userId2);
     }
+
+    @Override
+    public void delete(ChatRoom chatRoom) {
+        chatRoomJpaRepository.delete(chatRoom);
+    }
 }

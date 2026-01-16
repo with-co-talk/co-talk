@@ -9,6 +9,8 @@ import com.cotalk.domain.exception.FriendNotFoundException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
+import com.cotalk.domain.exception.MessageAccessDeniedException;
+import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -88,6 +90,20 @@ public class GlobalExceptionHandler {
         log.warn("Invalid password reset token: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(e.getMessage(), "INVALID_PASSWORD_RESET_TOKEN", LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(MessageNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleMessageNotFoundException(MessageNotFoundException e) {
+        log.warn("Message not found: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(e.getMessage(), "MESSAGE_NOT_FOUND", LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(MessageAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleMessageAccessDeniedException(MessageAccessDeniedException e) {
+        log.warn("Message access denied: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(e.getMessage(), "MESSAGE_ACCESS_DENIED", LocalDateTime.now()));
     }
 
     @ExceptionHandler(DomainException.class)

@@ -50,6 +50,16 @@ public class Message {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
+
     public enum MessageType {
         TEXT, IMAGE, FILE
     }
@@ -57,6 +67,12 @@ public class Message {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
     public void validateContent() {
@@ -87,5 +103,43 @@ public class Message {
      */
     public boolean isText() {
         return type == MessageType.TEXT;
+    }
+
+    /**
+     * 메시지 내용 수정
+     */
+    public void updateContent(String newContent) {
+        if (deleted) {
+            throw new IllegalStateException("삭제된 메시지는 수정할 수 없습니다.");
+        }
+        if (type != MessageType.TEXT) {
+            throw new IllegalStateException("텍스트 메시지만 수정할 수 있습니다.");
+        }
+        if (newContent == null || newContent.trim().isEmpty()) {
+            throw new IllegalArgumentException("메시지 내용은 비어있을 수 없습니다.");
+        }
+        this.content = newContent;
+    }
+
+    /**
+     * 메시지 삭제 (소프트 삭제)
+     */
+    public void delete() {
+        this.deleted = true;
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 본인이 보낸 메시지인지 확인
+     */
+    public boolean isSentBy(Long userId) {
+        return this.senderId.equals(userId);
+    }
+
+    /**
+     * 삭제된 메시지인지 확인
+     */
+    public boolean isDeleted() {
+        return deleted;
     }
 }

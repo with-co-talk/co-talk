@@ -5,9 +5,11 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.port.inbound.CreateChatRoomUseCase;
 import com.cotalk.domain.port.inbound.GetChatRoomsUseCase;
 import com.cotalk.domain.port.inbound.GetMessageHistoryUseCase;
+import com.cotalk.domain.port.inbound.DeleteMessageUseCase;
 import com.cotalk.domain.port.inbound.LeaveChatRoomUseCase;
 import com.cotalk.domain.port.inbound.MarkAsReadUseCase;
 import com.cotalk.domain.port.inbound.SendMessageUseCase;
+import com.cotalk.domain.port.inbound.UpdateMessageUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -33,6 +35,8 @@ public class ChatController {
     private final LeaveChatRoomUseCase leaveChatRoomUseCase;
     private final MarkAsReadUseCase markAsReadUseCase;
     private final GetChatRoomsUseCase getChatRoomsUseCase;
+    private final UpdateMessageUseCase updateMessageUseCase;
+    private final DeleteMessageUseCase deleteMessageUseCase;
 
     @Operation(summary = "채팅방 생성", description = "1:1 채팅방을 생성합니다.")
     @PostMapping("/rooms")
@@ -90,8 +94,26 @@ public class ChatController {
     public ResponseEntity<LeaveChatRoomResponse> leaveChatRoom(
             @PathVariable Long roomId,
             @RequestParam Long userId) {
-        leaveChatRoomUseCase.leaveChatRoom(userId, roomId);
+        leaveChatRoomUseCase.leaveChatRoom(roomId, userId);
         return ResponseEntity.ok(new LeaveChatRoomResponse("채팅방을 나갔습니다."));
+    }
+
+    @Operation(summary = "메시지 수정", description = "본인이 보낸 메시지를 수정합니다.")
+    @PutMapping("/messages/{messageId}")
+    public ResponseEntity<UpdateMessageResponse> updateMessage(
+            @PathVariable Long messageId,
+            @Valid @RequestBody UpdateMessageRequest request) {
+        Message message = updateMessageUseCase.updateMessage(messageId, request.userId(), request.content());
+        return ResponseEntity.ok(UpdateMessageResponse.from(message));
+    }
+
+    @Operation(summary = "메시지 삭제", description = "본인이 보낸 메시지를 삭제합니다.")
+    @DeleteMapping("/messages/{messageId}")
+    public ResponseEntity<DeleteMessageResponse> deleteMessage(
+            @PathVariable Long messageId,
+            @RequestParam Long userId) {
+        deleteMessageUseCase.deleteMessage(messageId, userId);
+        return ResponseEntity.ok(new DeleteMessageResponse("메시지가 삭제되었습니다."));
     }
 
     @Operation(summary = "읽음 표시", description = "채팅방 메시지를 읽음 처리합니다.")
@@ -223,6 +245,31 @@ public class ChatController {
             );
         }
     }
+
+    public record UpdateMessageRequest(
+            @NotNull(message = "사용자 ID는 필수입니다.")
+            Long userId,
+
+            @NotBlank(message = "메시지 내용은 필수입니다.")
+            String content
+    ) {}
+
+    public record UpdateMessageResponse(
+            Long messageId,
+            String content,
+            LocalDateTime updatedAt
+    ) {
+        public static UpdateMessageResponse from(Message message) {
+            return new UpdateMessageResponse(
+                    message.getId(),
+                    message.getContent(),
+                    message.getUpdatedAt()
+            );
+        }
+    }
+
+    public record DeleteMessageResponse(String message) {}
+
     public record LeaveChatRoomResponse(String message) {}
     public record MarkAsReadResponse(String message) {}
     public record ChatRoomsResponse(List<ChatRoomDto> rooms) {}

@@ -11,20 +11,22 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MessageJpaRepository extends JpaRepository<Message, Long> {
-    List<Message> findByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId, Pageable pageable);
+    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.deleted = false ORDER BY m.createdAt DESC")
+    List<Message> findByChatRoomIdOrderByCreatedAtDesc(@Param("chatRoomId") Long chatRoomId, Pageable pageable);
 
-    @Query("SELECT COUNT(m) FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.createdAt > :lastReadAt")
+    @Query("SELECT COUNT(m) FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.createdAt > :lastReadAt AND m.deleted = false")
     long countUnreadMessages(@Param("chatRoomId") Long chatRoomId, @Param("lastReadAt") LocalDateTime lastReadAt);
 
+    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.deleted = false ORDER BY m.createdAt DESC")
     Optional<Message> findTopByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId);
 
-    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.id < :beforeMessageId ORDER BY m.id DESC")
+    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.id < :beforeMessageId AND m.deleted = false ORDER BY m.id DESC")
     List<Message> findByChatRoomIdAndIdLessThan(
             @Param("chatRoomId") Long chatRoomId,
             @Param("beforeMessageId") Long beforeMessageId,
             Pageable pageable);
 
-    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId ORDER BY m.id DESC")
+    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.deleted = false ORDER BY m.id DESC")
     List<Message> findByChatRoomIdOrderByIdDesc(
             @Param("chatRoomId") Long chatRoomId,
             Pageable pageable);

@@ -6,9 +6,11 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.port.inbound.CreateChatRoomUseCase;
 import com.cotalk.domain.port.inbound.GetChatRoomsUseCase;
 import com.cotalk.domain.port.inbound.GetMessageHistoryUseCase;
+import com.cotalk.domain.port.inbound.DeleteMessageUseCase;
 import com.cotalk.domain.port.inbound.LeaveChatRoomUseCase;
 import com.cotalk.domain.port.inbound.MarkAsReadUseCase;
 import com.cotalk.domain.port.inbound.SendMessageUseCase;
+import com.cotalk.domain.port.inbound.UpdateMessageUseCase;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,6 +60,12 @@ class ChatControllerTest {
 
     @MockBean
     private GetChatRoomsUseCase getChatRoomsUseCase;
+
+    @MockBean
+    private UpdateMessageUseCase updateMessageUseCase;
+
+    @MockBean
+    private DeleteMessageUseCase deleteMessageUseCase;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
