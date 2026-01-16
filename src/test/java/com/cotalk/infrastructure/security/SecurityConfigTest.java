@@ -3,6 +3,7 @@ package com.cotalk.infrastructure.security;
 import com.cotalk.adapter.inbound.rest.AuthController;
 import com.cotalk.adapter.inbound.rest.FriendController;
 import com.cotalk.domain.port.inbound.*;
+import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +20,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest({AuthController.class, FriendController.class})
-@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenProvider.class})
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenProvider.class, RateLimitTestConfiguration.class})
 class SecurityConfigTest {
 
     @Autowired

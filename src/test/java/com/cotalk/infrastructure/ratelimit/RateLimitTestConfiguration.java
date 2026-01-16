@@ -19,4 +19,10 @@ public class RateLimitTestConfiguration {
     public ProxyManager<byte[]> bucket4jProxyManager() {
         return mock(ProxyManager.class);
     }
+
+    @Bean
+    @Primary
+    public RateLimitProperties rateLimitProperties() {
+        return mock(RateLimitProperties.class);
+    }
 }
