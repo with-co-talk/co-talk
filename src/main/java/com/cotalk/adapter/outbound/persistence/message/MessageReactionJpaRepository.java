@@ -1,5 +1,6 @@
 package com.cotalk.adapter.outbound.persistence.message;
 
+import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.MessageReaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -22,7 +23,7 @@ public interface MessageReactionJpaRepository extends JpaRepository<MessageReact
      * @param emoji 이모지
      * @return 메시지 리액션 (Optional)
      */
-    Optional<MessageReaction> findByMessageIdAndUserIdAndEmoji(Long messageId, Long userId, String emoji);
+    Optional<MessageReaction> findByMessageIdAndUserIdAndEmoji(Long messageId, Long userId, Emoji emoji);
 
     /**
      * 메시지 ID로 모든 리액션 목록을 조회한다.

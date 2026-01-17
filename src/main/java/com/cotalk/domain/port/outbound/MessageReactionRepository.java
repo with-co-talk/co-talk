@@ -1,5 +1,6 @@
 package com.cotalk.domain.port.outbound;
 
+import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.MessageReaction;
 
 import java.util.List;
@@ -29,7 +30,7 @@ public interface MessageReactionRepository {
      * @param emoji     이모지
      * @return 조회된 메시지 반응 (Optional)
      */
-    Optional<MessageReaction> findByMessageIdAndUserIdAndEmoji(Long messageId, Long userId, String emoji);
+    Optional<MessageReaction> findByMessageIdAndUserIdAndEmoji(Long messageId, Long userId, Emoji emoji);
 
     /**
      * 특정 메시지의 모든 반응을 조회한다.

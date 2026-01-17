@@ -2,12 +2,12 @@ package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.adapter.inbound.rest.dto.common.MessageResponse;
 import com.cotalk.adapter.inbound.rest.dto.message.AddReactionRequest;
+import com.cotalk.adapter.inbound.rest.dto.message.GroupedReactionResponse;
 import com.cotalk.adapter.inbound.rest.dto.message.MessageReactionResponse;
-import com.cotalk.adapter.inbound.rest.dto.message.MessageReactionsResponse;
 import com.cotalk.adapter.inbound.rest.dto.message.RemoveReactionRequest;
+import com.cotalk.application.service.message.GetMessageReactionsService;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
-import com.cotalk.domain.port.inbound.message.GetMessageReactionsUseCase;
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,12 +15,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -40,7 +43,7 @@ public class ChatReactionController {
 
     private final AddMessageReactionUseCase addMessageReactionUseCase;
     private final RemoveMessageReactionUseCase removeMessageReactionUseCase;
-    private final GetMessageReactionsUseCase getMessageReactionsUseCase;
+    private final GetMessageReactionsService getMessageReactionsService;
 
     /**
      * 메시지에 이모지 반응을 추가합니다.
@@ -76,18 +79,40 @@ public class ChatReactionController {
     }
 
     /**
-     * 메시지의 모든 반응을 조회합니다.
+     * 메시지의 모든 반응을 이모지별로 그룹핑하여 조회합니다.
      *
      * @param messageId 메시지 ID
-     * @return 메시지 반응 목록
+     * @param userId    현재 사용자 ID (선택적, 누가 눌렀는지 확인용)
+     * @return 그룹핑된 메시지 반응 목록
      */
-    @Operation(summary = "메시지 반응 조회", description = "메시지의 모든 반응을 조회합니다.")
+    @Operation(summary = "메시지 반응 조회", description = "메시지의 모든 반응을 이모지별로 그룹핑하여 조회합니다.")
     @GetMapping
-    public ResponseEntity<MessageReactionsResponse> getReactions(@PathVariable Long messageId) {
-        List<MessageReaction> reactions = getMessageReactionsUseCase.getReactions(messageId);
-        List<MessageReactionResponse> reactionDtos = reactions.stream()
-                .map(MessageReactionResponse::from)
-                .toList();
-        return ResponseEntity.ok(MessageReactionsResponse.of(reactionDtos));
+    public ResponseEntity<List<GroupedReactionResponse>> getReactions(
+            @PathVariable Long messageId,
+            @RequestParam(required = false) Long userId) {
+        Long currentUserId = getCurrentUserId(userId);
+        List<GroupedReactionResponse> groupedReactions = 
+                getMessageReactionsService.getGroupedReactions(messageId, currentUserId);
+        return ResponseEntity.ok(groupedReactions);
+    }
+
+    /**
+     * 현재 인증된 사용자 ID를 가져온다.
+     * SecurityContext에서 추출하거나 파라미터로 전달된 userId를 사용한다.
+     *
+     * @param userId 파라미터로 전달된 사용자 ID (선택적)
+     * @return 현재 사용자 ID
+     */
+    private Long getCurrentUserId(Long userId) {
+        if (userId != null) {
+            return userId;
+        }
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof Long) {
+            return (Long) authentication.getPrincipal();
+        }
+
+        return null;
     }
 }

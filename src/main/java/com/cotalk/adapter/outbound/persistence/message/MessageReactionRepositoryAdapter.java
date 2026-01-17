@@ -40,7 +40,7 @@ public class MessageReactionRepositoryAdapter implements MessageReactionReposito
      * @return 메시지 리액션 (Optional)
      */
     @Override
-    public Optional<MessageReaction> findByMessageIdAndUserIdAndEmoji(Long messageId, Long userId, String emoji) {
+    public Optional<MessageReaction> findByMessageIdAndUserIdAndEmoji(Long messageId, Long userId, com.cotalk.domain.entity.Emoji emoji) {
         return jpaRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji);
     }
 

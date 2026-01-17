@@ -1,5 +1,6 @@
 package com.cotalk.application.service.message;
 
+import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
@@ -33,18 +34,18 @@ public class AddMessageReactionService implements AddMessageReactionUseCase {
      *
      * @param messageId 메시지 ID
      * @param userId 사용자 ID
-     * @param emoji 이모지
+     * @param emojiString 이모지 문자열 (이모지 문자 또는 이름)
      * @return 생성된 또는 기존 반응 정보
      * @throws MessageNotFoundException 메시지가 존재하지 않는 경우
      */
     @Override
-    public MessageReaction addReaction(Long messageId, Long userId, String emoji) {
+    public MessageReaction addReaction(Long messageId, Long userId, String emojiString) {
         // 메시지 존재 확인
         messageRepository.findById(messageId)
                 .orElseThrow(() -> new MessageNotFoundException(messageId));
 
-        // 이모지 유효성 검증
-        messageValidator.validateEmoji(emoji);
+        // 이모지 유효성 검증 및 변환
+        Emoji emoji = messageValidator.validateAndParseEmoji(emojiString);
 
         // 이미 같은 반응이 있는지 확인
         return reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji)
