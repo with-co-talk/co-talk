@@ -4,8 +4,8 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Rate Limit 설정 프로퍼티 클래스.
@@ -25,11 +25,9 @@ public class RateLimitProperties {
     private boolean enabled = true;
 
     /**
-     * 엔드포인트별 Rate Limit 설정 맵.
-     * 키: 엔드포인트 패턴 (예: "/api/v1/auth/login")
-     * 값: 해당 엔드포인트의 Rate Limit 설정
+     * 엔드포인트별 Rate Limit 설정 리스트.
      */
-    private Map<String, EndpointRateLimit> endpoints = new HashMap<>();
+    private List<EndpointRateLimit> endpoints = new ArrayList<>();
 
     /**
      * 엔드포인트별 Rate Limit 설정을 정의하는 내부 클래스.
@@ -39,23 +37,28 @@ public class RateLimitProperties {
     @Data
     public static class EndpointRateLimit {
         /**
-         * 시간당 허용 요청 수
+         * 엔드포인트 경로 패턴 (예: "/api/v1/auth/login")
          */
-        private long requestsPerHour = 100;
+        private String path;
 
         /**
-         * 분당 허용 요청 수
+         * 시간당 허용 요청 수 (0이면 미설정)
          */
-        private long requestsPerMinute = 20;
+        private long requestsPerHour = 0;
 
         /**
-         * 초당 허용 요청 수
+         * 분당 허용 요청 수 (0이면 미설정)
          */
-        private long requestsPerSecond = 5;
+        private long requestsPerMinute = 0;
+
+        /**
+         * 초당 허용 요청 수 (0이면 미설정)
+         */
+        private long requestsPerSecond = 0;
 
         /**
          * 사용자별 제한 여부 (true: 사용자별, false: IP별)
          */
-        private boolean perUser = true;
+        private boolean perUser = false;
     }
 }

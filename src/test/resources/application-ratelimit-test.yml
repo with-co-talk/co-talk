@@ -1,0 +1,45 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  h2:
+    console:
+      enabled: false
+  cache:
+    type: simple
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+      repositories:
+        enabled: false
+
+jwt:
+  secret: test-secret-key-for-testing-purposes-only-1234567890
+  expiration: 3600000
+
+firebase:
+  enabled: false
+
+app:
+  rate-limit:
+    enabled: true
+    endpoints:
+      - path: "/api/v1/users"
+        requests-per-minute: 5
+        per-user: false
+      - path: "/api/v1/reports"
+        requests-per-minute: 3
+        per-user: true
+      - path: "/api/v1/chat"
+        requests-per-minute: 100
+        per-user: false

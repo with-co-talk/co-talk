@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.time.Duration;
-import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -52,7 +51,11 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        log.info("=== RateLimitInterceptor.preHandle START: path={}, enabled={}", 
+                request.getRequestURI(), rateLimitProperties.isEnabled());
+        
         if (!rateLimitProperties.isEnabled()) {
+            log.info("Rate limit is disabled, skipping");
             return true;
         }
 
@@ -61,16 +64,26 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
         if (limit == null) {
             // Rate Limit이 설정되지 않은 엔드포인트는 통과
+            log.info("Rate limit not configured for path: {}", path);
             return true;
         }
+        
+        log.info("Rate limit check: path={}, limit={}", path, limit);
 
         String keyString = generateKey(request, limit);
         byte[] key = keyString.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        log.info("Rate limit key: {}", keyString);
         Bucket bucket = resolveBucket(key, limit);
+        long tokensBefore = bucket.getAvailableTokens();
+        log.info("Bucket available tokens before consume: {}", tokensBefore);
+        
+        boolean consumed = bucket.tryConsume(1);
+        long tokensAfter = bucket.getAvailableTokens();
+        log.info("Bucket tryConsume result: {}, available tokens after: {}", consumed, tokensAfter);
 
-        if (!bucket.tryConsume(1)) {
+        if (!consumed) {
             // Rate Limit 초과
-            long availableTokens = bucket.getAvailableTokens();
+            long availableTokens = tokensAfter;
             long retryAfter = calculateRetryAfter(limit);
             
             long limitValue = limit.getRequestsPerSecond() > 0 
@@ -84,7 +97,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             response.setHeader("Retry-After", String.valueOf(retryAfter));
             response.setStatus(429);
 
-            log.warn("Rate limit exceeded: path={}, key={}, retryAfter={}s", path, key, retryAfter);
+            log.warn("Rate limit exceeded: path={}, key={}, retryAfter={}s", path, new String(key), retryAfter);
             throw RateLimitExceededException.tooManyRequests(retryAfter);
         }
 
@@ -108,10 +121,9 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      * @return Rate Limit 설정, 없으면 null
      */
     private RateLimitProperties.EndpointRateLimit findRateLimit(String path) {
-        return rateLimitProperties.getEndpoints().entrySet().stream()
-                .filter(entry -> path.startsWith(entry.getKey()))
+        return rateLimitProperties.getEndpoints().stream()
+                .filter(endpoint -> endpoint.getPath() != null && path.startsWith(endpoint.getPath()))
                 .findFirst()
-                .map(Map.Entry::getValue)
                 .orElse(null);
     }
 
