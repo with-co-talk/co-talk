@@ -1,8 +1,10 @@
 package com.cotalk.application.service.message;
 
+import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.exception.MessageReactionNotFoundException;
 import com.cotalk.domain.port.outbound.MessageReactionRepository;
+import com.cotalk.domain.validator.MessageValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,7 +12,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -23,11 +24,14 @@ class RemoveMessageReactionServiceTest {
     @Mock
     private MessageReactionRepository reactionRepository;
 
+    @Mock
+    private MessageValidator messageValidator;
+
     private RemoveMessageReactionService service;
 
     @BeforeEach
     void setUp() {
-        service = new RemoveMessageReactionService(reactionRepository);
+        service = new RemoveMessageReactionService(reactionRepository, messageValidator);
     }
 
     @Test
@@ -36,21 +40,22 @@ class RemoveMessageReactionServiceTest {
         // given
         Long messageId = 100L;
         Long userId = 1L;
-        String emoji = "👍";
+        String emojiString = "👍";
+        Emoji emoji = Emoji.THUMBS_UP;
 
         MessageReaction reaction = MessageReaction.builder()
                 .id(1L)
                 .messageId(messageId)
                 .userId(userId)
                 .emoji(emoji)
-                .createdAt(LocalDateTime.now())
                 .build();
 
+        given(messageValidator.validateAndParseEmoji(emojiString)).willReturn(emoji);
         given(reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji))
                 .willReturn(Optional.of(reaction));
 
         // when
-        service.removeReaction(messageId, userId, emoji);
+        service.removeReaction(messageId, userId, emojiString);
 
         // then
         verify(reactionRepository).delete(reaction);
@@ -62,13 +67,15 @@ class RemoveMessageReactionServiceTest {
         // given
         Long messageId = 100L;
         Long userId = 1L;
-        String emoji = "👍";
+        String emojiString = "👍";
+        Emoji emoji = Emoji.THUMBS_UP;
 
+        given(messageValidator.validateAndParseEmoji(emojiString)).willReturn(emoji);
         given(reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji))
                 .willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> service.removeReaction(messageId, userId, emoji))
+        assertThatThrownBy(() -> service.removeReaction(messageId, userId, emojiString))
                 .isInstanceOf(MessageReactionNotFoundException.class);
     }
 }

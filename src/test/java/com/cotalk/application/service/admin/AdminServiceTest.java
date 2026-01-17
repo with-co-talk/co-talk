@@ -62,7 +62,6 @@ class AdminServiceTest {
                             .type(Report.ReportType.USER)
                             .reason(Report.ReportReason.SPAM)
                             .status(Report.ReportStatus.PENDING)
-                            .createdAt(LocalDateTime.now())
                             .build()
             );
 
@@ -92,8 +91,6 @@ class AdminServiceTest {
                     .type(Report.ReportType.USER)
                     .reason(Report.ReportReason.SPAM)
                     .status(Report.ReportStatus.PENDING)
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
                     .build();
 
             given(reportRepository.findById(reportId)).willReturn(Optional.of(report));
@@ -131,8 +128,18 @@ class AdminServiceTest {
         void should_returnAllUsers() {
             // given
             List<User> users = List.of(
-                    User.builder().id(1L).email("user1@test.com").nickname("user1").createdAt(LocalDateTime.now()).build(),
-                    User.builder().id(2L).email("user2@test.com").nickname("user2").createdAt(LocalDateTime.now()).build()
+                    User.builder()
+                            .id(1L)
+                            .email("user1@test.com")
+                            .passwordHash("hash")
+                            .nickname("user1")
+                            .build(),
+                    User.builder()
+                            .id(2L)
+                            .email("user2@test.com")
+                            .passwordHash("hash")
+                            .nickname("user2")
+                            .build()
             );
 
             given(userRepository.findAll()).willReturn(users);
@@ -154,7 +161,6 @@ class AdminServiceTest {
                             .email("suspended@test.com")
                             .nickname("suspended")
                             .status(User.UserStatus.SUSPENDED)
-                            .createdAt(LocalDateTime.now())
                             .build()
             );
 
@@ -182,8 +188,6 @@ class AdminServiceTest {
                     .email("user@test.com")
                     .nickname("user")
                     .status(User.UserStatus.ACTIVE)
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
                     .build();
 
             given(userRepository.findById(userId)).willReturn(Optional.of(user));
@@ -209,8 +213,6 @@ class AdminServiceTest {
                     .email("user@test.com")
                     .nickname("user")
                     .status(User.UserStatus.SUSPENDED)
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
                     .build();
 
             given(userRepository.findById(userId)).willReturn(Optional.of(user));

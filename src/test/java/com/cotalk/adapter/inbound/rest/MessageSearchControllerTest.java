@@ -59,7 +59,6 @@ class MessageSearchControllerTest {
                 .chatRoomId(chatRoomId)
                 .senderId(100L)
                 .content("안녕하세요!")
-                .createdAt(LocalDateTime.now())
                 .build();
 
         Message message2 = Message.builder()
@@ -67,7 +66,6 @@ class MessageSearchControllerTest {
                 .chatRoomId(chatRoomId)
                 .senderId(200L)
                 .content("안녕, 반가워요")
-                .createdAt(LocalDateTime.now().minusMinutes(5))
                 .build();
 
         given(searchMessageUseCase.searchInChatRoom(eq(chatRoomId), eq(userId), eq(keyword), anyInt(), anyInt()))
@@ -96,7 +94,6 @@ class MessageSearchControllerTest {
                 .chatRoomId(1L)
                 .senderId(100L)
                 .content("회의 시간 알려주세요")
-                .createdAt(LocalDateTime.now())
                 .build();
 
         given(searchMessageUseCase.searchAcrossAllChatRooms(eq(userId), eq(keyword), anyInt(), anyInt()))

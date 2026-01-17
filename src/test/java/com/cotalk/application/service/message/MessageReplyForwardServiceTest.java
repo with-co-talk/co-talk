@@ -56,7 +56,6 @@ class MessageReplyForwardServiceTest {
                 .senderId(200L)
                 .content("원본 메시지입니다.")
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
                 .build();
     }
 

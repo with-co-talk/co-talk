@@ -14,10 +14,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Supplier;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -73,7 +71,7 @@ class RateLimitInterceptorTest {
         // given
         given(rateLimitProperties.isEnabled()).willReturn(true);
         given(request.getRequestURI()).willReturn("/api/v1/unknown");
-        given(rateLimitProperties.getEndpoints()).willReturn(new HashMap<>());
+        given(rateLimitProperties.getEndpoints()).willReturn(new ArrayList<>());
 
         // when
         boolean result = interceptor.preHandle(request, response, null);

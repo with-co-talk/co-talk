@@ -42,8 +42,6 @@ class RemoveFriendServiceTest {
                 .userId(userId)
                 .friendId(friendId)
                 .status(Friend.FriendStatus.ACCEPTED)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(friendRepository.findByUserIdAndFriendId(userId, friendId)).willReturn(Optional.of(friend));
@@ -80,16 +78,12 @@ class RemoveFriendServiceTest {
                 .userId(userId)
                 .friendId(friendId)
                 .status(Friend.FriendStatus.ACCEPTED)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
         Friend friend2 = Friend.builder()
                 .id(101L)
                 .userId(friendId)
                 .friendId(userId)
                 .status(Friend.FriendStatus.ACCEPTED)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(friendRepository.findByUserIdAndFriendId(userId, friendId)).willReturn(Optional.of(friend1));

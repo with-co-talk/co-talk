@@ -38,8 +38,6 @@ public class MessageTestFixture {
                 .senderId(senderId)
                 .content(content)
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
     }
 
@@ -65,8 +63,6 @@ public class MessageTestFixture {
                 .fileSize(102400L)
                 .fileContentType("image/jpeg")
                 .thumbnailUrl(fileUrl + "/thumbnail")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
     }
 
@@ -84,8 +80,6 @@ public class MessageTestFixture {
                 .fileName(fileName)
                 .fileSize(204800L)
                 .fileContentType("application/pdf")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
     }
 
@@ -100,8 +94,6 @@ public class MessageTestFixture {
                 .content("삭제된 메시지입니다.")
                 .type(Message.MessageType.TEXT)
                 .deleted(true)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
     }
 
@@ -140,8 +132,6 @@ public class MessageTestFixture {
         private String fileContentType = null;
         private String thumbnailUrl = null;
         private boolean deleted = false;
-        private LocalDateTime createdAt = LocalDateTime.now();
-        private LocalDateTime updatedAt = LocalDateTime.now();
 
         public MessageBuilder id(Long id) {
             this.id = id;
@@ -198,16 +188,6 @@ public class MessageTestFixture {
             return this;
         }
 
-        public MessageBuilder createdAt(LocalDateTime createdAt) {
-            this.createdAt = createdAt;
-            return this;
-        }
-
-        public MessageBuilder updatedAt(LocalDateTime updatedAt) {
-            this.updatedAt = updatedAt;
-            return this;
-        }
-
         public Message build() {
             return Message.builder()
                     .id(id)
@@ -221,8 +201,6 @@ public class MessageTestFixture {
                     .fileContentType(fileContentType)
                     .thumbnailUrl(thumbnailUrl)
                     .deleted(deleted)
-                    .createdAt(createdAt)
-                    .updatedAt(updatedAt)
                     .build();
         }
     }

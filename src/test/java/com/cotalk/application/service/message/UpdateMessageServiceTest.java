@@ -47,8 +47,6 @@ class UpdateMessageServiceTest {
                 .senderId(userId)
                 .content("원본 메시지")
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
@@ -76,8 +74,6 @@ class UpdateMessageServiceTest {
                 .senderId(otherUserId) // 다른 사용자
                 .content("원본 메시지")
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
@@ -113,8 +109,6 @@ class UpdateMessageServiceTest {
                 .senderId(userId)
                 .content("원본 메시지")
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .deleted(true)
                 .deletedAt(LocalDateTime.now())
                 .build();
@@ -141,8 +135,6 @@ class UpdateMessageServiceTest {
                 .content("이미지")
                 .type(Message.MessageType.IMAGE)
                 .fileUrl("http://example.com/image.jpg")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));

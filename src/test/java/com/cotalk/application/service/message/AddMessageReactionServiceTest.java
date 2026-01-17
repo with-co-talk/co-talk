@@ -1,5 +1,6 @@
 package com.cotalk.application.service.message;
 
+import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.exception.InvalidEmojiException;
@@ -14,7 +15,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,13 +32,13 @@ class AddMessageReactionServiceTest {
     @Mock
     private MessageReactionRepository reactionRepository;
 
+    @Mock
     private MessageValidator messageValidator;
 
     private AddMessageReactionService service;
 
     @BeforeEach
     void setUp() {
-        messageValidator = new MessageValidator();
         service = new AddMessageReactionService(messageRepository, reactionRepository, messageValidator);
     }
 
@@ -48,7 +48,8 @@ class AddMessageReactionServiceTest {
         // given
         Long messageId = 100L;
         Long userId = 1L;
-        String emoji = "👍";
+        String emojiString = "👍";
+        Emoji emoji = Emoji.THUMBS_UP;
 
         Message message = Message.builder()
                 .id(messageId)
@@ -56,19 +57,18 @@ class AddMessageReactionServiceTest {
                 .senderId(2L)
                 .content("테스트 메시지")
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         MessageReaction reaction = MessageReaction.create(messageId, userId, emoji);
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(messageValidator.validateAndParseEmoji(emojiString)).willReturn(emoji);
         given(reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji))
                 .willReturn(Optional.empty());
         given(reactionRepository.save(any(MessageReaction.class))).willReturn(reaction);
 
         // when
-        MessageReaction result = service.addReaction(messageId, userId, emoji);
+        MessageReaction result = service.addReaction(messageId, userId, emojiString);
 
         // then
         assertThat(result.getEmoji()).isEqualTo(emoji);
@@ -83,7 +83,8 @@ class AddMessageReactionServiceTest {
         // given
         Long messageId = 100L;
         Long userId = 1L;
-        String emoji = "👍";
+        String emojiString = "👍";
+        Emoji emoji = Emoji.THUMBS_UP;
 
         Message message = Message.builder()
                 .id(messageId)
@@ -91,8 +92,6 @@ class AddMessageReactionServiceTest {
                 .senderId(2L)
                 .content("테스트 메시지")
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         MessageReaction existingReaction = MessageReaction.builder()
@@ -100,15 +99,15 @@ class AddMessageReactionServiceTest {
                 .messageId(messageId)
                 .userId(userId)
                 .emoji(emoji)
-                .createdAt(LocalDateTime.now())
                 .build();
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(messageValidator.validateAndParseEmoji(emojiString)).willReturn(emoji);
         given(reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji))
                 .willReturn(Optional.of(existingReaction));
 
         // when
-        MessageReaction result = service.addReaction(messageId, userId, emoji);
+        MessageReaction result = service.addReaction(messageId, userId, emojiString);
 
         // then
         assertThat(result).isEqualTo(existingReaction);
@@ -128,11 +127,11 @@ class AddMessageReactionServiceTest {
     }
 
     @Test
-    @DisplayName("이모지가 너무 길면 예외")
-    void should_throwException_when_emojiTooLong() {
+    @DisplayName("유효하지 않은 이모지 형식이면 예외")
+    void should_throwException_when_invalidEmoji() {
         // given
         Long messageId = 100L;
-        String tooLongEmoji = "a".repeat(51); // 51자
+        String invalidEmoji = "invalid-emoji";
 
         Message message = Message.builder()
                 .id(messageId)
@@ -140,16 +139,15 @@ class AddMessageReactionServiceTest {
                 .senderId(2L)
                 .content("테스트 메시지")
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(messageValidator.validateAndParseEmoji(invalidEmoji))
+                .willThrow(InvalidEmojiException.invalidFormat(invalidEmoji));
 
         // when & then
-        assertThatThrownBy(() -> service.addReaction(messageId, 1L, tooLongEmoji))
-                .isInstanceOf(InvalidEmojiException.class)
-                .hasMessageContaining("50자 이하여야 합니다");
+        assertThatThrownBy(() -> service.addReaction(messageId, 1L, invalidEmoji))
+                .isInstanceOf(InvalidEmojiException.class);
     }
 
     @Test
@@ -163,11 +161,11 @@ class AddMessageReactionServiceTest {
                 .senderId(2L)
                 .content("테스트 메시지")
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(messageValidator.validateAndParseEmoji(""))
+                .willThrow(InvalidEmojiException.invalidFormat(""));
 
         // when & then
         assertThatThrownBy(() -> service.addReaction(messageId, 1L, ""))

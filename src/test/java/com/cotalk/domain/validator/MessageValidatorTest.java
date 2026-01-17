@@ -1,5 +1,6 @@
 package com.cotalk.domain.validator;
 
+import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.exception.InvalidEmojiException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -8,6 +9,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -48,14 +50,31 @@ class MessageValidatorTest {
     class EmojiValidation {
 
         @Test
-        @DisplayName("유효한 이모지면 예외가 발생하지 않음")
-        void should_notThrowException_when_validEmoji() {
+        @DisplayName("유효한 이모지면 Emoji enum을 반환함")
+        void should_returnEmoji_when_validEmoji() {
             // given
             String validEmoji = "👍";
 
-            // when & then
-            assertThatCode(() -> validator.validateEmoji(validEmoji))
+            // when
+            Emoji result = validator.validateAndParseEmoji(validEmoji);
+
+            // then
+            assertThatCode(() -> validator.validateAndParseEmoji(validEmoji))
                     .doesNotThrowAnyException();
+            assertThat(result).isEqualTo(Emoji.THUMBS_UP);
+        }
+
+        @Test
+        @DisplayName("이모지 이름으로도 변환 가능")
+        void should_returnEmoji_when_validEmojiName() {
+            // given
+            String emojiName = "thumbsup";
+
+            // when
+            Emoji result = validator.validateAndParseEmoji(emojiName);
+
+            // then
+            assertThat(result).isEqualTo(Emoji.THUMBS_UP);
         }
 
         @ParameterizedTest
@@ -64,21 +83,21 @@ class MessageValidatorTest {
         @DisplayName("빈 이모지면 예외 발생")
         void should_throwException_when_emptyEmoji(String emptyEmoji) {
             // when & then
-            assertThatThrownBy(() -> validator.validateEmoji(emptyEmoji))
+            assertThatThrownBy(() -> validator.validateAndParseEmoji(emptyEmoji))
                     .isInstanceOf(InvalidEmojiException.class)
                     .hasMessageContaining("유효하지 않은 이모지");
         }
 
         @Test
-        @DisplayName("이모지가 50자를 초과하면 예외 발생")
-        void should_throwException_when_emojiTooLong() {
+        @DisplayName("유효하지 않은 이모지 형식이면 예외 발생")
+        void should_throwException_when_invalidEmoji() {
             // given
-            String tooLongEmoji = "a".repeat(51);
+            String invalidEmoji = "invalid-emoji";
 
             // when & then
-            assertThatThrownBy(() -> validator.validateEmoji(tooLongEmoji))
+            assertThatThrownBy(() -> validator.validateAndParseEmoji(invalidEmoji))
                     .isInstanceOf(InvalidEmojiException.class)
-                    .hasMessageContaining("이모지는 50자 이하여야 합니다");
+                    .hasMessageContaining("유효하지 않은 이모지");
         }
     }
 }

@@ -48,7 +48,6 @@ class LeaveChatRoomServiceTest {
                 .id(500L)
                 .chatRoomId(chatRoomId)
                 .userId(userId)
-                .joinedAt(LocalDateTime.now())
                 .build();
 
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
@@ -59,7 +58,6 @@ class LeaveChatRoomServiceTest {
                 .id(501L)
                 .chatRoomId(chatRoomId)
                 .userId(2L)
-                .joinedAt(LocalDateTime.now())
                 .build();
 
         given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
@@ -98,7 +96,6 @@ class LeaveChatRoomServiceTest {
                 .id(500L)
                 .chatRoomId(chatRoomId)
                 .userId(userId)
-                .joinedAt(LocalDateTime.now())
                 .build();
 
         ChatRoom chatRoom = ChatRoom.builder()

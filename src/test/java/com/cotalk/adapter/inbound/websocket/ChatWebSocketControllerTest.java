@@ -1,9 +1,14 @@
 package com.cotalk.adapter.inbound.websocket;
 
+import com.cotalk.adapter.inbound.websocket.dto.ChatMessageRequest;
+import com.cotalk.domain.entity.BaseEntity;
 import com.cotalk.domain.entity.Message;
+import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
+import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
+import com.cotalk.domain.port.outbound.MessageRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,6 +35,15 @@ class ChatWebSocketControllerTest {
     @Mock
     private ChatMessageBroker chatMessageBroker;
 
+    @Mock
+    private AddMessageReactionUseCase addMessageReactionUseCase;
+
+    @Mock
+    private RemoveMessageReactionUseCase removeMessageReactionUseCase;
+
+    @Mock
+    private MessageRepository messageRepository;
+
     @InjectMocks
     private ChatWebSocketController chatWebSocketController;
 
@@ -41,16 +56,22 @@ class ChatWebSocketControllerTest {
                 .senderId(1L)
                 .chatRoomId(100L)
                 .content("테스트 메시지")
-                .createdAt(LocalDateTime.now())
                 .build();
+        // BaseEntity의 createdAt을 설정하기 위해 Reflection 사용
+        try {
+            Field createdAtField = BaseEntity.class.getDeclaredField("createdAt");
+            createdAtField.setAccessible(true);
+            createdAtField.set(mockMessage, LocalDateTime.now());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
     @DisplayName("메시지 전송 시 저장 후 Redis로 발행")
     void should_saveAndPublishToRedis_when_sendMessage() {
         // given
-        ChatWebSocketController.ChatMessageRequest request =
-                new ChatWebSocketController.ChatMessageRequest(1L, 100L, "테스트 메시지");
+        ChatMessageRequest request = new ChatMessageRequest(1L, 100L, "테스트 메시지");
 
         given(sendMessageUseCase.sendMessage(anyLong(), anyLong(), anyString()))
                 .willReturn(mockMessage);

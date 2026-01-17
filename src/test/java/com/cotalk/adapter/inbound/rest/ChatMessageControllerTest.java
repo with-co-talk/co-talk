@@ -88,7 +88,6 @@ class ChatMessageControllerTest {
                     .senderId(1L)
                     .chatRoomId(100L)
                     .content("안녕하세요!")
-                    .createdAt(LocalDateTime.now())
                     .build();
 
             given(sendMessageUseCase.sendMessage(anyLong(), anyLong(), anyString())).willReturn(message);
@@ -119,14 +118,12 @@ class ChatMessageControllerTest {
                             .senderId(1L)
                             .chatRoomId(roomId)
                             .content("최신 메시지")
-                            .createdAt(LocalDateTime.now())
                             .build(),
                     Message.builder()
                             .id(999L)
                             .senderId(2L)
                             .chatRoomId(roomId)
                             .content("이전 메시지")
-                            .createdAt(LocalDateTime.now().minusMinutes(1))
                             .build()
             );
 
@@ -161,14 +158,12 @@ class ChatMessageControllerTest {
                             .senderId(2L)
                             .chatRoomId(roomId)
                             .content("이전 메시지 1")
-                            .createdAt(LocalDateTime.now().minusMinutes(1))
                             .build(),
                     Message.builder()
                             .id(998L)
                             .senderId(1L)
                             .chatRoomId(roomId)
                             .content("이전 메시지 2")
-                            .createdAt(LocalDateTime.now().minusMinutes(2))
                             .build()
             );
 
@@ -204,14 +199,12 @@ class ChatMessageControllerTest {
                             .senderId(1L)
                             .chatRoomId(roomId)
                             .content("메시지 1")
-                            .createdAt(LocalDateTime.now())
                             .build(),
                     Message.builder()
                             .id(999L)
                             .senderId(2L)
                             .chatRoomId(roomId)
                             .content("메시지 2")
-                            .createdAt(LocalDateTime.now().minusMinutes(1))
                             .build()
             );
 
@@ -245,8 +238,6 @@ class ChatMessageControllerTest {
                     .senderId(1L)
                     .chatRoomId(100L)
                     .content("수정된 메시지")
-                    .createdAt(LocalDateTime.now().minusMinutes(5))
-                    .updatedAt(LocalDateTime.now())
                     .build();
 
             given(updateMessageUseCase.updateMessage(eq(messageId), eq(1L), eq("수정된 메시지")))
@@ -303,7 +294,6 @@ class ChatMessageControllerTest {
                     .chatRoomId(100L)
                     .content(content)
                     .replyToMessageId(originalMessageId)
-                    .createdAt(LocalDateTime.now())
                     .build();
 
             given(messageReplyForwardUseCase.replyToMessage(senderId, originalMessageId, content))
@@ -340,7 +330,6 @@ class ChatMessageControllerTest {
                     .chatRoomId(targetChatRoomId)
                     .content("전달된 메시지 내용")
                     .forwardedFromMessageId(originalMessageId)
-                    .createdAt(LocalDateTime.now())
                     .build();
 
             given(messageReplyForwardUseCase.forwardMessage(senderId, originalMessageId, targetChatRoomId))

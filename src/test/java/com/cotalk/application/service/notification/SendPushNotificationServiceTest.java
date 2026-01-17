@@ -64,9 +64,11 @@ class SendPushNotificationServiceTest {
             sendPushNotificationService.sendNewMessageNotification(receiverUserId, senderNickname, messageContent, chatRoomId);
 
             // then
+            @SuppressWarnings("unchecked")
             ArgumentCaptor<List<String>> tokensCaptor = ArgumentCaptor.forClass(List.class);
             ArgumentCaptor<String> titleCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+            @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
 
             verify(pushNotificationSender).sendMultiple(
@@ -152,6 +154,7 @@ class SendPushNotificationServiceTest {
             // then
             ArgumentCaptor<String> titleCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+            @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
 
             verify(pushNotificationSender).sendMultiple(anyList(), titleCaptor.capture(), bodyCaptor.capture(), dataCaptor.capture());

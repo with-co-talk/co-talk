@@ -42,7 +42,6 @@ class SearchMessageServiceTest {
                 .chatRoomId(chatRoomId)
                 .senderId(100L)
                 .content("안녕하세요!")
-                .createdAt(LocalDateTime.now())
                 .build();
 
         Message message2 = Message.builder()
@@ -50,7 +49,6 @@ class SearchMessageServiceTest {
                 .chatRoomId(chatRoomId)
                 .senderId(200L)
                 .content("안녕, 반가워요")
-                .createdAt(LocalDateTime.now().minusMinutes(5))
                 .build();
 
         given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
@@ -110,7 +108,6 @@ class SearchMessageServiceTest {
                 .chatRoomId(1L)
                 .senderId(100L)
                 .content("회의 시간 알려주세요")
-                .createdAt(LocalDateTime.now())
                 .build();
 
         Message message2 = Message.builder()
@@ -118,7 +115,6 @@ class SearchMessageServiceTest {
                 .chatRoomId(2L)
                 .senderId(200L)
                 .content("회의 끝났어요")
-                .createdAt(LocalDateTime.now().minusHours(1))
                 .build();
 
         given(messageRepository.searchByKeywordInUserChatRooms(userId, keyword, 0, 20))
