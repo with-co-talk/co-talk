@@ -1,22 +1,37 @@
 package com.cotalk.adapter.inbound.rest;
 
+import com.cotalk.adapter.inbound.rest.dto.common.MessageResponse;
+import com.cotalk.adapter.inbound.rest.dto.message.AddReactionRequest;
+import com.cotalk.adapter.inbound.rest.dto.message.MessageReactionResponse;
+import com.cotalk.adapter.inbound.rest.dto.message.MessageReactionsResponse;
+import com.cotalk.adapter.inbound.rest.dto.message.RemoveReactionRequest;
 import com.cotalk.domain.entity.MessageReaction;
-import com.cotalk.domain.port.inbound.AddMessageReactionUseCase;
-import com.cotalk.domain.port.inbound.GetMessageReactionsUseCase;
-import com.cotalk.domain.port.inbound.RemoveMessageReactionUseCase;
+import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
+import com.cotalk.domain.port.inbound.message.GetMessageReactionsUseCase;
+import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 메시지 반응(이모지) 관리를 위한 REST 컨트롤러.
+ * <p>
+ * 메시지에 이모지 반응 추가, 제거, 조회 기능을 제공합니다.
+ *
+ * @author seunggu.lee
+ */
 @RestController
 @RequestMapping("/api/v1/chat/messages/{messageId}/reactions")
 @RequiredArgsConstructor
@@ -27,6 +42,13 @@ public class ChatReactionController {
     private final RemoveMessageReactionUseCase removeMessageReactionUseCase;
     private final GetMessageReactionsUseCase getMessageReactionsUseCase;
 
+    /**
+     * 메시지에 이모지 반응을 추가합니다.
+     *
+     * @param messageId 메시지 ID
+     * @param request   반응 추가 요청 (사용자 ID, 이모지)
+     * @return 추가된 반응 정보
+     */
     @Operation(summary = "메시지 반응 추가", description = "메시지에 이모지 반응을 추가합니다.")
     @PostMapping
     public ResponseEntity<MessageReactionResponse> addReaction(
@@ -37,15 +59,28 @@ public class ChatReactionController {
                 .body(MessageReactionResponse.from(reaction));
     }
 
+    /**
+     * 메시지에서 이모지 반응을 제거합니다.
+     *
+     * @param messageId 메시지 ID
+     * @param request   반응 제거 요청 (사용자 ID, 이모지)
+     * @return 처리 결과 메시지
+     */
     @Operation(summary = "메시지 반응 제거", description = "메시지에서 이모지 반응을 제거합니다.")
     @DeleteMapping
-    public ResponseEntity<RemoveReactionResponse> removeReaction(
+    public ResponseEntity<MessageResponse> removeReaction(
             @PathVariable Long messageId,
             @Valid @RequestBody RemoveReactionRequest request) {
         removeMessageReactionUseCase.removeReaction(messageId, request.userId(), request.emoji());
-        return ResponseEntity.ok(new RemoveReactionResponse("반응이 제거되었습니다."));
+        return ResponseEntity.ok(MessageResponse.of("반응이 제거되었습니다."));
     }
 
+    /**
+     * 메시지의 모든 반응을 조회합니다.
+     *
+     * @param messageId 메시지 ID
+     * @return 메시지 반응 목록
+     */
     @Operation(summary = "메시지 반응 조회", description = "메시지의 모든 반응을 조회합니다.")
     @GetMapping
     public ResponseEntity<MessageReactionsResponse> getReactions(@PathVariable Long messageId) {
@@ -53,45 +88,6 @@ public class ChatReactionController {
         List<MessageReactionResponse> reactionDtos = reactions.stream()
                 .map(MessageReactionResponse::from)
                 .toList();
-        return ResponseEntity.ok(new MessageReactionsResponse(reactionDtos));
+        return ResponseEntity.ok(MessageReactionsResponse.of(reactionDtos));
     }
-
-    // Request DTOs
-    public record AddReactionRequest(
-            @NotNull(message = "사용자 ID는 필수입니다.")
-            Long userId,
-
-            @NotBlank(message = "이모지는 필수입니다.")
-            String emoji
-    ) {}
-
-    public record RemoveReactionRequest(
-            @NotNull(message = "사용자 ID는 필수입니다.")
-            Long userId,
-
-            @NotBlank(message = "이모지는 필수입니다.")
-            String emoji
-    ) {}
-
-    // Response DTOs
-    public record MessageReactionResponse(
-            Long reactionId,
-            Long messageId,
-            Long userId,
-            String emoji,
-            LocalDateTime createdAt
-    ) {
-        public static MessageReactionResponse from(MessageReaction reaction) {
-            return new MessageReactionResponse(
-                    reaction.getId(),
-                    reaction.getMessageId(),
-                    reaction.getUserId(),
-                    reaction.getEmoji(),
-                    reaction.getCreatedAt()
-            );
-        }
-    }
-
-    public record MessageReactionsResponse(List<MessageReactionResponse> reactions) {}
-    public record RemoveReactionResponse(String message) {}
 }

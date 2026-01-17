@@ -1,22 +1,40 @@
 package com.cotalk.adapter.inbound.rest;
 
+import com.cotalk.adapter.inbound.rest.dto.common.MessageResponse;
+import com.cotalk.adapter.inbound.rest.dto.friend.FriendDto;
+import com.cotalk.adapter.inbound.rest.dto.friend.FriendListResponse;
+import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
+import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestResponse;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.port.inbound.AcceptFriendRequestUseCase;
-import com.cotalk.domain.port.inbound.GetFriendListUseCase;
-import com.cotalk.domain.port.inbound.RejectFriendRequestUseCase;
-import com.cotalk.domain.port.inbound.RemoveFriendUseCase;
-import com.cotalk.domain.port.inbound.SendFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
+import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
+import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * 친구 관리를 위한 REST 컨트롤러.
+ * <p>
+ * 친구 요청 전송, 수락, 거절, 친구 목록 조회, 친구 삭제 등의 기능을 제공합니다.
+ *
+ * @author seunggu.lee
+ */
 @RestController
 @RequestMapping("/api/v1/friends")
 @RequiredArgsConstructor
@@ -29,66 +47,82 @@ public class FriendController {
     private final RemoveFriendUseCase removeFriendUseCase;
     private final GetFriendListUseCase getFriendListUseCase;
 
+    /**
+     * 다른 사용자에게 친구 요청을 보냅니다.
+     *
+     * @param request 친구 요청 전송 요청 (요청자 ID, 수신자 ID)
+     * @return 생성된 친구 요청 정보
+     */
     @Operation(summary = "친구 요청 전송", description = "다른 사용자에게 친구 요청을 보냅니다.")
     @PostMapping("/requests")
     public ResponseEntity<SendFriendRequestResponse> sendFriendRequest(
             @Valid @RequestBody SendFriendRequestRequest request) {
         Long requestId = sendFriendRequestUseCase.sendFriendRequest(request.requesterId(), request.receiverId());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new SendFriendRequestResponse(requestId, "친구 요청이 전송되었습니다."));
+                .body(SendFriendRequestResponse.of(requestId, "친구 요청이 전송되었습니다."));
     }
 
+    /**
+     * 받은 친구 요청을 수락합니다.
+     *
+     * @param requestId 친구 요청 ID
+     * @param userId    요청 수락자 ID
+     * @return 처리 결과 메시지
+     */
     @Operation(summary = "친구 요청 수락", description = "받은 친구 요청을 수락합니다.")
     @PostMapping("/requests/{requestId}/accept")
-    public ResponseEntity<AcceptFriendRequestResponse> acceptFriendRequest(
+    public ResponseEntity<MessageResponse> acceptFriendRequest(
             @PathVariable Long requestId,
             @RequestParam Long userId) {
         acceptFriendRequestUseCase.acceptFriendRequest(userId, requestId);
-        return ResponseEntity.ok(new AcceptFriendRequestResponse("친구 요청을 수락했습니다."));
+        return ResponseEntity.ok(MessageResponse.of("친구 요청을 수락했습니다."));
     }
 
+    /**
+     * 받은 친구 요청을 거절합니다.
+     *
+     * @param requestId 친구 요청 ID
+     * @param userId    요청 거절자 ID
+     * @return 처리 결과 메시지
+     */
     @Operation(summary = "친구 요청 거절", description = "받은 친구 요청을 거절합니다.")
     @PostMapping("/requests/{requestId}/reject")
-    public ResponseEntity<RejectFriendRequestResponse> rejectFriendRequest(
+    public ResponseEntity<MessageResponse> rejectFriendRequest(
             @PathVariable Long requestId,
             @RequestParam Long userId) {
         rejectFriendRequestUseCase.rejectFriendRequest(userId, requestId);
-        return ResponseEntity.ok(new RejectFriendRequestResponse("친구 요청을 거절했습니다."));
+        return ResponseEntity.ok(MessageResponse.of("친구 요청을 거절했습니다."));
     }
 
+    /**
+     * 사용자의 친구 목록을 조회합니다.
+     *
+     * @param userId 사용자 ID
+     * @return 친구 목록
+     */
     @Operation(summary = "친구 목록 조회", description = "사용자의 친구 목록을 조회합니다.")
     @GetMapping
     public ResponseEntity<FriendListResponse> getFriendList(@RequestParam Long userId) {
         List<User> friends = getFriendListUseCase.getFriendList(userId);
         List<FriendDto> friendDtos = friends.stream()
-                .map(u -> new FriendDto(u.getId(), u.getNickname(), u.getEmail()))
+                .map(FriendDto::from)
                 .toList();
-        return ResponseEntity.ok(new FriendListResponse(friendDtos));
+        return ResponseEntity.ok(FriendListResponse.of(friendDtos));
     }
 
+    /**
+     * 친구 관계를 삭제합니다.
+     *
+     * @param friendId 삭제할 친구의 사용자 ID
+     * @param userId   요청자 ID
+     * @return 처리 결과 메시지
+     */
     @Operation(summary = "친구 삭제", description = "친구 관계를 삭제합니다.")
     @DeleteMapping("/{friendId}")
-    public ResponseEntity<RemoveFriendResponse> removeFriend(
+    public ResponseEntity<MessageResponse> removeFriend(
             @PathVariable Long friendId,
             @RequestParam Long userId) {
         removeFriendUseCase.removeFriend(userId, friendId);
-        return ResponseEntity.ok(new RemoveFriendResponse("친구가 삭제되었습니다."));
+        return ResponseEntity.ok(MessageResponse.of("친구가 삭제되었습니다."));
     }
-
-    // Request DTOs
-    public record SendFriendRequestRequest(
-            @NotNull(message = "요청자 ID는 필수입니다.")
-            Long requesterId,
-
-            @NotNull(message = "수신자 ID는 필수입니다.")
-            Long receiverId
-    ) {}
-
-    // Response DTOs
-    public record SendFriendRequestResponse(Long requestId, String message) {}
-    public record AcceptFriendRequestResponse(String message) {}
-    public record RejectFriendRequestResponse(String message) {}
-    public record RemoveFriendResponse(String message) {}
-    public record FriendListResponse(List<FriendDto> friends) {}
-    public record FriendDto(Long id, String nickname, String email) {}
 }

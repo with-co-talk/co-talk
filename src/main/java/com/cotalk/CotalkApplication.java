@@ -7,10 +7,11 @@ import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
  * Co-Talk 백엔드 애플리케이션 메인 클래스.
- * 
- * <p>대화에 집중한 커뮤니케이션 플랫폼의 백엔드 서버입니다.
  *
- * @author Co-Talk Team
+ * <p>실시간 채팅 기반 커뮤니케이션 플랫폼의 백엔드 서버입니다.
+ * WebSocket을 통한 실시간 메시징, JWT 기반 인증, 푸시 알림 등의 기능을 제공합니다.
+ *
+ * @author seunggu.lee
  * @since 1.0
  */
 @SpringBootApplication
