@@ -1,7 +1,9 @@
 package com.cotalk.domain.exception;
 
 /**
- * 비밀번호 재설정 토큰이 유효하지 않을 때 발생하는 예외
+ * 비밀번호 재설정 토큰이 유효하지 않을 때 발생하는 예외.
+ *
+ * @author seunggu.lee
  */
 public class InvalidPasswordResetTokenException extends DomainException {
 

@@ -1,7 +1,9 @@
 package com.cotalk.domain.exception;
 
 /**
- * 메시지 반응을 찾을 수 없을 때 발생하는 예외
+ * 메시지 반응을 찾을 수 없을 때 발생하는 예외.
+ *
+ * @author seunggu.lee
  */
 public class MessageReactionNotFoundException extends DomainException {
 

@@ -1,7 +1,9 @@
 package com.cotalk.domain.exception;
 
 /**
- * 친구 요청에 대한 권한이 없을 때 발생하는 예외
+ * 친구 요청에 대한 권한이 없을 때 발생하는 예외.
+ *
+ * @author seunggu.lee
  */
 public class FriendRequestAccessDeniedException extends DomainException {
 

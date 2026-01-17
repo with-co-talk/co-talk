@@ -1,7 +1,9 @@
 package com.cotalk.domain.exception;
 
 /**
- * Rate Limit 초과 시 발생하는 예외
+ * Rate Limit 초과 시 발생하는 예외.
+ *
+ * @author seunggu.lee
  */
 public class RateLimitExceededException extends DomainException {
 

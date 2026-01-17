@@ -1,7 +1,9 @@
 package com.cotalk.domain.exception;
 
 /**
- * 파일 업로드 관련 예외
+ * 파일 업로드 관련 예외.
+ *
+ * @author seunggu.lee
  */
 public class FileUploadException extends DomainException {
 

@@ -1,7 +1,9 @@
 package com.cotalk.domain.exception;
 
 /**
- * 약관 동의와 관련된 예외
+ * 약관 동의와 관련된 예외.
+ *
+ * @author seunggu.lee
  */
 public class TermsAgreementException extends DomainException {
 

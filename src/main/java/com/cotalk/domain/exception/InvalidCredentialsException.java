@@ -1,5 +1,10 @@
 package com.cotalk.domain.exception;
 
+/**
+ * 인증 정보가 유효하지 않을 때 발생하는 예외.
+ *
+ * @author seunggu.lee
+ */
 public class InvalidCredentialsException extends DomainException {
 
     public InvalidCredentialsException() {
