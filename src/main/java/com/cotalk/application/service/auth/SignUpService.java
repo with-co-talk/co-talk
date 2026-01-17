@@ -4,9 +4,9 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DuplicateEmailException;
 import com.cotalk.domain.exception.DuplicateNicknameException;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.UserValidator;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,7 +25,7 @@ public class SignUpService implements SignUpUseCase {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final SnowflakeIdGenerator idGenerator;
+    private final IdGenerator idGenerator;
     private final UserValidator userValidator;
 
     /**

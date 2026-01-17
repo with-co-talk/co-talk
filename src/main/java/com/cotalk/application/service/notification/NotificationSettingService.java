@@ -3,8 +3,8 @@ package com.cotalk.application.service.notification;
 import com.cotalk.domain.entity.NotificationSetting;
 import com.cotalk.domain.port.inbound.notification.GetNotificationSettingUseCase;
 import com.cotalk.domain.port.inbound.notification.UpdateNotificationSettingUseCase;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.NotificationSettingRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationSettingService implements GetNotificationSettingUseCase, UpdateNotificationSettingUseCase {
 
     private final NotificationSettingRepository notificationSettingRepository;
-    private final SnowflakeIdGenerator idGenerator;
+    private final IdGenerator idGenerator;
 
     /**
      * 사용자의 알림 설정을 조회한다.

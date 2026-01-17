@@ -5,8 +5,8 @@ import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +24,7 @@ public class MessageReplyForwardService implements MessageReplyForwardUseCase {
 
     private final MessageRepository messageRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
-    private final SnowflakeIdGenerator idGenerator;
+    private final IdGenerator idGenerator;
 
     /**
      * 메시지에 답장한다.

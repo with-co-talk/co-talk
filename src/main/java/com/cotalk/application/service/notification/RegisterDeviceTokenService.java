@@ -3,7 +3,7 @@ package com.cotalk.application.service.notification;
 import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.port.inbound.notification.RegisterDeviceTokenUseCase;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,7 +24,7 @@ import java.util.Optional;
 public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
 
     private final DeviceTokenRepository deviceTokenRepository;
-    private final SnowflakeIdGenerator idGenerator;
+    private final IdGenerator idGenerator;
 
     /**
      * 디바이스 토큰을 등록한다.

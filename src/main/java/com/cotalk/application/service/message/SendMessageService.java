@@ -9,8 +9,8 @@ import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +31,7 @@ public class SendMessageService implements SendMessageUseCase {
     private final MessageRepository messageRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final UserRepository userRepository;
-    private final SnowflakeIdGenerator idGenerator;
+    private final IdGenerator idGenerator;
     private final SendPushNotificationUseCase sendPushNotificationUseCase;
     private final ChatRoomMemberValidator chatRoomMemberValidator;
 
@@ -119,17 +119,21 @@ public class SendMessageService implements SendMessageUseCase {
                 .map(User::getNickname)
                 .orElse("알 수 없음");
 
-        // 채팅방의 다른 멤버들에게 푸시 알림 전송
+        // 채팅방의 다른 멤버들 ID 목록 추출
         List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(chatRoomId);
-        members.stream()
-                .filter(member -> !member.getUserId().equals(senderId))
-                .forEach(member -> 
-                        sendPushNotificationUseCase.sendNewMessageNotification(
-                                member.getUserId(), 
-                                senderNickname, 
-                                content, 
-                                chatRoomId
-                        )
-                );
+        List<Long> receiverUserIds = members.stream()
+                .map(ChatRoomMember::getUserId)
+                .filter(userId -> !userId.equals(senderId))
+                .toList();
+
+        // 벌크 푸시 알림 전송 (한 번의 호출로 처리)
+        if (!receiverUserIds.isEmpty()) {
+            sendPushNotificationUseCase.sendNewMessageNotificationBulk(
+                    receiverUserIds,
+                    senderNickname,
+                    content,
+                    chatRoomId
+            );
+        }
     }
 }

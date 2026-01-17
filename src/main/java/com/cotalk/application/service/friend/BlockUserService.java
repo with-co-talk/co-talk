@@ -2,11 +2,10 @@ package com.cotalk.application.service.friend;
 
 import com.cotalk.domain.entity.Block;
 import com.cotalk.domain.exception.InvalidBlockException;
-import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.friend.BlockUserUseCase;
 import com.cotalk.domain.port.outbound.BlockRepository;
-import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
+import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.validator.UserValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,8 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class BlockUserService implements BlockUserUseCase {
 
     private final BlockRepository blockRepository;
-    private final UserRepository userRepository;
-    private final SnowflakeIdGenerator idGenerator;
+    private final UserValidator userValidator;
+    private final IdGenerator idGenerator;
 
     /**
      * 사용자를 차단한다.
@@ -37,14 +36,9 @@ public class BlockUserService implements BlockUserUseCase {
      */
     @Override
     public void blockUser(Long blockerId, Long blockedId) {
-        if (blockerId.equals(blockedId)) {
-            throw new InvalidBlockException("자기 자신을 차단할 수 없습니다");
-        }
-
-        userRepository.findById(blockerId)
-                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다: " + blockerId));
-        userRepository.findById(blockedId)
-                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다: " + blockedId));
+        userValidator.validateNotSelfAction(blockerId, blockedId, "차단");
+        userValidator.validateUserExists(blockerId);
+        userValidator.validateUserExists(blockedId);
 
         if (blockRepository.findByBlockerIdAndBlockedId(blockerId, blockedId).isPresent()) {
             throw new InvalidBlockException("이미 차단한 사용자입니다");

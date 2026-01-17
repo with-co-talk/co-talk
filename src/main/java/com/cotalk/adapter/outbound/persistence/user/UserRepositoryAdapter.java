@@ -130,6 +130,17 @@ public class UserRepositoryAdapter implements UserRepository {
     }
 
     /**
+     * 여러 ID로 사용자 목록을 조회한다.
+     *
+     * @param ids 조회할 사용자 ID 목록
+     * @return 조회된 사용자 목록
+     */
+    @Override
+    public List<User> findAllById(Iterable<Long> ids) {
+        return userJpaRepository.findAllById(ids);
+    }
+
+    /**
      * 전체 사용자 수를 조회한다.
      *
      * @return 사용자 수

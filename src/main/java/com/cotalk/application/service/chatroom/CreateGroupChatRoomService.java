@@ -3,18 +3,18 @@ package com.cotalk.application.service.chatroom;
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.exception.InvalidGroupChatException;
-import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.chatroom.CreateGroupChatRoomUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
-import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
+import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.validator.UserValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * 그룹 채팅방 생성 유스케이스 구현체.
@@ -32,8 +32,8 @@ public class CreateGroupChatRoomService implements CreateGroupChatRoomUseCase {
 
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
-    private final UserRepository userRepository;
-    private final SnowflakeIdGenerator idGenerator;
+    private final UserValidator userValidator;
+    private final IdGenerator idGenerator;
 
     /**
      * 그룹 채팅방을 생성한다.
@@ -50,7 +50,9 @@ public class CreateGroupChatRoomService implements CreateGroupChatRoomUseCase {
     public Long createGroupChatRoom(Long creatorId, String roomName, List<Long> memberIds) {
         validateRoomName(roomName);
         validateMemberCount(memberIds);
-        validateUsersExist(creatorId, memberIds);
+
+        List<Long> allUserIds = Stream.concat(Stream.of(creatorId), memberIds.stream()).toList();
+        userValidator.validateUsersExist(allUserIds);
 
         ChatRoom chatRoom = ChatRoom.builder()
                 .id(idGenerator.nextId())
@@ -89,16 +91,6 @@ public class CreateGroupChatRoomService implements CreateGroupChatRoomUseCase {
         // 생성자 + memberIds = 최소 3명
         if (memberIds == null || memberIds.size() < MIN_GROUP_MEMBERS - 1) {
             throw new InvalidGroupChatException("그룹 채팅방은 최소 3명 이상이어야 합니다");
-        }
-    }
-
-    private void validateUsersExist(Long creatorId, List<Long> memberIds) {
-        userRepository.findById(creatorId)
-                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다: " + creatorId));
-
-        for (Long memberId : memberIds) {
-            userRepository.findById(memberId)
-                    .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다: " + memberId));
         }
     }
 }

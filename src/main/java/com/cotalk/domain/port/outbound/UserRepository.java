@@ -93,6 +93,14 @@ public interface UserRepository {
     List<User> findByStatus(User.UserStatus status);
 
     /**
+     * 여러 ID로 사용자 목록을 조회한다.
+     *
+     * @param ids 조회할 사용자 ID 목록
+     * @return 조회된 사용자 목록
+     */
+    List<User> findAllById(Iterable<Long> ids);
+
+    /**
      * 전체 사용자 수를 조회한다.
      *
      * @return 사용자 수

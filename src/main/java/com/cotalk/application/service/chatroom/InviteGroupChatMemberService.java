@@ -9,13 +9,19 @@ import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.chatroom.InviteGroupChatMemberUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.cotalk.domain.entity.User;
+
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 그룹 채팅방 멤버 초대 유스케이스 구현체.
@@ -31,7 +37,7 @@ public class InviteGroupChatMemberService implements InviteGroupChatMemberUseCas
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final UserRepository userRepository;
-    private final SnowflakeIdGenerator idGenerator;
+    private final IdGenerator idGenerator;
 
     /**
      * 그룹 채팅방에 새로운 멤버를 초대한다.
@@ -48,7 +54,7 @@ public class InviteGroupChatMemberService implements InviteGroupChatMemberUseCas
     @Override
     public void inviteMembers(Long roomId, Long inviterId, List<Long> inviteeIds) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new ChatRoomNotFoundException("채팅방을 찾을 수 없습니다: " + roomId));
+                .orElseThrow(() -> new ChatRoomNotFoundException(roomId));
 
         if (chatRoom.isDirectChat()) {
             throw new InvalidGroupChatException("1:1 채팅방에는 멤버를 초대할 수 없습니다");
@@ -57,13 +63,25 @@ public class InviteGroupChatMemberService implements InviteGroupChatMemberUseCas
         chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, inviterId)
                 .orElseThrow(() -> new ChatRoomAccessDeniedException("채팅방 멤버만 초대할 수 있습니다"));
 
+        // 배치 조회로 N+1 쿼리 해결
+        Map<Long, User> existingUsers = userRepository.findAllById(inviteeIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+
+        // 이미 참여 중인 멤버 ID 집합 조회
+        Set<Long> existingMemberIds = chatRoomMemberRepository.findByChatRoomId(roomId).stream()
+                .map(ChatRoomMember::getUserId)
+                .collect(Collectors.toSet());
+
         for (Long inviteeId : inviteeIds) {
-            if (chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, inviteeId).isPresent()) {
+            // 이미 참여 중인 멤버는 건너뛴다
+            if (existingMemberIds.contains(inviteeId)) {
                 continue;
             }
 
-            userRepository.findById(inviteeId)
-                    .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다: " + inviteeId));
+            // 존재하지 않는 사용자 검증
+            if (!existingUsers.containsKey(inviteeId)) {
+                throw new UserNotFoundException(inviteeId);
+            }
 
             ChatRoomMember member = ChatRoomMember.builder()
                     .id(idGenerator.nextId())

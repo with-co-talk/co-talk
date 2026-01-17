@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 채팅방 목록 조회 유스케이스 구현체.
@@ -50,9 +51,8 @@ public class GetChatRoomsService implements GetChatRoomsUseCase {
         Long chatRoomId = chatRoom.getId();
 
         // 내 멤버 정보 조회
-        ChatRoomMember myMember = chatRoomMemberRepository
-                .findByChatRoomIdAndUserId(chatRoomId, userId)
-                .orElse(null);
+        Optional<ChatRoomMember> myMember = chatRoomMemberRepository
+                .findByChatRoomIdAndUserId(chatRoomId, userId);
 
         // 마지막 메시지 정보
         LastMessageInfo lastMessageInfo = getLastMessageInfo(chatRoomId);
@@ -83,17 +83,17 @@ public class GetChatRoomsService implements GetChatRoomsUseCase {
     private LastMessageInfo getLastMessageInfo(Long chatRoomId) {
         return messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId)
                 .map(msg -> new LastMessageInfo(msg.getContent(), msg.getCreatedAt()))
-                .orElse(new LastMessageInfo(null, null));
+                .orElseGet(() -> new LastMessageInfo(null, null));
     }
 
     /**
      * 안 읽은 메시지 개수를 계산합니다.
      */
-    private long calculateUnreadCount(Long chatRoomId, Long userId, ChatRoomMember myMember) {
-        if (myMember == null || myMember.getLastReadAt() == null) {
-            return 0;
-        }
-        return messageRepository.countUnreadMessages(chatRoomId, userId, myMember.getLastReadAt());
+    private long calculateUnreadCount(Long chatRoomId, Long userId, Optional<ChatRoomMember> myMember) {
+        return myMember
+                .filter(member -> member.getLastReadAt() != null)
+                .map(member -> messageRepository.countUnreadMessages(chatRoomId, userId, member.getLastReadAt()))
+                .orElse(0L);
     }
 
     /**
