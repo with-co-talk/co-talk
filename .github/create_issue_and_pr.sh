@@ -7,17 +7,26 @@ if ! gh auth status &> /dev/null; then
     exit 1
 fi
 
+# 사용자 이름 가져오기
+USERNAME=$(gh api user --jq .login 2>/dev/null)
+if [ -z "$USERNAME" ]; then
+    echo "❌ 사용자 정보를 가져올 수 없습니다."
+    exit 1
+fi
+
 # 이슈 생성
 echo "📝 이슈 생성 중..."
 ISSUE_NUMBER=$(gh issue create \
     --title "[REFACTOR] BaseEntity 적용 및 주요 기능 개선" \
     --body-file .github/issue_content.md \
     --label "refactor" \
-    --assignee "@me" \
-    --repo with-co-talk/co-talk | grep -oE '[0-9]+' | head -1)
+    --assignee "$USERNAME" \
+    --repo with-co-talk/co-talk 2>&1 | grep -oE 'https://github.com/[^/]+/[^/]+/issues/[0-9]+' | grep -oE '[0-9]+$' | head -1)
 
 if [ -z "$ISSUE_NUMBER" ]; then
-    echo "❌ 이슈 생성 실패"
+    echo "❌ 이슈 생성 실패. 수동으로 생성해주세요."
+    echo "이슈 제목: [REFACTOR] BaseEntity 적용 및 주요 기능 개선"
+    echo "이슈 내용은 .github/issue_content.md 파일을 참고하세요."
     exit 1
 fi
 
@@ -28,15 +37,20 @@ sed "s/Closes #\[이슈번호\]/Closes #$ISSUE_NUMBER/" .github/pr_content.md > 
 
 # PR 생성
 echo "📝 PR 생성 중..."
-gh pr create \
+PR_URL=$(gh pr create \
     --title "[REFACTOR] BaseEntity 적용 및 주요 기능 개선" \
     --body-file .github/pr_content_final.md \
     --base main \
     --head refactor/base-entity-and-feature-improvements \
-    --assignee "@me" \
-    --repo with-co-talk/co-talk
+    --assignee "$USERNAME" \
+    --repo with-co-talk/co-talk 2>&1)
+
+if [ $? -eq 0 ]; then
+    echo "✅ PR 생성 완료: $PR_URL"
+else
+    echo "❌ PR 생성 실패. 수동으로 생성해주세요."
+    echo "PR 내용은 .github/pr_content_final.md 파일을 참고하세요."
+fi
 
 # 임시 파일 삭제
 rm -f .github/pr_content_final.md
-
-echo "✅ PR 생성 완료"
