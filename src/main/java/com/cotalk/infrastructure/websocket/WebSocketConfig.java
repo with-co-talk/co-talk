@@ -1,6 +1,6 @@
 package com.cotalk.infrastructure.websocket;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -29,10 +29,17 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  */
 @Configuration
 @EnableWebSocketMessageBroker
-@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+    private final String[] allowedOrigins;
+
+    public WebSocketConfig(
+            WebSocketAuthInterceptor webSocketAuthInterceptor,
+            @Value("${app.cors.allowed-origins:http://localhost:3000}") String allowedOriginsConfig) {
+        this.webSocketAuthInterceptor = webSocketAuthInterceptor;
+        this.allowedOrigins = allowedOriginsConfig.split(",");
+    }
 
     /**
      * 메시지 브로커를 구성한다.
@@ -60,12 +67,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // WebSocket 연결 엔드포인트
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns(allowedOrigins)
                 .withSockJS();
 
         // SockJS 없이 순수 WebSocket 연결
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*");
+                .setAllowedOriginPatterns(allowedOrigins);
     }
 
     /**

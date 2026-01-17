@@ -1,5 +1,11 @@
 package com.cotalk.adapter.inbound.websocket;
 
+import com.cotalk.adapter.inbound.websocket.dto.AddReactionRequest;
+import com.cotalk.adapter.inbound.websocket.dto.ChatMessageRequest;
+import com.cotalk.adapter.inbound.websocket.dto.FileMessageRequest;
+import com.cotalk.adapter.inbound.websocket.dto.ReactionBroadcastMessage;
+import com.cotalk.adapter.inbound.websocket.dto.RemoveReactionRequest;
+import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
@@ -169,7 +175,7 @@ public class ChatWebSocketController {
         MessageReaction removedReaction = MessageReaction.builder()
                 .messageId(request.messageId())
                 .userId(request.userId())
-                .emoji(request.emoji())
+                .emoji(Emoji.valueOf(request.emoji()))
                 .build();
         publishReactionEvent(removedReaction, "REMOVED");
     }
@@ -192,7 +198,7 @@ public class ChatWebSocketController {
                 reaction.getId(),
                 reaction.getMessageId(),
                 reaction.getUserId(),
-                reaction.getEmoji(),
+                reaction.getEmoji().name(), // enum 이름을 문자열로 변환
                 eventType,
                 reaction.getCreatedAt() != null 
                     ? reaction.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
@@ -203,75 +209,4 @@ public class ChatWebSocketController {
         // 채팅방 ID를 사용하여 브로드캐스트
         chatMessageBroker.publishReaction(chatRoomId, broadcastMessage);
     }
-
-    // Request DTOs
-
-    /**
-     * 텍스트 채팅 메시지 전송 요청 DTO.
-     *
-     * @param senderId 발신자 사용자 ID
-     * @param roomId   채팅방 ID
-     * @param content  메시지 내용
-     */
-    public record ChatMessageRequest(Long senderId, Long roomId, String content) {}
-
-    /**
-     * 파일 첨부 메시지 전송 요청 DTO.
-     *
-     * @param senderId     발신자 사용자 ID
-     * @param roomId       채팅방 ID
-     * @param fileUrl      업로드된 파일의 URL
-     * @param fileName     파일명
-     * @param fileSize     파일 크기 (바이트)
-     * @param contentType  파일의 MIME 타입
-     * @param thumbnailUrl 썸네일 이미지 URL (이미지/동영상 파일인 경우)
-     */
-    public record FileMessageRequest(
-            Long senderId,
-            Long roomId,
-            String fileUrl,
-            String fileName,
-            Long fileSize,
-            String contentType,
-            String thumbnailUrl
-    ) {}
-
-    /**
-     * 메시지 반응 추가 요청 DTO.
-     *
-     * @param messageId 반응을 추가할 메시지 ID
-     * @param userId    반응을 추가하는 사용자 ID
-     * @param emoji     이모지 문자열
-     */
-    public record AddReactionRequest(Long messageId, Long userId, String emoji) {}
-
-    /**
-     * 메시지 반응 제거 요청 DTO.
-     *
-     * @param messageId 반응을 제거할 메시지 ID
-     * @param userId    반응을 제거하는 사용자 ID
-     * @param emoji     제거할 이모지 문자열
-     */
-    public record RemoveReactionRequest(Long messageId, Long userId, String emoji) {}
-
-    /**
-     * 메시지 반응 브로드캐스트 메시지 DTO.
-     *
-     * <p>Redis Pub/Sub을 통해 모든 서버 인스턴스로 전파되는 반응 이벤트 메시지입니다.</p>
-     *
-     * @param reactionId 반응 ID
-     * @param messageId  대상 메시지 ID
-     * @param userId     반응한 사용자 ID
-     * @param emoji      이모지 문자열
-     * @param eventType  이벤트 타입 ("ADDED" 또는 "REMOVED")
-     * @param timestamp  이벤트 발생 시간 (Unix timestamp, 밀리초)
-     */
-    public record ReactionBroadcastMessage(
-            Long reactionId,
-            Long messageId,
-            Long userId,
-            String emoji,
-            String eventType,
-            long timestamp
-    ) {}
 }
