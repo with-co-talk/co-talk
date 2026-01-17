@@ -1,4 +1,4 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.chatroom;
 
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;

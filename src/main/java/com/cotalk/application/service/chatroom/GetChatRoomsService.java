@@ -1,9 +1,9 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.chatroom;
 
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.ChatRoomSummary;
-import com.cotalk.domain.port.inbound.GetChatRoomsUseCase;
+import com.cotalk.domain.port.inbound.chatroom.GetChatRoomsUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
@@ -14,6 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * 채팅방 목록 조회 유스케이스 구현체.
+ * 사용자가 참여한 채팅방 목록을 조회한다.
+ *
+ * @author seunggu.lee
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -24,6 +30,13 @@ public class GetChatRoomsService implements GetChatRoomsUseCase {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
 
+    /**
+     * 사용자가 참여한 채팅방 목록을 조회한다.
+     * 각 채팅방의 마지막 메시지, 안 읽은 메시지 수, 상대방 정보 등을 포함한다.
+     *
+     * @param userId 사용자 ID
+     * @return 채팅방 요약 정보 목록
+     */
     @Override
     public List<ChatRoomSummary> getChatRooms(Long userId) {
         List<ChatRoom> chatRooms = chatRoomRepository.findByUserId(userId);

@@ -1,11 +1,11 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.chatroom;
 
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.ChatRoomSummary;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.port.inbound.GetChatRoomsUseCase;
+import com.cotalk.domain.port.inbound.chatroom.GetChatRoomsUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
