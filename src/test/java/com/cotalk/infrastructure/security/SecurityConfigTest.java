@@ -17,6 +17,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.anyString;
@@ -27,6 +28,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest({AuthController.class, FriendController.class})
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenProvider.class, RateLimitTestConfiguration.class})
+@TestPropertySource(properties = {
+        "jwt.secret=test-secret-key-for-testing-purposes-only-minimum-32-chars",
+        "jwt.expiration=3600000"
+})
 class SecurityConfigTest {
 
     @Autowired
