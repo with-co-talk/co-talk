@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -138,10 +139,12 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private String generateKey(HttpServletRequest request, RateLimitProperties.EndpointRateLimit limit) {
         if (limit.isPerUser()) {
             // 사용자별 제한
-            String token = extractToken(request);
-            if (token != null && jwtTokenProvider.validateToken(token)) {
-                Long userId = jwtTokenProvider.getUserIdFromToken(token);
-                return "rate-limit:user:" + userId + ":" + request.getRequestURI();
+            Optional<Long> userId = extractToken(request)
+                    .filter(jwtTokenProvider::validateToken)
+                    .map(jwtTokenProvider::getUserIdFromToken);
+
+            if (userId.isPresent()) {
+                return "rate-limit:user:" + userId.get() + ":" + request.getRequestURI();
             }
         }
         // IP별 제한
@@ -204,14 +207,14 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      * HTTP 요청에서 JWT 토큰을 추출한다.
      *
      * @param request HTTP 요청
-     * @return JWT 토큰, 없으면 null
+     * @return JWT 토큰을 담은 Optional, 없으면 빈 Optional
      */
-    private String extractToken(HttpServletRequest request) {
+    private Optional<String> extractToken(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
+            return Optional.of(bearerToken.substring(7));
         }
-        return null;
+        return Optional.empty();
     }
 
     /**
