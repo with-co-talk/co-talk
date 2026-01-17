@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class TermsAgreement {
+public class TermsAgreement extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,9 +44,6 @@ public class TermsAgreement {
 
     @Column(name = "ip_address")
     private String ipAddress;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
 
     /**
      * 약관 유형을 나타내는 열거형.
@@ -83,18 +80,6 @@ public class TermsAgreement {
     }
 
     /**
-     * 엔티티 생성 시 호출되는 콜백 메서드.
-     * 생성 시간을 현재 시간으로 설정하고, 동의한 경우 동의 시간도 설정한다.
-     */
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        if (agreed) {
-            agreedAt = LocalDateTime.now();
-        }
-    }
-
-    /**
      * 이용약관 동의 기록을 생성한다.
      *
      * @param userId 사용자 ID
@@ -105,13 +90,20 @@ public class TermsAgreement {
      * @return 생성된 TermsAgreement 인스턴스
      */
     public static TermsAgreement create(Long userId, TermsType type, String version, boolean agreed, String ipAddress) {
-        return TermsAgreement.builder()
+        TermsAgreement agreement = TermsAgreement.builder()
                 .userId(userId)
                 .termsType(type)
                 .termsVersion(version)
                 .agreed(agreed)
                 .ipAddress(ipAddress)
                 .build();
+        
+        // 동의한 경우 동의 시간 설정
+        if (agreed) {
+            agreement.agreedAt = LocalDateTime.now();
+        }
+        
+        return agreement;
     }
 
     /**

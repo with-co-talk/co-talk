@@ -3,7 +3,6 @@ package com.cotalk.domain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
 
 /**
  * 사용자 차단 엔티티.
@@ -19,7 +18,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class Block {
+public class Block extends BaseEntity {
 
     @Id
     private Long id;
@@ -29,18 +28,6 @@ public class Block {
 
     @Column(name = "blocked_id", nullable = false)
     private Long blockedId;
-
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    /**
-     * 엔티티 생성 시 호출되는 콜백 메서드.
-     * 생성 시간을 현재 시간으로 설정한다.
-     */
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
 
     /**
      * 지정된 사용자가 이 차단 관계의 차단자인지 확인한다.

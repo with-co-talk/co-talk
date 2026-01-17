@@ -18,7 +18,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class PasswordResetToken {
+public class PasswordResetToken extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,18 +38,6 @@ public class PasswordResetToken {
 
     @Column(name = "used_at")
     private LocalDateTime usedAt;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    /**
-     * 엔티티 생성 시 호출되는 콜백 메서드.
-     * 생성 시간을 현재 시간으로 설정한다.
-     */
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
 
     /**
      * 비밀번호 재설정 토큰을 생성한다.
