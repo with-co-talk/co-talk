@@ -1,9 +1,9 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.user;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.UserNotFoundException;
-import com.cotalk.domain.port.inbound.DeleteAccountUseCase;
+import com.cotalk.domain.port.inbound.user.DeleteAccountUseCase;
 import com.cotalk.domain.port.outbound.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +11,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 회원 탈퇴 유스케이스 구현체.
+ * 사용자 계정과 관련된 모든 데이터를 삭제한다.
+ *
+ * @author seunggu.lee
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -26,6 +32,15 @@ public class DeleteAccountService implements DeleteAccountUseCase {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
 
+    /**
+     * 사용자 계정을 삭제한다.
+     * 비밀번호 확인 후 관련된 모든 데이터를 삭제한다.
+     *
+     * @param userId 삭제할 사용자 ID
+     * @param password 비밀번호 확인용
+     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
+     * @throws InvalidCredentialsException 비밀번호가 일치하지 않는 경우
+     */
     @Override
     public void deleteAccount(Long userId, String password) {
         User user = userRepository.findById(userId)
@@ -40,6 +55,13 @@ public class DeleteAccountService implements DeleteAccountUseCase {
         log.info("Account deleted: userId={}, email={}", userId, user.getEmail());
     }
 
+    /**
+     * 관리자가 사용자 계정을 삭제한다.
+     * 비밀번호 확인 없이 관련된 모든 데이터를 삭제한다.
+     *
+     * @param userId 삭제할 사용자 ID
+     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
+     */
     @Override
     public void deleteAccountByAdmin(Long userId) {
         User user = userRepository.findById(userId)

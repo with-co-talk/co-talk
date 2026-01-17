@@ -1,4 +1,4 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.user;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.outbound.UserRepository;

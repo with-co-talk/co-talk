@@ -1,8 +1,8 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.user;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DomainException;
-import com.cotalk.domain.port.inbound.UpdateProfileUseCase;
+import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
