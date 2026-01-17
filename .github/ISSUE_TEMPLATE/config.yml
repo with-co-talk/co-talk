@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 질문 및 문의
+    url: https://github.com/with-co-talk/co-talk/discussions
+    about: 기능에 대한 질문이나 제안사항을 공유해주세요
