@@ -1,5 +1,6 @@
 plugins {
     java
+    jacoco
     id("org.springframework.boot") version "3.3.0"
     id("io.spring.dependency-management") version "1.1.5"
 }
@@ -62,6 +63,14 @@ dependencies {
     implementation("com.bucket4j:bucket4j-redis:8.10.1")
     implementation("com.bucket4j:bucket4j-core:8.10.1")
 
+    // Observability - Micrometer & Tracing
+    implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation("io.micrometer:micrometer-tracing-bridge-brave")
+    implementation("io.zipkin.reporter2:zipkin-reporter-brave")
+
+    // Logging - Loki (Logback appender)
+    implementation("com.github.loki4j:loki-logback-appender:1.4.2")
+
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
@@ -90,5 +99,56 @@ tasks.withType<JavaCompile> {
 tasks.named("clean") {
     doLast {
         querydslDir.get().asFile.deleteRecursively()
+    }
+}
+
+// JaCoCo 설정
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+tasks.test {
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) {
+                exclude(
+                    "**/entity/Q*.class",  // QueryDSL Q클래스 제외
+                    "**/config/**",
+                    "**/CoTalkApplication.class"
+                )
+            }
+        })
+    )
+}
+
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = "CLASS"
+
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.60".toBigDecimal()
+            }
+
+            excludes = listOf(
+                "*.entity.Q*",
+                "*.config.*",
+                "*.CoTalkApplication"
+            )
+        }
     }
 }
