@@ -1,29 +1,45 @@
 package com.cotalk.domain.port.outbound;
 
 /**
- * 채팅 메시지 브로커 아웃바운드 포트
- * Redis Pub/Sub, Kafka 등 다양한 메시지 브로커로 교체 가능
+ * 채팅 메시지 브로커 아웃바운드 포트.
+ * 실시간 채팅 메시지 발행을 위한 인터페이스를 정의한다.
+ * Redis Pub/Sub, Kafka 등 다양한 메시지 브로커 구현체로 교체 가능하다.
+ *
+ * @author seunggu.lee
  */
 public interface ChatMessageBroker {
 
     /**
-     * 채팅방에 메시지 발행
+     * 채팅방에 메시지를 발행한다.
      *
-     * @param roomId 채팅방 ID
-     * @param message 브로드캐스트할 메시지
+     * @param roomId  채팅방 ID
+     * @param message 브로드캐스트할 채팅 메시지
      */
     void publish(Long roomId, ChatBroadcastMessage message);
 
     /**
-     * 채팅방에 반응 이벤트 발행
+     * 채팅방에 반응 이벤트를 발행한다.
      *
-     * @param roomId 채팅방 ID
-     * @param reactionEvent 반응 이벤트
+     * @param roomId        채팅방 ID
+     * @param reactionEvent 반응 이벤트 객체
      */
     void publishReaction(Long roomId, Object reactionEvent);
 
     /**
-     * 브로드캐스트할 채팅 메시지
+     * 브로드캐스트할 채팅 메시지.
+     * 실시간으로 채팅방 참여자들에게 전송되는 메시지 정보를 담는다.
+     *
+     * @param messageId    메시지 ID
+     * @param senderId     발신자 ID
+     * @param roomId       채팅방 ID
+     * @param content      메시지 내용
+     * @param type         메시지 유형 (TEXT, IMAGE, FILE 등)
+     * @param createdAtMillis 생성 시간 (밀리초)
+     * @param fileUrl      파일 URL (파일 메시지인 경우)
+     * @param fileName     파일명 (파일 메시지인 경우)
+     * @param fileSize     파일 크기 (파일 메시지인 경우)
+     * @param contentType  파일 MIME 타입 (파일 메시지인 경우)
+     * @param thumbnailUrl 썸네일 URL (이미지/비디오 메시지인 경우)
      */
     record ChatBroadcastMessage(
             Long messageId,

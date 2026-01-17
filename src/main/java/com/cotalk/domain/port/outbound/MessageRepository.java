@@ -6,20 +6,95 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-
+/**
+ * 메시지 레포지토리 포트.
+ * 채팅 메시지 데이터 저장 및 조회를 위한 인터페이스를 정의한다.
+ *
+ * @author seunggu.lee
+ */
 public interface MessageRepository {
+
+    /**
+     * 메시지를 저장한다.
+     *
+     * @param message 저장할 메시지
+     * @return 저장된 메시지
+     */
     Message save(Message message);
+
+    /**
+     * ID로 메시지를 조회한다.
+     *
+     * @param id 메시지 ID
+     * @return 조회된 메시지 (Optional)
+     */
     Optional<Message> findById(Long id);
+
+    /**
+     * 채팅방의 메시지를 생성일시 역순으로 페이징 조회한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param page       페이지 번호 (0부터 시작)
+     * @param size       페이지 크기
+     * @return 메시지 목록 (최신순)
+     */
     List<Message> findByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId, int page, int size);
+
+    /**
+     * 채팅방에서 특정 시점 이후의 읽지 않은 메시지 수를 조회한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId     사용자 ID
+     * @param lastReadAt 마지막 읽은 시간
+     * @return 읽지 않은 메시지 수
+     */
     long countUnreadMessages(Long chatRoomId, Long userId, LocalDateTime lastReadAt);
+
+    /**
+     * 채팅방의 가장 최근 메시지를 조회한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @return 가장 최근 메시지 (Optional)
+     */
     Optional<Message> findTopByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId);
 
     /**
-     * 커서 기반 메시지 조회
-     * @param chatRoomId 채팅방 ID
+     * 커서 기반 메시지 조회.
+     * 특정 메시지 ID 이전의 메시지를 조회한다.
+     *
+     * @param chatRoomId      채팅방 ID
      * @param beforeMessageId 이 ID 이전의 메시지 조회 (null이면 최신부터)
-     * @param size 조회할 개수
+     * @param size            조회할 개수
      * @return 메시지 목록 (최신순)
      */
     List<Message> findByChatRoomIdBeforeMessageId(Long chatRoomId, Long beforeMessageId, int size);
+
+    /**
+     * 특정 채팅방 내에서 키워드로 메시지를 검색한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param keyword    검색 키워드
+     * @param page       페이지 번호 (0부터 시작)
+     * @param size       페이지 크기
+     * @return 검색된 메시지 목록 (최신순)
+     */
+    List<Message> searchByKeywordInChatRoom(Long chatRoomId, String keyword, int page, int size);
+
+    /**
+     * 사용자가 속한 모든 채팅방에서 키워드로 메시지를 검색한다.
+     *
+     * @param userId  사용자 ID
+     * @param keyword 검색 키워드
+     * @param page    페이지 번호 (0부터 시작)
+     * @param size    페이지 크기
+     * @return 검색된 메시지 목록 (최신순)
+     */
+    List<Message> searchByKeywordInUserChatRooms(Long userId, String keyword, int page, int size);
+
+    /**
+     * 전체 메시지 수를 조회한다.
+     *
+     * @return 메시지 수
+     */
+    long count();
 }
