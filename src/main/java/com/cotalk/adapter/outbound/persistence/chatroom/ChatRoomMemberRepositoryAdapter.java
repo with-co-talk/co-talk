@@ -1,0 +1,99 @@
+package com.cotalk.adapter.outbound.persistence.chatroom;
+
+import com.cotalk.domain.entity.ChatRoomMember;
+import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * 채팅방 멤버 영속성 어댑터.
+ * JPA를 통해 채팅방 멤버 데이터를 저장하고 조회한다.
+ *
+ * @author seunggu.lee
+ */
+@Repository
+@RequiredArgsConstructor
+public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository {
+
+    private final ChatRoomMemberJpaRepository chatRoomMemberJpaRepository;
+
+    /**
+     * 채팅방 멤버를 저장한다.
+     *
+     * @param member 저장할 채팅방 멤버 엔티티
+     * @return 저장된 채팅방 멤버 엔티티
+     */
+    @Override
+    public ChatRoomMember save(ChatRoomMember member) {
+        return chatRoomMemberJpaRepository.save(member);
+    }
+
+    /**
+     * 채팅방 ID와 사용자 ID로 채팅방 멤버를 조회한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId 사용자 ID
+     * @return 채팅방 멤버 (Optional)
+     */
+    @Override
+    public Optional<ChatRoomMember> findByChatRoomIdAndUserId(Long chatRoomId, Long userId) {
+        return chatRoomMemberJpaRepository.findByChatRoomIdAndUserId(chatRoomId, userId);
+    }
+
+    /**
+     * 채팅방 ID로 모든 멤버 목록을 조회한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @return 채팅방 멤버 목록
+     */
+    @Override
+    public List<ChatRoomMember> findByChatRoomId(Long chatRoomId) {
+        return chatRoomMemberJpaRepository.findByChatRoomId(chatRoomId);
+    }
+
+    /**
+     * 사용자 ID로 참여 중인 채팅방 멤버 목록을 조회한다.
+     *
+     * @param userId 사용자 ID
+     * @return 채팅방 멤버 목록
+     */
+    @Override
+    public List<ChatRoomMember> findByUserId(Long userId) {
+        return chatRoomMemberJpaRepository.findByUserId(userId);
+    }
+
+    /**
+     * 채팅방에 해당 사용자가 멤버로 존재하는지 확인한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId 사용자 ID
+     * @return 멤버 존재 여부
+     */
+    @Override
+    public boolean existsByChatRoomIdAndUserId(Long chatRoomId, Long userId) {
+        return chatRoomMemberJpaRepository.existsByChatRoomIdAndUserId(chatRoomId, userId);
+    }
+
+    /**
+     * 채팅방 멤버를 삭제한다.
+     *
+     * @param member 삭제할 채팅방 멤버 엔티티
+     */
+    @Override
+    public void delete(ChatRoomMember member) {
+        chatRoomMemberJpaRepository.delete(member);
+    }
+
+    /**
+     * 사용자 ID로 모든 채팅방 멤버 정보를 삭제한다.
+     *
+     * @param userId 사용자 ID
+     */
+    @Override
+    public void deleteByUserId(Long userId) {
+        chatRoomMemberJpaRepository.deleteByUserId(userId);
+    }
+}
