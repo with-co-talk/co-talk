@@ -1,4 +1,4 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.notification;
 
 import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;

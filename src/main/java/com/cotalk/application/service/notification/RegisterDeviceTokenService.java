@@ -1,7 +1,7 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.notification;
 
 import com.cotalk.domain.entity.DeviceToken;
-import com.cotalk.domain.port.inbound.RegisterDeviceTokenUseCase;
+import com.cotalk.domain.port.inbound.notification.RegisterDeviceTokenUseCase;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
+/**
+ * 디바이스 토큰 등록 유스케이스 구현체.
+ * 푸시 알림을 위한 디바이스 토큰을 등록 및 해제한다.
+ *
+ * @author seunggu.lee
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -20,6 +26,17 @@ public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
     private final DeviceTokenRepository deviceTokenRepository;
     private final SnowflakeIdGenerator idGenerator;
 
+    /**
+     * 디바이스 토큰을 등록한다.
+     * 동일한 토큰이 이미 존재하는 경우:
+     * - 같은 사용자: 토큰을 재활성화
+     * - 다른 사용자: 기존 토큰 삭제 후 새로 등록
+     *
+     * @param userId     사용자 ID
+     * @param token      디바이스 토큰
+     * @param deviceType 디바이스 타입 (iOS, Android 등)
+     * @return 등록된 디바이스 토큰 정보
+     */
     @Override
     public DeviceToken register(Long userId, String token, DeviceToken.DeviceType deviceType) {
         Optional<DeviceToken> existingToken = deviceTokenRepository.findByToken(token);
@@ -50,6 +67,11 @@ public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
         return deviceTokenRepository.save(newToken);
     }
 
+    /**
+     * 디바이스 토큰 등록을 해제한다.
+     *
+     * @param token 해제할 디바이스 토큰
+     */
     @Override
     public void unregister(String token) {
         deviceTokenRepository.deleteByToken(token);
