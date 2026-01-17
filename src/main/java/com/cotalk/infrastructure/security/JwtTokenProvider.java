@@ -48,11 +48,23 @@ public class JwtTokenProvider {
      * @return 생성된 JWT 토큰 문자열
      */
     public String generateToken(Long userId) {
+        return generateToken(userId, "USER");
+    }
+
+    /**
+     * 사용자 ID와 역할을 기반으로 JWT 토큰을 생성한다.
+     *
+     * @param userId 사용자 ID
+     * @param role 사용자 역할
+     * @return 생성된 JWT 토큰 문자열
+     */
+    public String generateToken(Long userId, String role) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
                 .subject(userId.toString())
+                .claim("role", role)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -66,13 +78,28 @@ public class JwtTokenProvider {
      * @return 토큰에 포함된 사용자 ID
      */
     public Long getUserIdFromToken(String token) {
-        Claims claims = Jwts.parser()
+        Claims claims = getClaims(token);
+        return Long.parseLong(claims.getSubject());
+    }
+
+    /**
+     * JWT 토큰에서 사용자 역할을 추출한다.
+     *
+     * @param token JWT 토큰 문자열
+     * @return 토큰에 포함된 사용자 역할
+     */
+    public String getRoleFromToken(String token) {
+        Claims claims = getClaims(token);
+        String role = claims.get("role", String.class);
+        return role != null ? role : "USER";
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-
-        return Long.parseLong(claims.getSubject());
     }
 
     /**
