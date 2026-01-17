@@ -40,11 +40,7 @@ public class MessageValidator {
             throw InvalidEmojiException.invalidFormat(emojiString);
         }
 
-        Emoji emoji = Emoji.fromString(emojiString.trim());
-        if (emoji == null) {
-            throw InvalidEmojiException.invalidFormat(emojiString);
-        }
-
-        return emoji;
+        return Emoji.fromString(emojiString.trim())
+                .orElseThrow(() -> InvalidEmojiException.invalidFormat(emojiString));
     }
 }

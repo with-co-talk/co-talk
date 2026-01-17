@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("Emoji 열거형")
@@ -19,73 +21,73 @@ class EmojiTest {
         @DisplayName("이모지 문자로 Emoji를 찾을 수 있다")
         void should_findEmoji_when_givenEmojiCharacter() {
             // when & then
-            assertThat(Emoji.fromString("👍")).isEqualTo(Emoji.THUMBS_UP);
-            assertThat(Emoji.fromString("👎")).isEqualTo(Emoji.THUMBS_DOWN);
-            assertThat(Emoji.fromString("❤️")).isEqualTo(Emoji.HEART);
-            assertThat(Emoji.fromString("😂")).isEqualTo(Emoji.LAUGHING);
-            assertThat(Emoji.fromString("😮")).isEqualTo(Emoji.SURPRISED);
-            assertThat(Emoji.fromString("😢")).isEqualTo(Emoji.SAD);
-            assertThat(Emoji.fromString("🔥")).isEqualTo(Emoji.FIRE);
-            assertThat(Emoji.fromString("🎉")).isEqualTo(Emoji.PARTY);
-            assertThat(Emoji.fromString("👏")).isEqualTo(Emoji.CLAPPING);
-            assertThat(Emoji.fromString("✅")).isEqualTo(Emoji.CHECK);
+            assertThat(Emoji.fromString("👍")).contains(Emoji.THUMBS_UP);
+            assertThat(Emoji.fromString("👎")).contains(Emoji.THUMBS_DOWN);
+            assertThat(Emoji.fromString("❤️")).contains(Emoji.HEART);
+            assertThat(Emoji.fromString("😂")).contains(Emoji.LAUGHING);
+            assertThat(Emoji.fromString("😮")).contains(Emoji.SURPRISED);
+            assertThat(Emoji.fromString("😢")).contains(Emoji.SAD);
+            assertThat(Emoji.fromString("🔥")).contains(Emoji.FIRE);
+            assertThat(Emoji.fromString("🎉")).contains(Emoji.PARTY);
+            assertThat(Emoji.fromString("👏")).contains(Emoji.CLAPPING);
+            assertThat(Emoji.fromString("✅")).contains(Emoji.CHECK);
         }
 
         @Test
         @DisplayName("이모지 이름으로 Emoji를 찾을 수 있다")
         void should_findEmoji_when_givenEmojiName() {
             // when & then
-            assertThat(Emoji.fromString("thumbsup")).isEqualTo(Emoji.THUMBS_UP);
-            assertThat(Emoji.fromString("thumbsdown")).isEqualTo(Emoji.THUMBS_DOWN);
-            assertThat(Emoji.fromString("heart")).isEqualTo(Emoji.HEART);
-            assertThat(Emoji.fromString("laughing")).isEqualTo(Emoji.LAUGHING);
-            assertThat(Emoji.fromString("surprised")).isEqualTo(Emoji.SURPRISED);
-            assertThat(Emoji.fromString("sad")).isEqualTo(Emoji.SAD);
-            assertThat(Emoji.fromString("fire")).isEqualTo(Emoji.FIRE);
-            assertThat(Emoji.fromString("party")).isEqualTo(Emoji.PARTY);
-            assertThat(Emoji.fromString("clapping")).isEqualTo(Emoji.CLAPPING);
-            assertThat(Emoji.fromString("check")).isEqualTo(Emoji.CHECK);
+            assertThat(Emoji.fromString("thumbsup")).contains(Emoji.THUMBS_UP);
+            assertThat(Emoji.fromString("thumbsdown")).contains(Emoji.THUMBS_DOWN);
+            assertThat(Emoji.fromString("heart")).contains(Emoji.HEART);
+            assertThat(Emoji.fromString("laughing")).contains(Emoji.LAUGHING);
+            assertThat(Emoji.fromString("surprised")).contains(Emoji.SURPRISED);
+            assertThat(Emoji.fromString("sad")).contains(Emoji.SAD);
+            assertThat(Emoji.fromString("fire")).contains(Emoji.FIRE);
+            assertThat(Emoji.fromString("party")).contains(Emoji.PARTY);
+            assertThat(Emoji.fromString("clapping")).contains(Emoji.CLAPPING);
+            assertThat(Emoji.fromString("check")).contains(Emoji.CHECK);
         }
 
         @Test
-        @DisplayName("null을 전달하면 null을 반환한다")
-        void should_returnNull_when_givenNull() {
+        @DisplayName("null을 전달하면 빈 Optional을 반환한다")
+        void should_returnEmpty_when_givenNull() {
             // when
-            Emoji result = Emoji.fromString(null);
+            Optional<Emoji> result = Emoji.fromString(null);
 
             // then
-            assertThat(result).isNull();
+            assertThat(result).isEmpty();
         }
 
         @ParameterizedTest
         @ValueSource(strings = {"", "   ", "\t", "\n"})
-        @DisplayName("빈 문자열이나 공백을 전달하면 null을 반환한다")
-        void should_returnNull_when_givenEmptyOrBlank(String value) {
+        @DisplayName("빈 문자열이나 공백을 전달하면 빈 Optional을 반환한다")
+        void should_returnEmpty_when_givenEmptyOrBlank(String value) {
             // when
-            Emoji result = Emoji.fromString(value);
+            Optional<Emoji> result = Emoji.fromString(value);
 
             // then
-            assertThat(result).isNull();
+            assertThat(result).isEmpty();
         }
 
         @Test
-        @DisplayName("알 수 없는 문자열을 전달하면 null을 반환한다")
-        void should_returnNull_when_givenUnknownValue() {
+        @DisplayName("알 수 없는 문자열을 전달하면 빈 Optional을 반환한다")
+        void should_returnEmpty_when_givenUnknownValue() {
             // when
-            Emoji result = Emoji.fromString("unknown");
+            Optional<Emoji> result = Emoji.fromString("unknown");
 
             // then
-            assertThat(result).isNull();
+            assertThat(result).isEmpty();
         }
 
         @Test
         @DisplayName("대소문자를 구분한다 (name은 소문자)")
         void should_beCaseSensitive_forName() {
             // when
-            Emoji result = Emoji.fromString("THUMBSUP");
+            Optional<Emoji> result = Emoji.fromString("THUMBSUP");
 
             // then
-            assertThat(result).isNull();
+            assertThat(result).isEmpty();
         }
     }
 
