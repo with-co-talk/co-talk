@@ -1,0 +1,23 @@
+# Prometheus Operator ServiceMonitor (선택적 - Prometheus Operator 설치 시 사용)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cotalk-servicemonitor
+  namespace: cotalk
+  labels:
+    app.kubernetes.io/name: cotalk
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cotalk
+      app.kubernetes.io/component: backend
+  namespaceSelector:
+    matchNames:
+      - cotalk
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
+      scrapeTimeout: 10s
+      honorLabels: true

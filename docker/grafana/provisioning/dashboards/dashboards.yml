@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: 'Co-Talk Dashboards'
+    orgId: 1
+    folder: 'Co-Talk'
+    folderUid: 'cotalk'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

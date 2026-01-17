@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cotalk
+  labels:
+    app.kubernetes.io/name: cotalk
+    app.kubernetes.io/part-of: cotalk-system

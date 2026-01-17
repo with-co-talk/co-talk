@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cotalk-config
+  namespace: cotalk
+  labels:
+    app.kubernetes.io/name: cotalk
+data:
+  # Spring 프로파일
+  SPRING_PROFILES_ACTIVE: "kubernetes"
+
+  # 서버 설정
+  SERVER_PORT: "8080"
+
+  # 데이터베이스 설정
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-service:5432/cotalk"
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "10"
+  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "5"
+
+  # Redis 설정
+  SPRING_DATA_REDIS_HOST: "redis-service"
+  SPRING_DATA_REDIS_PORT: "6379"
+
+  # MinIO 설정
+  MINIO_ENDPOINT: "http://minio-service:9000"
+  MINIO_BUCKET: "cotalk-files"
+
+  # 로깅 설정
+  LOGGING_LEVEL_ROOT: "INFO"
+  LOGGING_LEVEL_COM_COTALK: "INFO"
+
+  # Actuator 설정
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
+
+  # Tracing 설정 (Zipkin)
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "0.1"
+  MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: "http://zipkin-service:9411/api/v2/spans"

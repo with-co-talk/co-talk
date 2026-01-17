@@ -1,0 +1,104 @@
+groups:
+  - name: cotalk-alerts
+    rules:
+      # ===========================================
+      # 애플리케이션 상태 알림
+      # ===========================================
+      - alert: ApplicationDown
+        expr: up{job="cotalk-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Co-Talk 애플리케이션이 다운되었습니다"
+          description: "Co-Talk 백엔드 애플리케이션이 1분 이상 응답하지 않습니다."
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+          / sum(rate(http_server_requests_seconds_count[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "높은 에러율 감지"
+          description: "5xx 에러율이 5% 이상입니다. 현재: {{ $value | printf \"%.2f\" }}%"
+
+      # ===========================================
+      # 성능 알림
+      # ===========================================
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API 응답 시간이 느립니다"
+          description: "95퍼센타일 응답 시간이 2초를 초과합니다."
+
+      - alert: HighCpuUsage
+        expr: |
+          system_cpu_usage > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU 사용률이 높습니다"
+          description: "CPU 사용률이 80%를 초과합니다. 현재: {{ $value | printf \"%.2f\" }}%"
+
+      - alert: HighMemoryUsage
+        expr: |
+          jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM 힙 메모리 사용률이 높습니다"
+          description: "힙 메모리 사용률이 85%를 초과합니다."
+
+      # ===========================================
+      # 데이터베이스 알림
+      # ===========================================
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          hikaricp_connections_active / hikaricp_connections_max > 0.9
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "데이터베이스 커넥션 풀이 거의 소진되었습니다"
+          description: "HikariCP 커넥션 풀의 90% 이상이 사용 중입니다."
+
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95, sum(rate(spring_data_repository_invocations_seconds_bucket[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "데이터베이스 쿼리가 느립니다"
+          description: "95퍼센타일 쿼리 응답 시간이 1초를 초과합니다."
+
+      # ===========================================
+      # 비즈니스 메트릭 알림
+      # ===========================================
+      - alert: HighMessageRate
+        expr: |
+          rate(cotalk_messages_sent_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "메시지 전송량이 급증했습니다"
+          description: "분당 메시지 전송량이 1000건을 초과합니다."
+
+      - alert: WebSocketConnectionSpike
+        expr: |
+          delta(cotalk_websocket_connections[5m]) > 100
+        for: 1m
+        labels:
+          severity: info
+        annotations:
+          summary: "WebSocket 연결 급증"
+          description: "5분 내에 WebSocket 연결이 100개 이상 증가했습니다."

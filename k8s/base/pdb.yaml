@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cotalk-pdb
+  namespace: cotalk
+  labels:
+    app.kubernetes.io/name: cotalk
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cotalk
+      app.kubernetes.io/component: backend

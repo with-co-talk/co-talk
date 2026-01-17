@@ -1,0 +1,69 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cotalk-prod
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+nameSuffix: -prod
+
+commonLabels:
+  environment: prod
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+    target:
+      kind: Deployment
+      name: cotalk-app
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "2Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "2000m"
+    target:
+      kind: Deployment
+      name: cotalk-app
+  - patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 20
+    target:
+      kind: HorizontalPodAutoscaler
+      name: cotalk-hpa
+  - patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 2
+    target:
+      kind: PodDisruptionBudget
+      name: cotalk-pdb
+
+configMapGenerator:
+  - name: cotalk-config
+    behavior: merge
+    literals:
+      - SPRING_PROFILES_ACTIVE=prod,kubernetes
+      - LOGGING_LEVEL_ROOT=WARN
+      - LOGGING_LEVEL_COM_COTALK=INFO
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=0.05
+      - SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE=20
+
+images:
+  - name: cotalk-app
+    newTag: stable
