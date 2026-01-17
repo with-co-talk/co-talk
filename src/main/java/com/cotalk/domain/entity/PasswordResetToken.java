@@ -6,6 +6,12 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * 비밀번호 재설정 토큰 엔티티.
+ * 사용자의 비밀번호 재설정 요청에 대한 토큰 정보를 나타낸다.
+ *
+ * @author seunggu.lee
+ */
 @Entity
 @Table(name = "password_reset_tokens")
 @Getter
@@ -36,11 +42,23 @@ public class PasswordResetToken {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /**
+     * 엔티티 생성 시 호출되는 콜백 메서드.
+     * 생성 시간을 현재 시간으로 설정한다.
+     */
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
     }
 
+    /**
+     * 비밀번호 재설정 토큰을 생성한다.
+     *
+     * @param userId 사용자 ID
+     * @param email 이메일 주소
+     * @param expirationMinutes 만료 시간 (분 단위)
+     * @return 생성된 PasswordResetToken 인스턴스
+     */
     public static PasswordResetToken create(Long userId, String email, int expirationMinutes) {
         return PasswordResetToken.builder()
                 .token(UUID.randomUUID().toString())
@@ -50,18 +68,37 @@ public class PasswordResetToken {
                 .build();
     }
 
+    /**
+     * 토큰이 만료되었는지 확인한다.
+     *
+     * @return 만료되었으면 true, 그렇지 않으면 false
+     */
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiresAt);
     }
 
+    /**
+     * 토큰이 사용되었는지 확인한다.
+     *
+     * @return 사용되었으면 true, 그렇지 않으면 false
+     */
     public boolean isUsed() {
         return usedAt != null;
     }
 
+    /**
+     * 토큰이 유효한지 확인한다.
+     * 만료되지 않고 사용되지 않은 경우 유효하다.
+     *
+     * @return 유효하면 true, 그렇지 않으면 false
+     */
     public boolean isValid() {
         return !isExpired() && !isUsed();
     }
 
+    /**
+     * 토큰을 사용됨으로 표시한다.
+     */
     public void markAsUsed() {
         this.usedAt = LocalDateTime.now();
     }

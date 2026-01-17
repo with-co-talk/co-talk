@@ -9,8 +9,11 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 사용자의 푸시 알림용 디바이스 토큰 엔티티.
- * FCM (Android/Web) 및 APNs (iOS) 토큰을 저장합니다.
+ * 디바이스 토큰 엔티티.
+ * 사용자의 푸시 알림용 디바이스 토큰 정보를 나타낸다.
+ * FCM (Android/Web) 및 APNs (iOS) 토큰을 저장한다.
+ *
+ * @author seunggu.lee
  */
 @Entity
 @Table(name = "device_tokens",
@@ -44,6 +47,14 @@ public class DeviceToken {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    /**
+     * DeviceToken 생성자.
+     *
+     * @param id 디바이스 토큰 ID
+     * @param userId 사용자 ID
+     * @param token 디바이스 토큰 문자열
+     * @param deviceType 디바이스 유형
+     */
     @Builder
     public DeviceToken(Long id, Long userId, String token, DeviceType deviceType) {
         this.id = id;
@@ -56,8 +67,8 @@ public class DeviceToken {
     }
 
     /**
-     * 토큰을 비활성화합니다.
-     * FCM에서 토큰이 만료되었거나 사용자가 로그아웃할 때 호출됩니다.
+     * 토큰을 비활성화한다.
+     * FCM에서 토큰이 만료되었거나 사용자가 로그아웃할 때 호출된다.
      */
     public void deactivate() {
         this.active = false;
@@ -65,7 +76,9 @@ public class DeviceToken {
     }
 
     /**
-     * 토큰을 업데이트하고 활성화합니다.
+     * 토큰을 업데이트하고 활성화한다.
+     *
+     * @param newToken 새 토큰 문자열
      */
     public void updateToken(String newToken) {
         this.token = newToken;
@@ -74,11 +87,16 @@ public class DeviceToken {
     }
 
     /**
-     * 디바이스 타입
+     * 디바이스 유형을 나타내는 열거형.
+     *
+     * @author seunggu.lee
      */
     public enum DeviceType {
+        /** 안드로이드 디바이스 */
         ANDROID,
+        /** iOS 디바이스 */
         IOS,
+        /** 웹 브라우저 */
         WEB
     }
 }
