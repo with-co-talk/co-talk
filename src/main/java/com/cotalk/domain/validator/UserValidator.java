@@ -5,7 +5,13 @@ import org.springframework.stereotype.Component;
 import java.util.regex.Pattern;
 
 /**
- * 사용자 관련 입력값 검증을 담당하는 Validator
+ * 사용자 유효성 검증기.
+ * <p>
+ * 사용자 관련 입력값의 유효성을 검증한다.
+ * 이메일 형식, 비밀번호 강도, 닉네임 등의 유효성을 검증하는 역할을 담당한다.
+ * </p>
+ *
+ * @author seunggu.lee
  */
 @Component
 public class UserValidator {

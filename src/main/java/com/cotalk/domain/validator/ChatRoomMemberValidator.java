@@ -7,7 +7,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * 채팅방 멤버십 검증을 담당하는 Validator
+ * 채팅방 멤버 유효성 검증기.
+ * <p>
+ * 채팅방 멤버십 관련 비즈니스 규칙을 검증한다.
+ * 사용자가 특정 채팅방의 멤버인지 확인하고, 접근 권한을 검증하는 역할을 담당한다.
+ * </p>
+ *
+ * @author seunggu.lee
+ * @see ChatRoomMember
+ * @see ChatRoomMemberRepository
  */
 @Component
 @RequiredArgsConstructor

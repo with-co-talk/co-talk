@@ -13,15 +13,27 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
- * Redis Pub/Sub 메시징 설정
+ * Redis Pub/Sub 메시징 설정 클래스.
+ * 채팅 메시지 브로드캐스팅을 위한 Redis 연결 및 리스너를 구성한다.
+ *
+ * <p>이 설정은 {@code spring.data.redis.enabled=true}일 때만 활성화된다.</p>
+ *
+ * @author seunggu.lee
  */
 @Slf4j
 @Configuration
 @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = true)
 public class RedisMessagingConfig {
 
+    /** 채팅방 채널 패턴 (chat:room:*) */
     private static final String CHAT_CHANNEL_PATTERN = "chat:room:*";
 
+    /**
+     * Redis 문자열 직렬화를 위한 RedisTemplate을 생성한다.
+     *
+     * @param connectionFactory Redis 연결 팩토리
+     * @return 문자열 키/값을 사용하는 RedisTemplate
+     */
     @Bean
     public RedisTemplate<String, String> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, String> template = new RedisTemplate<>();
@@ -33,6 +45,14 @@ public class RedisMessagingConfig {
         return template;
     }
 
+    /**
+     * Redis 메시지 리스너 컨테이너를 생성한다.
+     * 모든 채팅방 채널 패턴(chat:room:*)을 구독하여 메시지를 수신한다.
+     *
+     * @param connectionFactory Redis 연결 팩토리
+     * @param subscriber 채팅 메시지 구독자
+     * @return Redis 메시지 리스너 컨테이너
+     */
     @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer(
             RedisConnectionFactory connectionFactory,
@@ -48,6 +68,11 @@ public class RedisMessagingConfig {
         return container;
     }
 
+    /**
+     * Java 8 시간 API를 지원하는 ObjectMapper를 생성한다.
+     *
+     * @return JavaTimeModule이 등록된 ObjectMapper
+     */
     @Bean
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();

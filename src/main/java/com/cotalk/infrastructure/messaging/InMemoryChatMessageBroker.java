@@ -12,8 +12,13 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 /**
- * 개발/테스트용 인메모리 채팅 메시지 브로커
- * Redis가 비활성화되었을 때 사용 (단일 서버 환경)
+ * 인메모리 기반 채팅 메시지 브로커 구현체.
+ * Redis가 비활성화된 단일 서버 환경에서 사용된다.
+ *
+ * <p>개발 및 테스트 환경에서 Redis 없이 채팅 기능을 테스트할 수 있도록 한다.
+ * 이 컴포넌트는 {@code spring.data.redis.enabled=false}일 때만 활성화된다.</p>
+ *
+ * @author seunggu.lee
  */
 @Slf4j
 @Component
@@ -23,6 +28,13 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
 
     private final SimpMessagingTemplate messagingTemplate;
 
+    /**
+     * 지정된 채팅방에 메시지를 발행한다.
+     * 인메모리 구현이므로 직접 WebSocket으로 브로드캐스트한다.
+     *
+     * @param roomId 채팅방 ID
+     * @param message 발행할 채팅 메시지
+     */
     @Override
     public void publish(Long roomId, ChatBroadcastMessage message) {
         log.debug("InMemory broadcast to room {}: messageId={}", roomId, message.messageId());
@@ -34,6 +46,12 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
         messagingTemplate.convertAndSend(destination, wsMessage);
     }
 
+    /**
+     * ChatBroadcastMessage를 WebSocket 전송용 메시지로 변환한다.
+     *
+     * @param msg 변환할 채팅 브로드캐스트 메시지
+     * @return WebSocket 전송용 메시지
+     */
     private WebSocketMessage toWebSocketMessage(ChatBroadcastMessage msg) {
         LocalDateTime createdAt = LocalDateTime.ofInstant(
                 Instant.ofEpochMilli(msg.createdAtMillis()),
@@ -55,6 +73,13 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
         );
     }
 
+    /**
+     * 지정된 채팅방에 리액션 이벤트를 발행한다.
+     * 인메모리 구현이므로 직접 WebSocket으로 브로드캐스트한다.
+     *
+     * @param roomId 채팅방 ID
+     * @param reactionEvent 발행할 리액션 이벤트
+     */
     @Override
     public void publishReaction(Long roomId, Object reactionEvent) {
         log.debug("InMemory broadcast reaction to room {}: {}", roomId, reactionEvent);
@@ -64,6 +89,21 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
         messagingTemplate.convertAndSend(destination, reactionEvent);
     }
 
+    /**
+     * WebSocket으로 전송할 메시지 DTO.
+     *
+     * @param messageId 메시지 ID
+     * @param senderId 발신자 ID
+     * @param roomId 채팅방 ID
+     * @param content 메시지 내용
+     * @param type 메시지 타입
+     * @param createdAt 생성 일시
+     * @param fileUrl 파일 URL (파일 메시지인 경우)
+     * @param fileName 파일명 (파일 메시지인 경우)
+     * @param fileSize 파일 크기 (파일 메시지인 경우)
+     * @param contentType 컨텐츠 타입 (파일 메시지인 경우)
+     * @param thumbnailUrl 썸네일 URL (이미지 메시지인 경우)
+     */
     public record WebSocketMessage(
             Long messageId,
             Long senderId,

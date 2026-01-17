@@ -10,8 +10,15 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Redis Pub/Sub을 이용한 채팅 메시지 브로커
- * 여러 서버 인스턴스 간 메시지 브로드캐스팅을 담당
+ * Redis Pub/Sub 기반 채팅 메시지 브로커 구현체.
+ * 여러 서버 인스턴스 간 채팅 메시지 브로드캐스팅을 담당한다.
+ *
+ * <p>분산 환경에서 모든 서버가 동일한 메시지를 수신할 수 있도록
+ * Redis Pub/Sub 채널을 통해 메시지를 발행한다.</p>
+ *
+ * <p>이 컴포넌트는 {@code spring.data.redis.enabled=true}일 때만 활성화된다.</p>
+ *
+ * @author seunggu.lee
  */
 @Slf4j
 @Component
@@ -19,11 +26,20 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = true)
 public class RedisChatMessageBroker implements ChatMessageBroker {
 
+    /** Redis 채팅 채널 프리픽스 */
     private static final String CHANNEL_PREFIX = "chat:room:";
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
 
+    /**
+     * 지정된 채팅방에 메시지를 발행한다.
+     * 메시지를 JSON으로 직렬화하여 Redis 채널에 발행한다.
+     *
+     * @param roomId 채팅방 ID
+     * @param message 발행할 채팅 메시지
+     * @throws RuntimeException 메시지 직렬화에 실패한 경우
+     */
     @Override
     public void publish(Long roomId, ChatBroadcastMessage message) {
         String channel = CHANNEL_PREFIX + roomId;
@@ -37,6 +53,14 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
         }
     }
 
+    /**
+     * 지정된 채팅방에 리액션 이벤트를 발행한다.
+     * 리액션 이벤트를 JSON으로 직렬화하여 Redis 채널에 발행한다.
+     *
+     * @param roomId 채팅방 ID
+     * @param reactionEvent 발행할 리액션 이벤트
+     * @throws RuntimeException 리액션 이벤트 직렬화에 실패한 경우
+     */
     @Override
     public void publishReaction(Long roomId, Object reactionEvent) {
         String channel = CHANNEL_PREFIX + roomId + ":reaction";

@@ -16,7 +16,17 @@ import java.util.List;
 
 /**
  * WebSocket STOMP 연결 시 JWT 토큰을 검증하는 인터셉터.
- * CONNECT 명령 시 Authorization 헤더에서 JWT 토큰을 추출하여 인증합니다.
+ * CONNECT 명령 시 Authorization 헤더에서 JWT 토큰을 추출하여 인증한다.
+ *
+ * <p>인증 흐름:
+ * <ol>
+ *   <li>STOMP CONNECT 명령 감지</li>
+ *   <li>Authorization 헤더에서 Bearer 토큰 추출</li>
+ *   <li>JWT 토큰 유효성 검증</li>
+ *   <li>사용자 ID를 Principal로 설정</li>
+ * </ol>
+ *
+ * @author seunggu.lee
  */
 @Slf4j
 @Component
@@ -28,6 +38,15 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
     private final JwtTokenProvider jwtTokenProvider;
 
+    /**
+     * 메시지 전송 전에 인증을 수행한다.
+     * STOMP CONNECT 명령인 경우 JWT 토큰을 검증하고 Principal을 설정한다.
+     *
+     * @param message 전송할 메시지
+     * @param channel 메시지 채널
+     * @return 처리된 메시지
+     * @throws IllegalArgumentException 인증 토큰이 없거나 유효하지 않은 경우
+     */
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
@@ -44,6 +63,13 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         return message;
     }
 
+    /**
+     * WebSocket 연결 시 인증을 수행한다.
+     * 토큰을 추출하고 검증한 후 Principal을 설정한다.
+     *
+     * @param accessor STOMP 헤더 접근자
+     * @throws IllegalArgumentException 인증 토큰이 없거나 유효하지 않은 경우
+     */
     private void authenticateConnection(StompHeaderAccessor accessor) {
         String token = extractToken(accessor);
 
@@ -59,30 +85,44 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
         Long userId = jwtTokenProvider.getUserIdFromToken(token);
         accessor.setUser(new StompPrincipal(userId.toString()));
-        
+
         log.info("WebSocket connection authenticated for user: {}", userId);
     }
 
+    /**
+     * STOMP 헤더에서 JWT 토큰을 추출한다.
+     *
+     * @param accessor STOMP 헤더 접근자
+     * @return 추출된 JWT 토큰, 토큰이 없으면 null
+     */
     private String extractToken(StompHeaderAccessor accessor) {
         List<String> authHeaders = accessor.getNativeHeader(AUTHORIZATION_HEADER);
-        
+
         if (authHeaders == null || authHeaders.isEmpty()) {
             return null;
         }
 
         String authHeader = authHeaders.get(0);
-        
+
         if (authHeader.startsWith(BEARER_PREFIX)) {
             return authHeader.substring(BEARER_PREFIX.length());
         }
-        
+
         return authHeader;
     }
 
     /**
-     * STOMP 세션에 설정되는 Principal 구현체
+     * STOMP 세션에 설정되는 Principal 구현체.
+     * 사용자 ID를 이름으로 저장한다.
+     *
+     * @param name 사용자 ID 문자열
      */
     private record StompPrincipal(String name) implements Principal {
+        /**
+         * Principal 이름(사용자 ID)을 반환한다.
+         *
+         * @return 사용자 ID 문자열
+         */
         @Override
         public String getName() {
             return name;

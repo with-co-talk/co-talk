@@ -11,6 +11,17 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+/**
+ * SMTP 프로토콜을 사용한 이메일 발송 구현체.
+ * {@link EmailSender} 포트를 구현하여 실제 이메일을 발송한다.
+ *
+ * <p>메일 서버가 설정되었을 때({@code spring.mail.host} 프로퍼티 존재 시) 자동으로 활성화된다.
+ * HTML 형식의 이메일을 지원하며, 비동기로 발송하여 응답 지연을 방지한다.
+ *
+ * @author seunggu.lee
+ * @see EmailSender
+ * @see ConsoleEmailSender
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -19,13 +30,23 @@ public class SmtpEmailSender implements EmailSender {
 
     private final JavaMailSender mailSender;
 
+    /**
+     * 이메일을 비동기로 발송한다.
+     *
+     * <p>HTML 형식을 지원하며 UTF-8 인코딩을 사용한다.
+     *
+     * @param to      수신자 이메일 주소
+     * @param subject 이메일 제목
+     * @param body    이메일 본문 (HTML 지원)
+     * @throws RuntimeException 이메일 발송에 실패한 경우
+     */
     @Override
     @Async
     public void send(String to, String subject, String body) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            
+
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(body, true); // HTML 지원
@@ -38,6 +59,14 @@ public class SmtpEmailSender implements EmailSender {
         }
     }
 
+    /**
+     * 비밀번호 재설정 이메일을 비동기로 발송한다.
+     *
+     * <p>미리 정의된 HTML 템플릿을 사용하여 비밀번호 재설정 링크가 포함된 이메일을 발송한다.
+     *
+     * @param to        수신자 이메일 주소
+     * @param resetLink 비밀번호 재설정 링크 URL
+     */
     @Override
     @Async
     public void sendPasswordResetEmail(String to, String resetLink) {
@@ -46,6 +75,12 @@ public class SmtpEmailSender implements EmailSender {
         send(to, subject, body);
     }
 
+    /**
+     * 비밀번호 재설정 이메일의 HTML 본문을 생성한다.
+     *
+     * @param resetLink 비밀번호 재설정 링크 URL
+     * @return 생성된 HTML 본문 문자열
+     */
     private String buildPasswordResetEmailBody(String resetLink) {
         return """
             <!DOCTYPE html>

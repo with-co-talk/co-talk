@@ -14,23 +14,36 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Duration;
 
 /**
- * Rate Limiting 설정
- * Bucket4j를 사용하여 Redis 기반 Rate Limiting 구현
+ * Rate Limiting 설정 클래스.
+ * Bucket4j와 Redis를 사용하여 분산 환경에서의 Rate Limiting을 구현한다.
+ *
+ * <p>이 설정은 {@code app.rate-limit.enabled=true}일 때만 활성화된다.</p>
+ *
+ * @author seunggu.lee
  */
 @Slf4j
 @Configuration
 @ConditionalOnProperty(name = "app.rate-limit.enabled", havingValue = "true", matchIfMissing = true)
 public class RateLimitConfig {
 
+    /** Redis 호스트 주소 */
     @Value("${spring.data.redis.host:localhost}")
     private String redisHost;
 
+    /** Redis 포트 번호 */
     @Value("${spring.data.redis.port:6379}")
     private int redisPort;
 
+    /** Redis 비밀번호 */
     @Value("${spring.data.redis.password:}")
     private String redisPassword;
 
+    /**
+     * Bucket4j Redis ProxyManager를 생성한다.
+     * 분산 환경에서 Rate Limit 상태를 Redis에 저장하여 공유한다.
+     *
+     * @return Redis 기반 Bucket4j ProxyManager
+     */
     @Bean
     public ProxyManager<byte[]> bucket4jProxyManager() {
         RedisURI redisURI = RedisURI.builder()

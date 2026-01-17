@@ -4,7 +4,13 @@ import com.cotalk.domain.exception.InvalidEmojiException;
 import org.springframework.stereotype.Component;
 
 /**
- * 메시지 관련 입력값 검증을 담당하는 Validator
+ * 메시지 유효성 검증기.
+ * <p>
+ * 메시지 관련 입력값의 유효성을 검증한다.
+ * 메시지 내용, 이모지 등의 형식과 길이를 검증하는 역할을 담당한다.
+ * </p>
+ *
+ * @author seunggu.lee
  */
 @Component
 public class MessageValidator {
