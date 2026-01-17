@@ -60,14 +60,12 @@ class GetMessageHistoryServiceTest {
                         .chatRoomId(chatRoomId)
                         .senderId(userId)
                         .content("최신 메시지")
-                        .createdAt(LocalDateTime.now())
                         .build(),
                 Message.builder()
                         .id(999L)
                         .chatRoomId(chatRoomId)
                         .senderId(2L)
                         .content("이전 메시지")
-                        .createdAt(LocalDateTime.now().minusMinutes(1))
                         .build()
         );
 
@@ -106,14 +104,12 @@ class GetMessageHistoryServiceTest {
                         .chatRoomId(chatRoomId)
                         .senderId(2L)
                         .content("이전 메시지 1")
-                        .createdAt(LocalDateTime.now().minusMinutes(1))
                         .build(),
                 Message.builder()
                         .id(998L)
                         .chatRoomId(chatRoomId)
                         .senderId(userId)
                         .content("이전 메시지 2")
-                        .createdAt(LocalDateTime.now().minusMinutes(2))
                         .build()
         );
 

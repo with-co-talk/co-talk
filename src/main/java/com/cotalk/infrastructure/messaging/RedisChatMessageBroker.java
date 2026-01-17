@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
@@ -26,11 +27,11 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = true)
 public class RedisChatMessageBroker implements ChatMessageBroker {
 
-    /** Redis 채팅 채널 프리픽스 */
-    private static final String CHANNEL_PREFIX = "chat:room:";
-
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    
+    @Value("${app.redis.channel-prefix:chat:room:}")
+    private String channelPrefix;
 
     /**
      * 지정된 채팅방에 메시지를 발행한다.
@@ -42,7 +43,7 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
      */
     @Override
     public void publish(Long roomId, ChatBroadcastMessage message) {
-        String channel = CHANNEL_PREFIX + roomId;
+        String channel = channelPrefix + roomId;
         try {
             String jsonMessage = objectMapper.writeValueAsString(message);
             redisTemplate.convertAndSend(channel, jsonMessage);
@@ -63,7 +64,7 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
      */
     @Override
     public void publishReaction(Long roomId, Object reactionEvent) {
-        String channel = CHANNEL_PREFIX + roomId + ":reaction";
+        String channel = channelPrefix + roomId + ":reaction";
         try {
             String jsonMessage = objectMapper.writeValueAsString(reactionEvent);
             redisTemplate.convertAndSend(channel, jsonMessage);

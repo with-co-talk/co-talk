@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import com.cotalk.infrastructure.config.JpaAuditingConfig;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @ActiveProfiles("test")
-@Import(com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter.class)
+@Import({UserRepositoryAdapter.class, JpaAuditingConfig.class})
 @DisplayName("UserJpaRepository")
 class UserJpaRepositoryTest {
 

@@ -12,6 +12,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 
+import java.lang.reflect.Field;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -30,6 +32,14 @@ class RedisChatMessageBrokerTest {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         broker = new RedisChatMessageBroker(redisTemplate, objectMapper);
+        // Set channelPrefix using reflection for unit test
+        try {
+            Field field = RedisChatMessageBroker.class.getDeclaredField("channelPrefix");
+            field.setAccessible(true);
+            field.set(broker, "chat:room:");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test

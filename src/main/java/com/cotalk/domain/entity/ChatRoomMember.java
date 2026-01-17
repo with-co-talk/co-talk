@@ -15,11 +15,12 @@ import java.time.LocalDateTime;
 @Table(name = "chat_room_members", uniqueConstraints = {
     @UniqueConstraint(columnNames = {"chat_room_id", "user_id"})
 })
+@AttributeOverride(name = "createdAt", column = @Column(name = "joined_at", nullable = false, updatable = false))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class ChatRoomMember {
+public class ChatRoomMember extends BaseEntity {
 
     @Id
     private Long id;
@@ -37,9 +38,6 @@ public class ChatRoomMember {
 
     private LocalDateTime lastReadAt;
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime joinedAt;
-
     /**
      * 채팅방 멤버 역할을 나타내는 열거형.
      *
@@ -53,15 +51,13 @@ public class ChatRoomMember {
     }
 
     /**
-     * 엔티티 생성 시 호출되는 콜백 메서드.
-     * 참여 시간을 현재 시간으로 설정하고, 역할이 없으면 일반 멤버로 설정한다.
+     * 참여 시간을 반환한다.
+     * BaseEntity의 createdAt을 joinedAt으로 사용한다.
+     *
+     * @return 참여 시간
      */
-    @PrePersist
-    protected void onCreate() {
-        joinedAt = LocalDateTime.now();
-        if (role == null) {
-            role = MemberRole.MEMBER;
-        }
+    public LocalDateTime getJoinedAt() {
+        return getCreatedAt();
     }
 
     /**

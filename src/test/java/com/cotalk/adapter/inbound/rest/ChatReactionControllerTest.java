@@ -1,10 +1,12 @@
 package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.adapter.inbound.rest.dto.message.AddReactionRequest;
+import com.cotalk.adapter.inbound.rest.dto.message.GroupedReactionResponse;
 import com.cotalk.adapter.inbound.rest.dto.message.RemoveReactionRequest;
+import com.cotalk.application.service.message.GetMessageReactionsService;
+import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
-import com.cotalk.domain.port.inbound.message.GetMessageReactionsUseCase;
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
@@ -21,7 +23,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -52,7 +53,7 @@ class ChatReactionControllerTest {
     private RemoveMessageReactionUseCase removeMessageReactionUseCase;
 
     @MockBean
-    private GetMessageReactionsUseCase getMessageReactionsUseCase;
+    private GetMessageReactionsService getMessageReactionsService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
@@ -75,8 +76,7 @@ class ChatReactionControllerTest {
                     .id(1000L)
                     .messageId(messageId)
                     .userId(1L)
-                    .emoji("thumbsup")
-                    .createdAt(LocalDateTime.now())
+                    .emoji(Emoji.THUMBS_UP)
                     .build();
 
             given(addMessageReactionUseCase.addReaction(anyLong(), anyLong(), anyString()))
@@ -90,7 +90,8 @@ class ChatReactionControllerTest {
                     .andExpect(jsonPath("$.reactionId").value(1000L))
                     .andExpect(jsonPath("$.messageId").value(messageId))
                     .andExpect(jsonPath("$.userId").value(1L))
-                    .andExpect(jsonPath("$.emoji").value("thumbsup"));
+                    .andExpect(jsonPath("$.emoji").value("THUMBS_UP"))
+                    .andExpect(jsonPath("$.emojiCharacter").value("👍"));
         }
     }
 
@@ -126,34 +127,31 @@ class ChatReactionControllerTest {
         void should_returnReactions_when_validMessageId() throws Exception {
             // given
             Long messageId = 500L;
-            List<MessageReaction> reactions = List.of(
-                    MessageReaction.builder()
-                            .id(1000L)
-                            .messageId(messageId)
-                            .userId(1L)
-                            .emoji("thumbsup")
-                            .createdAt(LocalDateTime.now())
-                            .build(),
-                    MessageReaction.builder()
-                            .id(1001L)
-                            .messageId(messageId)
-                            .userId(2L)
-                            .emoji("heart")
-                            .createdAt(LocalDateTime.now())
-                            .build()
+            List<GroupedReactionResponse> groupedReactions = List.of(
+                    GroupedReactionResponse.from(Emoji.THUMBS_UP, List.of(1L, 2L), null),
+                    GroupedReactionResponse.from(Emoji.HEART, List.of(3L), null)
             );
 
-            given(getMessageReactionsUseCase.getReactions(messageId)).willReturn(reactions);
+            given(getMessageReactionsService.getGroupedReactions(messageId, null))
+                    .willReturn(groupedReactions);
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/messages/{messageId}/reactions", messageId))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.reactions").isArray())
-                    .andExpect(jsonPath("$.reactions.length()").value(2))
-                    .andExpect(jsonPath("$.reactions[0].reactionId").value(1000L))
-                    .andExpect(jsonPath("$.reactions[0].emoji").value("thumbsup"))
-                    .andExpect(jsonPath("$.reactions[1].reactionId").value(1001L))
-                    .andExpect(jsonPath("$.reactions[1].emoji").value("heart"));
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(2))
+                    .andExpect(jsonPath("$[0].emoji").value("THUMBS_UP"))
+                    .andExpect(jsonPath("$[0].emojiCharacter").value("👍"))
+                    .andExpect(jsonPath("$[0].emojiName").value("thumbsup"))
+                    .andExpect(jsonPath("$[0].count").value(2))
+                    .andExpect(jsonPath("$[0].userIds").isArray())
+                    .andExpect(jsonPath("$[0].userIds.length()").value(2))
+                    .andExpect(jsonPath("$[0].userIds[0]").value(1L))
+                    .andExpect(jsonPath("$[0].userIds[1]").value(2L))
+                    .andExpect(jsonPath("$[0].currentUserReacted").value(false))
+                    .andExpect(jsonPath("$[1].emoji").value("HEART"))
+                    .andExpect(jsonPath("$[1].emojiCharacter").value("❤️"))
+                    .andExpect(jsonPath("$[1].count").value(1));
         }
 
         @Test
@@ -161,13 +159,14 @@ class ChatReactionControllerTest {
         void should_returnEmptyArray_when_noReactions() throws Exception {
             // given
             Long messageId = 500L;
-            given(getMessageReactionsUseCase.getReactions(messageId)).willReturn(List.of());
+            given(getMessageReactionsService.getGroupedReactions(messageId, null))
+                    .willReturn(List.of());
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/messages/{messageId}/reactions", messageId))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.reactions").isArray())
-                    .andExpect(jsonPath("$.reactions.length()").value(0));
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(0));
         }
     }
 }

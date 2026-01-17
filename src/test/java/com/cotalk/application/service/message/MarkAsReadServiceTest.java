@@ -47,7 +47,6 @@ class MarkAsReadServiceTest {
                 .id(500L)
                 .chatRoomId(chatRoomId)
                 .userId(userId)
-                .joinedAt(LocalDateTime.now())
                 .build();
 
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
@@ -86,7 +85,6 @@ class MarkAsReadServiceTest {
                 .id(500L)
                 .chatRoomId(chatRoomId)
                 .userId(userId)
-                .joinedAt(LocalDateTime.now())
                 .build();
 
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))

@@ -39,8 +39,6 @@ public class UserTestFixture {
                 .passwordHash(DEFAULT_PASSWORD_HASH)
                 .nickname(nickname)
                 .avatarUrl(DEFAULT_AVATAR_URL)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
     }
 
@@ -54,8 +52,6 @@ public class UserTestFixture {
                 .passwordHash(DEFAULT_PASSWORD_HASH)
                 .nickname(nickname)
                 .avatarUrl(avatarUrl)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
     }
 
@@ -127,8 +123,6 @@ public class UserTestFixture {
                     .nickname(nickname)
                     .avatarUrl(avatarUrl)
                     .lastActiveAt(lastActiveAt)
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
                     .build();
         }
     }

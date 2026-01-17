@@ -2,11 +2,11 @@ package com.cotalk.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 
 /**
  * 디바이스 토큰 엔티티.
@@ -23,7 +23,9 @@ import java.time.LocalDateTime;
         })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class DeviceToken {
+@AllArgsConstructor
+@Builder
+public class DeviceToken extends BaseEntity {
 
     @Id
     private Long id;
@@ -39,32 +41,8 @@ public class DeviceToken {
     private DeviceType deviceType;
 
     @Column(nullable = false)
+    @Builder.Default
     private boolean active = true;
-
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    /**
-     * DeviceToken 생성자.
-     *
-     * @param id 디바이스 토큰 ID
-     * @param userId 사용자 ID
-     * @param token 디바이스 토큰 문자열
-     * @param deviceType 디바이스 유형
-     */
-    @Builder
-    public DeviceToken(Long id, Long userId, String token, DeviceType deviceType) {
-        this.id = id;
-        this.userId = userId;
-        this.token = token;
-        this.deviceType = deviceType;
-        this.active = true;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
 
     /**
      * 토큰을 비활성화한다.
@@ -72,7 +50,6 @@ public class DeviceToken {
      */
     public void deactivate() {
         this.active = false;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -83,7 +60,6 @@ public class DeviceToken {
     public void updateToken(String newToken) {
         this.token = newToken;
         this.active = true;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**

@@ -60,7 +60,6 @@ class ChatRoomManagementServiceTest {
                 .chatRoomId(chatRoomId)
                 .userId(adminUserId)
                 .role(ChatRoomMember.MemberRole.ADMIN)
-                .joinedAt(LocalDateTime.now())
                 .build();
 
         normalMember = ChatRoomMember.builder()
@@ -68,7 +67,6 @@ class ChatRoomManagementServiceTest {
                 .chatRoomId(chatRoomId)
                 .userId(normalUserId)
                 .role(ChatRoomMember.MemberRole.MEMBER)
-                .joinedAt(LocalDateTime.now())
                 .build();
     }
 

@@ -43,8 +43,6 @@ class RejectFriendRequestServiceTest {
                 .requesterId(1L)
                 .receiverId(userId)
                 .status(FriendRequest.RequestStatus.PENDING)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(friendRequestRepository.findById(requestId)).willReturn(Optional.of(friendRequest));
@@ -82,8 +80,6 @@ class RejectFriendRequestServiceTest {
                 .requesterId(1L)
                 .receiverId(2L) // 실제 수신자
                 .status(FriendRequest.RequestStatus.PENDING)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(friendRequestRepository.findById(requestId)).willReturn(Optional.of(friendRequest));
@@ -105,8 +101,6 @@ class RejectFriendRequestServiceTest {
                 .requesterId(1L)
                 .receiverId(userId)
                 .status(FriendRequest.RequestStatus.ACCEPTED) // 이미 수락됨
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(friendRequestRepository.findById(requestId)).willReturn(Optional.of(friendRequest));

@@ -66,7 +66,6 @@ class AdminControllerTest {
                             .type(Report.ReportType.USER)
                             .reason(Report.ReportReason.SPAM)
                             .status(Report.ReportStatus.PENDING)
-                            .createdAt(LocalDateTime.now())
                             .build()
             );
 
@@ -98,7 +97,6 @@ class AdminControllerTest {
                     .adminNote("처리 완료")
                     .processedBy(999L)
                     .processedAt(LocalDateTime.now())
-                    .createdAt(LocalDateTime.now())
                     .build();
 
             given(adminUseCase.processReport(eq(reportId), eq(999L), eq(Report.ReportStatus.RESOLVED), eq("처리 완료")))
@@ -128,14 +126,12 @@ class AdminControllerTest {
                             .email("user1@test.com")
                             .nickname("user1")
                             .status(User.UserStatus.ACTIVE)
-                            .createdAt(LocalDateTime.now())
                             .build(),
                     User.builder()
                             .id(2L)
                             .email("user2@test.com")
                             .nickname("user2")
                             .status(User.UserStatus.SUSPENDED)
-                            .createdAt(LocalDateTime.now())
                             .build()
             );
 
@@ -161,7 +157,6 @@ class AdminControllerTest {
                     .email("user@test.com")
                     .nickname("user")
                     .status(User.UserStatus.SUSPENDED)
-                    .createdAt(LocalDateTime.now())
                     .build();
 
             given(adminUseCase.suspendUser(eq(999L), eq(userId), eq("부적절한 행동")))
@@ -187,7 +182,6 @@ class AdminControllerTest {
                     .email("user@test.com")
                     .nickname("user")
                     .status(User.UserStatus.ACTIVE)
-                    .createdAt(LocalDateTime.now())
                     .build();
 
             given(adminUseCase.activateUser(adminId, userId)).willReturn(activatedUser);

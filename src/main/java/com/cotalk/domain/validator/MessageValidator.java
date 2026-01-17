@@ -1,5 +1,6 @@
 package com.cotalk.domain.validator;
 
+import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.exception.InvalidEmojiException;
 import org.springframework.stereotype.Component;
 
@@ -15,8 +16,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class MessageValidator {
 
-    private static final int MAX_EMOJI_LENGTH = 50;
-
     /**
      * 메시지 내용이 비어있지 않은지 검증합니다.
      *
@@ -30,17 +29,22 @@ public class MessageValidator {
     }
 
     /**
-     * 이모지의 유효성을 검증합니다.
+     * 이모지 문자열의 유효성을 검증하고 Emoji enum으로 변환합니다.
      *
-     * @param emoji 검증할 이모지
-     * @throws InvalidEmojiException 이모지가 비어있거나 너무 긴 경우
+     * @param emojiString 검증할 이모지 문자열 (이모지 문자 또는 이름)
+     * @return 유효한 Emoji enum
+     * @throws InvalidEmojiException 이모지가 유효하지 않은 경우
      */
-    public void validateEmoji(String emoji) {
-        if (emoji == null || emoji.trim().isEmpty()) {
-            throw InvalidEmojiException.invalidFormat(emoji);
+    public Emoji validateAndParseEmoji(String emojiString) {
+        if (emojiString == null || emojiString.trim().isEmpty()) {
+            throw InvalidEmojiException.invalidFormat(emojiString);
         }
-        if (emoji.length() > MAX_EMOJI_LENGTH) {
-            throw InvalidEmojiException.tooLong(emoji);
+
+        Emoji emoji = Emoji.fromString(emojiString.trim());
+        if (emoji == null) {
+            throw InvalidEmojiException.invalidFormat(emojiString);
         }
+
+        return emoji;
     }
 }

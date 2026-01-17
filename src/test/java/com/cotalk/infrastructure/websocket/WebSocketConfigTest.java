@@ -26,6 +26,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.simp.stomp.*;
 import org.springframework.web.socket.WebSocketHttpHeaders;
+
+import java.lang.reflect.Type;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
@@ -157,7 +159,7 @@ class WebSocketConfigTest {
         // when - 채팅방 구독
         StompSession.Subscription subscription = session.subscribe("/topic/chat/room/1", new StompFrameHandler() {
             @Override
-            public java.lang.reflect.Type getPayloadType(StompHeaders headers) {
+            public Type getPayloadType(StompHeaders headers) {
                 return String.class;
             }
 

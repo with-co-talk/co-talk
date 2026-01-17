@@ -45,8 +45,6 @@ class UpdateProfileServiceTest {
                 .passwordHash("hashedPassword")
                 .nickname("기존닉네임")
                 .avatarUrl("https://example.com/old-avatar.png")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
@@ -73,8 +71,6 @@ class UpdateProfileServiceTest {
                 .passwordHash("hashedPassword")
                 .nickname("기존닉네임")
                 .avatarUrl(originalAvatarUrl)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
@@ -101,8 +97,6 @@ class UpdateProfileServiceTest {
                 .passwordHash("hashedPassword")
                 .nickname(originalNickname)
                 .avatarUrl("https://example.com/old-avatar.png")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
@@ -139,8 +133,6 @@ class UpdateProfileServiceTest {
                 .email("test@test.com")
                 .passwordHash("hashedPassword")
                 .nickname("기존닉네임")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));

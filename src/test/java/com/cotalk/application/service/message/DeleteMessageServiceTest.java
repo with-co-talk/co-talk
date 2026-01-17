@@ -46,8 +46,6 @@ class DeleteMessageServiceTest {
                 .senderId(userId)
                 .content("삭제할 메시지")
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .deleted(false)
                 .build();
 
@@ -77,8 +75,6 @@ class DeleteMessageServiceTest {
                 .senderId(otherUserId) // 다른 사용자
                 .content("원본 메시지")
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
@@ -114,8 +110,6 @@ class DeleteMessageServiceTest {
                 .senderId(userId)
                 .content("원본 메시지")
                 .type(Message.MessageType.TEXT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .deleted(true)
                 .deletedAt(LocalDateTime.now())
                 .build();

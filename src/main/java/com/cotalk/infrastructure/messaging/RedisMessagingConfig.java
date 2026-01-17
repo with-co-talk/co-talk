@@ -3,6 +3,7 @@ package com.cotalk.infrastructure.messaging;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,8 +26,8 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = true)
 public class RedisMessagingConfig {
 
-    /** 채팅방 채널 패턴 (chat:room:*) */
-    private static final String CHAT_CHANNEL_PATTERN = "chat:room:*";
+    @Value("${app.redis.channel-prefix:chat:room:}")
+    private String channelPrefix;
 
     /**
      * Redis 문자열 직렬화를 위한 RedisTemplate을 생성한다.
@@ -61,10 +62,11 @@ public class RedisMessagingConfig {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         
-        // 모든 채팅방 채널 패턴 구독 (chat:room:*)
-        container.addMessageListener(subscriber, new PatternTopic(CHAT_CHANNEL_PATTERN));
+        // 모든 채팅방 채널 패턴 구독 (예: chat:room:*)
+        String channelPattern = channelPrefix + "*";
+        container.addMessageListener(subscriber, new PatternTopic(channelPattern));
         
-        log.info("Redis Pub/Sub listener registered for pattern: {}", CHAT_CHANNEL_PATTERN);
+        log.info("Redis Pub/Sub listener registered for pattern: {}", channelPattern);
         return container;
     }
 

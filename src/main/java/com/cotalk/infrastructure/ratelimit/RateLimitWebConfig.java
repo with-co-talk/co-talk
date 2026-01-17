@@ -1,6 +1,7 @@
 package com.cotalk.infrastructure.ratelimit;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +19,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  *
  * @author seunggu.lee
  */
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 @ConditionalOnBean(RateLimitInterceptor.class)
@@ -34,6 +36,7 @@ public class RateLimitWebConfig implements WebMvcConfigurer {
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        log.info("Registering RateLimitInterceptor with path pattern: /api/**");
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
@@ -41,5 +44,6 @@ public class RateLimitWebConfig implements WebMvcConfigurer {
                         "/swagger-ui/**",
                         "/v3/api-docs/**"
                 );
+        log.info("RateLimitInterceptor registered successfully");
     }
 }

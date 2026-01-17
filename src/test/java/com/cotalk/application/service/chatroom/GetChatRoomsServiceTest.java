@@ -61,8 +61,6 @@ class GetChatRoomsServiceTest {
                 .id(chatRoomId)
                 .name("채팅방1")
                 .type(ChatRoom.ChatRoomType.DIRECT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         ChatRoomMember myMember = ChatRoomMember.builder()
@@ -70,14 +68,12 @@ class GetChatRoomsServiceTest {
                 .chatRoomId(chatRoomId)
                 .userId(userId)
                 .lastReadAt(lastReadAt)
-                .joinedAt(LocalDateTime.now())
                 .build();
 
         ChatRoomMember otherMember = ChatRoomMember.builder()
                 .id(501L)
                 .chatRoomId(chatRoomId)
                 .userId(otherUserId)
-                .joinedAt(LocalDateTime.now())
                 .build();
 
         User otherUser = User.builder()
@@ -93,7 +89,6 @@ class GetChatRoomsServiceTest {
                 .chatRoomId(chatRoomId)
                 .senderId(otherUserId)
                 .content("마지막 메시지입니다")
-                .createdAt(lastMessageAt)
                 .build();
 
         given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
@@ -148,22 +143,18 @@ class GetChatRoomsServiceTest {
                 .id(chatRoomId)
                 .name("새 채팅방")
                 .type(ChatRoom.ChatRoomType.DIRECT)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         ChatRoomMember myMember = ChatRoomMember.builder()
                 .id(500L)
                 .chatRoomId(chatRoomId)
                 .userId(userId)
-                .joinedAt(LocalDateTime.now())
                 .build();
 
         ChatRoomMember otherMember = ChatRoomMember.builder()
                 .id(501L)
                 .chatRoomId(chatRoomId)
                 .userId(otherUserId)
-                .joinedAt(LocalDateTime.now())
                 .build();
 
         User otherUser = User.builder()

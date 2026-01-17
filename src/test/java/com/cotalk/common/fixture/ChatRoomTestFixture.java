@@ -35,7 +35,6 @@ public class ChatRoomTestFixture {
                 .id(roomId)
                 .name(type == ChatRoom.ChatRoomType.DIRECT ? null : DEFAULT_ROOM_NAME)
                 .type(type)
-                .createdAt(LocalDateTime.now())
                 .build();
     }
 
@@ -54,7 +53,6 @@ public class ChatRoomTestFixture {
                 .id(roomId)
                 .name(roomName)
                 .type(ChatRoom.ChatRoomType.GROUP)
-                .createdAt(LocalDateTime.now())
                 .build();
     }
 
@@ -67,7 +65,6 @@ public class ChatRoomTestFixture {
                 .chatRoomId(roomId)
                 .userId(userId)
                 .lastReadAt(LocalDateTime.now().minusMinutes(5))
-                .joinedAt(LocalDateTime.now().minusDays(1))
                 .build();
     }
 
@@ -93,7 +90,6 @@ public class ChatRoomTestFixture {
         private Long id = 1L;
         private String name = DEFAULT_ROOM_NAME;
         private ChatRoom.ChatRoomType type = ChatRoom.ChatRoomType.DIRECT;
-        private LocalDateTime createdAt = LocalDateTime.now();
 
         public ChatRoomBuilder id(Long id) {
             this.id = id;
@@ -110,17 +106,11 @@ public class ChatRoomTestFixture {
             return this;
         }
 
-        public ChatRoomBuilder createdAt(LocalDateTime createdAt) {
-            this.createdAt = createdAt;
-            return this;
-        }
-
         public ChatRoom build() {
             return ChatRoom.builder()
                     .id(id)
                     .name(type == ChatRoom.ChatRoomType.DIRECT ? null : name)
                     .type(type)
-                    .createdAt(createdAt)
                     .build();
         }
     }
@@ -137,7 +127,6 @@ public class ChatRoomTestFixture {
         private Long chatRoomId = 1L;
         private Long userId = 1L;
         private LocalDateTime lastReadAt = LocalDateTime.now().minusMinutes(5);
-        private LocalDateTime joinedAt = LocalDateTime.now().minusDays(1);
 
         public ChatRoomMemberBuilder id(Long id) {
             this.id = id;
@@ -159,18 +148,12 @@ public class ChatRoomTestFixture {
             return this;
         }
 
-        public ChatRoomMemberBuilder joinedAt(LocalDateTime joinedAt) {
-            this.joinedAt = joinedAt;
-            return this;
-        }
-
         public ChatRoomMember build() {
             return ChatRoomMember.builder()
                     .id(id)
                     .chatRoomId(chatRoomId)
                     .userId(userId)
                     .lastReadAt(lastReadAt)
-                    .joinedAt(joinedAt)
                     .build();
         }
     }

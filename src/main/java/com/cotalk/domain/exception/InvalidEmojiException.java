@@ -12,10 +12,6 @@ public class InvalidEmojiException extends DomainException {
     }
 
     public static InvalidEmojiException invalidFormat(String emoji) {
-        return new InvalidEmojiException("유효하지 않은 이모지 형식입니다: " + emoji);
-    }
-
-    public static InvalidEmojiException tooLong(String emoji) {
-        return new InvalidEmojiException("이모지는 50자 이하여야 합니다: " + emoji);
+        return new InvalidEmojiException("유효하지 않은 이모지입니다. 지원되는 이모지만 사용할 수 있습니다: " + emoji);
     }
 }

@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class User {
+public class User extends BaseEntity {
 
     @Id
     private Long id;
@@ -45,11 +45,10 @@ public class User {
     @Builder.Default
     private UserStatus status = UserStatus.ACTIVE;
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private LocalDateTime updatedAt;
+    @Builder.Default
+    private Role role = Role.USER;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "online_status", nullable = false)
@@ -102,22 +101,15 @@ public class User {
     }
 
     /**
-     * 엔티티 생성 시 호출되는 콜백 메서드.
-     * 생성 시간과 수정 시간을 현재 시간으로 설정한다.
+     * 사용자 역할을 나타내는 열거형.
+     *
+     * @author seunggu.lee
      */
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
-    /**
-     * 엔티티 수정 시 호출되는 콜백 메서드.
-     * 수정 시간을 현재 시간으로 갱신한다.
-     */
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+    public enum Role {
+        /** 일반 사용자 */
+        USER,
+        /** 관리자 */
+        ADMIN
     }
 
     /**
