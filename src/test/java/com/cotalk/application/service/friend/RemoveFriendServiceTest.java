@@ -1,8 +1,8 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.friend;
 
 import com.cotalk.domain.entity.Friend;
 import com.cotalk.domain.exception.DomainException;
-import com.cotalk.domain.port.inbound.RemoveFriendUseCase;
+import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

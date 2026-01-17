@@ -1,4 +1,4 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.friend;
 
 import com.cotalk.domain.entity.Friend;
 import com.cotalk.domain.entity.FriendRequest;
