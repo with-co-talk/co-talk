@@ -18,6 +18,11 @@ Co-Talk은 Java/Spring Boot 기반의 백엔드 프로젝트입니다.
 - 클래스명: PascalCase
 - 상수: UPPER_SNAKE_CASE
 - 패키지명: lowercase
+- **풀 패키지 경로 사용 금지**: 모든 클래스는 `import` 문을 사용해야 함
+  - ❌ `java.lang.reflect.Field field = ...`
+  - ✅ `import java.lang.reflect.Field;` 후 `Field field = ...`
+  - ❌ `com.cotalk.domain.entity.BaseEntity.class`
+  - ✅ `import com.cotalk.domain.entity.BaseEntity;` 후 `BaseEntity.class`
 
 ### Spring Boot
 - REST API는 `/api/v1` prefix 사용
