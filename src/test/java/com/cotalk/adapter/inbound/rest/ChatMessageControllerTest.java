@@ -1,10 +1,15 @@
 package com.cotalk.adapter.inbound.rest;
 
+import com.cotalk.adapter.inbound.rest.dto.message.ForwardMessageRequest;
+import com.cotalk.adapter.inbound.rest.dto.message.ReplyMessageRequest;
+import com.cotalk.adapter.inbound.rest.dto.message.SendMessageRequest;
+import com.cotalk.adapter.inbound.rest.dto.message.UpdateMessageRequest;
 import com.cotalk.domain.entity.Message;
-import com.cotalk.domain.port.inbound.DeleteMessageUseCase;
-import com.cotalk.domain.port.inbound.GetMessageHistoryUseCase;
-import com.cotalk.domain.port.inbound.SendMessageUseCase;
-import com.cotalk.domain.port.inbound.UpdateMessageUseCase;
+import com.cotalk.domain.port.inbound.message.DeleteMessageUseCase;
+import com.cotalk.domain.port.inbound.message.GetMessageHistoryUseCase;
+import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
+import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
+import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
@@ -23,10 +28,16 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -54,6 +65,9 @@ class ChatMessageControllerTest {
     private DeleteMessageUseCase deleteMessageUseCase;
 
     @MockBean
+    private MessageReplyForwardUseCase messageReplyForwardUseCase;
+
+    @MockBean
     private JwtTokenProvider jwtTokenProvider;
 
     @MockBean
@@ -67,8 +81,7 @@ class ChatMessageControllerTest {
         @DisplayName("유효한 요청으로 메시지 전송 성공")
         void should_returnCreated_when_validMessage() throws Exception {
             // given
-            ChatMessageController.SendMessageRequest request = new ChatMessageController.SendMessageRequest(
-                    1L, 100L, "안녕하세요!");
+            SendMessageRequest request = new SendMessageRequest(1L, 100L, "안녕하세요!");
 
             Message message = Message.builder()
                     .id(500L)
@@ -225,8 +238,7 @@ class ChatMessageControllerTest {
         void should_returnOk_when_validUpdate() throws Exception {
             // given
             Long messageId = 500L;
-            ChatMessageController.UpdateMessageRequest request = new ChatMessageController.UpdateMessageRequest(
-                    1L, "수정된 메시지");
+            UpdateMessageRequest request = new UpdateMessageRequest(1L, "수정된 메시지");
 
             Message updatedMessage = Message.builder()
                     .id(messageId)
@@ -268,6 +280,79 @@ class ChatMessageControllerTest {
                             .param("userId", String.valueOf(userId)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("메시지가 삭제되었습니다."));
+        }
+    }
+
+    @Nested
+    @DisplayName("메시지 답장 API")
+    class ReplyMessageApi {
+
+        @Test
+        @DisplayName("유효한 요청으로 메시지 답장 성공")
+        void should_returnCreated_when_validReply() throws Exception {
+            // given
+            Long originalMessageId = 500L;
+            Long senderId = 1L;
+            String content = "답장 메시지입니다.";
+
+            ReplyMessageRequest request = new ReplyMessageRequest(senderId, content);
+
+            Message replyMessage = Message.builder()
+                    .id(501L)
+                    .senderId(senderId)
+                    .chatRoomId(100L)
+                    .content(content)
+                    .replyToMessageId(originalMessageId)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            given(messageReplyForwardUseCase.replyToMessage(senderId, originalMessageId, content))
+                    .willReturn(replyMessage);
+
+            // when & then
+            mockMvc.perform(post("/api/v1/chat/messages/{messageId}/reply", originalMessageId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.messageId").value(501L))
+                    .andExpect(jsonPath("$.content").value(content))
+                    .andExpect(jsonPath("$.replyToMessageId").value(originalMessageId));
+        }
+    }
+
+    @Nested
+    @DisplayName("메시지 전달 API")
+    class ForwardMessageApi {
+
+        @Test
+        @DisplayName("유효한 요청으로 메시지 전달 성공")
+        void should_returnCreated_when_validForward() throws Exception {
+            // given
+            Long originalMessageId = 500L;
+            Long senderId = 1L;
+            Long targetChatRoomId = 200L;
+
+            ForwardMessageRequest request = new ForwardMessageRequest(senderId, targetChatRoomId);
+
+            Message forwardedMessage = Message.builder()
+                    .id(502L)
+                    .senderId(senderId)
+                    .chatRoomId(targetChatRoomId)
+                    .content("전달된 메시지 내용")
+                    .forwardedFromMessageId(originalMessageId)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            given(messageReplyForwardUseCase.forwardMessage(senderId, originalMessageId, targetChatRoomId))
+                    .willReturn(forwardedMessage);
+
+            // when & then
+            mockMvc.perform(post("/api/v1/chat/messages/{messageId}/forward", originalMessageId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.messageId").value(502L))
+                    .andExpect(jsonPath("$.forwardedFromMessageId").value(originalMessageId));
         }
     }
 }

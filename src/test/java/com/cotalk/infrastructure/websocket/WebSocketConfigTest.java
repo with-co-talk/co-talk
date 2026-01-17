@@ -1,7 +1,19 @@
 package com.cotalk.infrastructure.websocket;
 
-import com.cotalk.domain.port.inbound.*;
-import com.cotalk.domain.port.outbound.*;
+import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
+import com.cotalk.domain.port.inbound.auth.LoginUseCase;
+import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
+import com.cotalk.domain.port.inbound.message.GetMessageHistoryUseCase;
+import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
+import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
+import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.ChatRoomRepository;
+import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.FriendRepository;
+import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;

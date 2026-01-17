@@ -1,9 +1,11 @@
 package com.cotalk.adapter.inbound.rest;
 
+import com.cotalk.adapter.inbound.rest.dto.message.AddReactionRequest;
+import com.cotalk.adapter.inbound.rest.dto.message.RemoveReactionRequest;
 import com.cotalk.domain.entity.MessageReaction;
-import com.cotalk.domain.port.inbound.AddMessageReactionUseCase;
-import com.cotalk.domain.port.inbound.GetMessageReactionsUseCase;
-import com.cotalk.domain.port.inbound.RemoveMessageReactionUseCase;
+import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
+import com.cotalk.domain.port.inbound.message.GetMessageReactionsUseCase;
+import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
@@ -26,7 +28,9 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -65,14 +69,13 @@ class ChatReactionControllerTest {
         void should_returnCreated_when_validReaction() throws Exception {
             // given
             Long messageId = 500L;
-            ChatReactionController.AddReactionRequest request = new ChatReactionController.AddReactionRequest(
-                    1L, "👍");
+            AddReactionRequest request = new AddReactionRequest(1L, "thumbsup");
 
             MessageReaction reaction = MessageReaction.builder()
                     .id(1000L)
                     .messageId(messageId)
                     .userId(1L)
-                    .emoji("👍")
+                    .emoji("thumbsup")
                     .createdAt(LocalDateTime.now())
                     .build();
 
@@ -87,7 +90,7 @@ class ChatReactionControllerTest {
                     .andExpect(jsonPath("$.reactionId").value(1000L))
                     .andExpect(jsonPath("$.messageId").value(messageId))
                     .andExpect(jsonPath("$.userId").value(1L))
-                    .andExpect(jsonPath("$.emoji").value("👍"));
+                    .andExpect(jsonPath("$.emoji").value("thumbsup"));
         }
     }
 
@@ -100,8 +103,7 @@ class ChatReactionControllerTest {
         void should_returnOk_when_validRemoval() throws Exception {
             // given
             Long messageId = 500L;
-            ChatReactionController.RemoveReactionRequest request = new ChatReactionController.RemoveReactionRequest(
-                    1L, "👍");
+            RemoveReactionRequest request = new RemoveReactionRequest(1L, "thumbsup");
 
             willDoNothing().given(removeMessageReactionUseCase)
                     .removeReaction(anyLong(), anyLong(), anyString());
@@ -129,14 +131,14 @@ class ChatReactionControllerTest {
                             .id(1000L)
                             .messageId(messageId)
                             .userId(1L)
-                            .emoji("👍")
+                            .emoji("thumbsup")
                             .createdAt(LocalDateTime.now())
                             .build(),
                     MessageReaction.builder()
                             .id(1001L)
                             .messageId(messageId)
                             .userId(2L)
-                            .emoji("❤️")
+                            .emoji("heart")
                             .createdAt(LocalDateTime.now())
                             .build()
             );
@@ -149,9 +151,9 @@ class ChatReactionControllerTest {
                     .andExpect(jsonPath("$.reactions").isArray())
                     .andExpect(jsonPath("$.reactions.length()").value(2))
                     .andExpect(jsonPath("$.reactions[0].reactionId").value(1000L))
-                    .andExpect(jsonPath("$.reactions[0].emoji").value("👍"))
+                    .andExpect(jsonPath("$.reactions[0].emoji").value("thumbsup"))
                     .andExpect(jsonPath("$.reactions[1].reactionId").value(1001L))
-                    .andExpect(jsonPath("$.reactions[1].emoji").value("❤️"));
+                    .andExpect(jsonPath("$.reactions[1].emoji").value("heart"));
         }
 
         @Test

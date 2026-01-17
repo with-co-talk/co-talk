@@ -1,5 +1,6 @@
 package com.cotalk.adapter.outbound.persistence;
 
+import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @ActiveProfiles("test")
-@Import(UserRepositoryAdapter.class)
+@Import(com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter.class)
 @DisplayName("UserJpaRepository")
 class UserJpaRepositoryTest {
 

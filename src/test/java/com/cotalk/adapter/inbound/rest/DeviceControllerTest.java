@@ -1,7 +1,8 @@
 package com.cotalk.adapter.inbound.rest;
 
+import com.cotalk.adapter.inbound.rest.dto.auth.RegisterDeviceTokenRequest;
 import com.cotalk.domain.entity.DeviceToken;
-import com.cotalk.domain.port.inbound.RegisterDeviceTokenUseCase;
+import com.cotalk.domain.port.inbound.notification.RegisterDeviceTokenUseCase;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
@@ -17,8 +18,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
@@ -55,8 +54,8 @@ class DeviceControllerTest {
         @DisplayName("유효한 요청으로 디바이스 토큰 등록 성공")
         void should_registerToken_when_validRequest() throws Exception {
             // given
-            DeviceController.RegisterDeviceTokenRequest request = 
-                    new DeviceController.RegisterDeviceTokenRequest(1L, "fcm-token-123", "ANDROID");
+            RegisterDeviceTokenRequest request =
+                    new RegisterDeviceTokenRequest(1L, "fcm-token-123", "ANDROID");
 
             DeviceToken savedToken = DeviceToken.builder()
                     .id(100L)
@@ -81,8 +80,8 @@ class DeviceControllerTest {
         @DisplayName("iOS 디바이스 토큰 등록 성공")
         void should_registerIosToken_when_iosDevice() throws Exception {
             // given
-            DeviceController.RegisterDeviceTokenRequest request = 
-                    new DeviceController.RegisterDeviceTokenRequest(1L, "apns-token-123", "IOS");
+            RegisterDeviceTokenRequest request =
+                    new RegisterDeviceTokenRequest(1L, "apns-token-123", "IOS");
 
             DeviceToken savedToken = DeviceToken.builder()
                     .id(100L)

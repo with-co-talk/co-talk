@@ -2,7 +2,13 @@ package com.cotalk.infrastructure.security;
 
 import com.cotalk.adapter.inbound.rest.AuthController;
 import com.cotalk.adapter.inbound.rest.FriendController;
-import com.cotalk.domain.port.inbound.*;
+import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
+import com.cotalk.domain.port.inbound.auth.LoginUseCase;
+import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
+import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

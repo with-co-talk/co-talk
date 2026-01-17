@@ -1,9 +1,9 @@
 package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.domain.exception.FileUploadException;
-import com.cotalk.domain.port.inbound.UploadFileUseCase;
-import com.cotalk.domain.port.inbound.UploadFileUseCase.FileUploadCommand;
-import com.cotalk.domain.port.inbound.UploadFileUseCase.FileUploadResult;
+import com.cotalk.domain.port.inbound.file.UploadFileUseCase;
+import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadCommand;
+import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadResult;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;

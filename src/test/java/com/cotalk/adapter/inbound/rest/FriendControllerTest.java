@@ -1,11 +1,12 @@
 package com.cotalk.adapter.inbound.rest;
 
+import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.port.inbound.AcceptFriendRequestUseCase;
-import com.cotalk.domain.port.inbound.GetFriendListUseCase;
-import com.cotalk.domain.port.inbound.RejectFriendRequestUseCase;
-import com.cotalk.domain.port.inbound.RemoveFriendUseCase;
-import com.cotalk.domain.port.inbound.SendFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
+import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
+import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
@@ -26,9 +27,11 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.Mockito.doNothing;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(FriendController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -70,8 +73,7 @@ class FriendControllerTest {
         @DisplayName("유효한 요청으로 친구 요청 성공")
         void should_returnCreated_when_validRequest() throws Exception {
             // given
-            FriendController.SendFriendRequestRequest request =
-                    new FriendController.SendFriendRequestRequest(1L, 2L);
+            SendFriendRequestRequest request = new SendFriendRequestRequest(1L, 2L);
 
             given(sendFriendRequestUseCase.sendFriendRequest(anyLong(), anyLong())).willReturn(100L);
 

@@ -1,9 +1,9 @@
 package com.cotalk.domain.service;
 
 import com.cotalk.domain.exception.FileUploadException;
-import com.cotalk.domain.port.inbound.UploadFileUseCase;
-import com.cotalk.domain.port.inbound.UploadFileUseCase.FileUploadCommand;
-import com.cotalk.domain.port.inbound.UploadFileUseCase.FileUploadResult;
+import com.cotalk.domain.port.inbound.file.UploadFileUseCase;
+import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadCommand;
+import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadResult;
 import com.cotalk.domain.port.outbound.FileStorage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

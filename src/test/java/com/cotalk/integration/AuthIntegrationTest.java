@@ -1,6 +1,7 @@
 package com.cotalk.integration;
 
-import com.cotalk.adapter.inbound.rest.AuthController;
+import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
+import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,8 +39,8 @@ class AuthIntegrationTest {
         String password = "password123";
         String nickname = "테스트유저";
 
-        AuthController.SignUpRequest signUpRequest = new AuthController.SignUpRequest(email, password, nickname);
-        AuthController.LoginRequest loginRequest = new AuthController.LoginRequest(email, password);
+        SignUpRequest signUpRequest = new SignUpRequest(email, password, nickname);
+        LoginRequest loginRequest = new LoginRequest(email, password);
 
         // when - 회원가입
         mockMvc.perform(post("/api/v1/auth/signup")
@@ -70,8 +71,8 @@ class AuthIntegrationTest {
         String email = "duplicate@example.com";
         String password = "password123";
 
-        AuthController.SignUpRequest request1 = new AuthController.SignUpRequest(email, password, "유저1");
-        AuthController.SignUpRequest request2 = new AuthController.SignUpRequest(email, password, "유저2");
+        SignUpRequest request1 = new SignUpRequest(email, password, "유저1");
+        SignUpRequest request2 = new SignUpRequest(email, password, "유저2");
 
         // when - 첫 번째 회원가입 성공
         mockMvc.perform(post("/api/v1/auth/signup")
@@ -95,8 +96,8 @@ class AuthIntegrationTest {
         String password = "correctPassword";
         String wrongPassword = "wrongPassword";
 
-        AuthController.SignUpRequest signUpRequest = new AuthController.SignUpRequest(email, password, "테스트");
-        AuthController.LoginRequest loginRequest = new AuthController.LoginRequest(email, wrongPassword);
+        SignUpRequest signUpRequest = new SignUpRequest(email, password, "테스트");
+        LoginRequest loginRequest = new LoginRequest(email, wrongPassword);
 
         // when - 회원가입
         mockMvc.perform(post("/api/v1/auth/signup")

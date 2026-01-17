@@ -1,7 +1,7 @@
 package com.cotalk.adapter.inbound.websocket;
 
 import com.cotalk.domain.entity.Message;
-import com.cotalk.domain.port.inbound.SendMessageUseCase;
+import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
 import org.junit.jupiter.api.BeforeEach;

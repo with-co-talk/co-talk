@@ -1,9 +1,10 @@
 package com.cotalk.adapter.inbound.rest;
 
+import com.cotalk.adapter.inbound.rest.dto.user.UpdateProfileRequest;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.port.inbound.SearchUserUseCase;
-import com.cotalk.domain.port.inbound.UpdateProfileUseCase;
-import com.cotalk.domain.port.inbound.UpdateUserOnlineStatusUseCase;
+import com.cotalk.domain.port.inbound.user.SearchUserUseCase;
+import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
+import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
@@ -21,12 +22,15 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -116,7 +120,7 @@ class UserControllerTest {
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long userId = 1L;
-            UserController.UpdateProfileRequest request = new UserController.UpdateProfileRequest(
+            UpdateProfileRequest request = new UpdateProfileRequest(
                     "새닉네임", "https://example.com/avatar.png");
 
             willDoNothing().given(updateProfileUseCase).updateProfile(anyLong(), anyString(), anyString());
@@ -134,7 +138,7 @@ class UserControllerTest {
         void should_returnOk_when_updateNicknameOnly() throws Exception {
             // given
             Long userId = 1L;
-            UserController.UpdateProfileRequest request = new UserController.UpdateProfileRequest(
+            UpdateProfileRequest request = new UpdateProfileRequest(
                     "새닉네임", null);
 
             willDoNothing().given(updateProfileUseCase).updateProfile(anyLong(), anyString(), isNull());
