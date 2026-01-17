@@ -1,8 +1,8 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DomainException;
-import com.cotalk.domain.port.inbound.UpdateUserOnlineStatusUseCase;
+import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
