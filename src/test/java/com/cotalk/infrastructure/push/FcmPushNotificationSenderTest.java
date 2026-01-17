@@ -1,0 +1,337 @@
+package com.cotalk.infrastructure.push;
+
+import com.cotalk.domain.entity.DeviceToken;
+import com.cotalk.domain.port.outbound.DeviceTokenRepository;
+import com.google.firebase.messaging.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("FcmPushNotificationSender")
+class FcmPushNotificationSenderTest {
+
+    @Mock
+    private FirebaseMessaging firebaseMessaging;
+
+    @Mock
+    private DeviceTokenRepository deviceTokenRepository;
+
+    private FcmPushNotificationSender sender;
+
+    @BeforeEach
+    void setUp() {
+        sender = new FcmPushNotificationSender(firebaseMessaging, deviceTokenRepository);
+    }
+
+    @Nested
+    @DisplayName("단일 메시지 전송 시")
+    class SendSingleMessage {
+
+        @Test
+        @DisplayName("Firebase가 설정되지 않으면 false를 반환한다")
+        void should_ReturnFalse_when_FirebaseNotConfigured() {
+            // given
+            FcmPushNotificationSender senderWithoutFirebase =
+                    new FcmPushNotificationSender(null, deviceTokenRepository);
+
+            // when
+            boolean result = senderWithoutFirebase.send("token", "title", "body", Map.of());
+
+            // then
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        @DisplayName("정상적인 토큰으로 전송 시 true를 반환한다")
+        void should_ReturnTrue_when_SendSucceeds() throws FirebaseMessagingException {
+            // given
+            String token = "valid-token";
+            String title = "제목";
+            String body = "본문";
+            Map<String, String> data = Map.of("key", "value");
+
+            given(firebaseMessaging.send(any(Message.class))).willReturn("message-id-123");
+
+            // when
+            boolean result = sender.send(token, title, body, data);
+
+            // then
+            assertThat(result).isTrue();
+
+            ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+            verify(firebaseMessaging).send(messageCaptor.capture());
+        }
+
+        @Test
+        @DisplayName("UNREGISTERED 에러 시 토큰을 비활성화한다")
+        void should_DeactivateToken_when_UnregisteredError() throws FirebaseMessagingException {
+            // given
+            String token = "invalid-token";
+            DeviceToken deviceToken = DeviceToken.builder()
+                    .id(1L)
+                    .userId(1L)
+                    .token(token)
+                    .deviceType(DeviceToken.DeviceType.ANDROID)
+                    .active(true)
+                    .build();
+
+            FirebaseMessagingException exception = mock(FirebaseMessagingException.class);
+            given(exception.getMessagingErrorCode()).willReturn(MessagingErrorCode.UNREGISTERED);
+            given(firebaseMessaging.send(any(Message.class))).willThrow(exception);
+            given(deviceTokenRepository.findByToken(token)).willReturn(Optional.of(deviceToken));
+
+            // when
+            boolean result = sender.send(token, "title", "body", Map.of());
+
+            // then
+            assertThat(result).isFalse();
+            verify(deviceTokenRepository).save(deviceToken);
+            assertThat(deviceToken.isActive()).isFalse();
+        }
+
+        @Test
+        @DisplayName("INVALID_ARGUMENT 에러 시 토큰을 비활성화한다")
+        void should_DeactivateToken_when_InvalidArgumentError() throws FirebaseMessagingException {
+            // given
+            String token = "malformed-token";
+            DeviceToken deviceToken = DeviceToken.builder()
+                    .id(1L)
+                    .userId(1L)
+                    .token(token)
+                    .deviceType(DeviceToken.DeviceType.IOS)
+                    .active(true)
+                    .build();
+
+            FirebaseMessagingException exception = mock(FirebaseMessagingException.class);
+            given(exception.getMessagingErrorCode()).willReturn(MessagingErrorCode.INVALID_ARGUMENT);
+            given(firebaseMessaging.send(any(Message.class))).willThrow(exception);
+            given(deviceTokenRepository.findByToken(token)).willReturn(Optional.of(deviceToken));
+
+            // when
+            boolean result = sender.send(token, "title", "body", Map.of());
+
+            // then
+            assertThat(result).isFalse();
+            verify(deviceTokenRepository).save(deviceToken);
+        }
+
+        @Test
+        @DisplayName("기타 에러 시 토큰을 비활성화하지 않는다")
+        void should_NotDeactivateToken_when_OtherError() throws FirebaseMessagingException {
+            // given
+            String token = "valid-token";
+
+            FirebaseMessagingException exception = mock(FirebaseMessagingException.class);
+            given(exception.getMessagingErrorCode()).willReturn(MessagingErrorCode.INTERNAL);
+            given(exception.getMessage()).willReturn("Internal error");
+            given(firebaseMessaging.send(any(Message.class))).willThrow(exception);
+
+            // when
+            boolean result = sender.send(token, "title", "body", Map.of());
+
+            // then
+            assertThat(result).isFalse();
+            verify(deviceTokenRepository, never()).findByToken(anyString());
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 토큰은 비활성화를 건너뛴다")
+        void should_SkipDeactivation_when_TokenNotFound() throws FirebaseMessagingException {
+            // given
+            String token = "unknown-token";
+
+            FirebaseMessagingException exception = mock(FirebaseMessagingException.class);
+            given(exception.getMessagingErrorCode()).willReturn(MessagingErrorCode.UNREGISTERED);
+            given(firebaseMessaging.send(any(Message.class))).willThrow(exception);
+            given(deviceTokenRepository.findByToken(token)).willReturn(Optional.empty());
+
+            // when
+            boolean result = sender.send(token, "title", "body", Map.of());
+
+            // then
+            assertThat(result).isFalse();
+            verify(deviceTokenRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("다중 메시지 전송 시")
+    class SendMultipleMessages {
+
+        @Test
+        @DisplayName("Firebase가 설정되지 않으면 0을 반환한다")
+        void should_ReturnZero_when_FirebaseNotConfigured() {
+            // given
+            FcmPushNotificationSender senderWithoutFirebase =
+                    new FcmPushNotificationSender(null, deviceTokenRepository);
+            List<String> tokens = List.of("token1", "token2");
+
+            // when
+            int result = senderWithoutFirebase.sendMultiple(tokens, "title", "body", Map.of());
+
+            // then
+            assertThat(result).isZero();
+        }
+
+        @Test
+        @DisplayName("빈 토큰 목록이면 0을 반환한다")
+        void should_ReturnZero_when_EmptyTokenList() {
+            // given
+            List<String> tokens = List.of();
+
+            // when
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+
+            // then
+            assertThat(result).isZero();
+            verifyNoInteractions(firebaseMessaging);
+        }
+
+        @Test
+        @DisplayName("모든 토큰 전송 성공 시 성공 카운트를 반환한다")
+        void should_ReturnSuccessCount_when_AllSucceed() throws FirebaseMessagingException {
+            // given
+            List<String> tokens = List.of("token1", "token2", "token3");
+
+            BatchResponse batchResponse = mock(BatchResponse.class);
+            given(batchResponse.getSuccessCount()).willReturn(3);
+            given(batchResponse.getFailureCount()).willReturn(0);
+            given(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class)))
+                    .willReturn(batchResponse);
+
+            // when
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+
+            // then
+            assertThat(result).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("일부 토큰 전송 실패 시 실패한 토큰을 비활성화한다")
+        void should_DeactivateFailedTokens_when_PartialFailure() throws FirebaseMessagingException {
+            // given
+            List<String> tokens = List.of("valid-token", "invalid-token");
+
+            SendResponse successResponse = mock(SendResponse.class);
+            given(successResponse.isSuccessful()).willReturn(true);
+
+            SendResponse failResponse = mock(SendResponse.class);
+            given(failResponse.isSuccessful()).willReturn(false);
+            FirebaseMessagingException failException = mock(FirebaseMessagingException.class);
+            given(failException.getMessagingErrorCode()).willReturn(MessagingErrorCode.UNREGISTERED);
+            given(failResponse.getException()).willReturn(failException);
+
+            BatchResponse batchResponse = mock(BatchResponse.class);
+            given(batchResponse.getSuccessCount()).willReturn(1);
+            given(batchResponse.getFailureCount()).willReturn(1);
+            given(batchResponse.getResponses()).willReturn(List.of(successResponse, failResponse));
+            given(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class)))
+                    .willReturn(batchResponse);
+
+            DeviceToken invalidDeviceToken = DeviceToken.builder()
+                    .id(2L)
+                    .userId(2L)
+                    .token("invalid-token")
+                    .deviceType(DeviceToken.DeviceType.ANDROID)
+                    .active(true)
+                    .build();
+            given(deviceTokenRepository.findByToken("invalid-token"))
+                    .willReturn(Optional.of(invalidDeviceToken));
+
+            // when
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+
+            // then
+            assertThat(result).isEqualTo(1);
+            verify(deviceTokenRepository).save(invalidDeviceToken);
+            assertThat(invalidDeviceToken.isActive()).isFalse();
+        }
+
+        @Test
+        @DisplayName("500개 초과 토큰은 배치로 분할 전송한다")
+        void should_SplitIntoBatches_when_MoreThan500Tokens() throws FirebaseMessagingException {
+            // given
+            List<String> tokens = new ArrayList<>();
+            for (int i = 0; i < 600; i++) {
+                tokens.add("token" + i);
+            }
+
+            BatchResponse batchResponse1 = mock(BatchResponse.class);
+            given(batchResponse1.getSuccessCount()).willReturn(500);
+            given(batchResponse1.getFailureCount()).willReturn(0);
+
+            BatchResponse batchResponse2 = mock(BatchResponse.class);
+            given(batchResponse2.getSuccessCount()).willReturn(100);
+            given(batchResponse2.getFailureCount()).willReturn(0);
+
+            given(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class)))
+                    .willReturn(batchResponse1)
+                    .willReturn(batchResponse2);
+
+            // when
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+
+            // then
+            assertThat(result).isEqualTo(600);
+            verify(firebaseMessaging, times(2)).sendEachForMulticast(any(MulticastMessage.class));
+        }
+
+        @Test
+        @DisplayName("배치 전송 중 예외 발생 시 0을 반환한다")
+        void should_ReturnZero_when_BatchSendFails() throws FirebaseMessagingException {
+            // given
+            List<String> tokens = List.of("token1", "token2");
+
+            FirebaseMessagingException exception = mock(FirebaseMessagingException.class);
+            given(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class)))
+                    .willThrow(exception);
+
+            // when
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+
+            // then
+            assertThat(result).isZero();
+        }
+
+        @Test
+        @DisplayName("실패 응답에 예외가 없는 경우 무시한다")
+        void should_IgnoreFailure_when_NoException() throws FirebaseMessagingException {
+            // given
+            List<String> tokens = List.of("token1");
+
+            SendResponse failResponse = mock(SendResponse.class);
+            given(failResponse.isSuccessful()).willReturn(false);
+            given(failResponse.getException()).willReturn(null);
+
+            BatchResponse batchResponse = mock(BatchResponse.class);
+            given(batchResponse.getSuccessCount()).willReturn(0);
+            given(batchResponse.getFailureCount()).willReturn(1);
+            given(batchResponse.getResponses()).willReturn(List.of(failResponse));
+            given(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class)))
+                    .willReturn(batchResponse);
+
+            // when
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+
+            // then
+            assertThat(result).isZero();
+            verify(deviceTokenRepository, never()).findByToken(anyString());
+        }
+    }
+}

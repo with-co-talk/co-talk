@@ -63,6 +63,44 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
     }
 
     /**
+     * 여러 사용자에게 새 메시지 알림을 벌크 전송한다.
+     * 한 번의 DB 조회로 여러 사용자의 디바이스 토큰을 가져와 효율적으로 처리한다.
+     *
+     * @param receiverUserIds 알림을 받을 사용자 ID 목록
+     * @param senderNickname  메시지를 보낸 사용자 닉네임
+     * @param messageContent  메시지 내용 (100자 초과시 잘림)
+     * @param chatRoomId      채팅방 ID
+     */
+    @Override
+    @Async
+    public void sendNewMessageNotificationBulk(List<Long> receiverUserIds, String senderNickname, String messageContent, Long chatRoomId) {
+        if (receiverUserIds.isEmpty()) {
+            return;
+        }
+
+        List<DeviceToken> tokens = deviceTokenRepository.findActiveByUserIds(receiverUserIds);
+
+        if (tokens.isEmpty()) {
+            log.debug("No active device tokens for users: {}", receiverUserIds);
+            return;
+        }
+
+        List<String> tokenStrings = tokens.stream()
+                .map(DeviceToken::getToken)
+                .toList();
+
+        String title = senderNickname;
+        String body = truncateMessage(messageContent);
+        Map<String, String> data = Map.of(
+                "type", "NEW_MESSAGE",
+                "chatRoomId", chatRoomId.toString()
+        );
+
+        int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data);
+        log.info("Bulk new message push sent to {} users: {}/{} devices", receiverUserIds.size(), sentCount, tokenStrings.size());
+    }
+
+    /**
      * 친구 요청 알림을 전송한다.
      * 수신자의 활성화된 모든 디바이스로 비동기로 푸시 알림을 전송한다.
      *

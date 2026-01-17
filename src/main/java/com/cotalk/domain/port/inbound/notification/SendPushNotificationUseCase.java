@@ -1,5 +1,7 @@
 package com.cotalk.domain.port.inbound.notification;
 
+import java.util.List;
+
 /**
  * 푸시 알림 전송 유스케이스.
  * 새 메시지, 친구 요청 등의 푸시 알림을 전송한다.
@@ -17,6 +19,16 @@ public interface SendPushNotificationUseCase {
      * @param chatRoomId 채팅방 ID
      */
     void sendNewMessageNotification(Long receiverUserId, String senderNickname, String messageContent, Long chatRoomId);
+
+    /**
+     * 여러 사용자에게 새 메시지 알림을 벌크 전송한다.
+     *
+     * @param receiverUserIds 알림 수신자 ID 목록
+     * @param senderNickname  메시지 발신자 닉네임
+     * @param messageContent  메시지 내용 (미리보기)
+     * @param chatRoomId      채팅방 ID
+     */
+    void sendNewMessageNotificationBulk(List<Long> receiverUserIds, String senderNickname, String messageContent, Long chatRoomId);
 
     /**
      * 특정 사용자에게 친구 요청 알림을 전송한다.
