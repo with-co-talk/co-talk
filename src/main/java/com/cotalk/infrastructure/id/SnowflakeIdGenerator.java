@@ -1,5 +1,7 @@
 package com.cotalk.infrastructure.id;
 
+import com.cotalk.domain.port.outbound.IdGenerator;
+
 /**
  * Twitter Snowflake 알고리즘 기반 분산 ID 생성기.
  * 분산 환경에서 중복 없이 순차적이고 고유한 64비트 ID를 생성한다.
@@ -24,7 +26,7 @@ package com.cotalk.infrastructure.id;
  *
  * @author seunggu.lee
  */
-public class SnowflakeIdGenerator {
+public class SnowflakeIdGenerator implements IdGenerator {
 
     /** 에포크 시작 시간 (2024-01-01 00:00:00 UTC) */
     private static final long EPOCH = 1704067200000L;
@@ -91,7 +93,8 @@ public class SnowflakeIdGenerator {
      * @return 생성된 64비트 고유 ID
      * @throws IllegalStateException 시스템 시계가 역행한 경우
      */
-    public synchronized long nextId() {
+    @Override
+    public synchronized Long nextId() {
         long timestamp = currentTimeMillis();
 
         if (timestamp < lastTimestamp) {
