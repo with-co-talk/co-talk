@@ -2,12 +2,13 @@ package com.cotalk.application.service.report;
 
 import com.cotalk.domain.entity.Report;
 import com.cotalk.domain.exception.InvalidReportException;
+import com.cotalk.domain.exception.SelfActionNotAllowedException;
 import com.cotalk.domain.port.outbound.ReportRepository;
+import com.cotalk.domain.validator.UserValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -18,13 +19,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.doNothing;
 
 @ExtendWith(MockitoExtension.class)
 class ReportServiceTest {
 
     @Mock
     private ReportRepository reportRepository;
+
+    @Mock
+    private UserValidator userValidator;
 
     @Mock
     private SnowflakeIdGenerator idGenerator;
@@ -41,6 +46,7 @@ class ReportServiceTest {
         Report.ReportReason reason = Report.ReportReason.HARASSMENT;
         String description = "욕설을 사용했습니다.";
 
+        doNothing().when(userValidator).validateNotSelfAction(reporterId, reportedUserId, "신고");
         given(idGenerator.nextId()).willReturn(1L);
         given(reportRepository.existsByReporterIdAndReportedUserId(reporterId, reportedUserId))
                 .willReturn(false);
@@ -64,11 +70,13 @@ class ReportServiceTest {
     void should_throwException_when_reportSelf() {
         // given
         Long userId = 100L;
+        willThrow(new SelfActionNotAllowedException("신고"))
+                .given(userValidator).validateNotSelfAction(userId, userId, "신고");
 
         // when & then
         assertThatThrownBy(() -> reportService.reportUser(userId, userId, Report.ReportReason.SPAM, "테스트"))
-                .isInstanceOf(InvalidReportException.class)
-                .hasMessage("자기 자신을 신고할 수 없습니다.");
+                .isInstanceOf(SelfActionNotAllowedException.class)
+                .hasMessageContaining("자기 자신을 신고할 수 없습니다");
     }
 
     @Test
@@ -78,6 +86,7 @@ class ReportServiceTest {
         Long reporterId = 100L;
         Long reportedUserId = 200L;
 
+        doNothing().when(userValidator).validateNotSelfAction(reporterId, reportedUserId, "신고");
         given(reportRepository.existsByReporterIdAndReportedUserId(reporterId, reportedUserId))
                 .willReturn(true);
 

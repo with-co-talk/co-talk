@@ -11,6 +11,7 @@ import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -25,8 +26,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -39,6 +40,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 @Import(RateLimitTestConfiguration.class)
 class ChatReactionControllerTest {
+
+    private static final Long TEST_USER_ID = 1L;
 
     @Autowired
     private MockMvc mockMvc;
@@ -67,19 +70,20 @@ class ChatReactionControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 반응 추가 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_validReaction() throws Exception {
             // given
             Long messageId = 500L;
-            AddReactionRequest request = new AddReactionRequest(1L, "thumbsup");
+            AddReactionRequest request = new AddReactionRequest("thumbsup");
 
             MessageReaction reaction = MessageReaction.builder()
                     .id(1000L)
                     .messageId(messageId)
-                    .userId(1L)
+                    .userId(TEST_USER_ID)
                     .emoji(Emoji.THUMBS_UP)
                     .build();
 
-            given(addMessageReactionUseCase.addReaction(anyLong(), anyLong(), anyString()))
+            given(addMessageReactionUseCase.addReaction(eq(messageId), eq(TEST_USER_ID), anyString()))
                     .willReturn(reaction);
 
             // when & then
@@ -89,7 +93,7 @@ class ChatReactionControllerTest {
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.reactionId").value(1000L))
                     .andExpect(jsonPath("$.messageId").value(messageId))
-                    .andExpect(jsonPath("$.userId").value(1L))
+                    .andExpect(jsonPath("$.userId").value(TEST_USER_ID))
                     .andExpect(jsonPath("$.emoji").value("THUMBS_UP"))
                     .andExpect(jsonPath("$.emojiCharacter").value("👍"));
         }
@@ -101,13 +105,14 @@ class ChatReactionControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 반응 제거 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRemoval() throws Exception {
             // given
             Long messageId = 500L;
-            RemoveReactionRequest request = new RemoveReactionRequest(1L, "thumbsup");
+            RemoveReactionRequest request = new RemoveReactionRequest("thumbsup");
 
             willDoNothing().given(removeMessageReactionUseCase)
-                    .removeReaction(anyLong(), anyLong(), anyString());
+                    .removeReaction(eq(messageId), eq(TEST_USER_ID), anyString());
 
             // when & then
             mockMvc.perform(delete("/api/v1/chat/messages/{messageId}/reactions", messageId)
@@ -124,15 +129,16 @@ class ChatReactionControllerTest {
 
         @Test
         @DisplayName("메시지의 모든 반응 조회 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnReactions_when_validMessageId() throws Exception {
             // given
             Long messageId = 500L;
             List<GroupedReactionResponse> groupedReactions = List.of(
-                    GroupedReactionResponse.from(Emoji.THUMBS_UP, List.of(1L, 2L), null),
-                    GroupedReactionResponse.from(Emoji.HEART, List.of(3L), null)
+                    GroupedReactionResponse.from(Emoji.THUMBS_UP, List.of(1L, 2L), TEST_USER_ID),
+                    GroupedReactionResponse.from(Emoji.HEART, List.of(3L), TEST_USER_ID)
             );
 
-            given(getMessageReactionsService.getGroupedReactions(messageId, null))
+            given(getMessageReactionsService.getGroupedReactions(eq(messageId), eq(TEST_USER_ID)))
                     .willReturn(groupedReactions);
 
             // when & then
@@ -148,7 +154,7 @@ class ChatReactionControllerTest {
                     .andExpect(jsonPath("$[0].userIds.length()").value(2))
                     .andExpect(jsonPath("$[0].userIds[0]").value(1L))
                     .andExpect(jsonPath("$[0].userIds[1]").value(2L))
-                    .andExpect(jsonPath("$[0].currentUserReacted").value(false))
+                    .andExpect(jsonPath("$[0].currentUserReacted").value(true))
                     .andExpect(jsonPath("$[1].emoji").value("HEART"))
                     .andExpect(jsonPath("$[1].emojiCharacter").value("❤️"))
                     .andExpect(jsonPath("$[1].count").value(1));
@@ -156,10 +162,11 @@ class ChatReactionControllerTest {
 
         @Test
         @DisplayName("반응이 없을 때 빈 배열 반환")
+        @WithMockCustomUser(userId = 1L)
         void should_returnEmptyArray_when_noReactions() throws Exception {
             // given
             Long messageId = 500L;
-            given(getMessageReactionsService.getGroupedReactions(messageId, null))
+            given(getMessageReactionsService.getGroupedReactions(eq(messageId), eq(TEST_USER_ID)))
                     .willReturn(List.of());
 
             // when & then

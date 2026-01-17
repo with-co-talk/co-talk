@@ -3,6 +3,8 @@ package com.cotalk.infrastructure.ratelimit;
 import com.cotalk.integration.IntegrationTestSecurityConfig;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +15,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Set;
@@ -42,6 +43,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("ratelimit-test")
 @DisplayName("Rate Limit 통합 테스트")
 class RateLimitIntegrationTest {
+
+    private static final Logger log = LoggerFactory.getLogger(RateLimitIntegrationTest.class);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
@@ -84,9 +87,9 @@ class RateLimitIntegrationTest {
     @BeforeEach
     void setUp() {
         // Rate Limit 인터셉터와 설정이 로드되었는지 확인
-        System.out.println("=== Rate Limit 설정 확인 ===");
-        System.out.println("RateLimitInterceptor: " + (rateLimitInterceptor != null ? "등록됨" : "등록 안 됨"));
-        System.out.println("RateLimitProperties: " + (rateLimitProperties != null ? "등록됨" : "등록 안 됨"));
+        log.info("=== Rate Limit 설정 확인 ===");
+        log.info("RateLimitInterceptor: {}", rateLimitInterceptor != null ? "등록됨" : "등록 안 됨");
+        log.info("RateLimitProperties: {}", rateLimitProperties != null ? "등록됨" : "등록 안 됨");
 
         if (rateLimitInterceptor == null) {
             throw new IllegalStateException("RateLimitInterceptor가 등록되지 않았습니다. app.rate-limit.enabled=true인지 확인하세요.");
@@ -96,9 +99,9 @@ class RateLimitIntegrationTest {
         }
 
         boolean enabled = rateLimitProperties.isEnabled();
-        System.out.println("Rate Limit enabled: " + enabled);
-        System.out.println("Rate Limit endpoints: " + rateLimitProperties.getEndpoints());
-        System.out.println("===========================");
+        log.info("Rate Limit enabled: {}", enabled);
+        log.info("Rate Limit endpoints: {}", rateLimitProperties.getEndpoints());
+        log.info("===========================");
 
         if (!enabled) {
             throw new IllegalStateException("RateLimitProperties가 활성화되지 않았습니다. enabled=" + enabled);
@@ -110,17 +113,17 @@ class RateLimitIntegrationTest {
 
     private void cleanupRateLimitKeys() {
         if (redisTemplate == null) {
-            System.out.println("RedisTemplate not available, skipping cleanup");
+            log.debug("RedisTemplate not available, skipping cleanup");
             return;
         }
         try {
             Set<String> keys = redisTemplate.keys("rate-limit:*");
             if (keys != null && !keys.isEmpty()) {
                 redisTemplate.delete(keys);
-                System.out.println("Cleaned up " + keys.size() + " rate limit keys");
+                log.debug("Cleaned up {} rate limit keys", keys.size());
             }
         } catch (Exception e) {
-            System.out.println("Failed to cleanup rate limit keys: " + e.getMessage());
+            log.warn("Failed to cleanup rate limit keys: {}", e.getMessage());
         }
     }
 
@@ -167,10 +170,10 @@ class RateLimitIntegrationTest {
 
             // Rate Limit 헤더 확인
             String rateLimitHeader = result.getResponse().getHeader("X-RateLimit-Limit");
-            System.out.println("Request " + (i + 1) + ": Rate Limit Header = " + rateLimitHeader);
+            log.debug("Request {}: Rate Limit Header = {}", i + 1, rateLimitHeader);
 
             if (rateLimitHeader == null) {
-                System.out.println("WARNING: Rate Limit 헤더가 없습니다. 인터셉터가 실행되지 않았을 수 있습니다.");
+                log.warn("Rate Limit 헤더가 없습니다. 인터셉터가 실행되지 않았을 수 있습니다.");
             }
         }
 
