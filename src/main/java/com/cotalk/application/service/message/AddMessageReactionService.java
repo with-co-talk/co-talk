@@ -1,8 +1,8 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.exception.MessageNotFoundException;
-import com.cotalk.domain.port.inbound.AddMessageReactionUseCase;
+import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
 import com.cotalk.domain.port.outbound.MessageReactionRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.validator.MessageValidator;
@@ -11,6 +11,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 메시지 반응 추가 유스케이스 구현체.
+ * 메시지에 이모지 반응을 추가한다.
+ *
+ * @author seunggu.lee
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -21,6 +27,16 @@ public class AddMessageReactionService implements AddMessageReactionUseCase {
     private final MessageReactionRepository reactionRepository;
     private final MessageValidator messageValidator;
 
+    /**
+     * 메시지에 이모지 반응을 추가한다.
+     * 이미 같은 반응이 있으면 기존 반응을 반환한다.
+     *
+     * @param messageId 메시지 ID
+     * @param userId 사용자 ID
+     * @param emoji 이모지
+     * @return 생성된 또는 기존 반응 정보
+     * @throws MessageNotFoundException 메시지가 존재하지 않는 경우
+     */
     @Override
     public MessageReaction addReaction(Long messageId, Long userId, String emoji) {
         // 메시지 존재 확인

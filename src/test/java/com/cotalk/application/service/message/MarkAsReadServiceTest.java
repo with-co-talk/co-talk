@@ -1,8 +1,8 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
-import com.cotalk.domain.port.inbound.MarkAsReadUseCase;
+import com.cotalk.domain.port.inbound.message.MarkAsReadUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import org.junit.jupiter.api.BeforeEach;

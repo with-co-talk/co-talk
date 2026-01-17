@@ -1,4 +1,4 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.exception.MessageReactionNotFoundException;

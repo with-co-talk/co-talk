@@ -1,4 +1,4 @@
-package com.cotalk.application.service;
+package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.exception.MessageAccessDeniedException;
@@ -21,50 +21,49 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class DeleteMessageServiceTest {
+class UpdateMessageServiceTest {
 
     @Mock
     private MessageRepository messageRepository;
 
-    private DeleteMessageService service;
+    private UpdateMessageService service;
 
     @BeforeEach
     void setUp() {
-        service = new DeleteMessageService(messageRepository);
+        service = new UpdateMessageService(messageRepository);
     }
 
     @Test
-    @DisplayName("본인이 보낸 메시지 삭제 성공")
-    void should_deleteMessage_when_sender() {
+    @DisplayName("본인이 보낸 메시지 수정 성공")
+    void should_updateMessage_when_sender() {
         // given
         Long messageId = 100L;
         Long userId = 1L;
+        String newContent = "수정된 메시지";
 
         Message message = Message.builder()
                 .id(messageId)
                 .chatRoomId(10L)
                 .senderId(userId)
-                .content("삭제할 메시지")
+                .content("원본 메시지")
                 .type(Message.MessageType.TEXT)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
-                .deleted(false)
                 .build();
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
         given(messageRepository.save(any(Message.class))).willAnswer(inv -> inv.getArgument(0));
 
         // when
-        service.deleteMessage(messageId, userId);
+        Message updated = service.updateMessage(messageId, userId, newContent);
 
         // then
-        assertThat(message.isDeleted()).isTrue();
-        assertThat(message.getDeletedAt()).isNotNull();
+        assertThat(updated.getContent()).isEqualTo(newContent);
         verify(messageRepository).save(message);
     }
 
     @Test
-    @DisplayName("다른 사람이 보낸 메시지 삭제 시 예외")
+    @DisplayName("다른 사람이 보낸 메시지 수정 시 예외")
     void should_throwException_when_notSender() {
         // given
         Long messageId = 100L;
@@ -84,26 +83,26 @@ class DeleteMessageServiceTest {
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
 
         // when & then
-        assertThatThrownBy(() -> service.deleteMessage(messageId, userId))
+        assertThatThrownBy(() -> service.updateMessage(messageId, userId, "새 내용"))
                 .isInstanceOf(MessageAccessDeniedException.class)
                 .hasMessageContaining("본인이 보낸 메시지만");
     }
 
     @Test
-    @DisplayName("존재하지 않는 메시지 삭제 시 예외")
+    @DisplayName("존재하지 않는 메시지 수정 시 예외")
     void should_throwException_when_messageNotFound() {
         // given
         Long messageId = 999L;
         given(messageRepository.findById(messageId)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> service.deleteMessage(messageId, 1L))
+        assertThatThrownBy(() -> service.updateMessage(messageId, 1L, "새 내용"))
                 .isInstanceOf(MessageNotFoundException.class);
     }
 
     @Test
-    @DisplayName("이미 삭제된 메시지 삭제 시 예외")
-    void should_throwException_when_alreadyDeleted() {
+    @DisplayName("이미 삭제된 메시지 수정 시 예외")
+    void should_throwException_when_messageDeleted() {
         // given
         Long messageId = 100L;
         Long userId = 1L;
@@ -123,8 +122,34 @@ class DeleteMessageServiceTest {
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
 
         // when & then
-        assertThatThrownBy(() -> service.deleteMessage(messageId, userId))
+        assertThatThrownBy(() -> service.updateMessage(messageId, userId, "새 내용"))
                 .isInstanceOf(MessageAccessDeniedException.class)
                 .hasMessageContaining("이미 삭제된");
+    }
+
+    @Test
+    @DisplayName("이미지/파일 메시지 수정 시 예외")
+    void should_throwException_when_notTextMessage() {
+        // given
+        Long messageId = 100L;
+        Long userId = 1L;
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(10L)
+                .senderId(userId)
+                .content("이미지")
+                .type(Message.MessageType.IMAGE)
+                .fileUrl("http://example.com/image.jpg")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+
+        // when & then
+        assertThatThrownBy(() -> service.updateMessage(messageId, userId, "새 내용"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("텍스트 메시지만");
     }
 }
