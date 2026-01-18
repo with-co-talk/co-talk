@@ -64,6 +64,8 @@ server:
 jwt:
   secret: ${JWT_SECRET}  # 필수 환경변수 - 최소 256비트(32자) 이상 필요
   expiration: ${JWT_EXPIRATION:86400000}  # 1일 (밀리초) - 프로덕션 권장
+  refresh-token:
+    expiration-days: ${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:7}  # 7일
 
 # Firebase 설정 (푸시 알림)
 firebase:

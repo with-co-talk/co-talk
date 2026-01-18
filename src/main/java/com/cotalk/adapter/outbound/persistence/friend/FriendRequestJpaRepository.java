@@ -32,6 +32,17 @@ public interface FriendRequestJpaRepository extends JpaRepository<FriendRequest,
     boolean existsByRequesterIdAndReceiverId(Long requesterId, Long receiverId);
 
     /**
+     * 요청자 ID, 수신자 ID, 상태로 친구 요청이 존재하는지 확인한다.
+     *
+     * @param requesterId 요청자 ID
+     * @param receiverId  수신자 ID
+     * @param status      요청 상태
+     * @return 친구 요청 존재 여부
+     */
+    boolean existsByRequesterIdAndReceiverIdAndStatus(Long requesterId, Long receiverId,
+                                                       FriendRequest.RequestStatus status);
+
+    /**
      * 요청자 ID 또는 수신자 ID로 친구 요청을 삭제한다.
      *
      * @param requesterId 요청자 ID

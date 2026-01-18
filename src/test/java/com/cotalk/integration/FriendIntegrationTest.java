@@ -73,7 +73,7 @@ class FriendIntegrationTest {
                 .andReturn();
 
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
-        return response.get("token").asText();
+        return response.get("accessToken").asText();
     }
 
     @Test

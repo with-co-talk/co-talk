@@ -10,7 +10,10 @@ import lombok.*;
  * @author seunggu.lee
  */
 @Entity
-@Table(name = "friend_requests")
+@Table(name = "friend_requests", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_friend_request_requester_receiver",
+                columnNames = {"requester_id", "receiver_id"})
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

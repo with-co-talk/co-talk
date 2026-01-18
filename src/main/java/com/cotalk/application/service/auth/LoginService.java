@@ -2,6 +2,7 @@ package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidCredentialsException;
+import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -49,5 +50,16 @@ public class LoginService implements LoginUseCase {
         updateUserOnlineStatusUseCase.setOnline(user.getId());
 
         return jwtTokenProvider.generateToken(user.getId());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Long getUserIdByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(User::getId)
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다: " + email));
     }
 }

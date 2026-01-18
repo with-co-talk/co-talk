@@ -9,17 +9,21 @@ import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.domain.validator.UserValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
+import com.cotalk.infrastructure.lock.DistributedLockExecutor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.doNothing;
@@ -40,8 +44,23 @@ class SendFriendRequestServiceTest {
     @Mock
     private SnowflakeIdGenerator idGenerator;
 
-    @InjectMocks
+    @Mock
+    private DistributedLockExecutor lockExecutor;
+
     private SendFriendRequestService sendFriendRequestService;
+
+    @BeforeEach
+    void setUp() {
+        sendFriendRequestService = new SendFriendRequestService(
+                friendRequestRepository, friendRepository, userValidator, idGenerator, lockExecutor);
+
+        // 분산락 모킹: 락 획득 후 바로 실행
+        given(lockExecutor.executeWithLock(anyString(), any(Supplier.class)))
+                .willAnswer(invocation -> {
+                    Supplier<?> supplier = invocation.getArgument(1);
+                    return supplier.get();
+                });
+    }
 
     @Test
     @DisplayName("친구 요청 전송 성공")

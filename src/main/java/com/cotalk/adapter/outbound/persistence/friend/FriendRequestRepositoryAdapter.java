@@ -66,6 +66,21 @@ public class FriendRequestRepositoryAdapter implements FriendRequestRepository {
     }
 
     /**
+     * 요청자 ID, 수신자 ID, 상태로 친구 요청이 존재하는지 확인한다.
+     *
+     * @param requesterId 요청자 ID
+     * @param receiverId  수신자 ID
+     * @param status      요청 상태
+     * @return 친구 요청 존재 여부
+     */
+    @Override
+    public boolean existsByRequesterIdAndReceiverIdAndStatus(Long requesterId, Long receiverId,
+                                                              FriendRequest.RequestStatus status) {
+        return friendRequestJpaRepository.existsByRequesterIdAndReceiverIdAndStatus(
+                requesterId, receiverId, status);
+    }
+
+    /**
      * 친구 요청을 삭제한다.
      *
      * @param friendRequest 삭제할 친구 요청 엔티티

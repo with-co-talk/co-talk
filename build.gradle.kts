@@ -63,6 +63,9 @@ dependencies {
     implementation("com.bucket4j:bucket4j-redis:8.10.1")
     implementation("com.bucket4j:bucket4j-core:8.10.1")
 
+    // Redisson (Distributed Lock)
+    implementation("org.redisson:redisson-spring-boot-starter:3.27.0")
+
     // Observability - Micrometer & Tracing
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("io.micrometer:micrometer-tracing-bridge-brave")

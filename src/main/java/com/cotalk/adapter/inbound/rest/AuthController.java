@@ -1,11 +1,16 @@
 package com.cotalk.adapter.inbound.rest;
 
+import com.cotalk.adapter.inbound.rest.dto.auth.AuthTokenResponse;
 import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.LoginResponse;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpResponse;
+import com.cotalk.adapter.inbound.rest.dto.auth.TokenRefreshRequest;
+import com.cotalk.adapter.inbound.rest.dto.auth.TokenRefreshResponse;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
+import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
+import com.cotalk.infrastructure.security.SecurityContextHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -33,6 +38,8 @@ public class AuthController {
 
     private final SignUpUseCase signUpUseCase;
     private final LoginUseCase loginUseCase;
+    private final RefreshTokenUseCase refreshTokenUseCase;
+    private final SecurityContextHelper securityContextHelper;
 
     /**
      * 새로운 사용자를 등록한다.
@@ -64,8 +71,58 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "인증 실패")
     })
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        String token = loginUseCase.login(request.email(), request.password());
-        return ResponseEntity.ok(LoginResponse.of(token));
+    public ResponseEntity<AuthTokenResponse> login(@Valid @RequestBody LoginRequest request) {
+        String accessToken = loginUseCase.login(request.email(), request.password());
+        // 로그인 성공 후 Refresh Token도 함께 발급
+        Long userId = extractUserIdFromLoginProcess(request.email());
+        String refreshToken = refreshTokenUseCase.createRefreshToken(userId);
+        return ResponseEntity.ok(AuthTokenResponse.of(accessToken, refreshToken, 86400));
+    }
+
+    /**
+     * Refresh Token으로 새로운 Access Token을 발급받는다.
+     *
+     * @param request 토큰 갱신 요청 정보 (Refresh Token)
+     * @return 새로 발급된 Access Token
+     */
+    @Operation(summary = "토큰 갱신", description = "Refresh Token으로 새로운 Access Token을 발급받습니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "토큰 갱신 성공"),
+            @ApiResponse(responseCode = "401", description = "유효하지 않은 Refresh Token")
+    })
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenRefreshResponse> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
+        String newAccessToken = refreshTokenUseCase.refreshAccessToken(request.refreshToken());
+        return ResponseEntity.ok(TokenRefreshResponse.of(newAccessToken, request.refreshToken()));
+    }
+
+    /**
+     * 로그아웃하여 현재 사용자의 모든 Refresh Token을 폐기한다.
+     *
+     * @return 로그아웃 성공 메시지
+     */
+    @Operation(summary = "로그아웃", description = "현재 사용자의 모든 Refresh Token을 폐기합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "로그아웃 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        Long userId = securityContextHelper.getCurrentUserId();
+        refreshTokenUseCase.revokeAllTokensByUserId(userId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 로그인 프로세스에서 사용자 ID를 추출한다.
+     * 이 메서드는 로그인 성공 후 Refresh Token 발급을 위해 사용된다.
+     *
+     * @param email 사용자 이메일
+     * @return 사용자 ID
+     */
+    private Long extractUserIdFromLoginProcess(String email) {
+        // LoginService가 이미 인증을 처리했으므로 추가 조회가 필요
+        // 이 구현은 LoginUseCase 확장이 필요할 수 있음
+        return loginUseCase.getUserIdByEmail(email);
     }
 }

@@ -2,7 +2,11 @@ package com.cotalk.adapter.outbound.persistence.chatroom;
 
 import com.cotalk.domain.entity.ChatRoomMember;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,4 +58,21 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * @param userId 사용자 ID
      */
     void deleteByUserId(Long userId);
+
+    /**
+     * 마지막 읽은 시간을 원자적으로 업데이트한다.
+     * 기존 값보다 큰 경우에만 업데이트하여 Lost Update를 방지한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId     사용자 ID
+     * @param lastReadAt 새로운 읽은 시간
+     * @return 업데이트된 행 수
+     */
+    @Modifying
+    @Query("UPDATE ChatRoomMember m SET m.lastReadAt = :lastReadAt " +
+           "WHERE m.chatRoomId = :chatRoomId AND m.userId = :userId " +
+           "AND (m.lastReadAt IS NULL OR m.lastReadAt < :lastReadAt)")
+    int updateLastReadAtIfNewer(@Param("chatRoomId") Long chatRoomId,
+                                @Param("userId") Long userId,
+                                @Param("lastReadAt") LocalDateTime lastReadAt);
 }
