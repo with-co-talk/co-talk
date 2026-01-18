@@ -1,10 +1,12 @@
 package com.cotalk.application.service.friend;
 
 import com.cotalk.domain.entity.Block;
+import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidBlockException;
+import com.cotalk.domain.exception.SelfActionNotAllowedException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.BlockRepository;
-import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.validator.UserValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,7 +22,11 @@ import static com.cotalk.common.fixture.UserTestFixture.createUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -30,7 +36,7 @@ class BlockUserServiceTest {
     private BlockRepository blockRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private UserValidator userValidator;
 
     @Mock
     private SnowflakeIdGenerator idGenerator;
@@ -46,8 +52,9 @@ class BlockUserServiceTest {
         Long blockedId = 2L;
         Long blockId = 100L;
 
-        given(userRepository.findById(blockerId)).willReturn(Optional.of(createUser(blockerId)));
-        given(userRepository.findById(blockedId)).willReturn(Optional.of(createUser(blockedId)));
+        doNothing().when(userValidator).validateNotSelfAction(blockerId, blockedId, "차단");
+        given(userValidator.validateUserExists(blockerId)).willReturn(createUser(blockerId));
+        given(userValidator.validateUserExists(blockedId)).willReturn(createUser(blockedId));
         given(blockRepository.findByBlockerIdAndBlockedId(blockerId, blockedId)).willReturn(Optional.empty());
         given(idGenerator.nextId()).willReturn(blockId);
         given(blockRepository.save(any(Block.class))).willAnswer(invocation -> invocation.getArgument(0));
@@ -67,10 +74,12 @@ class BlockUserServiceTest {
     void should_throwException_when_blockingSelf() {
         // given
         Long userId = 1L;
+        willThrow(new SelfActionNotAllowedException("차단"))
+                .given(userValidator).validateNotSelfAction(userId, userId, "차단");
 
         // when & then
         assertThatThrownBy(() -> blockUserService.blockUser(userId, userId))
-                .isInstanceOf(InvalidBlockException.class)
+                .isInstanceOf(SelfActionNotAllowedException.class)
                 .hasMessageContaining("자기 자신을 차단할 수 없습니다");
     }
 
@@ -81,8 +90,10 @@ class BlockUserServiceTest {
         Long blockerId = 1L;
         Long blockedId = 999L;
 
-        given(userRepository.findById(blockerId)).willReturn(Optional.of(createUser(blockerId)));
-        given(userRepository.findById(blockedId)).willReturn(Optional.empty());
+        doNothing().when(userValidator).validateNotSelfAction(blockerId, blockedId, "차단");
+        given(userValidator.validateUserExists(blockerId)).willReturn(createUser(blockerId));
+        willThrow(new UserNotFoundException(blockedId))
+                .given(userValidator).validateUserExists(blockedId);
 
         // when & then
         assertThatThrownBy(() -> blockUserService.blockUser(blockerId, blockedId))
@@ -102,8 +113,9 @@ class BlockUserServiceTest {
                 .blockedId(blockedId)
                 .build();
 
-        given(userRepository.findById(blockerId)).willReturn(Optional.of(createUser(blockerId)));
-        given(userRepository.findById(blockedId)).willReturn(Optional.of(createUser(blockedId)));
+        doNothing().when(userValidator).validateNotSelfAction(blockerId, blockedId, "차단");
+        given(userValidator.validateUserExists(blockerId)).willReturn(createUser(blockerId));
+        given(userValidator.validateUserExists(blockedId)).willReturn(createUser(blockedId));
         given(blockRepository.findByBlockerIdAndBlockedId(blockerId, blockedId)).willReturn(Optional.of(existingBlock));
 
         // when & then

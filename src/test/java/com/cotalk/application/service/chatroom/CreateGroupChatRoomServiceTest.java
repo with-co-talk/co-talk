@@ -2,11 +2,12 @@ package com.cotalk.application.service.chatroom;
 
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
+import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidGroupChatException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
-import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.validator.UserValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,13 +18,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.Optional;
 
 import static com.cotalk.common.fixture.UserTestFixture.createUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -37,7 +39,7 @@ class CreateGroupChatRoomServiceTest {
     private ChatRoomMemberRepository chatRoomMemberRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private UserValidator userValidator;
 
     @Mock
     private SnowflakeIdGenerator idGenerator;
@@ -54,10 +56,7 @@ class CreateGroupChatRoomServiceTest {
         List<Long> memberIds = List.of(2L, 3L, 4L);
         Long chatRoomId = 100L;
 
-        given(userRepository.findById(creatorId)).willReturn(Optional.of(createUser(creatorId)));
-        given(userRepository.findById(2L)).willReturn(Optional.of(createUser(2L)));
-        given(userRepository.findById(3L)).willReturn(Optional.of(createUser(3L)));
-        given(userRepository.findById(4L)).willReturn(Optional.of(createUser(4L)));
+        doNothing().when(userValidator).validateUsersExist(any());
         given(idGenerator.nextId()).willReturn(chatRoomId, 101L, 102L, 103L, 104L);
         given(chatRoomRepository.save(any(ChatRoom.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
@@ -128,9 +127,8 @@ class CreateGroupChatRoomServiceTest {
         String roomName = "테스트방";
         List<Long> memberIds = List.of(2L, 999L);
 
-        given(userRepository.findById(creatorId)).willReturn(Optional.of(createUser(creatorId)));
-        given(userRepository.findById(2L)).willReturn(Optional.of(createUser(2L)));
-        given(userRepository.findById(999L)).willReturn(Optional.empty());
+        willThrow(new UserNotFoundException(999L))
+                .given(userValidator).validateUsersExist(any());
 
         // when & then
         assertThatThrownBy(() -> createGroupChatRoomService.createGroupChatRoom(creatorId, roomName, memberIds))
@@ -145,7 +143,8 @@ class CreateGroupChatRoomServiceTest {
         String roomName = "테스트방";
         List<Long> memberIds = List.of(2L, 3L);
 
-        given(userRepository.findById(creatorId)).willReturn(Optional.empty());
+        willThrow(new UserNotFoundException(creatorId))
+                .given(userValidator).validateUsersExist(any());
 
         // when & then
         assertThatThrownBy(() -> createGroupChatRoomService.createGroupChatRoom(creatorId, roomName, memberIds))

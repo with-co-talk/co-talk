@@ -1,14 +1,51 @@
+# 프로덕션 환경 설정
+# 보안과 성능 최적화에 중점
+
 spring:
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: ${DB_MIN_IDLE:5}
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+
+# 서버 설정 - 보안 강화
+server:
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+# Swagger UI 비활성화 (프로덕션)
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+# 로깅 - 프로덕션 레벨 (최소화)
 logging:
   level:
     root: WARN
     com.cotalk: INFO
+    org.springframework.web: WARN
+    org.hibernate: WARN
+
+# 모니터링 설정 - 샘플링 조정
+management:
+  tracing:
+    sampling:
+      probability: 0.1  # 프로덕션에서는 10% 샘플링

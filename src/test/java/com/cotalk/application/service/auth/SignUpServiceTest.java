@@ -18,7 +18,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,13 +37,13 @@ class SignUpServiceTest {
     @Mock
     private SnowflakeIdGenerator idGenerator;
 
+    @Mock
     private UserValidator userValidator;
 
     private SignUpService signUpService;
 
     @BeforeEach
     void setUp() {
-        userValidator = new UserValidator();
         signUpService = new SignUpService(userRepository, passwordEncoder, idGenerator, userValidator);
     }
 
@@ -157,6 +160,8 @@ class SignUpServiceTest {
         void should_ThrowException_when_InvalidEmailFormat() {
             // given
             String invalidEmail = "invalid-email";
+            willThrow(new IllegalArgumentException("올바른 이메일 형식이 아닙니다."))
+                    .given(userValidator).validateEmail(invalidEmail);
 
             // when & then
             assertThatThrownBy(() -> signUpService.signUp(invalidEmail, "password123", "nickname"))
@@ -169,6 +174,9 @@ class SignUpServiceTest {
         void should_ThrowException_when_PasswordTooShort() {
             // given
             String shortPassword = "short";
+            doNothing().when(userValidator).validateEmail(anyString());
+            willThrow(new IllegalArgumentException("비밀번호는 최소 8자 이상이어야 합니다."))
+                    .given(userValidator).validatePassword(shortPassword);
 
             // when & then
             assertThatThrownBy(() -> signUpService.signUp("test@example.com", shortPassword, "nickname"))

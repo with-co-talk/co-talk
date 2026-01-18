@@ -1,8 +1,8 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,7 +21,7 @@ public class OAuthLoginService {
 
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
-    private final SnowflakeIdGenerator idGenerator;
+    private final IdGenerator idGenerator;
 
     /**
      * OAuth 로그인을 처리한다.

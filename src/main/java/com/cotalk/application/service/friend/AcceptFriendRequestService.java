@@ -7,7 +7,7 @@ import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +25,7 @@ public class AcceptFriendRequestService implements AcceptFriendRequestUseCase {
 
     private final FriendRequestRepository friendRequestRepository;
     private final FriendRepository friendRepository;
-    private final SnowflakeIdGenerator idGenerator;
+    private final IdGenerator idGenerator;
 
     /**
      * 친구 요청을 수락한다.

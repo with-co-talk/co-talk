@@ -1,5 +1,7 @@
 package com.cotalk.domain.entity;
 
+import java.util.Optional;
+
 /**
  * 메시지 반응에 사용 가능한 이모지 열거형.
  * <p>
@@ -60,19 +62,19 @@ public enum Emoji {
      * 문자열(이모지 문자 또는 이름)로부터 Emoji를 찾는다.
      *
      * @param value 이모지 문자 또는 이름
-     * @return 찾은 Emoji, 없으면 null
+     * @return 찾은 Emoji를 담은 Optional, 없으면 빈 Optional
      */
-    public static Emoji fromString(String value) {
+    public static Optional<Emoji> fromString(String value) {
         if (value == null || value.isBlank()) {
-            return null;
+            return Optional.empty();
         }
 
         for (Emoji emoji : values()) {
             if (emoji.character.equals(value) || emoji.name.equals(value)) {
-                return emoji;
+                return Optional.of(emoji);
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     /**
@@ -82,6 +84,6 @@ public enum Emoji {
      * @return 유효한 이모지이면 true
      */
     public static boolean isValid(String value) {
-        return fromString(value) != null;
+        return fromString(value).isPresent();
     }
 }

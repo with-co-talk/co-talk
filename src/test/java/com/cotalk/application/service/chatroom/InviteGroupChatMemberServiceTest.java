@@ -59,12 +59,10 @@ class InviteGroupChatMemberServiceTest {
                 .willReturn(Optional.of(createGroupChatRoom(roomId, "테스트방")));
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, inviterId))
                 .willReturn(Optional.of(createChatRoomMember(1L, roomId, inviterId)));
-        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, 5L))
-                .willReturn(Optional.empty());
-        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, 6L))
-                .willReturn(Optional.empty());
-        given(userRepository.findById(5L)).willReturn(Optional.of(createUser(5L)));
-        given(userRepository.findById(6L)).willReturn(Optional.of(createUser(6L)));
+        given(userRepository.findAllById(inviteeIds))
+                .willReturn(List.of(createUser(5L), createUser(6L)));
+        given(chatRoomMemberRepository.findByChatRoomId(roomId))
+                .willReturn(List.of(createChatRoomMember(1L, roomId, inviterId)));
         given(idGenerator.nextId()).willReturn(201L, 202L);
         given(chatRoomMemberRepository.save(any(ChatRoomMember.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
@@ -142,9 +140,10 @@ class InviteGroupChatMemberServiceTest {
                 .willReturn(Optional.of(createGroupChatRoom(roomId, "테스트방")));
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, inviterId))
                 .willReturn(Optional.of(createChatRoomMember(1L, roomId, inviterId)));
-        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, 999L))
-                .willReturn(Optional.empty());
-        given(userRepository.findById(999L)).willReturn(Optional.empty());
+        given(userRepository.findAllById(inviteeIds))
+                .willReturn(List.of()); // 사용자가 없음
+        given(chatRoomMemberRepository.findByChatRoomId(roomId))
+                .willReturn(List.of(createChatRoomMember(1L, roomId, inviterId)));
 
         // when & then
         assertThatThrownBy(() -> inviteGroupChatMemberService.inviteMembers(roomId, inviterId, inviteeIds))
@@ -165,11 +164,13 @@ class InviteGroupChatMemberServiceTest {
                 .willReturn(Optional.of(createGroupChatRoom(roomId, "테스트방")));
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, inviterId))
                 .willReturn(Optional.of(createChatRoomMember(1L, roomId, inviterId)));
-        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, existingMemberId))
-                .willReturn(Optional.of(createChatRoomMember(2L, roomId, existingMemberId)));
-        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, newMemberId))
-                .willReturn(Optional.empty());
-        given(userRepository.findById(newMemberId)).willReturn(Optional.of(createUser(newMemberId)));
+        given(userRepository.findAllById(inviteeIds))
+                .willReturn(List.of(createUser(existingMemberId), createUser(newMemberId)));
+        given(chatRoomMemberRepository.findByChatRoomId(roomId))
+                .willReturn(List.of(
+                        createChatRoomMember(1L, roomId, inviterId),
+                        createChatRoomMember(2L, roomId, existingMemberId) // 이미 멤버
+                ));
         given(idGenerator.nextId()).willReturn(201L);
         given(chatRoomMemberRepository.save(any(ChatRoomMember.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
@@ -177,7 +178,7 @@ class InviteGroupChatMemberServiceTest {
         // when
         inviteGroupChatMemberService.inviteMembers(roomId, inviterId, inviteeIds);
 
-        // then
+        // then - 기존 멤버(5L)는 건너뛰고 새 멤버(6L)만 저장
         verify(chatRoomMemberRepository, times(1)).save(any(ChatRoomMember.class));
     }
 }

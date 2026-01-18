@@ -5,7 +5,7 @@ import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +25,7 @@ public class CreateChatRoomService implements CreateChatRoomUseCase {
 
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
-    private final SnowflakeIdGenerator idGenerator;
+    private final IdGenerator idGenerator;
 
     /**
      * 1:1 채팅방을 생성한다.

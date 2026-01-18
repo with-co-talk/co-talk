@@ -1,11 +1,16 @@
+# 개발 환경 설정 (로컬 PostgreSQL)
+# 실제 PostgreSQL DB와 함께 개발할 때 사용
+
 spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cotalk_dev
+
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
-  datasource:
-    url: jdbc:postgresql://localhost:5432/cotalk_dev
 
+# 로깅 - 개발용 상세 로그
 logging:
   level:
     com.cotalk: DEBUG

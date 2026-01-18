@@ -1,3 +1,6 @@
+# Docker Compose 환경 설정
+# 기본 설정(application.yml)을 상속받고, Docker 환경에 맞게 오버라이드
+
 spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://postgres:5432/cotalk}
@@ -23,12 +26,12 @@ minio:
 management:
   tracing:
     sampling:
-      probability: 0.1  # 프로덕션에서는 10% 샘플링
+      probability: 0.1
   zipkin:
     tracing:
       endpoint: http://zipkin:9411/api/v2/spans
 
-# 로깅
+# 로깅 - 프로덕션 레벨
 logging:
   level:
     root: INFO

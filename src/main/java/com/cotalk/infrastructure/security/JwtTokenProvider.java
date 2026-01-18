@@ -1,8 +1,13 @@
 package com.cotalk.infrastructure.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -22,8 +27,11 @@ import java.util.Date;
  *
  * @author seunggu.lee
  */
+@Slf4j
 @Component
 public class JwtTokenProvider {
+
+    private static final int MIN_SECRET_KEY_LENGTH = 32; // 256비트
 
     private final SecretKey secretKey;
     private final long expiration;
@@ -31,14 +39,29 @@ public class JwtTokenProvider {
     /**
      * JwtTokenProvider 생성자.
      *
-     * @param secret JWT 서명에 사용할 비밀키 문자열
+     * @param secret JWT 서명에 사용할 비밀키 문자열 (최소 32자 필요)
      * @param expiration 토큰 만료 시간 (밀리초)
+     * @throws IllegalArgumentException 시크릿 키가 누락되거나 길이가 부족한 경우
      */
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration}") long expiration) {
+        validateSecret(secret);
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expiration = expiration;
+        log.info("JWT 토큰 제공자 초기화 완료 - 만료 시간: {}ms", expiration);
+    }
+
+    private void validateSecret(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalArgumentException(
+                    "JWT 시크릿 키가 설정되지 않았습니다. JWT_SECRET 환경변수를 설정하세요.");
+        }
+        if (secret.length() < MIN_SECRET_KEY_LENGTH) {
+            throw new IllegalArgumentException(
+                    "JWT 시크릿 키는 최소 " + MIN_SECRET_KEY_LENGTH + "자 이상이어야 합니다. " +
+                            "현재 길이: " + secret.length());
+        }
     }
 
     /**
@@ -115,9 +138,18 @@ public class JwtTokenProvider {
                     .build()
                     .parseSignedClaims(token);
             return true;
-        } catch (Exception e) {
-            return false;
+        } catch (SignatureException e) {
+            log.warn("Invalid JWT signature: {}", e.getMessage());
+        } catch (MalformedJwtException e) {
+            log.warn("Invalid JWT token format: {}", e.getMessage());
+        } catch (ExpiredJwtException e) {
+            log.warn("JWT token is expired: {}", e.getMessage());
+        } catch (UnsupportedJwtException e) {
+            log.warn("Unsupported JWT token: {}", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            log.warn("JWT claims string is empty or null: {}", e.getMessage());
         }
+        return false;
     }
 
     /**
@@ -128,13 +160,13 @@ public class JwtTokenProvider {
      */
     public boolean isTokenExpired(String token) {
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
+            Claims claims = getClaims(token);
             return claims.getExpiration().before(new Date());
-        } catch (Exception e) {
+        } catch (ExpiredJwtException e) {
+            log.debug("Token is expired: {}", e.getMessage());
+            return true;
+        } catch (SignatureException | MalformedJwtException | UnsupportedJwtException | IllegalArgumentException e) {
+            log.warn("Invalid token while checking expiration: {}", e.getMessage());
             return true;
         }
     }

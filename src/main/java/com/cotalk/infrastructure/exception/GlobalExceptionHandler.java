@@ -18,6 +18,7 @@ import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.exception.MessageReactionNotFoundException;
 import com.cotalk.domain.exception.RateLimitExceededException;
 import com.cotalk.domain.exception.TermsAgreementException;
+import com.cotalk.domain.exception.UnauthorizedException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -66,6 +67,19 @@ public class GlobalExceptionHandler {
         log.warn("Invalid credentials: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse(e.getMessage(), "INVALID_CREDENTIALS", LocalDateTime.now()));
+    }
+
+    /**
+     * 인증되지 않은 사용자 예외를 처리한다.
+     *
+     * @param e 인증되지 않은 사용자 예외
+     * @return 401 Unauthorized 응답
+     */
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorizedException(UnauthorizedException e) {
+        log.warn("Unauthorized access: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse(e.getMessage(), "UNAUTHORIZED", LocalDateTime.now()));
     }
 
     /**

@@ -1,11 +1,13 @@
 package com.cotalk.application.service.friend;
 
 import com.cotalk.domain.entity.FriendRequest;
+import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
+import com.cotalk.domain.exception.SelfActionNotAllowedException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
-import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.validator.UserValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,7 +35,7 @@ class SendFriendRequestServiceTest {
     private FriendRepository friendRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private UserValidator userValidator;
 
     @Mock
     private SnowflakeIdGenerator idGenerator;
@@ -47,9 +51,10 @@ class SendFriendRequestServiceTest {
         Long receiverId = 2L;
         Long requestId = 100L;
 
-        given(userRepository.findById(receiverId)).willReturn(java.util.Optional.of(
-                com.cotalk.domain.entity.User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
-        ));
+        doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
+        given(userValidator.validateUserExists(receiverId)).willReturn(
+                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+        );
         given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(false);
         given(friendRequestRepository.existsByRequesterIdAndReceiverId(requesterId, receiverId)).willReturn(false);
         given(idGenerator.nextId()).willReturn(requestId);
@@ -76,10 +81,12 @@ class SendFriendRequestServiceTest {
     void should_throwException_when_requestToSelf() {
         // given
         Long userId = 1L;
+        willThrow(new SelfActionNotAllowedException("친구 요청"))
+                .given(userValidator).validateNotSelfAction(userId, userId, "친구 요청");
 
         // when & then
         assertThatThrownBy(() -> sendFriendRequestService.sendFriendRequest(userId, userId))
-                .isInstanceOf(InvalidFriendRequestException.class);
+                .isInstanceOf(SelfActionNotAllowedException.class);
     }
 
     @Test
@@ -89,7 +96,9 @@ class SendFriendRequestServiceTest {
         Long requesterId = 1L;
         Long receiverId = 999L;
 
-        given(userRepository.findById(receiverId)).willReturn(java.util.Optional.empty());
+        doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
+        willThrow(new UserNotFoundException(receiverId))
+                .given(userValidator).validateUserExists(receiverId);
 
         // when & then
         assertThatThrownBy(() -> sendFriendRequestService.sendFriendRequest(requesterId, receiverId))
@@ -103,9 +112,10 @@ class SendFriendRequestServiceTest {
         Long requesterId = 1L;
         Long receiverId = 2L;
 
-        given(userRepository.findById(receiverId)).willReturn(java.util.Optional.of(
-                com.cotalk.domain.entity.User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
-        ));
+        doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
+        given(userValidator.validateUserExists(receiverId)).willReturn(
+                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+        );
         given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(true);
 
         // when & then
@@ -120,9 +130,10 @@ class SendFriendRequestServiceTest {
         Long requesterId = 1L;
         Long receiverId = 2L;
 
-        given(userRepository.findById(receiverId)).willReturn(java.util.Optional.of(
-                com.cotalk.domain.entity.User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
-        ));
+        doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
+        given(userValidator.validateUserExists(receiverId)).willReturn(
+                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+        );
         given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(false);
         given(friendRequestRepository.existsByRequesterIdAndReceiverId(requesterId, receiverId)).willReturn(true);
 

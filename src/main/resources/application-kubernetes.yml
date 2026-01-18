@@ -1,8 +1,7 @@
 # Kubernetes 환경 설정
-spring:
-  application:
-    name: co-talk
+# 기본 설정(application.yml)을 상속받고, K8s 환경에 맞게 오버라이드
 
+spring:
   # 데이터소스 - ConfigMap/Secret에서 주입
   datasource:
     url: ${SPRING_DATASOURCE_URL}
@@ -11,9 +10,6 @@ spring:
     hikari:
       maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
       minimum-idle: ${SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE:5}
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
 
   # Redis 설정
   data:
@@ -22,17 +18,12 @@ spring:
       port: ${SPRING_DATA_REDIS_PORT:6379}
       password: ${SPRING_DATA_REDIS_PASSWORD:}
       timeout: 5000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 2
 
-  # JPA 설정
+  # JPA 설정 - 프로덕션 최적화
   jpa:
     hibernate:
       ddl-auto: validate
-    open-in-view: false
+    show-sql: false
     properties:
       hibernate:
         format_sql: false
@@ -47,9 +38,8 @@ spring:
     enabled: true
     baseline-on-migrate: true
 
-# 서버 설정
+# 서버 설정 - K8s 환경 최적화
 server:
-  port: ${SERVER_PORT:8080}
   shutdown: graceful
   tomcat:
     connection-timeout: 20000
@@ -58,17 +48,10 @@ server:
       max: 200
       min-spare: 10
 
-# Actuator & 모니터링
+# Actuator - K8s 헬스체크 설정
 management:
-  endpoints:
-    web:
-      exposure:
-        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info,metrics,prometheus}
   endpoint:
     health:
-      show-details: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:always}
-      probes:
-        enabled: true
       group:
         liveness:
           include: livenessState
@@ -81,13 +64,7 @@ management:
       enabled: true
   metrics:
     tags:
-      application: ${spring.application.name}
       environment: kubernetes
-    distribution:
-      percentiles-histogram:
-        http.server.requests: true
-      percentiles:
-        http.server.requests: 0.5, 0.75, 0.95, 0.99
   tracing:
     sampling:
       probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:0.1}
@@ -95,7 +72,7 @@ management:
     tracing:
       endpoint: ${MANAGEMENT_ZIPKIN_TRACING_ENDPOINT:http://zipkin:9411/api/v2/spans}
 
-# 로깅 설정
+# 로깅 설정 - 분산 추적 포함
 logging:
   level:
     root: ${LOGGING_LEVEL_ROOT:INFO}
@@ -105,6 +82,7 @@ logging:
 
 # MinIO 설정
 minio:
+  enabled: true
   endpoint: ${MINIO_ENDPOINT}
   access-key: ${MINIO_ACCESS_KEY}
   secret-key: ${MINIO_SECRET_KEY}

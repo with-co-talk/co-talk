@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * WebSocket STOMP 연결 시 JWT 토큰을 검증하는 인터셉터.
@@ -71,12 +72,12 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
      * @throws IllegalArgumentException 인증 토큰이 없거나 유효하지 않은 경우
      */
     private void authenticateConnection(StompHeaderAccessor accessor) {
-        String token = extractToken(accessor);
-
-        if (token == null || token.isBlank()) {
-            log.warn("WebSocket connection attempt without token");
-            throw new IllegalArgumentException("인증 토큰이 필요합니다.");
-        }
+        String token = extractToken(accessor)
+                .filter(t -> !t.isBlank())
+                .orElseThrow(() -> {
+                    log.warn("WebSocket connection attempt without token");
+                    return new IllegalArgumentException("인증 토큰이 필요합니다.");
+                });
 
         if (!jwtTokenProvider.validateToken(token)) {
             log.warn("WebSocket connection attempt with invalid token");
@@ -93,22 +94,22 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
      * STOMP 헤더에서 JWT 토큰을 추출한다.
      *
      * @param accessor STOMP 헤더 접근자
-     * @return 추출된 JWT 토큰, 토큰이 없으면 null
+     * @return 추출된 JWT 토큰을 담은 Optional, 토큰이 없으면 빈 Optional
      */
-    private String extractToken(StompHeaderAccessor accessor) {
+    private Optional<String> extractToken(StompHeaderAccessor accessor) {
         List<String> authHeaders = accessor.getNativeHeader(AUTHORIZATION_HEADER);
 
         if (authHeaders == null || authHeaders.isEmpty()) {
-            return null;
+            return Optional.empty();
         }
 
         String authHeader = authHeaders.get(0);
 
         if (authHeader.startsWith(BEARER_PREFIX)) {
-            return authHeader.substring(BEARER_PREFIX.length());
+            return Optional.of(authHeader.substring(BEARER_PREFIX.length()));
         }
 
-        return authHeader;
+        return Optional.of(authHeader);
     }
 
     /**

@@ -4,8 +4,9 @@ import com.cotalk.domain.entity.Report;
 import com.cotalk.domain.exception.InvalidReportException;
 import com.cotalk.domain.port.inbound.report.CreateReportUseCase;
 import com.cotalk.domain.port.inbound.report.GetReportsUseCase;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.ReportRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
+import com.cotalk.domain.validator.UserValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +25,8 @@ import java.util.List;
 public class ReportService implements CreateReportUseCase, GetReportsUseCase {
 
     private final ReportRepository reportRepository;
-    private final SnowflakeIdGenerator idGenerator;
+    private final UserValidator userValidator;
+    private final IdGenerator idGenerator;
 
     /**
      * 사용자를 신고한다.
@@ -39,7 +41,7 @@ public class ReportService implements CreateReportUseCase, GetReportsUseCase {
      */
     @Override
     public Report reportUser(Long reporterId, Long reportedUserId, Report.ReportReason reason, String description) {
-        validateSelfReport(reporterId, reportedUserId);
+        userValidator.validateNotSelfAction(reporterId, reportedUserId, "신고");
         validateDuplicateUserReport(reporterId, reportedUserId);
 
         Report report = Report.builder()
@@ -91,12 +93,6 @@ public class ReportService implements CreateReportUseCase, GetReportsUseCase {
     @Transactional(readOnly = true)
     public List<Report> getMyReports(Long userId) {
         return reportRepository.findByReporterId(userId);
-    }
-
-    private void validateSelfReport(Long reporterId, Long reportedUserId) {
-        if (reporterId.equals(reportedUserId)) {
-            throw new InvalidReportException("자기 자신을 신고할 수 없습니다.");
-        }
     }
 
     private void validateDuplicateUserReport(Long reporterId, Long reportedUserId) {

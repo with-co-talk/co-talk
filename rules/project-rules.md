@@ -14,10 +14,15 @@ Co-Talk은 Java/Spring Boot 기반의 백엔드 프로젝트입니다.
 
 ### Java
 - Java 17+ 사용
+- **Effective Java 준수**: Joshua Bloch의 Effective Java (3rd Edition) 가이드라인 전반을 따르기
 - 변수명, 메서드명: camelCase
 - 클래스명: PascalCase
 - 상수: UPPER_SNAKE_CASE
 - 패키지명: lowercase
+- **JavaDoc 필수 작성**: 모든 public 클래스, 메서드, 필드에 JavaDoc 작성
+  - 클래스: 클래스의 역할과 책임 설명
+  - 메서드: `@param`, `@return`, `@throws` 태그 포함
+  - 간단한 getter/setter는 생략 가능
 - **풀 패키지 경로 사용 금지**: 모든 클래스는 `import` 문을 사용해야 함
   - ❌ `java.lang.reflect.Field field = ...`
   - ✅ `import java.lang.reflect.Field;` 후 `Field field = ...`
