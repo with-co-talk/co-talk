@@ -5,6 +5,7 @@ import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
+import com.cotalk.infrastructure.lock.DistributedLockExecutor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,13 +13,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -30,11 +33,21 @@ class LeaveChatRoomServiceTest {
     @Mock
     private ChatRoomRepository chatRoomRepository;
 
+    @Mock
+    private DistributedLockExecutor lockExecutor;
+
     private LeaveChatRoomService service;
 
     @BeforeEach
     void setUp() {
-        service = new LeaveChatRoomService(chatRoomMemberRepository, chatRoomRepository);
+        service = new LeaveChatRoomService(chatRoomMemberRepository, chatRoomRepository, lockExecutor);
+
+        // 분산락 모킹: 락 획득 후 바로 실행
+        doAnswer(invocation -> {
+            Runnable runnable = invocation.getArgument(1);
+            runnable.run();
+            return null;
+        }).when(lockExecutor).executeWithLock(anyString(), any(Runnable.class));
     }
 
     @Test

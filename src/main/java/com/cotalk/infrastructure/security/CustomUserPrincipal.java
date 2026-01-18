@@ -46,9 +46,15 @@ public class CustomUserPrincipal implements UserDetails {
         return authorities;
     }
 
+    /**
+     * 비밀번호를 반환한다.
+     * JWT 인증 방식에서는 비밀번호를 사용하지 않으므로 {@code null}을 반환한다.
+     *
+     * @return 항상 {@code null}
+     */
     @Override
     public String getPassword() {
-        return ""; // JWT 인증에서는 비밀번호 불필요
+        return null;
     }
 
     @Override

@@ -16,4 +16,13 @@ public interface LoginUseCase {
      * @return JWT 토큰
      */
     String login(String email, String password);
+
+    /**
+     * 이메일로 사용자 ID를 조회한다.
+     *
+     * @param email 사용자 이메일
+     * @return 사용자 ID
+     * @throws com.cotalk.domain.exception.UserNotFoundException 사용자가 존재하지 않는 경우
+     */
+    Long getUserIdByEmail(String email);
 }

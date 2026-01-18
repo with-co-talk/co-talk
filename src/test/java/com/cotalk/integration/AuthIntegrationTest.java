@@ -55,13 +55,15 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").exists())
+                .andExpect(jsonPath("$.accessToken").exists())
+                .andExpect(jsonPath("$.refreshToken").exists())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andReturn();
 
         // then
         String responseBody = result.getResponse().getContentAsString();
-        assertThat(responseBody).contains("token");
+        assertThat(responseBody).contains("accessToken");
+        assertThat(responseBody).contains("refreshToken");
     }
 
     @Test

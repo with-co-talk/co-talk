@@ -11,6 +11,7 @@ import com.cotalk.domain.exception.FriendRequestAccessDeniedException;
 import com.cotalk.domain.exception.FriendRequestNotFoundException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.InvalidEmojiException;
+import com.cotalk.domain.exception.InvalidRefreshTokenException;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
 import com.cotalk.domain.exception.MessageAccessDeniedException;
@@ -80,6 +81,19 @@ public class GlobalExceptionHandler {
         log.warn("Unauthorized access: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse(e.getMessage(), "UNAUTHORIZED", LocalDateTime.now()));
+    }
+
+    /**
+     * 유효하지 않은 Refresh Token 예외를 처리한다.
+     *
+     * @param e 유효하지 않은 Refresh Token 예외
+     * @return 401 Unauthorized 응답
+     */
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidRefreshTokenException(InvalidRefreshTokenException e) {
+        log.warn("Invalid refresh token: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse(e.getMessage(), "INVALID_REFRESH_TOKEN", LocalDateTime.now()));
     }
 
     /**

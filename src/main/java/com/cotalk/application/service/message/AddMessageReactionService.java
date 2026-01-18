@@ -9,12 +9,19 @@ import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.validator.MessageValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 메시지 반응 추가 유스케이스 구현체.
  * 메시지에 이모지 반응을 추가한다.
+ *
+ * <p>동시성 제어:
+ * <ul>
+ *   <li>DB UNIQUE 제약 조건으로 중복 반응 방지</li>
+ *   <li>DataIntegrityViolationException 발생 시 기존 반응 반환</li>
+ * </ul>
  *
  * @author seunggu.lee
  */
@@ -32,8 +39,14 @@ public class AddMessageReactionService implements AddMessageReactionUseCase {
      * 메시지에 이모지 반응을 추가한다.
      * 이미 같은 반응이 있으면 기존 반응을 반환한다.
      *
-     * @param messageId 메시지 ID
-     * @param userId 사용자 ID
+     * <p>동시성 처리:
+     * <ul>
+     *   <li>UNIQUE 제약 조건 위반 시 기존 반응 조회하여 반환</li>
+     *   <li>동시에 같은 반응 추가 시도해도 안전하게 처리</li>
+     * </ul>
+     *
+     * @param messageId   메시지 ID
+     * @param userId      사용자 ID
      * @param emojiString 이모지 문자열 (이모지 문자 또는 이름)
      * @return 생성된 또는 기존 반응 정보
      * @throws MessageNotFoundException 메시지가 존재하지 않는 경우
@@ -49,11 +62,31 @@ public class AddMessageReactionService implements AddMessageReactionUseCase {
 
         // 이미 같은 반응이 있는지 확인
         return reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji)
-                .orElseGet(() -> {
-                    MessageReaction reaction = MessageReaction.create(messageId, userId, emoji);
-                    MessageReaction saved = reactionRepository.save(reaction);
-                    log.info("Message reaction added: messageId={}, userId={}, emoji={}", messageId, userId, emoji);
-                    return saved;
-                });
+                .orElseGet(() -> createReactionSafely(messageId, userId, emoji));
+    }
+
+    /**
+     * 반응을 안전하게 생성한다.
+     * 동시성으로 인한 중복 키 예외 발생 시 기존 반응을 반환한다.
+     *
+     * @param messageId 메시지 ID
+     * @param userId    사용자 ID
+     * @param emoji     이모지
+     * @return 생성된 또는 기존 반응
+     */
+    private MessageReaction createReactionSafely(Long messageId, Long userId, Emoji emoji) {
+        try {
+            MessageReaction reaction = MessageReaction.create(messageId, userId, emoji);
+            MessageReaction saved = reactionRepository.save(reaction);
+            log.info("Message reaction added: messageId={}, userId={}, emoji={}", messageId, userId, emoji);
+            return saved;
+        } catch (DataIntegrityViolationException e) {
+            // 동시성으로 인한 중복 - 기존 반응 반환
+            log.debug("Concurrent reaction detected, returning existing: messageId={}, userId={}, emoji={}",
+                    messageId, userId, emoji);
+            return reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Reaction should exist after DataIntegrityViolationException"));
+        }
     }
 }

@@ -47,6 +47,17 @@ public interface FriendRequestRepository {
     boolean existsByRequesterIdAndReceiverId(Long requesterId, Long receiverId);
 
     /**
+     * 특정 요청자와 수신자 간의 특정 상태 친구 요청 존재 여부를 확인한다.
+     *
+     * @param requesterId 요청자 ID
+     * @param receiverId  수신자 ID
+     * @param status      요청 상태
+     * @return 존재 여부
+     */
+    boolean existsByRequesterIdAndReceiverIdAndStatus(Long requesterId, Long receiverId,
+                                                       FriendRequest.RequestStatus status);
+
+    /**
      * 친구 요청을 삭제한다.
      *
      * @param friendRequest 삭제할 친구 요청

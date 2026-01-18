@@ -1,9 +1,12 @@
 package com.cotalk.infrastructure.config;
 
+import com.cotalk.infrastructure.id.RedisWorkerIdAllocator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
  * ID 생성기 설정 클래스.
@@ -12,8 +15,12 @@ import org.springframework.context.annotation.Configuration;
  * <p>설정 프로퍼티:
  * <ul>
  *   <li>{@code snowflake.datacenter-id} - 데이터센터 ID (기본값: 0)</li>
- *   <li>{@code snowflake.worker-id} - 워커 ID (기본값: 0)</li>
+ *   <li>{@code snowflake.use-redis-allocation} - Redis 기반 Worker ID 자동 할당 사용 여부 (기본값: false)</li>
+ *   <li>{@code snowflake.worker-id} - 수동 워커 ID (Redis 미사용 시, 기본값: 0)</li>
  * </ul>
+ *
+ * <p>분산 환경에서는 {@code snowflake.use-redis-allocation=true}로 설정하여
+ * Redis를 통한 자동 Worker ID 할당을 사용하는 것을 권장한다.
  *
  * @author seunggu.lee
  */
@@ -23,17 +30,42 @@ public class IdGeneratorConfig {
     @Value("${snowflake.datacenter-id:0}")
     private long datacenterId;
 
-    @Value("${snowflake.worker-id:0}")
-    private long workerId;
+    /**
+     * Redis 기반 Worker ID 할당기를 생성한다.
+     * 분산 환경에서 자동으로 고유한 Worker ID를 할당받는다.
+     *
+     * @param redisTemplate Redis 템플릿
+     * @return Redis Worker ID 할당기 인스턴스
+     */
+    @Bean
+    @ConditionalOnProperty(name = "snowflake.use-redis-allocation", havingValue = "true")
+    public RedisWorkerIdAllocator redisWorkerIdAllocator(StringRedisTemplate redisTemplate) {
+        return new RedisWorkerIdAllocator(redisTemplate, datacenterId);
+    }
 
     /**
-     * Snowflake ID 생성기를 생성한다.
-     * 데이터센터 ID와 워커 ID를 조합하여 고유한 ID를 생성할 수 있도록 한다.
+     * Snowflake ID 생성기를 생성한다 (Redis 자동 할당 사용).
+     * Worker ID는 Redis를 통해 자동으로 할당된다.
+     *
+     * @param allocator Redis Worker ID 할당기
+     * @return Snowflake ID 생성기 인스턴스
+     */
+    @Bean
+    @ConditionalOnProperty(name = "snowflake.use-redis-allocation", havingValue = "true")
+    public SnowflakeIdGenerator snowflakeIdGeneratorWithRedis(RedisWorkerIdAllocator allocator) {
+        return new SnowflakeIdGenerator(allocator.getDatacenterId(), allocator.getWorkerId());
+    }
+
+    /**
+     * Snowflake ID 생성기를 생성한다 (수동 설정 사용).
+     * 데이터센터 ID와 워커 ID를 설정 파일에서 직접 지정한다.
      *
      * @return Snowflake ID 생성기 인스턴스
      */
     @Bean
-    public SnowflakeIdGenerator snowflakeIdGenerator() {
+    @ConditionalOnProperty(name = "snowflake.use-redis-allocation", havingValue = "false", matchIfMissing = true)
+    public SnowflakeIdGenerator snowflakeIdGeneratorManual(
+            @Value("${snowflake.worker-id:0}") long workerId) {
         return new SnowflakeIdGenerator(datacenterId, workerId);
     }
 }

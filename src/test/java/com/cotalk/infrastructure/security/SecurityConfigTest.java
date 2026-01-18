@@ -2,8 +2,9 @@ package com.cotalk.infrastructure.security;
 
 import com.cotalk.adapter.inbound.rest.AuthController;
 import com.cotalk.adapter.inbound.rest.FriendController;
-import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
+import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
+import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
@@ -43,6 +44,12 @@ class SecurityConfigTest {
 
     @MockBean
     private LoginUseCase loginUseCase;
+
+    @MockBean
+    private RefreshTokenUseCase refreshTokenUseCase;
+
+    @MockBean
+    private SecurityContextHelper securityContextHelper;
 
     @MockBean
     private SendFriendRequestUseCase sendFriendRequestUseCase;
@@ -85,6 +92,8 @@ class SecurityConfigTest {
     void should_allowAccess_when_loginWithoutAuth() throws Exception {
         // given
         given(loginUseCase.login(anyString(), anyString())).willReturn("jwt-token");
+        given(loginUseCase.getUserIdByEmail(anyString())).willReturn(1L);
+        given(refreshTokenUseCase.createRefreshToken(1L)).willReturn("refresh-token");
 
         String requestBody = """
                 {

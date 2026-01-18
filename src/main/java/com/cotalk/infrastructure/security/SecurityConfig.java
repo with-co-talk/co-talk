@@ -71,11 +71,28 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 보안 헤더 설정
                 .headers(headers -> headers
+                        // X-Frame-Options: DENY - 클릭재킹 방지
                         .frameOptions(frame -> frame.deny())
+                        // X-Content-Type-Options: nosniff - MIME 스니핑 방지
                         .contentTypeOptions(content -> {})
-                        .xssProtection(xss -> xss.disable())  // CSP로 대체
+                        // X-XSS-Protection 비활성화 (CSP로 대체, 최신 브라우저에서 권장하지 않음)
+                        .xssProtection(xss -> xss.disable())
+                        // Content-Security-Policy - XSS 및 데이터 주입 공격 방지
                         .contentSecurityPolicy(csp -> csp
-                                .policyDirectives("default-src 'self'; frame-ancestors 'none';")))
+                                .policyDirectives("default-src 'self'; frame-ancestors 'none'; " +
+                                        "script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+                                        "img-src 'self' data: https:; font-src 'self';"))
+                        // HTTP Strict Transport Security (HSTS) - HTTPS 강제
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000)  // 1년
+                                .preload(true))
+                        // Referrer-Policy - 리퍼러 정보 제한
+                        .referrerPolicy(referrer -> referrer
+                                .policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        // Permissions-Policy - 브라우저 기능 제한
+                        .permissionsPolicy(permissions -> permissions
+                                .policy("geolocation=(), microphone=(), camera=()")))
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(401);

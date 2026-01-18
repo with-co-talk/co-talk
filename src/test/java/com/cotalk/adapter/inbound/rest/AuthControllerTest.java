@@ -5,9 +5,11 @@ import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.domain.exception.DuplicateEmailException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
+import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.SecurityContextHelper;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -43,6 +45,12 @@ class AuthControllerTest {
 
     @MockBean
     private LoginUseCase loginUseCase;
+
+    @MockBean
+    private RefreshTokenUseCase refreshTokenUseCase;
+
+    @MockBean
+    private SecurityContextHelper securityContextHelper;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
@@ -123,13 +131,16 @@ class AuthControllerTest {
             // given
             LoginRequest request = new LoginRequest("test@example.com", "password123");
             given(loginUseCase.login(anyString(), anyString())).willReturn("jwt-token-12345");
+            given(loginUseCase.getUserIdByEmail(anyString())).willReturn(1L);
+            given(refreshTokenUseCase.createRefreshToken(1L)).willReturn("refresh-token-12345");
 
             // when & then
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.token").value("jwt-token-12345"))
+                    .andExpect(jsonPath("$.accessToken").value("jwt-token-12345"))
+                    .andExpect(jsonPath("$.refreshToken").value("refresh-token-12345"))
                     .andExpect(jsonPath("$.tokenType").value("Bearer"));
         }
 
