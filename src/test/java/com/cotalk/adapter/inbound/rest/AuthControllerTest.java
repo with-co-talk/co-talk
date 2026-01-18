@@ -4,6 +4,7 @@ import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.domain.exception.DuplicateEmailException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
+import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
@@ -130,8 +131,8 @@ class AuthControllerTest {
         void should_returnOkWithToken_when_validLoginRequest() throws Exception {
             // given
             LoginRequest request = new LoginRequest("test@example.com", "password123");
-            given(loginUseCase.login(anyString(), anyString())).willReturn("jwt-token-12345");
-            given(loginUseCase.getUserIdByEmail(anyString())).willReturn(1L);
+            LoginResult loginResult = new LoginResult("jwt-token-12345", 1L);
+            given(loginUseCase.login(anyString(), anyString())).willReturn(loginResult);
             given(refreshTokenUseCase.createRefreshToken(1L)).willReturn("refresh-token-12345");
 
             // when & then

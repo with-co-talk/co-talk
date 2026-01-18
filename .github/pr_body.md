@@ -38,7 +38,7 @@ Refresh Token 기능, Redis Worker ID 할당 및 분산 락 기능 추가
 - project-rules.md 업데이트
 
 ## 🔗 관련 이슈
-Closes #7
+Closes #5
 
 ## ✅ 체크리스트
 - [x] 코드 리뷰 준비 완료

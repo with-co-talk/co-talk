@@ -56,7 +56,10 @@ public class RefreshTokenService implements RefreshTokenUseCase {
     public String createRefreshToken(Long userId) {
         // 기존 토큰이 있으면 폐기
         refreshTokenRepository.findByUserIdAndRevokedFalse(userId)
-                .ifPresent(RefreshToken::revoke);
+                .ifPresent(token -> {
+                    token.revoke();
+                    refreshTokenRepository.save(token);
+                });
 
         // 새 토큰 생성
         String tokenValue = generateTokenValue();

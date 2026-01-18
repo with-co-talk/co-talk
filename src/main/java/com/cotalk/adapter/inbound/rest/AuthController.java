@@ -7,6 +7,7 @@ import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpResponse;
 import com.cotalk.adapter.inbound.rest.dto.auth.TokenRefreshRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.TokenRefreshResponse;
+import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
@@ -72,11 +73,10 @@ public class AuthController {
     })
     @PostMapping("/login")
     public ResponseEntity<AuthTokenResponse> login(@Valid @RequestBody LoginRequest request) {
-        String accessToken = loginUseCase.login(request.email(), request.password());
+        LoginResult loginResult = loginUseCase.login(request.email(), request.password());
         // 로그인 성공 후 Refresh Token도 함께 발급
-        Long userId = extractUserIdFromLoginProcess(request.email());
-        String refreshToken = refreshTokenUseCase.createRefreshToken(userId);
-        return ResponseEntity.ok(AuthTokenResponse.of(accessToken, refreshToken, 86400));
+        String refreshToken = refreshTokenUseCase.createRefreshToken(loginResult.userId());
+        return ResponseEntity.ok(AuthTokenResponse.of(loginResult.accessToken(), refreshToken, 86400));
     }
 
     /**
@@ -113,16 +113,4 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * 로그인 프로세스에서 사용자 ID를 추출한다.
-     * 이 메서드는 로그인 성공 후 Refresh Token 발급을 위해 사용된다.
-     *
-     * @param email 사용자 이메일
-     * @return 사용자 ID
-     */
-    private Long extractUserIdFromLoginProcess(String email) {
-        // LoginService가 이미 인증을 처리했으므로 추가 조회가 필요
-        // 이 구현은 LoginUseCase 확장이 필요할 수 있음
-        return loginUseCase.getUserIdByEmail(email);
-    }
 }
