@@ -2,6 +2,7 @@ package com.cotalk.infrastructure.security;
 
 import com.cotalk.adapter.inbound.rest.AuthController;
 import com.cotalk.adapter.inbound.rest.FriendController;
+import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
@@ -91,8 +92,7 @@ class SecurityConfigTest {
     @DisplayName("인증 없이 로그인 API 접근 가능")
     void should_allowAccess_when_loginWithoutAuth() throws Exception {
         // given
-        given(loginUseCase.login(anyString(), anyString())).willReturn("jwt-token");
-        given(loginUseCase.getUserIdByEmail(anyString())).willReturn(1L);
+        given(loginUseCase.login(anyString(), anyString())).willReturn(new LoginResult("jwt-token", 1L));
         given(refreshTokenUseCase.createRefreshToken(1L)).willReturn("refresh-token");
 
         String requestBody = """

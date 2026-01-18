@@ -33,12 +33,12 @@ public class LoginService implements LoginUseCase {
      *
      * @param email 사용자 이메일
      * @param password 비밀번호
-     * @return 발급된 JWT 토큰
+     * @return 로그인 결과 (Access Token과 사용자 ID)
      * @throws InvalidCredentialsException 이메일 또는 비밀번호가 잘못된 경우
      */
     @Override
     @Transactional
-    public String login(String email, String password) {
+    public LoginResult login(String email, String password) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(InvalidCredentialsException::new);
 
@@ -49,7 +49,8 @@ public class LoginService implements LoginUseCase {
         // 로그인 시 온라인 상태로 변경 및 마지막 접속 시간 업데이트
         updateUserOnlineStatusUseCase.setOnline(user.getId());
 
-        return jwtTokenProvider.generateToken(user.getId());
+        String accessToken = jwtTokenProvider.generateToken(user.getId());
+        return new LoginResult(accessToken, user.getId());
     }
 
     /**
