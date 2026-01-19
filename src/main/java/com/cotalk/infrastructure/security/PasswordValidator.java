@@ -60,10 +60,7 @@ public @interface PasswordValidator {
      */
     class PasswordConstraintValidator implements ConstraintValidator<PasswordValidator, String> {
 
-        private static final int MIN_LENGTH = 8;
-        private static final int MAX_LENGTH = 128;
-
-        // 최소 8자, 대문자 1개, 소문자 1개, 숫자 1개, 특수문자 1개
+        // 최소 8자, 최대 128자, 대문자 1개, 소문자 1개, 숫자 1개, 특수문자 1개
         private static final Pattern PASSWORD_PATTERN = Pattern.compile(
                 "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()\\-_=+])[A-Za-z\\d@$!%*?&#^()\\-_=+]{8,128}$"
         );
@@ -79,10 +76,7 @@ public @interface PasswordValidator {
                 return false;
             }
 
-            if (password.length() < MIN_LENGTH || password.length() > MAX_LENGTH) {
-                return false;
-            }
-
+            // 정규식에 이미 길이 제한(8-128자)이 포함되어 있어 중복 검증 제거
             return PASSWORD_PATTERN.matcher(password).matches();
         }
     }
