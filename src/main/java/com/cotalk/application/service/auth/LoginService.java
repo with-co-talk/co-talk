@@ -3,6 +3,7 @@ package com.cotalk.application.service.auth;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.UserNotFoundException;
+import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
