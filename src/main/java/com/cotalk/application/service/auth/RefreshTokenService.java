@@ -110,6 +110,7 @@ public class RefreshTokenService implements RefreshTokenUseCase {
         refreshTokenRepository.findByToken(refreshToken)
                 .ifPresent(token -> {
                     token.revoke();
+                    refreshTokenRepository.save(token);
                     log.info("Refresh Token 폐기 완료 - userId: {}", token.getUserId());
                 });
     }
