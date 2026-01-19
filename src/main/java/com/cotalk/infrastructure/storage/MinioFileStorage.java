@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.storage;
 
+import com.cotalk.domain.exception.FileStorageException;
 import com.cotalk.domain.exception.FileUploadException;
 import com.cotalk.domain.port.outbound.FileStorage;
 import org.slf4j.Logger;
@@ -121,7 +122,7 @@ public class MinioFileStorage implements FileStorage {
      * MinIO에서 파일을 삭제한다.
      *
      * @param fileName 삭제할 파일명 (오브젝트 키)
-     * @throws RuntimeException 파일 삭제에 실패한 경우
+     * @throws FileStorageException 파일 삭제에 실패한 경우
      */
     @Override
     public void delete(String fileName) {
@@ -135,7 +136,7 @@ public class MinioFileStorage implements FileStorage {
             log.info("File deleted successfully: {}", fileName);
         } catch (Exception e) {
             log.error("Failed to delete file: {}", fileName, e);
-            throw new RuntimeException("파일 삭제에 실패했습니다.", e);
+            throw FileStorageException.deleteFailed(fileName, e);
         }
     }
 
