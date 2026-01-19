@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -54,9 +55,9 @@ class SendFriendRequestServiceTest {
         sendFriendRequestService = new SendFriendRequestService(
                 friendRequestRepository, friendRepository, userValidator, idGenerator, lockExecutor);
 
-        // 분산락 모킹: 락 획득 후 바로 실행
-        given(lockExecutor.executeWithLock(anyString(), any(Supplier.class)))
-                .willAnswer(invocation -> {
+        // 분산락 모킹: 락 획득 후 바로 실행 (lenient로 불필요한 stub 경고 방지)
+        lenient().when(lockExecutor.executeWithLock(anyString(), any(Supplier.class)))
+                .thenAnswer(invocation -> {
                     Supplier<?> supplier = invocation.getArgument(1);
                     return supplier.get();
                 });

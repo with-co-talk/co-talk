@@ -6,7 +6,9 @@ import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadCommand;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadResult;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.SecurityContextHelper;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -41,6 +43,14 @@ class FileControllerTest {
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @MockBean
+    private SecurityContextHelper securityContextHelper;
+
+    @BeforeEach
+    void setUp() {
+        given(securityContextHelper.getCurrentUserId()).willReturn(1L);
+    }
+
     @Nested
     @DisplayName("파일 업로드 API")
     class UploadFileApi {
@@ -67,8 +77,7 @@ class FileControllerTest {
 
             // when & then
             mockMvc.perform(multipart("/api/v1/files/upload")
-                            .file(file)
-                            .param("userId", "1"))
+                            .file(file))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.fileUrl").value(result.fileUrl()))
                     .andExpect(jsonPath("$.fileName").value(result.fileName()))
@@ -99,8 +108,7 @@ class FileControllerTest {
 
             // when & then
             mockMvc.perform(multipart("/api/v1/files/upload")
-                            .file(file)
-                            .param("userId", "1"))
+                            .file(file))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.contentType").value("application/pdf"))
                     .andExpect(jsonPath("$.isImage").value(false));
@@ -122,8 +130,7 @@ class FileControllerTest {
 
             // when & then
             mockMvc.perform(multipart("/api/v1/files/upload")
-                            .file(file)
-                            .param("userId", "1"))
+                            .file(file))
                     .andExpect(status().isBadRequest());
         }
 
@@ -143,8 +150,7 @@ class FileControllerTest {
 
             // when & then
             mockMvc.perform(multipart("/api/v1/files/upload")
-                            .file(file)
-                            .param("userId", "1"))
+                            .file(file))
                     .andExpect(status().isBadRequest());
         }
     }
