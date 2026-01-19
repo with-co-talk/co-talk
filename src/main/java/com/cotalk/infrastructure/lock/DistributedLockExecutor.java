@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
@@ -24,11 +25,16 @@ import java.util.function.Supplier;
  * );
  * }</pre>
  *
+ * <p>RedissonClient 빈이 없는 경우(테스트 환경 등) 이 빈은 생성되지 않으며,
+ * {@link NoOpDistributedLockExecutor}가 대신 사용된다.
+ *
  * @author seunggu.lee
+ * @see NoOpDistributedLockExecutor
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnBean(RedissonClient.class)
 public class DistributedLockExecutor {
 
     private static final String LOCK_PREFIX = "lock:";

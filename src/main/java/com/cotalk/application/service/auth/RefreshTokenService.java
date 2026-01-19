@@ -73,7 +73,7 @@ public class RefreshTokenService implements RefreshTokenUseCase {
                 .build();
 
         refreshTokenRepository.save(refreshToken);
-        log.info("Refresh Token 생성 완료 - userId: {}", userId);
+        log.debug("Refresh Token 생성 완료");
 
         return tokenValue;
     }
@@ -91,13 +91,13 @@ public class RefreshTokenService implements RefreshTokenUseCase {
                 });
 
         if (!storedToken.isValid()) {
-            log.warn("유효하지 않은 Refresh Token 사용 시도 - userId: {}, expired: {}, revoked: {}",
-                    storedToken.getUserId(), storedToken.isExpired(), storedToken.isRevoked());
+            log.warn("유효하지 않은 Refresh Token 사용 시도 - expired: {}, revoked: {}",
+                    storedToken.isExpired(), storedToken.isRevoked());
             throw new InvalidRefreshTokenException();
         }
 
         String newAccessToken = jwtTokenProvider.generateToken(storedToken.getUserId());
-        log.debug("Access Token 갱신 완료 - userId: {}", storedToken.getUserId());
+        log.debug("Access Token 갱신 완료");
 
         return newAccessToken;
     }
@@ -110,7 +110,8 @@ public class RefreshTokenService implements RefreshTokenUseCase {
         refreshTokenRepository.findByToken(refreshToken)
                 .ifPresent(token -> {
                     token.revoke();
-                    log.info("Refresh Token 폐기 완료 - userId: {}", token.getUserId());
+                    refreshTokenRepository.save(token);
+                    log.debug("Refresh Token 폐기 완료");
                 });
     }
 
@@ -120,7 +121,7 @@ public class RefreshTokenService implements RefreshTokenUseCase {
     @Override
     public void revokeAllTokensByUserId(Long userId) {
         refreshTokenRepository.revokeAllByUserId(userId);
-        log.info("사용자의 모든 Refresh Token 폐기 완료 - userId: {}", userId);
+        log.debug("사용자의 모든 Refresh Token 폐기 완료");
     }
 
     /**

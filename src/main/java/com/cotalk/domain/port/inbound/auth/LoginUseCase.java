@@ -19,19 +19,6 @@ public interface LoginUseCase {
     LoginResult login(String email, String password);
 
     /**
-     * 이메일과 비밀번호로 로그인한다 (하위 호환성).
-     * 
-     * @deprecated {@link #login(String, String)}을 사용하세요.
-     * @param email 사용자 이메일
-     * @param password 비밀번호
-     * @return JWT 토큰
-     */
-    @Deprecated
-    default String loginLegacy(String email, String password) {
-        return login(email, password).accessToken();
-    }
-
-    /**
      * 이메일로 사용자 ID를 조회한다.
      *
      * @param email 사용자 이메일

@@ -45,11 +45,11 @@ class FriendIntegrationTest {
     @BeforeEach
     void setUp() throws Exception {
         // 두 명의 사용자 생성 및 로그인
-        user1Id = createUserAndGetId("user1@test.com", "password123", "사용자1");
-        user1Token = loginAndGetToken("user1@test.com", "password123");
+        user1Id = createUserAndGetId("user1@test.com", "Password123!", "사용자1");
+        user1Token = loginAndGetToken("user1@test.com", "Password123!");
 
-        user2Id = createUserAndGetId("user2@test.com", "password123", "사용자2");
-        user2Token = loginAndGetToken("user2@test.com", "password123");
+        user2Id = createUserAndGetId("user2@test.com", "Password123!", "사용자2");
+        user2Token = loginAndGetToken("user2@test.com", "Password123!");
     }
 
     private Long createUserAndGetId(String email, String password, String nickname) throws Exception {

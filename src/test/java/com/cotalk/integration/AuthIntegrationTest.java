@@ -36,7 +36,7 @@ class AuthIntegrationTest {
     void should_loginSuccessfully_after_signUp() throws Exception {
         // given
         String email = "test@example.com";
-        String password = "password123";
+        String password = "Password123!";
         String nickname = "테스트유저";
 
         SignUpRequest signUpRequest = new SignUpRequest(email, password, nickname);
@@ -71,7 +71,7 @@ class AuthIntegrationTest {
     void should_failSignUp_when_duplicateEmail() throws Exception {
         // given
         String email = "duplicate@example.com";
-        String password = "password123";
+        String password = "Password123!";
 
         SignUpRequest request1 = new SignUpRequest(email, password, "유저1");
         SignUpRequest request2 = new SignUpRequest(email, password, "유저2");
@@ -95,8 +95,8 @@ class AuthIntegrationTest {
     void should_failLogin_when_wrongPassword() throws Exception {
         // given
         String email = "user@example.com";
-        String password = "correctPassword";
-        String wrongPassword = "wrongPassword";
+        String password = "CorrectP@ss123";
+        String wrongPassword = "WrongP@ss123";
 
         SignUpRequest signUpRequest = new SignUpRequest(email, password, "테스트");
         LoginRequest loginRequest = new LoginRequest(email, wrongPassword);
