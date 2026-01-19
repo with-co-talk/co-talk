@@ -66,14 +66,14 @@ public class CreateGroupChatRoomService implements CreateGroupChatRoomUseCase {
         allMemberIds.add(creatorId);
         allMemberIds.addAll(memberIds);
 
-        for (Long memberId : allMemberIds) {
-            ChatRoomMember member = ChatRoomMember.builder()
-                    .id(idGenerator.nextId())
-                    .chatRoomId(chatRoom.getId())
-                    .userId(memberId)
-                    .build();
-            chatRoomMemberRepository.save(member);
-        }
+        List<ChatRoomMember> members = allMemberIds.stream()
+                .map(memberId -> ChatRoomMember.builder()
+                        .id(idGenerator.nextId())
+                        .chatRoomId(chatRoom.getId())
+                        .userId(memberId)
+                        .build())
+                .toList();
+        chatRoomMemberRepository.saveAll(members);
 
         return chatRoom.getId();
     }

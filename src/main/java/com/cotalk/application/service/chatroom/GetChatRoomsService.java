@@ -79,11 +79,12 @@ public class GetChatRoomsService implements GetChatRoomsUseCase {
 
     /**
      * 마지막 메시지 정보를 조회합니다.
+     * 메시지가 없는 경우 빈 문자열과 null을 반환합니다.
      */
     private LastMessageInfo getLastMessageInfo(Long chatRoomId) {
         return messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId)
                 .map(msg -> new LastMessageInfo(msg.getContent(), msg.getCreatedAt()))
-                .orElseGet(() -> new LastMessageInfo(null, null));
+                .orElseGet(() -> new LastMessageInfo("", null));
     }
 
     /**

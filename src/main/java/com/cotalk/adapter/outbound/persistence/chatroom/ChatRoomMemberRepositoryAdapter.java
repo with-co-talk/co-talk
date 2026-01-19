@@ -33,6 +33,17 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
     }
 
     /**
+     * 여러 채팅방 멤버를 일괄 저장한다.
+     *
+     * @param members 저장할 채팅방 멤버 목록
+     * @return 저장된 채팅방 멤버 목록
+     */
+    @Override
+    public List<ChatRoomMember> saveAll(List<ChatRoomMember> members) {
+        return chatRoomMemberJpaRepository.saveAll(members);
+    }
+
+    /**
      * 채팅방 ID와 사용자 ID로 채팅방 멤버를 조회한다.
      *
      * @param chatRoomId 채팅방 ID

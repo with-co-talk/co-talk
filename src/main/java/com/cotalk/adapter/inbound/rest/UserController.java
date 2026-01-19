@@ -6,12 +6,16 @@ import com.cotalk.adapter.inbound.rest.dto.user.UpdateOnlineStatusRequest;
 import com.cotalk.adapter.inbound.rest.dto.user.UpdateProfileRequest;
 import com.cotalk.adapter.inbound.rest.dto.user.UserDto;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.exception.UnauthorizedException;
 import com.cotalk.domain.port.inbound.user.SearchUserUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
+import com.cotalk.infrastructure.security.SecurityContextHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +43,7 @@ public class UserController {
     private final SearchUserUseCase searchUserUseCase;
     private final UpdateProfileUseCase updateProfileUseCase;
     private final UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
+    private final SecurityContextHelper securityContextHelper;
 
     /**
      * 닉네임으로 사용자를 검색한다.
@@ -48,7 +53,11 @@ public class UserController {
      */
     @Operation(summary = "닉네임으로 사용자 검색", description = "닉네임에 포함된 키워드로 사용자를 검색합니다.")
     @GetMapping("/search")
-    public ResponseEntity<SearchUserResponse> searchByNickname(@RequestParam String nickname) {
+    public ResponseEntity<SearchUserResponse> searchByNickname(
+            @RequestParam
+            @NotBlank(message = "닉네임은 필수입니다.")
+            @Size(min = 1, max = 50, message = "닉네임은 1자 이상 50자 이하여야 합니다.")
+            String nickname) {
         List<User> users = searchUserUseCase.searchByNickname(nickname);
         List<UserDto> userDtos = users.stream()
                 .map(UserDto::from)
@@ -68,6 +77,7 @@ public class UserController {
     public ResponseEntity<MessageResponse> updateProfile(
             @PathVariable Long userId,
             @Valid @RequestBody UpdateProfileRequest request) {
+        validateUserAccess(userId);
         updateProfileUseCase.updateProfile(userId, request.nickname(), request.avatarUrl());
         return ResponseEntity.ok(MessageResponse.of("프로필이 수정되었습니다."));
     }
@@ -84,6 +94,7 @@ public class UserController {
     public ResponseEntity<MessageResponse> updateOnlineStatus(
             @PathVariable Long userId,
             @Valid @RequestBody UpdateOnlineStatusRequest request) {
+        validateUserAccess(userId);
         updateUserOnlineStatusUseCase.updateOnlineStatus(userId, request.status());
         return ResponseEntity.ok(MessageResponse.of("온라인 상태가 업데이트되었습니다."));
     }
@@ -97,7 +108,21 @@ public class UserController {
     @Operation(summary = "마지막 접속 시간 업데이트", description = "사용자의 마지막 접속 시간을 업데이트합니다.")
     @PutMapping("/{userId}/last-active")
     public ResponseEntity<MessageResponse> updateLastActive(@PathVariable Long userId) {
+        validateUserAccess(userId);
         updateUserOnlineStatusUseCase.updateLastActiveAt(userId);
         return ResponseEntity.ok(MessageResponse.of("마지막 접속 시간이 업데이트되었습니다."));
+    }
+
+    /**
+     * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
+     *
+     * @param userId 검증할 사용자 ID
+     * @throws UnauthorizedException 사용자 ID가 일치하지 않는 경우
+     */
+    private void validateUserAccess(Long userId) {
+        Long currentUserId = securityContextHelper.getCurrentUserId();
+        if (!currentUserId.equals(userId)) {
+            throw new UnauthorizedException("자신의 리소스만 접근할 수 있습니다.");
+        }
     }
 }

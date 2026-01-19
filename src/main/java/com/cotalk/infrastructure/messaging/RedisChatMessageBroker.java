@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.messaging;
 
+import com.cotalk.domain.exception.MessageBrokerException;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,7 +40,7 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
      *
      * @param roomId 채팅방 ID
      * @param message 발행할 채팅 메시지
-     * @throws RuntimeException 메시지 직렬화에 실패한 경우
+     * @throws MessageBrokerException 메시지 직렬화에 실패한 경우
      */
     @Override
     public void publish(Long roomId, ChatBroadcastMessage message) {
@@ -50,7 +51,7 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
             log.debug("Published message to channel {}: messageId={}", channel, message.messageId());
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize chat message: {}", message, e);
-            throw new RuntimeException("메시지 직렬화에 실패했습니다.", e);
+            throw MessageBrokerException.serializationFailed(e);
         }
     }
 
@@ -60,7 +61,7 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
      *
      * @param roomId 채팅방 ID
      * @param reactionEvent 발행할 리액션 이벤트
-     * @throws RuntimeException 리액션 이벤트 직렬화에 실패한 경우
+     * @throws MessageBrokerException 리액션 이벤트 직렬화에 실패한 경우
      */
     @Override
     public void publishReaction(Long roomId, Object reactionEvent) {
@@ -71,7 +72,7 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
             log.debug("Published reaction event to channel {}: {}", channel, reactionEvent);
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize reaction event: {}", reactionEvent, e);
-            throw new RuntimeException("반응 이벤트 직렬화에 실패했습니다.", e);
+            throw MessageBrokerException.reactionSerializationFailed(e);
         }
     }
 }
