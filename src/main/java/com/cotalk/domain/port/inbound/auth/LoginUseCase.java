@@ -13,9 +13,10 @@ public interface LoginUseCase {
      *
      * @param email 사용자 이메일
      * @param password 비밀번호
-     * @return JWT 토큰
+     * @return 로그인 결과 (Access Token과 사용자 ID)
+     * @throws com.cotalk.domain.exception.InvalidCredentialsException 인증 실패 시
      */
-    String login(String email, String password);
+    LoginResult login(String email, String password);
 
     /**
      * 이메일로 사용자 ID를 조회한다.

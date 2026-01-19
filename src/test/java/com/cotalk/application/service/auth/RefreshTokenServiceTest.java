@@ -226,12 +226,15 @@ class RefreshTokenServiceTest {
 
             given(refreshTokenRepository.findByToken(token))
                     .willReturn(Optional.of(refreshToken));
+            given(refreshTokenRepository.save(any(RefreshToken.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
 
             // when
             refreshTokenService.revokeToken(token);
 
             // then
             assertThat(refreshToken.isRevoked()).isTrue();
+            verify(refreshTokenRepository).save(refreshToken);
         }
     }
 }

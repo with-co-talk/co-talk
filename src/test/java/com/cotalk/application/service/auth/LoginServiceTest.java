@@ -2,6 +2,7 @@ package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DomainException;
+import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
@@ -68,10 +69,11 @@ class LoginServiceTest {
             given(jwtTokenProvider.generateToken(userId)).willReturn(expectedToken);
 
             // when
-            String result = loginService.login(email, password);
+            LoginResult result = loginService.login(email, password);
 
             // then
-            assertThat(result).isEqualTo(expectedToken);
+            assertThat(result.accessToken()).isEqualTo(expectedToken);
+            assertThat(result.userId()).isEqualTo(userId);
             // 로그인 시 온라인 상태로 변경되는지 확인
             org.mockito.Mockito.verify(updateUserOnlineStatusUseCase).setOnline(userId);
         }

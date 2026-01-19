@@ -362,6 +362,121 @@ class JwtTokenProviderTest {
     }
 
     @Nested
+    @DisplayName("토큰 타입 구분")
+    class TokenType {
+
+        @Test
+        @DisplayName("Access 토큰은 token_type이 ACCESS이다")
+        void should_haveAccessTokenType_when_generateToken() {
+            // given
+            Long userId = 1L;
+
+            // when
+            String token = jwtTokenProvider.generateToken(userId);
+            String tokenType = jwtTokenProvider.getTokenType(token);
+
+            // then
+            assertThat(tokenType).isEqualTo("ACCESS");
+        }
+
+        @Test
+        @DisplayName("isAccessToken은 Access 토큰에 대해 true를 반환한다")
+        void should_returnTrue_when_accessToken() {
+            // given
+            Long userId = 1L;
+            String token = jwtTokenProvider.generateToken(userId);
+
+            // when
+            boolean isAccess = jwtTokenProvider.isAccessToken(token);
+
+            // then
+            assertThat(isAccess).isTrue();
+        }
+
+        @Test
+        @DisplayName("Refresh 토큰을 생성할 수 있다")
+        void should_generateRefreshToken() {
+            // given
+            Long userId = 1L;
+            long refreshExpiration = 604800000L; // 7일
+
+            // when
+            String refreshToken = jwtTokenProvider.generateRefreshToken(userId, refreshExpiration);
+
+            // then
+            assertThat(refreshToken).isNotNull();
+            assertThat(refreshToken).isNotBlank();
+            assertThat(refreshToken.split("\\.")).hasSize(3);
+        }
+
+        @Test
+        @DisplayName("Refresh 토큰은 token_type이 REFRESH이다")
+        void should_haveRefreshTokenType_when_generateRefreshToken() {
+            // given
+            Long userId = 1L;
+            long refreshExpiration = 604800000L;
+
+            // when
+            String refreshToken = jwtTokenProvider.generateRefreshToken(userId, refreshExpiration);
+            String tokenType = jwtTokenProvider.getTokenType(refreshToken);
+
+            // then
+            assertThat(tokenType).isEqualTo("REFRESH");
+        }
+
+        @Test
+        @DisplayName("isRefreshToken은 Refresh 토큰에 대해 true를 반환한다")
+        void should_returnTrue_when_refreshToken() {
+            // given
+            Long userId = 1L;
+            long refreshExpiration = 604800000L;
+            String refreshToken = jwtTokenProvider.generateRefreshToken(userId, refreshExpiration);
+
+            // when
+            boolean isRefresh = jwtTokenProvider.isRefreshToken(refreshToken);
+
+            // then
+            assertThat(isRefresh).isTrue();
+        }
+
+        @Test
+        @DisplayName("Access 토큰과 Refresh 토큰을 구분할 수 있다")
+        void should_distinguishAccessAndRefreshTokens() {
+            // given
+            Long userId = 1L;
+            long refreshExpiration = 604800000L;
+
+            // when
+            String accessToken = jwtTokenProvider.generateToken(userId);
+            String refreshToken = jwtTokenProvider.generateRefreshToken(userId, refreshExpiration);
+
+            // then
+            assertThat(jwtTokenProvider.isAccessToken(accessToken)).isTrue();
+            assertThat(jwtTokenProvider.isRefreshToken(accessToken)).isFalse();
+            assertThat(jwtTokenProvider.isRefreshToken(refreshToken)).isTrue();
+            assertThat(jwtTokenProvider.isAccessToken(refreshToken)).isFalse();
+        }
+
+        @Test
+        @DisplayName("token_type이 없는 토큰은 기본적으로 ACCESS로 간주한다")
+        void should_defaultToAccess_when_noTokenType() {
+            // given - token_type claim이 없는 토큰 생성 (하위 호환성)
+            SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+            String tokenWithoutType = Jwts.builder()
+                    .subject("1")
+                    .signWith(key)
+                    .compact();
+
+            // when
+            String tokenType = jwtTokenProvider.getTokenType(tokenWithoutType);
+
+            // then
+            assertThat(tokenType).isEqualTo("ACCESS");
+            assertThat(jwtTokenProvider.isAccessToken(tokenWithoutType)).isTrue();
+        }
+    }
+
+    @Nested
     @DisplayName("엣지 케이스")
     class EdgeCases {
 

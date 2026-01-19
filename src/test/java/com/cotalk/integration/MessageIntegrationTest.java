@@ -46,8 +46,8 @@ class MessageIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        user1Id = createUser("msg1@test.com", "password123", "메시지유저1");
-        user2Id = createUser("msg2@test.com", "password123", "메시지유저2");
+        user1Id = createUser("msg1@test.com", "Password123!", "메시지유저1");
+        user2Id = createUser("msg2@test.com", "Password123!", "메시지유저2");
         makeFriends(user1Id, user2Id);
         chatRoomId = createChatRoom(user1Id, user2Id);
     }
