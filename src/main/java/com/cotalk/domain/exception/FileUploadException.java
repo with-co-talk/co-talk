@@ -26,4 +26,24 @@ public class FileUploadException extends DomainException {
     public static FileUploadException uploadFailed(Throwable cause) {
         return new FileUploadException("파일 업로드에 실패했습니다.", cause);
     }
+
+    /**
+     * 파일 시그니처(매직넘버) 검증 실패 시 발생하는 예외.
+     *
+     * @param contentType 선언된 Content-Type
+     * @return FileUploadException
+     */
+    public static FileUploadException invalidFileSignature(String contentType) {
+        return new FileUploadException("파일 시그니처가 Content-Type과 일치하지 않습니다: " + contentType);
+    }
+
+    /**
+     * 파일 업로드 처리 중 오류 발생 시 발생하는 예외.
+     *
+     * @param message 오류 메시지
+     * @return FileUploadException
+     */
+    public static FileUploadException uploadFailed(String message) {
+        return new FileUploadException(message);
+    }
 }
