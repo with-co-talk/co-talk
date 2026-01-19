@@ -6,11 +6,13 @@ import com.cotalk.adapter.inbound.rest.dto.friend.FriendListResponse;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestResponse;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.exception.UnauthorizedException;
 import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
 import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
+import com.cotalk.infrastructure.security.SecurityContextHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -46,6 +48,7 @@ public class FriendController {
     private final RejectFriendRequestUseCase rejectFriendRequestUseCase;
     private final RemoveFriendUseCase removeFriendUseCase;
     private final GetFriendListUseCase getFriendListUseCase;
+    private final SecurityContextHelper securityContextHelper;
 
     /**
      * 다른 사용자에게 친구 요청을 보냅니다.
@@ -74,6 +77,7 @@ public class FriendController {
     public ResponseEntity<MessageResponse> acceptFriendRequest(
             @PathVariable Long requestId,
             @RequestParam Long userId) {
+        validateUserAccess(userId);
         acceptFriendRequestUseCase.acceptFriendRequest(userId, requestId);
         return ResponseEntity.ok(MessageResponse.of("친구 요청을 수락했습니다."));
     }
@@ -90,6 +94,7 @@ public class FriendController {
     public ResponseEntity<MessageResponse> rejectFriendRequest(
             @PathVariable Long requestId,
             @RequestParam Long userId) {
+        validateUserAccess(userId);
         rejectFriendRequestUseCase.rejectFriendRequest(userId, requestId);
         return ResponseEntity.ok(MessageResponse.of("친구 요청을 거절했습니다."));
     }
@@ -103,6 +108,7 @@ public class FriendController {
     @Operation(summary = "친구 목록 조회", description = "사용자의 친구 목록을 조회합니다.")
     @GetMapping
     public ResponseEntity<FriendListResponse> getFriendList(@RequestParam Long userId) {
+        validateUserAccess(userId);
         List<User> friends = getFriendListUseCase.getFriendList(userId);
         List<FriendDto> friendDtos = friends.stream()
                 .map(FriendDto::from)
@@ -122,7 +128,21 @@ public class FriendController {
     public ResponseEntity<MessageResponse> removeFriend(
             @PathVariable Long friendId,
             @RequestParam Long userId) {
+        validateUserAccess(userId);
         removeFriendUseCase.removeFriend(userId, friendId);
         return ResponseEntity.ok(MessageResponse.of("친구가 삭제되었습니다."));
+    }
+
+    /**
+     * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
+     *
+     * @param userId 검증할 사용자 ID
+     * @throws UnauthorizedException 사용자 ID가 일치하지 않는 경우
+     */
+    private void validateUserAccess(Long userId) {
+        Long currentUserId = securityContextHelper.getCurrentUserId();
+        if (!currentUserId.equals(userId)) {
+            throw new UnauthorizedException("자신의 리소스만 접근할 수 있습니다.");
+        }
     }
 }

@@ -16,12 +16,14 @@ import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.ChatRoomSummary;
 import com.cotalk.domain.port.inbound.chatroom.ChatRoomManagementUseCase;
+import com.cotalk.domain.exception.UnauthorizedException;
 import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.CreateGroupChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomsUseCase;
 import com.cotalk.domain.port.inbound.chatroom.InviteGroupChatMemberUseCase;
 import com.cotalk.domain.port.inbound.chatroom.LeaveChatRoomUseCase;
 import com.cotalk.domain.port.inbound.message.MarkAsReadUseCase;
+import com.cotalk.infrastructure.security.SecurityContextHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -60,6 +62,7 @@ public class ChatRoomController {
     private final CreateGroupChatRoomUseCase createGroupChatRoomUseCase;
     private final InviteGroupChatMemberUseCase inviteGroupChatMemberUseCase;
     private final ChatRoomManagementUseCase chatRoomManagementUseCase;
+    private final SecurityContextHelper securityContextHelper;
 
     /**
      * 1:1 채팅방을 생성합니다.
@@ -84,6 +87,7 @@ public class ChatRoomController {
     @Operation(summary = "채팅방 목록 조회", description = "사용자의 채팅방 목록을 조회합니다.")
     @GetMapping
     public ResponseEntity<ChatRoomsResponse> getChatRooms(@RequestParam Long userId) {
+        validateUserAccess(userId);
         List<ChatRoomSummary> chatRooms = getChatRoomsUseCase.getChatRooms(userId);
         List<ChatRoomDto> roomDtos = chatRooms.stream()
                 .map(ChatRoomDto::from)
@@ -103,6 +107,7 @@ public class ChatRoomController {
     public ResponseEntity<MessageResponse> leaveChatRoom(
             @PathVariable Long roomId,
             @RequestParam Long userId) {
+        validateUserAccess(userId);
         leaveChatRoomUseCase.leaveChatRoom(roomId, userId);
         return ResponseEntity.ok(MessageResponse.of("채팅방을 나갔습니다."));
     }
@@ -119,6 +124,7 @@ public class ChatRoomController {
     public ResponseEntity<MessageResponse> markAsRead(
             @PathVariable Long roomId,
             @RequestParam Long userId) {
+        validateUserAccess(userId);
         markAsReadUseCase.markAsRead(userId, roomId);
         return ResponseEntity.ok(MessageResponse.of("읽음 처리되었습니다."));
     }
@@ -199,6 +205,7 @@ public class ChatRoomController {
     public ResponseEntity<MessageResponse> clearAnnouncement(
             @PathVariable Long roomId,
             @RequestParam Long userId) {
+        validateUserAccess(userId);
         chatRoomManagementUseCase.clearAnnouncement(roomId, userId);
         return ResponseEntity.ok(MessageResponse.of("공지사항이 삭제되었습니다."));
     }
@@ -217,6 +224,7 @@ public class ChatRoomController {
             @PathVariable Long roomId,
             @PathVariable Long targetUserId,
             @RequestParam Long userId) {
+        validateUserAccess(userId);
         ChatRoomMember member = chatRoomManagementUseCase.promoteToAdmin(roomId, userId, targetUserId);
         return ResponseEntity.ok(AdminResponse.from(member, "관리자로 임명되었습니다."));
     }
@@ -235,7 +243,21 @@ public class ChatRoomController {
             @PathVariable Long roomId,
             @PathVariable Long targetUserId,
             @RequestParam Long userId) {
+        validateUserAccess(userId);
         ChatRoomMember member = chatRoomManagementUseCase.demoteFromAdmin(roomId, userId, targetUserId);
         return ResponseEntity.ok(AdminResponse.from(member, "관리자 권한이 해제되었습니다."));
+    }
+
+    /**
+     * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
+     *
+     * @param userId 검증할 사용자 ID
+     * @throws UnauthorizedException 사용자 ID가 일치하지 않는 경우
+     */
+    private void validateUserAccess(Long userId) {
+        Long currentUserId = securityContextHelper.getCurrentUserId();
+        if (!currentUserId.equals(userId)) {
+            throw new UnauthorizedException("자신의 리소스만 접근할 수 있습니다.");
+        }
     }
 }
