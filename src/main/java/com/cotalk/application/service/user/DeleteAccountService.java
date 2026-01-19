@@ -27,7 +27,6 @@ public class DeleteAccountService implements DeleteAccountUseCase {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final FriendRepository friendRepository;
     private final FriendRequestRepository friendRequestRepository;
-    private final MessageRepository messageRepository;
     private final DeviceTokenRepository deviceTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -78,10 +77,7 @@ public class DeleteAccountService implements DeleteAccountUseCase {
         friendRequestRepository.deleteByUserId(userId);
         deviceTokenRepository.deleteByUserId(userId);
         passwordResetTokenRepository.deleteByUserId(userId);
-        
-        // 메시지는 익명화 처리 (채팅 히스토리 보존)
-        // messageRepository.anonymizeByUserId(userId);
-        
+
         // 사용자 삭제
         userRepository.delete(user);
     }

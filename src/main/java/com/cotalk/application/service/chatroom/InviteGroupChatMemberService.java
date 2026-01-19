@@ -72,23 +72,25 @@ public class InviteGroupChatMemberService implements InviteGroupChatMemberUseCas
                 .map(ChatRoomMember::getUserId)
                 .collect(Collectors.toSet());
 
+        // 존재하지 않는 사용자 검증
         for (Long inviteeId : inviteeIds) {
-            // 이미 참여 중인 멤버는 건너뛴다
-            if (existingMemberIds.contains(inviteeId)) {
-                continue;
-            }
-
-            // 존재하지 않는 사용자 검증
             if (!existingUsers.containsKey(inviteeId)) {
                 throw new UserNotFoundException(inviteeId);
             }
+        }
 
-            ChatRoomMember member = ChatRoomMember.builder()
-                    .id(idGenerator.nextId())
-                    .chatRoomId(roomId)
-                    .userId(inviteeId)
-                    .build();
-            chatRoomMemberRepository.save(member);
+        // 새로 추가할 멤버만 필터링하여 일괄 저장
+        List<ChatRoomMember> newMembers = inviteeIds.stream()
+                .filter(inviteeId -> !existingMemberIds.contains(inviteeId))
+                .map(inviteeId -> ChatRoomMember.builder()
+                        .id(idGenerator.nextId())
+                        .chatRoomId(roomId)
+                        .userId(inviteeId)
+                        .build())
+                .toList();
+
+        if (!newMembers.isEmpty()) {
+            chatRoomMemberRepository.saveAll(newMembers);
         }
     }
 }
