@@ -5,6 +5,7 @@ import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.SendMessageRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.UpdateMessageRequest;
+import com.cotalk.config.TestRedisConfiguration;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,10 +29,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
-@Import(IntegrationTestSecurityConfig.class)
+@Import(TestRedisConfiguration.class)
 class MessageIntegrationTest {
 
     @Autowired
@@ -46,8 +47,8 @@ class MessageIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        user1Id = createUser("msg1@test.com", "password123", "메시지유저1");
-        user2Id = createUser("msg2@test.com", "password123", "메시지유저2");
+        user1Id = createUser("msg1@test.com", "Password123!", "메시지유저1");
+        user2Id = createUser("msg2@test.com", "Password123!", "메시지유저2");
         makeFriends(user1Id, user2Id);
         chatRoomId = createChatRoom(user1Id, user2Id);
     }

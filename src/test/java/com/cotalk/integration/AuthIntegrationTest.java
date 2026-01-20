@@ -2,12 +2,14 @@ package com.cotalk.integration;
 
 import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
+import com.cotalk.config.TestRedisConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -20,9 +22,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
+@Import(TestRedisConfiguration.class)
 class AuthIntegrationTest {
 
     @Autowired
@@ -36,7 +39,7 @@ class AuthIntegrationTest {
     void should_loginSuccessfully_after_signUp() throws Exception {
         // given
         String email = "test@example.com";
-        String password = "password123";
+        String password = "Password123!";
         String nickname = "테스트유저";
 
         SignUpRequest signUpRequest = new SignUpRequest(email, password, nickname);
@@ -71,7 +74,7 @@ class AuthIntegrationTest {
     void should_failSignUp_when_duplicateEmail() throws Exception {
         // given
         String email = "duplicate@example.com";
-        String password = "password123";
+        String password = "Password123!";
 
         SignUpRequest request1 = new SignUpRequest(email, password, "유저1");
         SignUpRequest request2 = new SignUpRequest(email, password, "유저2");
@@ -95,7 +98,7 @@ class AuthIntegrationTest {
     void should_failLogin_when_wrongPassword() throws Exception {
         // given
         String email = "user@example.com";
-        String password = "correctPassword";
+        String password = "CorrectPassword1!";
         String wrongPassword = "wrongPassword";
 
         SignUpRequest signUpRequest = new SignUpRequest(email, password, "테스트");

@@ -9,8 +9,10 @@ import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.SecurityContextHelper;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -65,6 +67,15 @@ class FriendControllerTest {
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @MockBean
+    private SecurityContextHelper securityContextHelper;
+
+    @BeforeEach
+    void setUp() {
+        // 기본적으로 userId 1L로 인증된 사용자 설정
+        given(securityContextHelper.getCurrentUserId()).willReturn(1L);
+    }
+
     @Nested
     @DisplayName("친구 요청 API")
     class SendFriendRequestApi {
@@ -96,7 +107,7 @@ class FriendControllerTest {
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long requestId = 100L;
-            Long userId = 2L;
+            Long userId = 1L;
 
             given(acceptFriendRequestUseCase.acceptFriendRequest(anyLong(), anyLong())).willReturn(200L);
 
@@ -153,7 +164,7 @@ class FriendControllerTest {
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long requestId = 100L;
-            Long userId = 2L;
+            Long userId = 1L;
 
             willDoNothing().given(rejectFriendRequestUseCase).rejectFriendRequest(anyLong(), anyLong());
 

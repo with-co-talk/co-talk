@@ -18,6 +18,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -51,13 +53,14 @@ class MarkAsReadServiceTest {
 
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.of(member));
+        given(chatRoomMemberRepository.updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
+                .willReturn(1);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
 
         // then
-        assertThat(member.getLastReadAt()).isNotNull();
-        verify(chatRoomMemberRepository).save(member);
+        verify(chatRoomMemberRepository).updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), any(LocalDateTime.class));
     }
 
     @Test
@@ -89,11 +92,15 @@ class MarkAsReadServiceTest {
 
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.of(member));
+        given(chatRoomMemberRepository.updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
+                .willReturn(1);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
 
         // then
-        assertThat(member.getLastReadAt()).isAfter(beforeMark);
+        ArgumentCaptor<LocalDateTime> captor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(chatRoomMemberRepository).updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), captor.capture());
+        assertThat(captor.getValue()).isAfter(beforeMark);
     }
 }

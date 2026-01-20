@@ -7,8 +7,10 @@ import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.SecurityContextHelper;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -57,6 +59,15 @@ class UserControllerTest {
 
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockBean
+    private SecurityContextHelper securityContextHelper;
+
+    @BeforeEach
+    void setUp() {
+        // 기본적으로 userId 1L로 인증된 사용자 설정
+        given(securityContextHelper.getCurrentUserId()).willReturn(1L);
+    }
 
     @Nested
     @DisplayName("사용자 검색 API")

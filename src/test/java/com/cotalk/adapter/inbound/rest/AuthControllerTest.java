@@ -66,7 +66,7 @@ class AuthControllerTest {
         @DisplayName("유효한 요청으로 회원가입 성공")
         void should_returnCreated_when_validSignUpRequest() throws Exception {
             // given
-            SignUpRequest request = new SignUpRequest("test@example.com", "password123", "테스트유저");
+            SignUpRequest request = new SignUpRequest("test@example.com", "Password123!", "테스트유저");
             given(signUpUseCase.signUp(anyString(), anyString(), anyString())).willReturn(1L);
 
             // when & then
@@ -82,7 +82,7 @@ class AuthControllerTest {
         @DisplayName("이메일이 비어있으면 400 에러")
         void should_returnBadRequest_when_emptyEmail() throws Exception {
             // given
-            SignUpRequest request = new SignUpRequest("", "password123", "테스트유저");
+            SignUpRequest request = new SignUpRequest("", "Password123!", "테스트유저");
 
             // when & then
             mockMvc.perform(post("/api/v1/auth/signup")
@@ -108,7 +108,7 @@ class AuthControllerTest {
         @DisplayName("중복된 이메일로 가입 시 409 에러")
         void should_returnConflict_when_duplicateEmail() throws Exception {
             // given
-            SignUpRequest request = new SignUpRequest("duplicate@example.com", "password123", "테스트유저");
+            SignUpRequest request = new SignUpRequest("duplicate@example.com", "Password123!", "테스트유저");
             given(signUpUseCase.signUp(anyString(), anyString(), anyString()))
                     .willThrow(new DuplicateEmailException());
 
@@ -129,7 +129,7 @@ class AuthControllerTest {
         @DisplayName("유효한 요청으로 로그인 성공")
         void should_returnOkWithToken_when_validLoginRequest() throws Exception {
             // given
-            LoginRequest request = new LoginRequest("test@example.com", "password123");
+            LoginRequest request = new LoginRequest("test@example.com", "Password123!");
             given(loginUseCase.login(anyString(), anyString())).willReturn("jwt-token-12345");
             given(loginUseCase.getUserIdByEmail(anyString())).willReturn(1L);
             given(refreshTokenUseCase.createRefreshToken(1L)).willReturn("refresh-token-12345");

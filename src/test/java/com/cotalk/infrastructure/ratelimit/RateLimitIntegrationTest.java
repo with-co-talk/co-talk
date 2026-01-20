@@ -3,6 +3,7 @@ package com.cotalk.infrastructure.ratelimit;
 import com.cotalk.integration.IntegrationTestSecurityConfig;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +17,11 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.testcontainers.DockerClientFactory;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 import java.util.Set;
 import java.util.UUID;
@@ -25,13 +31,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Rate Limit 통합 테스트.
- * 실제 Redis 환경에서 Rate Limit 동작을 검증합니다.
+ * Testcontainers를 사용하여 Redis 컨테이너를 자동으로 시작합니다.
  *
- * <p><b>주의:</b> 이 테스트는 로컬에서 실행 중인 Redis가 필요합니다.
- * docker-compose.dev.yml로 Redis를 실행한 후 테스트를 실행하세요.</p>
+ * <p>Docker가 실행 중이지 않으면 테스트가 건너뛰어집니다.</p>
  *
  * @author seunggu.lee
  */
+@Testcontainers
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
@@ -42,31 +48,38 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({IntegrationTestSecurityConfig.class, RateLimitWebConfig.class})
 @ActiveProfiles("ratelimit-test")
 @DisplayName("Rate Limit 통합 테스트")
+@EnabledIf("isDockerAvailable")
 class RateLimitIntegrationTest {
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitIntegrationTest.class);
+
+    /**
+     * Docker가 사용 가능한지 확인합니다.
+     *
+     * @return Docker가 사용 가능하면 true
+     */
+    static boolean isDockerAvailable() {
+        try {
+            DockerClientFactory.instance().client();
+            return true;
+        } catch (Throwable ex) {
+            log.warn("Docker is not available, skipping Rate Limit integration tests: {}", ex.getMessage());
+            return false;
+        }
+    }
+
+    @Container
+    static GenericContainer<?> redisContainer = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+            .withExposedPorts(6379);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         // Rate Limit 활성화 (가장 높은 우선순위로 설정)
         registry.add("app.rate-limit.enabled", () -> "true");
-        
-        // 로컬에서 실행 중인 Redis 사용 (docker-compose.dev.yml의 Redis)
-        // 환경 변수가 설정되어 있으면 사용하고, 없으면 기본값 사용
-        String redisHost = System.getenv("REDIS_HOST");
-        String redisPort = System.getenv("REDIS_PORT");
-        
-        if (redisHost != null) {
-            registry.add("spring.data.redis.host", () -> redisHost);
-        } else {
-            registry.add("spring.data.redis.host", () -> "localhost");
-        }
-        
-        if (redisPort != null) {
-            registry.add("spring.data.redis.port", () -> Integer.parseInt(redisPort));
-        } else {
-            registry.add("spring.data.redis.port", () -> 6380); // docker-compose.dev.yml의 Redis 포트
-        }
+
+        // Testcontainers에서 시작한 Redis 사용
+        registry.add("spring.data.redis.host", redisContainer::getHost);
+        registry.add("spring.data.redis.port", redisContainer::getFirstMappedPort);
     }
 
     @Autowired

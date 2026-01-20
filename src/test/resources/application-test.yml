@@ -21,6 +21,11 @@ spring:
       enabled: false
       repositories:
         enabled: false
+  autoconfigure:
+    exclude:
+      - org.redisson.spring.starter.RedissonAutoConfigurationV2
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
 jwt:
   secret: test-secret-key-for-testing-purposes-only-1234567890

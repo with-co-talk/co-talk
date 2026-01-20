@@ -3,6 +3,7 @@ package com.cotalk.integration;
 import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
+import com.cotalk.config.TestRedisConfiguration;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,10 +26,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
-@Import(IntegrationTestSecurityConfig.class)
+@Import(TestRedisConfiguration.class)
 class FriendIntegrationTest {
 
     @Autowired
@@ -45,11 +46,11 @@ class FriendIntegrationTest {
     @BeforeEach
     void setUp() throws Exception {
         // 두 명의 사용자 생성 및 로그인
-        user1Id = createUserAndGetId("user1@test.com", "password123", "사용자1");
-        user1Token = loginAndGetToken("user1@test.com", "password123");
+        user1Id = createUserAndGetId("user1@test.com", "Password123!", "사용자1");
+        user1Token = loginAndGetToken("user1@test.com", "Password123!");
 
-        user2Id = createUserAndGetId("user2@test.com", "password123", "사용자2");
-        user2Token = loginAndGetToken("user2@test.com", "password123");
+        user2Id = createUserAndGetId("user2@test.com", "Password123!", "사용자2");
+        user2Token = loginAndGetToken("user2@test.com", "Password123!");
     }
 
     private Long createUserAndGetId(String email, String password, String nickname) throws Exception {

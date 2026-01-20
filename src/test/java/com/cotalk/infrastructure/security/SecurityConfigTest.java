@@ -75,7 +75,7 @@ class SecurityConfigTest {
         String requestBody = """
                 {
                     "email": "test@example.com",
-                    "password": "password123",
+                    "password": "Password123!",
                     "nickname": "테스트"
                 }
                 """;
@@ -98,7 +98,7 @@ class SecurityConfigTest {
         String requestBody = """
                 {
                     "email": "test@example.com",
-                    "password": "password123"
+                    "password": "Password123!"
                 }
                 """;
 

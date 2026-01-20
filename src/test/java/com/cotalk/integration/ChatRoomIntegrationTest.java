@@ -5,6 +5,7 @@ import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateGroupChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.InviteMembersRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
+import com.cotalk.config.TestRedisConfiguration;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,10 +30,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
-@Import(IntegrationTestSecurityConfig.class)
+@Import(TestRedisConfiguration.class)
 class ChatRoomIntegrationTest {
 
     @Autowired
@@ -47,9 +48,9 @@ class ChatRoomIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        user1Id = createUser("chat1@test.com", "password123", "채팅유저1");
-        user2Id = createUser("chat2@test.com", "password123", "채팅유저2");
-        user3Id = createUser("chat3@test.com", "password123", "채팅유저3");
+        user1Id = createUser("chat1@test.com", "Password123!", "채팅유저1");
+        user2Id = createUser("chat2@test.com", "Password123!", "채팅유저2");
+        user3Id = createUser("chat3@test.com", "Password123!", "채팅유저3");
 
         // 친구 관계 생성
         makeFriends(user1Id, user2Id);
@@ -122,7 +123,7 @@ class ChatRoomIntegrationTest {
     @DisplayName("그룹 채팅방 생성 및 멤버 초대")
     void should_createGroupChatAndInviteMembers() throws Exception {
         // user4를 추가로 생성하고 친구 관계 설정
-        Long user4Id = createUser("chat4@test.com", "password123", "채팅유저4");
+        Long user4Id = createUser("chat4@test.com", "Password123!", "채팅유저4");
         makeFriends(user1Id, user4Id);
         makeFriends(user2Id, user4Id);
         makeFriends(user3Id, user4Id);

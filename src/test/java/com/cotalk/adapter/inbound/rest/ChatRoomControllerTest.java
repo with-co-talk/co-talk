@@ -3,7 +3,10 @@ package com.cotalk.adapter.inbound.rest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateGroupChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.InviteMembersRequest;
+import com.cotalk.adapter.inbound.rest.dto.chatroom.SetAnnouncementRequest;
+import com.cotalk.adapter.inbound.rest.dto.chatroom.UpdateChatRoomNameRequest;
 import com.cotalk.domain.entity.ChatRoom;
+import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.ChatRoomSummary;
 import com.cotalk.domain.port.inbound.chatroom.ChatRoomManagementUseCase;
 import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
@@ -15,7 +18,9 @@ import com.cotalk.domain.port.inbound.message.MarkAsReadUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.SecurityContextHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -35,8 +40,10 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -77,6 +84,15 @@ class ChatRoomControllerTest {
 
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockBean
+    private SecurityContextHelper securityContextHelper;
+
+    @BeforeEach
+    void setUp() {
+        // 기본적으로 userId 1L로 인증된 사용자 설정
+        given(securityContextHelper.getCurrentUserId()).willReturn(1L);
+    }
 
     @Nested
     @DisplayName("채팅방 생성 API")
@@ -269,6 +285,187 @@ class ChatRoomControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("멤버를 초대했습니다."));
+        }
+    }
+
+    @Nested
+    @DisplayName("채팅방 이름 변경 API")
+    class UpdateChatRoomNameApi {
+
+        @Test
+        @DisplayName("유효한 요청으로 채팅방 이름 변경 성공")
+        void should_returnOk_when_validRequest() throws Exception {
+            // given
+            Long roomId = 100L;
+            UpdateChatRoomNameRequest request = UpdateChatRoomNameRequest.of(1L, "새로운 채팅방 이름");
+
+            ChatRoom chatRoom = ChatRoom.builder()
+                    .id(roomId)
+                    .name("새로운 채팅방 이름")
+                    .type(ChatRoom.ChatRoomType.GROUP)
+                    .build();
+
+            given(chatRoomManagementUseCase.updateChatRoomName(eq(roomId), eq(1L), eq("새로운 채팅방 이름")))
+                    .willReturn(chatRoom);
+
+            // when & then
+            mockMvc.perform(put("/api/v1/chat/rooms/{roomId}/name", roomId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.name").value("새로운 채팅방 이름"))
+                    .andExpect(jsonPath("$.message").value("채팅방 이름이 변경되었습니다."));
+        }
+
+        @Test
+        @DisplayName("이름이 비어있으면 400 에러")
+        void should_returnBadRequest_when_nameEmpty() throws Exception {
+            // given
+            Long roomId = 100L;
+            UpdateChatRoomNameRequest request = UpdateChatRoomNameRequest.of(1L, "");
+
+            // when & then
+            mockMvc.perform(put("/api/v1/chat/rooms/{roomId}/name", roomId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("공지사항 설정 API")
+    class SetAnnouncementApi {
+
+        @Test
+        @DisplayName("유효한 요청으로 공지사항 설정 성공")
+        void should_returnOk_when_validRequest() throws Exception {
+            // given
+            Long roomId = 100L;
+            SetAnnouncementRequest request = SetAnnouncementRequest.of(1L, "중요 공지사항입니다.");
+
+            ChatRoom chatRoom = ChatRoom.builder()
+                    .id(roomId)
+                    .name("채팅방")
+                    .type(ChatRoom.ChatRoomType.GROUP)
+                    .announcement("중요 공지사항입니다.")
+                    .build();
+
+            given(chatRoomManagementUseCase.setAnnouncement(eq(roomId), eq(1L), eq("중요 공지사항입니다.")))
+                    .willReturn(chatRoom);
+
+            // when & then
+            mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/announcement", roomId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.announcement").value("중요 공지사항입니다."))
+                    .andExpect(jsonPath("$.message").value("공지사항이 설정되었습니다."));
+        }
+
+        @Test
+        @DisplayName("공지사항이 비어있으면 400 에러")
+        void should_returnBadRequest_when_announcementEmpty() throws Exception {
+            // given
+            Long roomId = 100L;
+            SetAnnouncementRequest request = SetAnnouncementRequest.of(1L, "");
+
+            // when & then
+            mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/announcement", roomId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("공지사항 삭제 API")
+    class ClearAnnouncementApi {
+
+        @Test
+        @DisplayName("유효한 요청으로 공지사항 삭제 성공")
+        void should_returnOk_when_validRequest() throws Exception {
+            // given
+            Long roomId = 100L;
+            Long userId = 1L;
+
+            ChatRoom chatRoom = ChatRoom.builder()
+                    .id(roomId)
+                    .name("채팅방")
+                    .type(ChatRoom.ChatRoomType.GROUP)
+                    .announcement(null)
+                    .build();
+
+            given(chatRoomManagementUseCase.clearAnnouncement(roomId, userId)).willReturn(chatRoom);
+
+            // when & then
+            mockMvc.perform(delete("/api/v1/chat/rooms/{roomId}/announcement", roomId)
+                            .param("userId", String.valueOf(userId)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("공지사항이 삭제되었습니다."));
+        }
+    }
+
+    @Nested
+    @DisplayName("관리자 임명 API")
+    class PromoteToAdminApi {
+
+        @Test
+        @DisplayName("유효한 요청으로 관리자 임명 성공")
+        void should_returnOk_when_validRequest() throws Exception {
+            // given
+            Long roomId = 100L;
+            Long targetUserId = 2L;
+            Long userId = 1L;
+
+            ChatRoomMember member = ChatRoomMember.builder()
+                    .id(200L)
+                    .chatRoomId(roomId)
+                    .userId(targetUserId)
+                    .role(ChatRoomMember.MemberRole.ADMIN)
+                    .build();
+
+            given(chatRoomManagementUseCase.promoteToAdmin(roomId, userId, targetUserId))
+                    .willReturn(member);
+
+            // when & then
+            mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/admins/{targetUserId}", roomId, targetUserId)
+                            .param("userId", String.valueOf(userId)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.userId").value(targetUserId))
+                    .andExpect(jsonPath("$.role").value("ADMIN"))
+                    .andExpect(jsonPath("$.message").value("관리자로 임명되었습니다."));
+        }
+    }
+
+    @Nested
+    @DisplayName("관리자 해제 API")
+    class DemoteFromAdminApi {
+
+        @Test
+        @DisplayName("유효한 요청으로 관리자 해제 성공")
+        void should_returnOk_when_validRequest() throws Exception {
+            // given
+            Long roomId = 100L;
+            Long targetUserId = 2L;
+            Long userId = 1L;
+
+            ChatRoomMember member = ChatRoomMember.builder()
+                    .id(200L)
+                    .chatRoomId(roomId)
+                    .userId(targetUserId)
+                    .role(ChatRoomMember.MemberRole.MEMBER)
+                    .build();
+
+            given(chatRoomManagementUseCase.demoteFromAdmin(roomId, userId, targetUserId))
+                    .willReturn(member);
+
+            // when & then
+            mockMvc.perform(delete("/api/v1/chat/rooms/{roomId}/admins/{targetUserId}", roomId, targetUserId)
+                            .param("userId", String.valueOf(userId)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.userId").value(targetUserId))
+                    .andExpect(jsonPath("$.role").value("MEMBER"))
+                    .andExpect(jsonPath("$.message").value("관리자 권한이 해제되었습니다."));
         }
     }
 }

@@ -224,8 +224,8 @@ class BlockControllerTest {
         }
 
         @Test
-        @DisplayName("차단되지 않은 사용자 해제 시 400 에러 (BlockNotFoundException은 DomainException)")
-        void should_returnBadRequest_when_blockNotFound() throws Exception {
+        @DisplayName("차단되지 않은 사용자 해제 시 404 에러 (BlockNotFoundException은 ResourceNotFoundException)")
+        void should_returnNotFound_when_blockNotFound() throws Exception {
             // given
             Long blockerId = 1L;
             Long blockedId = 2L;
@@ -237,7 +237,7 @@ class BlockControllerTest {
             mockMvc.perform(delete("/api/v1/blocks")
                             .param("blockerId", blockerId.toString())
                             .param("blockedId", blockedId.toString()))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isNotFound());
         }
 
         @Test

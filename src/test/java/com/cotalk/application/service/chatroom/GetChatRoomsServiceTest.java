@@ -179,7 +179,7 @@ class GetChatRoomsServiceTest {
         // then
         assertThat(result).hasSize(1);
         ChatRoomSummary summary = result.get(0);
-        assertThat(summary.lastMessage()).isNull();
+        assertThat(summary.lastMessage()).isEmpty();
         assertThat(summary.lastMessageAt()).isNull();
         assertThat(summary.unreadCount()).isEqualTo(0L);
     }
