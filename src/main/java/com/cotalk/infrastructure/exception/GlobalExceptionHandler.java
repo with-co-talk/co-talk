@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.exception;
 
+import com.cotalk.domain.exception.BlockNotFoundException;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.ChatRoomNotFoundException;
 import com.cotalk.domain.exception.DomainException;
@@ -9,18 +10,22 @@ import com.cotalk.domain.exception.FileUploadException;
 import com.cotalk.domain.exception.FriendNotFoundException;
 import com.cotalk.domain.exception.FriendRequestAccessDeniedException;
 import com.cotalk.domain.exception.FriendRequestNotFoundException;
+import com.cotalk.domain.exception.InvalidBlockException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.InvalidEmojiException;
-import com.cotalk.domain.exception.InvalidRefreshTokenException;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
+import com.cotalk.domain.exception.InvalidRefreshTokenException;
+import com.cotalk.domain.exception.InvalidReportException;
 import com.cotalk.domain.exception.MessageAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.exception.MessageReactionNotFoundException;
 import com.cotalk.domain.exception.RateLimitExceededException;
+import com.cotalk.domain.exception.ReportNotFoundException;
 import com.cotalk.domain.exception.TermsAgreementException;
 import com.cotalk.domain.exception.UnauthorizedException;
 import com.cotalk.domain.exception.UserNotFoundException;
+import com.cotalk.infrastructure.lock.DistributedLockException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -303,6 +308,71 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", String.valueOf(e.getRetryAfterSeconds()))
                 .body(new ErrorResponse(e.getMessage(), "RATE_LIMIT_EXCEEDED", LocalDateTime.now()));
+    }
+
+    /**
+     * 차단 정보를 찾을 수 없는 예외를 처리한다.
+     *
+     * @param e 차단 정보 미발견 예외
+     * @return 404 Not Found 응답
+     */
+    @ExceptionHandler(BlockNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleBlockNotFoundException(BlockNotFoundException e) {
+        log.warn("Block not found: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(e.getMessage(), "BLOCK_NOT_FOUND", LocalDateTime.now()));
+    }
+
+    /**
+     * 유효하지 않은 차단 요청 예외를 처리한다.
+     *
+     * @param e 유효하지 않은 차단 요청 예외
+     * @return 400 Bad Request 응답
+     */
+    @ExceptionHandler(InvalidBlockException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidBlockException(InvalidBlockException e) {
+        log.warn("Invalid block request: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(e.getMessage(), "INVALID_BLOCK", LocalDateTime.now()));
+    }
+
+    /**
+     * 신고 정보를 찾을 수 없는 예외를 처리한다.
+     *
+     * @param e 신고 정보 미발견 예외
+     * @return 404 Not Found 응답
+     */
+    @ExceptionHandler(ReportNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleReportNotFoundException(ReportNotFoundException e) {
+        log.warn("Report not found: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(e.getMessage(), "REPORT_NOT_FOUND", LocalDateTime.now()));
+    }
+
+    /**
+     * 유효하지 않은 신고 요청 예외를 처리한다.
+     *
+     * @param e 유효하지 않은 신고 요청 예외
+     * @return 400 Bad Request 응답
+     */
+    @ExceptionHandler(InvalidReportException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidReportException(InvalidReportException e) {
+        log.warn("Invalid report request: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(e.getMessage(), "INVALID_REPORT", LocalDateTime.now()));
+    }
+
+    /**
+     * 분산락 획득 실패 예외를 처리한다.
+     *
+     * @param e 분산락 획득 실패 예외
+     * @return 503 Service Unavailable 응답
+     */
+    @ExceptionHandler(DistributedLockException.class)
+    public ResponseEntity<ErrorResponse> handleDistributedLockException(DistributedLockException e) {
+        log.error("Distributed lock failed: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse("일시적으로 서비스를 이용할 수 없습니다. 잠시 후 다시 시도해주세요.", "SERVICE_UNAVAILABLE", LocalDateTime.now()));
     }
 
     /**
