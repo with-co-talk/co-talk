@@ -108,6 +108,56 @@ class UserControllerTest {
         }
 
         @Test
+        @DisplayName("query 파라미터로 사용자 검색 성공")
+        void should_returnUsers_when_searchByQuery() throws Exception {
+            // given
+            List<User> users = List.of(
+                    User.builder()
+                            .id(1L)
+                            .email("user1@example.com")
+                            .nickname("테스트유저1")
+                            .passwordHash("hash")
+                            .avatarUrl("https://example.com/avatar1.png")
+                            .build()
+            );
+
+            given(searchUserUseCase.searchByNickname(anyString())).willReturn(users);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/users/search")
+                            .param("query", "테스트"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.users").isArray())
+                    .andExpect(jsonPath("$.users.length()").value(1))
+                    .andExpect(jsonPath("$.users[0].nickname").value("테스트유저1"));
+        }
+
+        @Test
+        @DisplayName("query 파라미터가 nickname보다 우선순위가 높음")
+        void should_useQuery_when_bothQueryAndNicknameProvided() throws Exception {
+            // given
+            List<User> users = List.of(
+                    User.builder()
+                            .id(1L)
+                            .email("user1@example.com")
+                            .nickname("테스트유저1")
+                            .passwordHash("hash")
+                            .avatarUrl("https://example.com/avatar1.png")
+                            .build()
+            );
+
+            given(searchUserUseCase.searchByNickname("query값")).willReturn(users);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/users/search")
+                            .param("query", "query값")
+                            .param("nickname", "nickname값"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.users").isArray())
+                    .andExpect(jsonPath("$.users.length()").value(1));
+        }
+
+        @Test
         @DisplayName("검색 결과가 없을 때 빈 배열 반환")
         void should_returnEmptyArray_when_noResults() throws Exception {
             // given
@@ -119,6 +169,14 @@ class UserControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.users").isArray())
                     .andExpect(jsonPath("$.users.length()").value(0));
+        }
+
+        @Test
+        @DisplayName("query와 nickname 모두 없을 때 400 에러 반환")
+        void should_returnBadRequest_when_noParameters() throws Exception {
+            // when & then
+            mockMvc.perform(get("/api/v1/users/search"))
+                    .andExpect(status().isBadRequest());
         }
     }
 
