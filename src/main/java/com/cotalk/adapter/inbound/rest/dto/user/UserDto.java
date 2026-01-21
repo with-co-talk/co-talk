@@ -2,6 +2,7 @@ package com.cotalk.adapter.inbound.rest.dto.user;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.entity.User.OnlineStatus;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 
@@ -23,6 +24,7 @@ public record UserDto(
         String nickname,
         String avatarUrl,
         OnlineStatus onlineStatus,
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         LocalDateTime lastActiveAt
 ) {
 
