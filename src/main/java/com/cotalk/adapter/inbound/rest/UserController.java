@@ -7,9 +7,11 @@ import com.cotalk.adapter.inbound.rest.dto.user.UpdateProfileRequest;
 import com.cotalk.adapter.inbound.rest.dto.user.UserDto;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.UnauthorizedException;
+import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.user.SearchUserUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
+import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.SecurityContextHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,7 +45,22 @@ public class UserController {
     private final SearchUserUseCase searchUserUseCase;
     private final UpdateProfileUseCase updateProfileUseCase;
     private final UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
+    private final UserRepository userRepository;
     private final SecurityContextHelper securityContextHelper;
+
+    /**
+     * 현재 로그인한 사용자 정보를 조회한다.
+     *
+     * @return 현재 사용자 정보
+     */
+    @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 정보를 조회합니다.")
+    @GetMapping("/me")
+    public ResponseEntity<UserDto> getCurrentUser() {
+        Long currentUserId = securityContextHelper.getCurrentUserId();
+        User user = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new UserNotFoundException(currentUserId));
+        return ResponseEntity.ok(UserDto.from(user));
+    }
 
     /**
      * 닉네임으로 사용자를 검색한다.
