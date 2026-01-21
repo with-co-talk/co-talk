@@ -28,6 +28,11 @@ public class SecurityContextHelper {
         }
 
         Object principal = authentication.getPrincipal();
+
+        if (principal instanceof CustomUserPrincipal customUserPrincipal) {
+            return customUserPrincipal.getUserId();
+        }
+
         if (principal instanceof Long) {
             return (Long) principal;
         }
