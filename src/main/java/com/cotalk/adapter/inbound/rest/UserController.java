@@ -16,7 +16,6 @@ import com.cotalk.infrastructure.security.SecurityContextHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -64,18 +63,28 @@ public class UserController {
 
     /**
      * 닉네임으로 사용자를 검색한다.
+     * query 또는 nickname 파라미터를 사용할 수 있으며, query가 우선순위가 높다.
      *
-     * @param nickname 검색할 닉네임 키워드
+     * @param query 검색할 키워드 (우선순위 높음)
+     * @param nickname 검색할 닉네임 키워드 (query가 없을 때 사용)
      * @return 검색된 사용자 목록
      */
-    @Operation(summary = "닉네임으로 사용자 검색", description = "닉네임에 포함된 키워드로 사용자를 검색합니다.")
+    @Operation(summary = "닉네임으로 사용자 검색", description = "닉네임에 포함된 키워드로 사용자를 검색합니다. query 또는 nickname 파라미터를 사용할 수 있습니다.")
     @GetMapping("/search")
     public ResponseEntity<SearchUserResponse> searchByNickname(
-            @RequestParam
-            @NotBlank(message = "닉네임은 필수입니다.")
+            @RequestParam(required = false)
+            @Size(min = 1, max = 50, message = "검색어는 1자 이상 50자 이하여야 합니다.")
+            String query,
+            @RequestParam(required = false)
             @Size(min = 1, max = 50, message = "닉네임은 1자 이상 50자 이하여야 합니다.")
             String nickname) {
-        List<User> users = searchUserUseCase.searchByNickname(nickname);
+        // query 또는 nickname 중 하나는 필수
+        String searchKeyword = (query != null && !query.isBlank()) ? query : nickname;
+        if (searchKeyword == null || searchKeyword.isBlank()) {
+            throw new IllegalArgumentException("query 또는 nickname 파라미터 중 하나는 필수입니다.");
+        }
+        
+        List<User> users = searchUserUseCase.searchByNickname(searchKeyword);
         List<UserDto> userDtos = users.stream()
                 .map(UserDto::from)
                 .toList();
