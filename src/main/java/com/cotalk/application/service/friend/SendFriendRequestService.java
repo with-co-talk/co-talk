@@ -1,8 +1,10 @@
 package com.cotalk.application.service.friend;
 
 import com.cotalk.domain.entity.FriendRequest;
+import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
@@ -36,6 +38,7 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
     private final UserValidator userValidator;
     private final IdGenerator idGenerator;
     private final DistributedLockExecutor lockExecutor;
+    private final SendPushNotificationUseCase sendPushNotificationUseCase;
 
     /**
      * 친구 요청을 전송한다.
@@ -102,6 +105,9 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
         try {
             friendRequestRepository.save(friendRequest);
             log.info("Friend request created: {} -> {}", requesterId, receiverId);
+
+            // 푸시 알림 전송 (비동기)
+            sendFriendRequestPushNotification(requesterId, receiverId);
         } catch (DataIntegrityViolationException e) {
             // UNIQUE 제약 조건 위반 (동시성 최종 방어)
             log.warn("Duplicate friend request detected: {} -> {}", requesterId, receiverId);
@@ -109,6 +115,23 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
         }
 
         return friendRequest.getId();
+    }
+
+    /**
+     * 친구 요청 푸시 알림을 전송한다.
+     * 요청자의 닉네임을 조회하여 수신자에게 알림을 보낸다.
+     *
+     * @param requesterId 요청자 ID
+     * @param receiverId  수신자 ID
+     */
+    private void sendFriendRequestPushNotification(Long requesterId, Long receiverId) {
+        try {
+            User requester = userValidator.validateUserExists(requesterId);
+            sendPushNotificationUseCase.sendFriendRequestNotification(receiverId, requester.getNickname());
+        } catch (Exception e) {
+            // 푸시 알림 실패는 친구 요청 자체를 실패시키지 않음
+            log.warn("Failed to send friend request push notification: {} -> {}", requesterId, receiverId, e);
+        }
     }
 
     /**

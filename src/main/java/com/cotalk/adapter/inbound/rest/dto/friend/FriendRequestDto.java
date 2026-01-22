@@ -1,5 +1,8 @@
 package com.cotalk.adapter.inbound.rest.dto.friend;
 
+import com.cotalk.adapter.inbound.rest.dto.user.UserDto;
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.time.LocalDateTime;
 
 /**
@@ -14,9 +17,10 @@ import java.time.LocalDateTime;
  */
 public record FriendRequestDto(
         Long id,
-        FriendDto requester,
-        FriendDto receiver,
+        UserDto requester,
+        UserDto receiver,
         String status,
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         LocalDateTime createdAt
 ) {
     /**
@@ -29,7 +33,7 @@ public record FriendRequestDto(
      * @param createdAt 생성 일시
      * @return FriendRequestDto 인스턴스
      */
-    public static FriendRequestDto of(Long id, FriendDto requester, FriendDto receiver, String status, LocalDateTime createdAt) {
+    public static FriendRequestDto of(Long id, UserDto requester, UserDto receiver, String status, LocalDateTime createdAt) {
         return new FriendRequestDto(id, requester, receiver, status, createdAt);
     }
 }
