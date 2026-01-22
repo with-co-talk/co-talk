@@ -70,7 +70,8 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
                 msg.fileName(),
                 msg.fileSize(),
                 msg.contentType(),
-                msg.thumbnailUrl()
+                msg.thumbnailUrl(),
+                msg.unreadCount()
         );
     }
 

@@ -1,7 +1,10 @@
 package com.cotalk.application.service.message;
 
+import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.port.inbound.message.MarkAsReadUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.domain.port.outbound.UserEventBroker.ReadReceiptEvent;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 메시지 읽음 처리 유스케이스 구현체.
@@ -30,6 +34,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
 
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final ChatRoomMemberValidator chatRoomMemberValidator;
+    private final UserEventBroker userEventBroker;
 
     /**
      * 채팅방의 메시지를 읽음 처리한다.
@@ -56,6 +61,29 @@ public class MarkAsReadService implements MarkAsReadUseCase {
 
         if (updated > 0) {
             log.debug("Marked as read: userId={}, chatRoomId={}, lastReadAt={}", userId, chatRoomId, now);
+
+            // 다른 채팅방 멤버들에게 읽음 이벤트 브로드캐스트
+            publishReadReceiptToMembers(chatRoomId, userId, now);
+        }
+    }
+
+    /**
+     * 읽음 이벤트를 채팅방의 모든 멤버들에게 브로드캐스트한다.
+     * 읽은 사용자 본인에게도 이벤트를 전송하여 클라이언트가 읽음 완료를 확인할 수 있도록 한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param readerId   읽은 사용자 ID
+     * @param lastReadAt 읽은 시간
+     */
+    private void publishReadReceiptToMembers(Long chatRoomId, Long readerId, LocalDateTime lastReadAt) {
+        List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(chatRoomId);
+
+        ReadReceiptEvent event = new ReadReceiptEvent(chatRoomId, readerId, lastReadAt);
+
+        // 모든 멤버에게 이벤트 전송 (읽은 사용자 본인 포함)
+        for (ChatRoomMember member : members) {
+            userEventBroker.publishReadReceipt(member.getUserId(), event);
+            log.debug("Published read receipt to user {}: {}", member.getUserId(), event);
         }
     }
 }

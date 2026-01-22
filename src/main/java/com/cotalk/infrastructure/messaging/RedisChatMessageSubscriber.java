@@ -81,24 +81,26 @@ public class RedisChatMessageSubscriber implements MessageListener {
                 msg.fileName(),
                 msg.fileSize(),
                 msg.contentType(),
-                msg.thumbnailUrl()
+                msg.thumbnailUrl(),
+                msg.unreadCount()
         );
     }
 
     /**
      * WebSocket으로 전송할 채팅 메시지 DTO.
      *
-     * @param messageId 메시지 ID
-     * @param senderId 발신자 ID
-     * @param roomId 채팅방 ID
-     * @param content 메시지 내용
-     * @param type 메시지 타입
-     * @param createdAt 생성 일시
-     * @param fileUrl 파일 URL (파일 메시지인 경우)
-     * @param fileName 파일명 (파일 메시지인 경우)
-     * @param fileSize 파일 크기 (파일 메시지인 경우)
-     * @param contentType 컨텐츠 타입 (파일 메시지인 경우)
+     * @param messageId    메시지 ID
+     * @param senderId     발신자 ID
+     * @param roomId       채팅방 ID
+     * @param content      메시지 내용
+     * @param type         메시지 타입
+     * @param createdAt    생성 일시
+     * @param fileUrl      파일 URL (파일 메시지인 경우)
+     * @param fileName     파일명 (파일 메시지인 경우)
+     * @param fileSize     파일 크기 (파일 메시지인 경우)
+     * @param contentType  컨텐츠 타입 (파일 메시지인 경우)
      * @param thumbnailUrl 썸네일 URL (이미지 메시지인 경우)
+     * @param unreadCount  읽지 않은 멤버 수 (발신자 제외)
      */
     public record WebSocketChatMessage(
             Long messageId,
@@ -111,6 +113,7 @@ public class RedisChatMessageSubscriber implements MessageListener {
             String fileName,
             Long fileSize,
             String contentType,
-            String thumbnailUrl
+            String thumbnailUrl,
+            Integer unreadCount
     ) {}
 }

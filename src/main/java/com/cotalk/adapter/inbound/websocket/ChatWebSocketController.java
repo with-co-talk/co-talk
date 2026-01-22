@@ -12,9 +12,15 @@ import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase.FileMessageCommand;
+import com.cotalk.domain.entity.ChatRoomMember;
+import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
+import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
+import com.cotalk.domain.port.outbound.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -52,6 +58,9 @@ public class ChatWebSocketController {
     private final AddMessageReactionUseCase addMessageReactionUseCase;
     private final RemoveMessageReactionUseCase removeMessageReactionUseCase;
     private final MessageRepository messageRepository;
+    private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final UserEventBroker userEventBroker;
+    private final UserRepository userRepository;
 
     /**
      * 텍스트 채팅 메시지를 전송합니다.
@@ -67,8 +76,8 @@ public class ChatWebSocketController {
 
         // 메시지 저장
         Message savedMessage = sendMessageUseCase.sendMessage(
-                request.senderId(),
                 request.roomId(),
+                request.senderId(),
                 request.content()
         );
 
@@ -114,6 +123,13 @@ public class ChatWebSocketController {
      * Redis Subscriber가 이를 수신하여 WebSocket으로 전달
      */
     private void publishToRedis(Message message) {
+        // 읽지 않은 멤버 수 계산 (발신자 제외)
+        int unreadCount = chatRoomMemberRepository.countUnreadMembers(
+                message.getChatRoomId(),
+                message.getCreatedAt(),
+                message.getSenderId()
+        );
+
         ChatBroadcastMessage broadcastMessage = new ChatBroadcastMessage(
                 message.getId(),
                 message.getSenderId(),
@@ -125,10 +141,49 @@ public class ChatWebSocketController {
                 message.getFileName(),
                 message.getFileSize(),
                 message.getFileContentType(),
-                message.getThumbnailUrl()
+                message.getThumbnailUrl(),
+                unreadCount
         );
 
         chatMessageBroker.publish(message.getChatRoomId(), broadcastMessage);
+
+        // 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
+        publishChatListUpdate(message);
+    }
+
+    /**
+     * 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
+     */
+    private void publishChatListUpdate(Message message) {
+        // 발신자 닉네임 조회
+        String senderNickname = userRepository.findById(message.getSenderId())
+                .map(User::getNickname)
+                .orElse("알 수 없음");
+
+        // 채팅방 참여자 목록 조회
+        var members = chatRoomMemberRepository.findByChatRoomId(message.getChatRoomId());
+
+        for (ChatRoomMember member : members) {
+            // 해당 멤버의 읽지 않은 메시지 수 계산
+            int memberUnreadCount = (int) messageRepository.countUnreadMessages(
+                    message.getChatRoomId(),
+                    member.getUserId(),
+                    member.getLastReadAt()
+            );
+
+            ChatListUpdateEvent event = new ChatListUpdateEvent(
+                    "NEW_MESSAGE",
+                    message.getChatRoomId(),
+                    message.getContent(),
+                    message.getType().name(),
+                    message.getCreatedAt(),
+                    message.getSenderId(),
+                    senderNickname,
+                    memberUnreadCount
+            );
+
+            userEventBroker.publishChatListUpdate(member.getUserId(), event);
+        }
     }
 
     /**

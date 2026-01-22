@@ -18,7 +18,6 @@ import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.ChatRoomSummary;
 import com.cotalk.domain.port.inbound.chatroom.ChatRoomManagementUseCase;
-import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.CreateGroupChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomMembersUseCase;
@@ -41,7 +40,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -87,13 +85,12 @@ public class ChatRoomController {
     /**
      * 사용자의 채팅방 목록을 조회합니다.
      *
-     * @param userId 사용자 ID
      * @return 채팅방 목록
      */
     @Operation(summary = "채팅방 목록 조회", description = "사용자의 채팅방 목록을 조회합니다.")
     @GetMapping
-    public ResponseEntity<ChatRoomsResponse> getChatRooms(@RequestParam Long userId) {
-        validateUserAccess(userId);
+    public ResponseEntity<ChatRoomsResponse> getChatRooms() {
+        Long userId = securityContextHelper.getCurrentUserId();
         List<ChatRoomSummary> chatRooms = getChatRoomsUseCase.getChatRooms(userId);
         List<ChatRoomDto> roomDtos = chatRooms.stream()
                 .map(ChatRoomDto::from)
@@ -105,15 +102,12 @@ public class ChatRoomController {
      * 채팅방 멤버 목록을 조회합니다.
      *
      * @param roomId 채팅방 ID
-     * @param userId 요청 사용자 ID
      * @return 멤버 목록
      */
     @Operation(summary = "채팅방 멤버 목록 조회", description = "채팅방의 멤버 목록을 조회합니다.")
     @GetMapping("/{roomId}/members")
-    public ResponseEntity<ChatRoomMembersResponse> getChatRoomMembers(
-            @PathVariable Long roomId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
+    public ResponseEntity<ChatRoomMembersResponse> getChatRoomMembers(@PathVariable Long roomId) {
+        Long userId = securityContextHelper.getCurrentUserId();
         List<GetChatRoomMembersUseCase.MemberInfo> members =
                 getChatRoomMembersUseCase.getChatRoomMembers(roomId, userId);
         List<ChatRoomMemberDto> memberDtos = members.stream()
@@ -126,15 +120,12 @@ public class ChatRoomController {
      * 채팅방에서 나갑니다.
      *
      * @param roomId 채팅방 ID
-     * @param userId 사용자 ID
      * @return 처리 결과 메시지
      */
     @Operation(summary = "채팅방 나가기", description = "채팅방에서 나갑니다.")
     @PostMapping("/{roomId}/leave")
-    public ResponseEntity<MessageResponse> leaveChatRoom(
-            @PathVariable Long roomId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
+    public ResponseEntity<MessageResponse> leaveChatRoom(@PathVariable Long roomId) {
+        Long userId = securityContextHelper.getCurrentUserId();
         leaveChatRoomUseCase.leaveChatRoom(roomId, userId);
         return ResponseEntity.ok(MessageResponse.of("채팅방을 나갔습니다."));
     }
@@ -143,15 +134,12 @@ public class ChatRoomController {
      * 채팅방 메시지를 읽음 처리합니다.
      *
      * @param roomId 채팅방 ID
-     * @param userId 사용자 ID
      * @return 처리 결과 메시지
      */
     @Operation(summary = "읽음 표시", description = "채팅방 메시지를 읽음 처리합니다.")
     @PostMapping("/{roomId}/read")
-    public ResponseEntity<MessageResponse> markAsRead(
-            @PathVariable Long roomId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
+    public ResponseEntity<MessageResponse> markAsRead(@PathVariable Long roomId) {
+        Long userId = securityContextHelper.getCurrentUserId();
         markAsReadUseCase.markAsRead(userId, roomId);
         return ResponseEntity.ok(MessageResponse.of("읽음 처리되었습니다."));
     }
@@ -224,15 +212,12 @@ public class ChatRoomController {
      * 채팅방 공지사항을 삭제합니다. (관리자 권한 필요)
      *
      * @param roomId 채팅방 ID
-     * @param userId 사용자 ID
      * @return 처리 결과 메시지
      */
     @Operation(summary = "공지사항 삭제", description = "채팅방 공지사항을 삭제합니다. (관리자 권한 필요)")
     @DeleteMapping("/{roomId}/announcement")
-    public ResponseEntity<MessageResponse> clearAnnouncement(
-            @PathVariable Long roomId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
+    public ResponseEntity<MessageResponse> clearAnnouncement(@PathVariable Long roomId) {
+        Long userId = securityContextHelper.getCurrentUserId();
         chatRoomManagementUseCase.clearAnnouncement(roomId, userId);
         return ResponseEntity.ok(MessageResponse.of("공지사항이 삭제되었습니다."));
     }
@@ -242,16 +227,14 @@ public class ChatRoomController {
      *
      * @param roomId       채팅방 ID
      * @param targetUserId 관리자로 임명할 사용자 ID
-     * @param userId       요청자 ID (관리자)
      * @return 임명된 관리자 정보
      */
     @Operation(summary = "관리자 임명", description = "멤버를 관리자로 임명합니다. (관리자 권한 필요)")
     @PostMapping("/{roomId}/admins/{targetUserId}")
     public ResponseEntity<AdminResponse> promoteToAdmin(
             @PathVariable Long roomId,
-            @PathVariable Long targetUserId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
+            @PathVariable Long targetUserId) {
+        Long userId = securityContextHelper.getCurrentUserId();
         ChatRoomMember member = chatRoomManagementUseCase.promoteToAdmin(roomId, userId, targetUserId);
         return ResponseEntity.ok(AdminResponse.from(member, "관리자로 임명되었습니다."));
     }
@@ -261,16 +244,14 @@ public class ChatRoomController {
      *
      * @param roomId       채팅방 ID
      * @param targetUserId 권한 해제할 사용자 ID
-     * @param userId       요청자 ID (관리자)
      * @return 권한 해제된 멤버 정보
      */
     @Operation(summary = "관리자 해제", description = "관리자 권한을 해제합니다. (관리자 권한 필요)")
     @DeleteMapping("/{roomId}/admins/{targetUserId}")
     public ResponseEntity<AdminResponse> demoteFromAdmin(
             @PathVariable Long roomId,
-            @PathVariable Long targetUserId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
+            @PathVariable Long targetUserId) {
+        Long userId = securityContextHelper.getCurrentUserId();
         ChatRoomMember member = chatRoomManagementUseCase.demoteFromAdmin(roomId, userId, targetUserId);
         return ResponseEntity.ok(AdminResponse.from(member, "관리자 권한이 해제되었습니다."));
     }
@@ -280,30 +261,16 @@ public class ChatRoomController {
      *
      * @param roomId       채팅방 ID
      * @param targetUserId 강제 퇴장시킬 사용자 ID
-     * @param userId       요청자 ID (관리자)
      * @return 처리 결과 메시지
      */
     @Operation(summary = "멤버 강제 퇴장", description = "채팅방에서 멤버를 강제 퇴장시킵니다. (관리자 권한 필요)")
     @DeleteMapping("/{roomId}/members/{targetUserId}")
     public ResponseEntity<MessageResponse> kickMember(
             @PathVariable Long roomId,
-            @PathVariable Long targetUserId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
+            @PathVariable Long targetUserId) {
+        Long userId = securityContextHelper.getCurrentUserId();
         kickChatRoomMemberUseCase.kickMember(roomId, userId, targetUserId);
         return ResponseEntity.ok(MessageResponse.of("멤버가 강제 퇴장되었습니다."));
     }
 
-    /**
-     * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
-     *
-     * @param userId 검증할 사용자 ID
-     * @throws ResourceAccessDeniedException 사용자 ID가 일치하지 않는 경우
-     */
-    private void validateUserAccess(Long userId) {
-        Long currentUserId = securityContextHelper.getCurrentUserId();
-        if (!currentUserId.equals(userId)) {
-            throw new ResourceAccessDeniedException();
-        }
-    }
 }
