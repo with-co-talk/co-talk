@@ -22,6 +22,7 @@ import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.exception.MessageReactionNotFoundException;
 import com.cotalk.domain.exception.RateLimitExceededException;
 import com.cotalk.domain.exception.ReportNotFoundException;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.exception.TermsAgreementException;
 import com.cotalk.domain.exception.UnauthorizedException;
 import com.cotalk.domain.exception.UserNotFoundException;
@@ -321,8 +322,8 @@ class GlobalExceptionHandlerTest {
     class HandleInvalidCredentialsException {
 
         @Test
-        @DisplayName("InvalidCredentialsException은 401 UNAUTHORIZED 반환")
-        void should_returnUnauthorized_when_invalidCredentials() {
+        @DisplayName("InvalidCredentialsException은 400 BAD_REQUEST 반환")
+        void should_returnBadRequest_when_invalidCredentials() {
             // given
             InvalidCredentialsException exception = new InvalidCredentialsException();
 
@@ -330,9 +331,29 @@ class GlobalExceptionHandlerTest {
             ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleInvalidCredentialsException(exception);
 
             // then
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().code()).isEqualTo("INVALID_CREDENTIALS");
+        }
+    }
+
+    @Nested
+    @DisplayName("ResourceAccessDeniedException 처리")
+    class HandleResourceAccessDeniedException {
+
+        @Test
+        @DisplayName("ResourceAccessDeniedException은 403 FORBIDDEN 반환")
+        void should_returnForbidden_when_resourceAccessDenied() {
+            // given
+            ResourceAccessDeniedException exception = new ResourceAccessDeniedException();
+
+            // when
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleResourceAccessDeniedException(exception);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().code()).isEqualTo("ACCESS_DENIED");
         }
     }
 

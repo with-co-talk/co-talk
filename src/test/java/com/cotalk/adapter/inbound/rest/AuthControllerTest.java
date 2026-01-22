@@ -145,8 +145,8 @@ class AuthControllerTest {
         }
 
         @Test
-        @DisplayName("잘못된 자격 증명으로 로그인 시 401 에러")
-        void should_returnUnauthorized_when_invalidCredentials() throws Exception {
+        @DisplayName("잘못된 자격 증명으로 로그인 시 400 에러")
+        void should_returnBadRequest_when_invalidCredentials() throws Exception {
             // given
             LoginRequest request = new LoginRequest("test@example.com", "wrongpassword");
             given(loginUseCase.login(anyString(), anyString()))
@@ -156,7 +156,7 @@ class AuthControllerTest {
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isUnauthorized())
+                    .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.error").value("이메일 또는 비밀번호가 올바르지 않습니다."));
         }
     }

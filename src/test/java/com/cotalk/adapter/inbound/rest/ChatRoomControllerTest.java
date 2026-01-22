@@ -11,10 +11,13 @@ import com.cotalk.domain.entity.ChatRoomSummary;
 import com.cotalk.domain.port.inbound.chatroom.ChatRoomManagementUseCase;
 import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.CreateGroupChatRoomUseCase;
+import com.cotalk.domain.port.inbound.chatroom.GetChatRoomMembersUseCase;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomsUseCase;
 import com.cotalk.domain.port.inbound.chatroom.InviteGroupChatMemberUseCase;
+import com.cotalk.domain.port.inbound.chatroom.KickChatRoomMemberUseCase;
 import com.cotalk.domain.port.inbound.chatroom.LeaveChatRoomUseCase;
 import com.cotalk.domain.port.inbound.message.MarkAsReadUseCase;
+import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
@@ -49,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ChatRoomController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import(RateLimitTestConfiguration.class)
+@Import({RateLimitTestConfiguration.class, GlobalExceptionHandler.class})
 class ChatRoomControllerTest {
 
     @Autowired
@@ -78,6 +81,12 @@ class ChatRoomControllerTest {
 
     @MockBean
     private ChatRoomManagementUseCase chatRoomManagementUseCase;
+
+    @MockBean
+    private GetChatRoomMembersUseCase getChatRoomMembersUseCase;
+
+    @MockBean
+    private KickChatRoomMemberUseCase kickChatRoomMemberUseCase;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
@@ -183,6 +192,57 @@ class ChatRoomControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.rooms").isArray())
                     .andExpect(jsonPath("$.rooms.length()").value(0));
+        }
+    }
+
+    @Nested
+    @DisplayName("채팅방 멤버 목록 조회 API")
+    class GetChatRoomMembersApi {
+
+        @Test
+        @DisplayName("채팅방 멤버 목록 조회 성공")
+        void should_returnMembers_when_validRequest() throws Exception {
+            // given
+            Long roomId = 100L;
+            Long userId = 1L;
+
+            List<GetChatRoomMembersUseCase.MemberInfo> members = List.of(
+                    new GetChatRoomMembersUseCase.MemberInfo(
+                            1L, "관리자", "https://example.com/admin.png", ChatRoomMember.MemberRole.ADMIN),
+                    new GetChatRoomMembersUseCase.MemberInfo(
+                            2L, "멤버1", null, ChatRoomMember.MemberRole.MEMBER)
+            );
+
+            given(getChatRoomMembersUseCase.getChatRoomMembers(roomId, userId)).willReturn(members);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/chat/rooms/{roomId}/members", roomId)
+                            .param("userId", String.valueOf(userId)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.members").isArray())
+                    .andExpect(jsonPath("$.members.length()").value(2))
+                    .andExpect(jsonPath("$.members[0].userId").value(1))
+                    .andExpect(jsonPath("$.members[0].nickname").value("관리자"))
+                    .andExpect(jsonPath("$.members[0].role").value("ADMIN"))
+                    .andExpect(jsonPath("$.members[1].userId").value(2))
+                    .andExpect(jsonPath("$.members[1].role").value("MEMBER"));
+        }
+
+        @Test
+        @DisplayName("빈 멤버 목록 조회 성공")
+        void should_returnEmptyList_when_noMembers() throws Exception {
+            // given
+            Long roomId = 100L;
+            Long userId = 1L;
+
+            given(getChatRoomMembersUseCase.getChatRoomMembers(roomId, userId)).willReturn(List.of());
+
+            // when & then
+            mockMvc.perform(get("/api/v1/chat/rooms/{roomId}/members", roomId)
+                            .param("userId", String.valueOf(userId)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.members").isArray())
+                    .andExpect(jsonPath("$.members.length()").value(0));
         }
     }
 
@@ -466,6 +526,42 @@ class ChatRoomControllerTest {
                     .andExpect(jsonPath("$.userId").value(targetUserId))
                     .andExpect(jsonPath("$.role").value("MEMBER"))
                     .andExpect(jsonPath("$.message").value("관리자 권한이 해제되었습니다."));
+        }
+    }
+
+    @Nested
+    @DisplayName("멤버 강제 퇴장 API")
+    class KickMemberApi {
+
+        @Test
+        @DisplayName("유효한 요청으로 멤버 강제 퇴장 성공")
+        void should_returnOk_when_validRequest() throws Exception {
+            // given
+            Long roomId = 100L;
+            Long targetUserId = 2L;
+            Long userId = 1L;
+
+            willDoNothing().given(kickChatRoomMemberUseCase).kickMember(roomId, userId, targetUserId);
+
+            // when & then
+            mockMvc.perform(delete("/api/v1/chat/rooms/{roomId}/members/{targetUserId}", roomId, targetUserId)
+                            .param("userId", String.valueOf(userId)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("멤버가 강제 퇴장되었습니다."));
+        }
+
+        @Test
+        @DisplayName("인증된 사용자와 요청 userId가 다르면 접근 거부")
+        void should_returnForbidden_when_userIdMismatch() throws Exception {
+            // given
+            Long roomId = 100L;
+            Long targetUserId = 2L;
+            Long requestUserId = 999L; // 인증된 사용자(1L)와 다른 userId
+
+            // when & then
+            mockMvc.perform(delete("/api/v1/chat/rooms/{roomId}/members/{targetUserId}", roomId, targetUserId)
+                            .param("userId", String.valueOf(requestUserId)))
+                    .andExpect(status().isForbidden());
         }
     }
 }

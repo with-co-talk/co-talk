@@ -148,8 +148,8 @@ class SecurityContextHelperTest {
     class VariousAuthenticationScenarios {
 
         @Test
-        @DisplayName("CustomUserPrincipal로 인증된 경우 ID를 반환할 수 없다")
-        void should_throwException_when_customUserPrincipal() {
+        @DisplayName("CustomUserPrincipal로 인증된 경우 ID를 반환한다")
+        void should_returnUserId_when_customUserPrincipal() {
             // given
             Long userId = 42L;
             List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
@@ -159,10 +159,11 @@ class SecurityContextHelperTest {
                     new UsernamePasswordAuthenticationToken(principal, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // when & then
-            // CustomUserPrincipal은 Long이나 String이 아니므로 UnauthorizedException 발생
-            assertThatThrownBy(() -> securityContextHelper.getCurrentUserId())
-                    .isInstanceOf(UnauthorizedException.class);
+            // when
+            Long result = securityContextHelper.getCurrentUserId();
+
+            // then
+            assertThat(result).isEqualTo(userId);
         }
 
         @Test

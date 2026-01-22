@@ -5,6 +5,7 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.user.SearchUserUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
+import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.cotalk.infrastructure.security.SecurityContextHelper;
@@ -53,6 +54,9 @@ class UserControllerTest {
 
     @MockBean
     private UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
+
+    @MockBean
+    private UserRepository userRepository;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
