@@ -80,11 +80,12 @@ firebase:
   credentials-path: ${FIREBASE_CREDENTIALS_PATH:firebase-service-account.json}
 
 # MinIO 설정 (파일 저장소)
+# 보안: 프로덕션에서는 반드시 환경변수로 자격증명 설정 필요
 minio:
   enabled: ${MINIO_ENABLED:false}
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
-  access-key: ${MINIO_ACCESS_KEY:minioadmin}
-  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  access-key: ${MINIO_ACCESS_KEY}
+  secret-key: ${MINIO_SECRET_KEY}
   bucket: ${MINIO_BUCKET:cotalk}
   public-url: ${MINIO_PUBLIC_URL:}
   region: ${MINIO_REGION:us-east-1}
@@ -150,13 +151,15 @@ app:
         per-user: true
 
 # 로깅 설정
+# 주의: 프로덕션 환경에서는 application-prod.yml의 설정이 적용됨
 logging:
   level:
     root: INFO
     com.cotalk: DEBUG
     org.springframework.web: INFO
     org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    # 보안: 쿼리 파라미터 로깅 비활성화 (민감 정보 노출 방지)
+    org.hibernate.type.descriptor.sql.BasicBinder: OFF
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

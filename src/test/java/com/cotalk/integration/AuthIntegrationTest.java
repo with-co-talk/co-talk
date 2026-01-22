@@ -2,14 +2,12 @@ package com.cotalk.integration;
 
 import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
-import com.cotalk.config.TestRedisConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -22,10 +20,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
-@Import(TestRedisConfiguration.class)
 class AuthIntegrationTest {
 
     @Autowired
@@ -98,8 +95,8 @@ class AuthIntegrationTest {
     void should_failLogin_when_wrongPassword() throws Exception {
         // given
         String email = "user@example.com";
-        String password = "CorrectPassword1!";
-        String wrongPassword = "wrongPassword";
+        String password = "CorrectP@ss123";
+        String wrongPassword = "WrongP@ss123";
 
         SignUpRequest signUpRequest = new SignUpRequest(email, password, "테스트");
         LoginRequest loginRequest = new LoginRequest(email, wrongPassword);
@@ -114,6 +111,6 @@ class AuthIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized());
     }
 }

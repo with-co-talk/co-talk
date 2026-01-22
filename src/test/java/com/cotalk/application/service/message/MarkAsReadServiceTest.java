@@ -99,8 +99,8 @@ class MarkAsReadServiceTest {
         markAsReadUseCase.markAsRead(userId, chatRoomId);
 
         // then
-        ArgumentCaptor<LocalDateTime> captor = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(chatRoomMemberRepository).updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), captor.capture());
-        assertThat(captor.getValue()).isAfter(beforeMark);
+        ArgumentCaptor<LocalDateTime> timeCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(chatRoomMemberRepository).updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), timeCaptor.capture());
+        assertThat(timeCaptor.getValue()).isAfter(beforeMark);
     }
 }

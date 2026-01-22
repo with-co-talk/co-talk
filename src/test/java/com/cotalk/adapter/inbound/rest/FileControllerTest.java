@@ -4,10 +4,11 @@ import com.cotalk.domain.exception.FileUploadException;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadCommand;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadResult;
-import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.cotalk.infrastructure.security.SecurityContextHelper;
+import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,11 @@ class FileControllerTest {
     @MockBean
     private SecurityContextHelper securityContextHelper;
 
+    @BeforeEach
+    void setUp() {
+        given(securityContextHelper.getCurrentUserId()).willReturn(1L);
+    }
+
     @Nested
     @DisplayName("파일 업로드 API")
     class UploadFileApi {
@@ -67,7 +73,6 @@ class FileControllerTest {
                     file.getSize()
             );
 
-            given(securityContextHelper.getCurrentUserId()).willReturn(1L);
             given(uploadFileUseCase.uploadFile(any(FileUploadCommand.class))).willReturn(result);
 
             // when & then
@@ -99,7 +104,6 @@ class FileControllerTest {
                     file.getSize()
             );
 
-            given(securityContextHelper.getCurrentUserId()).willReturn(1L);
             given(uploadFileUseCase.uploadFile(any(FileUploadCommand.class))).willReturn(result);
 
             // when & then
@@ -121,7 +125,6 @@ class FileControllerTest {
                     "fake exe content".getBytes()
             );
 
-            given(securityContextHelper.getCurrentUserId()).willReturn(1L);
             given(uploadFileUseCase.uploadFile(any(FileUploadCommand.class)))
                     .willThrow(FileUploadException.invalidFileType("application/x-msdownload"));
 
@@ -142,7 +145,6 @@ class FileControllerTest {
                     new byte[1024] // actual content doesn't matter
             );
 
-            given(securityContextHelper.getCurrentUserId()).willReturn(1L);
             given(uploadFileUseCase.uploadFile(any(FileUploadCommand.class)))
                     .willThrow(FileUploadException.fileTooLarge(10485760L));
 

@@ -28,11 +28,13 @@ public class SecurityContextHelper {
         }
 
         Object principal = authentication.getPrincipal();
-
-        if (principal instanceof CustomUserPrincipal customUserPrincipal) {
-            return customUserPrincipal.getUserId();
+        
+        // CustomUserPrincipal 타입 우선 체크
+        if (principal instanceof CustomUserPrincipal) {
+            return ((CustomUserPrincipal) principal).getUserId();
         }
 
+        // 하위 호환성을 위한 타입 체크
         if (principal instanceof Long) {
             return (Long) principal;
         }

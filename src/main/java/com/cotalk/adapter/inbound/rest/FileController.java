@@ -34,7 +34,7 @@ public class FileController {
     /**
      * FileController 생성자.
      *
-     * @param uploadFileUseCase     파일 업로드 유스케이스
+     * @param uploadFileUseCase 파일 업로드 유스케이스
      * @param securityContextHelper 보안 컨텍스트 헬퍼
      */
     public FileController(UploadFileUseCase uploadFileUseCase,
@@ -45,7 +45,7 @@ public class FileController {
 
     /**
      * 파일을 업로드한다.
-     * 인증된 사용자만 파일을 업로드할 수 있으며, 사용자 ID는 SecurityContext에서 자동으로 추출된다.
+     * 인증된 사용자의 ID를 SecurityContext에서 자동으로 조회하여 사용한다.
      *
      * @param file 업로드할 파일
      * @return 업로드된 파일 정보 (URL, 파일명, 타입, 크기, 이미지 여부)
@@ -56,10 +56,10 @@ public class FileController {
     public ResponseEntity<FileUploadResponse> uploadFile(
             @RequestParam("file") MultipartFile file) throws IOException {
 
-        Long userId = securityContextHelper.getCurrentUserId();
+        Long currentUserId = securityContextHelper.getCurrentUserId();
 
         FileUploadCommand command = new FileUploadCommand(
-                userId,
+                currentUserId,
                 file.getInputStream(),
                 file.getOriginalFilename(),
                 file.getContentType(),

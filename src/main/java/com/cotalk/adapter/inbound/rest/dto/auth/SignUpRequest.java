@@ -1,15 +1,16 @@
 package com.cotalk.adapter.inbound.rest.dto.auth;
 
-import com.cotalk.domain.validation.StrongPassword;
+import com.cotalk.infrastructure.security.PasswordValidator;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * 회원가입 요청 DTO.
  *
  * @param email    이메일 주소
- * @param password 비밀번호 (8자 이상, 대문자/소문자/숫자/특수문자 포함)
- * @param nickname 닉네임
+ * @param password 비밀번호 (8-128자, 대문자/소문자/숫자/특수문자 각 1개 이상)
+ * @param nickname 닉네임 (2-50자)
  * @author seunggu.lee
  */
 public record SignUpRequest(
@@ -18,9 +19,10 @@ public record SignUpRequest(
         String email,
 
         @NotBlank(message = "비밀번호는 필수입니다.")
-        @StrongPassword
+        @PasswordValidator
         String password,
 
         @NotBlank(message = "닉네임은 필수입니다.")
+        @Size(min = 2, max = 50, message = "닉네임은 2-50자여야 합니다.")
         String nickname
 ) {}

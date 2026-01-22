@@ -24,8 +24,6 @@ spring:
   autoconfigure:
     exclude:
       - org.redisson.spring.starter.RedissonAutoConfigurationV2
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
 jwt:
   secret: test-secret-key-for-testing-purposes-only-1234567890
@@ -33,6 +31,12 @@ jwt:
 
 firebase:
   enabled: false
+
+# Snowflake ID 생성기 설정 (Redis 미사용)
+snowflake:
+  use-redis-allocation: false
+  datacenter-id: 0
+  worker-id: 0
 
 app:
   rate-limit:

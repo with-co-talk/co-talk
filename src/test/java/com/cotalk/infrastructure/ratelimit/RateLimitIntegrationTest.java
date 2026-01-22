@@ -31,13 +31,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Rate Limit 통합 테스트.
- * Testcontainers를 사용하여 Redis 컨테이너를 자동으로 시작합니다.
+ * Testcontainers Redis를 사용하여 Rate Limit 동작을 검증합니다.
  *
- * <p>Docker가 실행 중이지 않으면 테스트가 건너뛰어집니다.</p>
+ * <p><b>주의:</b> Docker가 실행 중이어야 테스트가 실행됩니다.</p>
  *
  * @author seunggu.lee
  */
-@Testcontainers
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
@@ -47,14 +46,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Import({IntegrationTestSecurityConfig.class, RateLimitWebConfig.class})
 @ActiveProfiles("ratelimit-test")
-@DisplayName("Rate Limit 통합 테스트")
+@Testcontainers(disabledWithoutDocker = true)
 @EnabledIf("isDockerAvailable")
+@DisplayName("Rate Limit 통합 테스트")
 class RateLimitIntegrationTest {
 
-    private static final Logger log = LoggerFactory.getLogger(RateLimitIntegrationTest.class);
-
     /**
-     * Docker가 사용 가능한지 확인합니다.
+     * Docker 사용 가능 여부를 확인한다.
      *
      * @return Docker가 사용 가능하면 true
      */
@@ -62,24 +60,25 @@ class RateLimitIntegrationTest {
         try {
             DockerClientFactory.instance().client();
             return true;
-        } catch (Throwable ex) {
-            log.warn("Docker is not available, skipping Rate Limit integration tests: {}", ex.getMessage());
+        } catch (Throwable e) {
             return false;
         }
     }
 
+    private static final Logger log = LoggerFactory.getLogger(RateLimitIntegrationTest.class);
+
     @Container
-    static GenericContainer<?> redisContainer = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+    static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
             .withExposedPorts(6379);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        // Rate Limit 활성화 (가장 높은 우선순위로 설정)
+        // Rate Limit 활성화
         registry.add("app.rate-limit.enabled", () -> "true");
 
-        // Testcontainers에서 시작한 Redis 사용
-        registry.add("spring.data.redis.host", redisContainer::getHost);
-        registry.add("spring.data.redis.port", redisContainer::getFirstMappedPort);
+        // Testcontainers Redis 설정
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
     }
 
     @Autowired

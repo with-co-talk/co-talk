@@ -32,6 +32,9 @@ import java.util.Date;
 public class JwtTokenProvider {
 
     private static final int MIN_SECRET_KEY_LENGTH = 32; // 256비트
+    private static final String TOKEN_TYPE_CLAIM = "token_type";
+    private static final String TOKEN_TYPE_ACCESS = "ACCESS";
+    private static final String TOKEN_TYPE_REFRESH = "REFRESH";
 
     private final SecretKey secretKey;
     private final long expiration;
@@ -75,11 +78,11 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 사용자 ID와 역할을 기반으로 JWT 토큰을 생성한다.
+     * 사용자 ID와 역할을 기반으로 Access 토큰을 생성한다.
      *
      * @param userId 사용자 ID
      * @param role 사용자 역할
-     * @return 생성된 JWT 토큰 문자열
+     * @return 생성된 JWT Access 토큰 문자열
      */
     public String generateToken(Long userId, String role) {
         Date now = new Date();
@@ -88,10 +91,63 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("role", role)
+                .claim(TOKEN_TYPE_CLAIM, TOKEN_TYPE_ACCESS)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
                 .compact();
+    }
+
+    /**
+     * 사용자 ID를 기반으로 Refresh 토큰을 생성한다.
+     *
+     * @param userId 사용자 ID
+     * @param refreshExpiration Refresh 토큰 만료 시간 (밀리초)
+     * @return 생성된 JWT Refresh 토큰 문자열
+     */
+    public String generateRefreshToken(Long userId, long refreshExpiration) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + refreshExpiration);
+
+        return Jwts.builder()
+                .subject(userId.toString())
+                .claim(TOKEN_TYPE_CLAIM, TOKEN_TYPE_REFRESH)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(secretKey)
+                .compact();
+    }
+
+    /**
+     * JWT 토큰의 타입을 반환한다.
+     *
+     * @param token JWT 토큰 문자열
+     * @return 토큰 타입 (ACCESS 또는 REFRESH)
+     */
+    public String getTokenType(String token) {
+        Claims claims = getClaims(token);
+        String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
+        return tokenType != null ? tokenType : TOKEN_TYPE_ACCESS;
+    }
+
+    /**
+     * 주어진 토큰이 Access 토큰인지 확인한다.
+     *
+     * @param token JWT 토큰 문자열
+     * @return Access 토큰이면 true
+     */
+    public boolean isAccessToken(String token) {
+        return TOKEN_TYPE_ACCESS.equals(getTokenType(token));
+    }
+
+    /**
+     * 주어진 토큰이 Refresh 토큰인지 확인한다.
+     *
+     * @param token JWT 토큰 문자열
+     * @return Refresh 토큰이면 true
+     */
+    public boolean isRefreshToken(String token) {
+        return TOKEN_TYPE_REFRESH.equals(getTokenType(token));
     }
 
     /**

@@ -2,17 +2,15 @@ package com.cotalk.infrastructure.security;
 
 import com.cotalk.adapter.inbound.rest.AuthController;
 import com.cotalk.adapter.inbound.rest.FriendController;
+import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
+import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
-import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
-import com.cotalk.domain.port.inbound.friend.GetReceivedFriendRequestsUseCase;
-import com.cotalk.domain.port.inbound.friend.GetSentFriendRequestsUseCase;
 import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
-import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
-import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -69,15 +67,6 @@ class SecurityConfigTest {
     @MockBean
     private GetFriendListUseCase getFriendListUseCase;
 
-    @MockBean
-    private GetReceivedFriendRequestsUseCase getReceivedFriendRequestsUseCase;
-
-    @MockBean
-    private GetSentFriendRequestsUseCase getSentFriendRequestsUseCase;
-
-    @MockBean
-    private UserRepository userRepository;
-
     @Test
     @DisplayName("인증 없이 회원가입 API 접근 가능")
     void should_allowAccess_when_signUpWithoutAuth() throws Exception {
@@ -103,8 +92,7 @@ class SecurityConfigTest {
     @DisplayName("인증 없이 로그인 API 접근 가능")
     void should_allowAccess_when_loginWithoutAuth() throws Exception {
         // given
-        given(loginUseCase.login(anyString(), anyString())).willReturn("jwt-token");
-        given(loginUseCase.getUserIdByEmail(anyString())).willReturn(1L);
+        given(loginUseCase.login(anyString(), anyString())).willReturn(new LoginResult("jwt-token", 1L));
         given(refreshTokenUseCase.createRefreshToken(1L)).willReturn("refresh-token");
 
         String requestBody = """

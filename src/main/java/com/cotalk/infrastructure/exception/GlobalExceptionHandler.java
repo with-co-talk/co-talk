@@ -65,16 +65,16 @@ public class GlobalExceptionHandler {
 
     /**
      * 잘못된 인증 정보 예외를 처리한다.
-     * 로그인 실패 시 사용되며, 잘못된 요청 데이터로 처리한다.
+     * 보안상 이메일 존재 여부를 노출하지 않기 위해 일반적인 메시지를 반환한다.
      *
      * @param e 잘못된 인증 정보 예외
-     * @return 400 Bad Request 응답
+     * @return 401 Unauthorized 응답
      */
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(InvalidCredentialsException e) {
-        log.warn("Invalid credentials: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(e.getMessage(), "INVALID_CREDENTIALS", LocalDateTime.now()));
+        log.warn("Authentication failed");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse("이메일 또는 비밀번호가 올바르지 않습니다.", "INVALID_CREDENTIALS", LocalDateTime.now()));
     }
 
     /**
