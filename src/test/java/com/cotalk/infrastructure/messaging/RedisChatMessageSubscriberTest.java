@@ -193,7 +193,7 @@ class RedisChatMessageSubscriberTest {
             WebSocketChatMessage message = new WebSocketChatMessage(
                     1L, 2L, 3L, "content", "TEXT",
                     java.time.LocalDateTime.now(),
-                    "fileUrl", "fileName", 100L, "text/plain", "thumbUrl"
+                    "fileUrl", "fileName", 100L, "text/plain", "thumbUrl", 1
             );
 
             // then
@@ -207,6 +207,7 @@ class RedisChatMessageSubscriberTest {
             assertThat(message.fileSize()).isEqualTo(100L);
             assertThat(message.contentType()).isEqualTo("text/plain");
             assertThat(message.thumbnailUrl()).isEqualTo("thumbUrl");
+            assertThat(message.unreadCount()).isEqualTo(1);
         }
     }
 

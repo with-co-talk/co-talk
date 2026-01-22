@@ -15,7 +15,10 @@ import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase.FileMessageCommand;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
+import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,6 +57,15 @@ class ChatWebSocketControllerTest {
 
     @Mock
     private MessageRepository messageRepository;
+
+    @Mock
+    private ChatRoomMemberRepository chatRoomMemberRepository;
+
+    @Mock
+    private UserEventBroker userEventBroker;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private ChatWebSocketController chatWebSocketController;
@@ -88,12 +101,16 @@ class ChatWebSocketControllerTest {
 
         given(sendMessageUseCase.sendMessage(anyLong(), anyLong(), anyString()))
                 .willReturn(mockMessage);
+        given(chatRoomMemberRepository.countUnreadMembers(anyLong(), any(), anyLong()))
+                .willReturn(1);
+        given(chatRoomMemberRepository.findByChatRoomId(anyLong()))
+                .willReturn(Collections.emptyList());
 
         // when
         chatWebSocketController.sendMessage(request);
 
         // then
-        verify(sendMessageUseCase).sendMessage(1L, 100L, "테스트 메시지");
+        verify(sendMessageUseCase).sendMessage(100L, 1L, "테스트 메시지");
 
         ArgumentCaptor<Long> roomIdCaptor = ArgumentCaptor.forClass(Long.class);
         ArgumentCaptor<ChatBroadcastMessage> messageCaptor =
@@ -105,6 +122,7 @@ class ChatWebSocketControllerTest {
         assertThat(messageCaptor.getValue().content()).isEqualTo("테스트 메시지");
         assertThat(messageCaptor.getValue().senderId()).isEqualTo(1L);
         assertThat(messageCaptor.getValue().messageId()).isEqualTo(1L);
+        assertThat(messageCaptor.getValue().unreadCount()).isEqualTo(1);
     }
 
     @Test
@@ -135,6 +153,10 @@ class ChatWebSocketControllerTest {
 
         given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any(FileMessageCommand.class)))
                 .willReturn(fileMessage);
+        given(chatRoomMemberRepository.countUnreadMembers(anyLong(), any(), anyLong()))
+                .willReturn(1);
+        given(chatRoomMemberRepository.findByChatRoomId(anyLong()))
+                .willReturn(Collections.emptyList());
 
         // when
         chatWebSocketController.sendFileMessage(request);
@@ -182,6 +204,10 @@ class ChatWebSocketControllerTest {
 
         given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any(FileMessageCommand.class)))
                 .willReturn(imageMessage);
+        given(chatRoomMemberRepository.countUnreadMembers(anyLong(), any(), anyLong()))
+                .willReturn(1);
+        given(chatRoomMemberRepository.findByChatRoomId(anyLong()))
+                .willReturn(Collections.emptyList());
 
         // when
         chatWebSocketController.sendFileMessage(request);
