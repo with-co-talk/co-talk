@@ -22,6 +22,7 @@ import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.exception.MessageReactionNotFoundException;
 import com.cotalk.domain.exception.RateLimitExceededException;
 import com.cotalk.domain.exception.ReportNotFoundException;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.exception.TermsAgreementException;
 import com.cotalk.domain.exception.UnauthorizedException;
 import com.cotalk.domain.exception.UserNotFoundException;
@@ -64,14 +65,15 @@ public class GlobalExceptionHandler {
 
     /**
      * 잘못된 인증 정보 예외를 처리한다.
+     * 로그인 실패 시 사용되며, 잘못된 요청 데이터로 처리한다.
      *
      * @param e 잘못된 인증 정보 예외
-     * @return 401 Unauthorized 응답
+     * @return 400 Bad Request 응답
      */
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(InvalidCredentialsException e) {
         log.warn("Invalid credentials: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(e.getMessage(), "INVALID_CREDENTIALS", LocalDateTime.now()));
     }
 
@@ -86,6 +88,20 @@ public class GlobalExceptionHandler {
         log.warn("Unauthorized access: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse(e.getMessage(), "UNAUTHORIZED", LocalDateTime.now()));
+    }
+
+    /**
+     * 리소스 접근 거부 예외를 처리한다.
+     * 인증된 사용자가 자신의 리소스가 아닌 다른 사용자의 리소스에 접근할 때 발생한다.
+     *
+     * @param e 리소스 접근 거부 예외
+     * @return 403 Forbidden 응답
+     */
+    @ExceptionHandler(ResourceAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleResourceAccessDeniedException(ResourceAccessDeniedException e) {
+        log.warn("Resource access denied: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(e.getMessage(), "ACCESS_DENIED", LocalDateTime.now()));
     }
 
     /**
@@ -418,6 +434,19 @@ public class GlobalExceptionHandler {
         log.warn("Missing parameter: {}", e.getParameterName());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(message, "MISSING_PARAMETER", LocalDateTime.now()));
+    }
+
+    /**
+     * 잘못된 인자 예외를 처리한다.
+     *
+     * @param e 잘못된 인자 예외
+     * @return 400 Bad Request 응답
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e) {
+        log.warn("Invalid argument: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(e.getMessage(), "INVALID_ARGUMENT", LocalDateTime.now()));
     }
 
     /**
