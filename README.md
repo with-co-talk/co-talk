@@ -129,9 +129,9 @@ kubectl apply -k k8s/overlays/prod
 
 ## 문서
 
+- [Co-Talk Docs](https://github.com/with-co-talk/co-talk-docs) - API 문서, 아키텍처, 기술 결정 등
 - [INFRASTRUCTURE.md](INFRASTRUCTURE.md) - 인프라 및 배포 가이드
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) - 출시 전 체크리스트
-- [docs/REFACTORING_GUIDE.md](docs/REFACTORING_GUIDE.md) - 리팩토링 가이드
 
 ## 라이선스
 
