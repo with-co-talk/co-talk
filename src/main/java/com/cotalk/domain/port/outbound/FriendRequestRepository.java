@@ -38,6 +38,14 @@ public interface FriendRequestRepository {
     List<FriendRequest> findPendingByReceiverId(Long receiverId);
 
     /**
+     * 특정 사용자가 보낸 대기 중인 친구 요청 목록을 조회한다.
+     *
+     * @param requesterId 요청자 ID
+     * @return 대기 중인 친구 요청 목록
+     */
+    List<FriendRequest> findPendingByRequesterId(Long requesterId);
+
+    /**
      * 특정 요청자와 수신자 간의 친구 요청 존재 여부를 확인한다.
      *
      * @param requesterId 요청자 ID

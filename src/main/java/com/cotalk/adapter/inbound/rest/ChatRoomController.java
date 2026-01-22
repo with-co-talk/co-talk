@@ -3,6 +3,8 @@ package com.cotalk.adapter.inbound.rest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.AdminResponse;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.AnnouncementResponse;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.ChatRoomDto;
+import com.cotalk.adapter.inbound.rest.dto.chatroom.ChatRoomMemberDto;
+import com.cotalk.adapter.inbound.rest.dto.chatroom.ChatRoomMembersResponse;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.ChatRoomsResponse;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateChatRoomResponse;
@@ -16,11 +18,13 @@ import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.ChatRoomSummary;
 import com.cotalk.domain.port.inbound.chatroom.ChatRoomManagementUseCase;
-import com.cotalk.domain.exception.UnauthorizedException;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.CreateGroupChatRoomUseCase;
+import com.cotalk.domain.port.inbound.chatroom.GetChatRoomMembersUseCase;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomsUseCase;
 import com.cotalk.domain.port.inbound.chatroom.InviteGroupChatMemberUseCase;
+import com.cotalk.domain.port.inbound.chatroom.KickChatRoomMemberUseCase;
 import com.cotalk.domain.port.inbound.chatroom.LeaveChatRoomUseCase;
 import com.cotalk.domain.port.inbound.message.MarkAsReadUseCase;
 import com.cotalk.infrastructure.security.SecurityContextHelper;
@@ -62,6 +66,8 @@ public class ChatRoomController {
     private final CreateGroupChatRoomUseCase createGroupChatRoomUseCase;
     private final InviteGroupChatMemberUseCase inviteGroupChatMemberUseCase;
     private final ChatRoomManagementUseCase chatRoomManagementUseCase;
+    private final GetChatRoomMembersUseCase getChatRoomMembersUseCase;
+    private final KickChatRoomMemberUseCase kickChatRoomMemberUseCase;
     private final SecurityContextHelper securityContextHelper;
 
     /**
@@ -93,6 +99,27 @@ public class ChatRoomController {
                 .map(ChatRoomDto::from)
                 .toList();
         return ResponseEntity.ok(ChatRoomsResponse.of(roomDtos));
+    }
+
+    /**
+     * 채팅방 멤버 목록을 조회합니다.
+     *
+     * @param roomId 채팅방 ID
+     * @param userId 요청 사용자 ID
+     * @return 멤버 목록
+     */
+    @Operation(summary = "채팅방 멤버 목록 조회", description = "채팅방의 멤버 목록을 조회합니다.")
+    @GetMapping("/{roomId}/members")
+    public ResponseEntity<ChatRoomMembersResponse> getChatRoomMembers(
+            @PathVariable Long roomId,
+            @RequestParam Long userId) {
+        validateUserAccess(userId);
+        List<GetChatRoomMembersUseCase.MemberInfo> members =
+                getChatRoomMembersUseCase.getChatRoomMembers(roomId, userId);
+        List<ChatRoomMemberDto> memberDtos = members.stream()
+                .map(ChatRoomMemberDto::from)
+                .toList();
+        return ResponseEntity.ok(ChatRoomMembersResponse.of(memberDtos));
     }
 
     /**
@@ -249,15 +276,34 @@ public class ChatRoomController {
     }
 
     /**
+     * 채팅방에서 멤버를 강제 퇴장시킵니다. (관리자 권한 필요)
+     *
+     * @param roomId       채팅방 ID
+     * @param targetUserId 강제 퇴장시킬 사용자 ID
+     * @param userId       요청자 ID (관리자)
+     * @return 처리 결과 메시지
+     */
+    @Operation(summary = "멤버 강제 퇴장", description = "채팅방에서 멤버를 강제 퇴장시킵니다. (관리자 권한 필요)")
+    @DeleteMapping("/{roomId}/members/{targetUserId}")
+    public ResponseEntity<MessageResponse> kickMember(
+            @PathVariable Long roomId,
+            @PathVariable Long targetUserId,
+            @RequestParam Long userId) {
+        validateUserAccess(userId);
+        kickChatRoomMemberUseCase.kickMember(roomId, userId, targetUserId);
+        return ResponseEntity.ok(MessageResponse.of("멤버가 강제 퇴장되었습니다."));
+    }
+
+    /**
      * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
      *
      * @param userId 검증할 사용자 ID
-     * @throws UnauthorizedException 사용자 ID가 일치하지 않는 경우
+     * @throws ResourceAccessDeniedException 사용자 ID가 일치하지 않는 경우
      */
     private void validateUserAccess(Long userId) {
         Long currentUserId = securityContextHelper.getCurrentUserId();
         if (!currentUserId.equals(userId)) {
-            throw new UnauthorizedException("자신의 리소스만 접근할 수 있습니다.");
+            throw new ResourceAccessDeniedException();
         }
     }
 }

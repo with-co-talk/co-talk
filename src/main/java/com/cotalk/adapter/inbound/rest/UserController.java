@@ -6,15 +6,16 @@ import com.cotalk.adapter.inbound.rest.dto.user.UpdateOnlineStatusRequest;
 import com.cotalk.adapter.inbound.rest.dto.user.UpdateProfileRequest;
 import com.cotalk.adapter.inbound.rest.dto.user.UserDto;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.UnauthorizedException;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
+import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.user.SearchUserUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
+import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.SecurityContextHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -43,22 +44,47 @@ public class UserController {
     private final SearchUserUseCase searchUserUseCase;
     private final UpdateProfileUseCase updateProfileUseCase;
     private final UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
+    private final UserRepository userRepository;
     private final SecurityContextHelper securityContextHelper;
 
     /**
-     * 닉네임으로 사용자를 검색한다.
+     * 현재 로그인한 사용자 정보를 조회한다.
      *
-     * @param nickname 검색할 닉네임 키워드
+     * @return 현재 사용자 정보
+     */
+    @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 정보를 조회합니다.")
+    @GetMapping("/me")
+    public ResponseEntity<UserDto> getCurrentUser() {
+        Long currentUserId = securityContextHelper.getCurrentUserId();
+        User user = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new UserNotFoundException(currentUserId));
+        return ResponseEntity.ok(UserDto.from(user));
+    }
+
+    /**
+     * 닉네임으로 사용자를 검색한다.
+     * query 또는 nickname 파라미터를 사용할 수 있으며, query가 우선순위가 높다.
+     *
+     * @param query 검색할 키워드 (우선순위 높음)
+     * @param nickname 검색할 닉네임 키워드 (query가 없을 때 사용)
      * @return 검색된 사용자 목록
      */
-    @Operation(summary = "닉네임으로 사용자 검색", description = "닉네임에 포함된 키워드로 사용자를 검색합니다.")
+    @Operation(summary = "닉네임으로 사용자 검색", description = "닉네임에 포함된 키워드로 사용자를 검색합니다. query 또는 nickname 파라미터를 사용할 수 있습니다.")
     @GetMapping("/search")
     public ResponseEntity<SearchUserResponse> searchByNickname(
-            @RequestParam
-            @NotBlank(message = "닉네임은 필수입니다.")
+            @RequestParam(required = false)
+            @Size(min = 1, max = 50, message = "검색어는 1자 이상 50자 이하여야 합니다.")
+            String query,
+            @RequestParam(required = false)
             @Size(min = 1, max = 50, message = "닉네임은 1자 이상 50자 이하여야 합니다.")
             String nickname) {
-        List<User> users = searchUserUseCase.searchByNickname(nickname);
+        // query 또는 nickname 중 하나는 필수
+        String searchKeyword = (query != null && !query.isBlank()) ? query : nickname;
+        if (searchKeyword == null || searchKeyword.isBlank()) {
+            throw new IllegalArgumentException("query 또는 nickname 파라미터 중 하나는 필수입니다.");
+        }
+        
+        List<User> users = searchUserUseCase.searchByNickname(searchKeyword);
         List<UserDto> userDtos = users.stream()
                 .map(UserDto::from)
                 .toList();
@@ -117,12 +143,12 @@ public class UserController {
      * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
      *
      * @param userId 검증할 사용자 ID
-     * @throws UnauthorizedException 사용자 ID가 일치하지 않는 경우
+     * @throws ResourceAccessDeniedException 사용자 ID가 일치하지 않는 경우
      */
     private void validateUserAccess(Long userId) {
         Long currentUserId = securityContextHelper.getCurrentUserId();
         if (!currentUserId.equals(userId)) {
-            throw new UnauthorizedException("자신의 리소스만 접근할 수 있습니다.");
+            throw new ResourceAccessDeniedException();
         }
     }
 }

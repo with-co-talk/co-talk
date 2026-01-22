@@ -23,11 +23,13 @@ import java.util.Optional;
 import static com.cotalk.common.fixture.ChatRoomTestFixture.createChatRoomMember;
 import static com.cotalk.common.fixture.ChatRoomTestFixture.createGroupChatRoom;
 import static com.cotalk.common.fixture.UserTestFixture.createUser;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class InviteGroupChatMemberServiceTest {
@@ -64,14 +66,17 @@ class InviteGroupChatMemberServiceTest {
         given(chatRoomMemberRepository.findByChatRoomId(roomId))
                 .willReturn(List.of(createChatRoomMember(1L, roomId, inviterId)));
         given(idGenerator.nextId()).willReturn(201L, 202L);
-        given(chatRoomMemberRepository.save(any(ChatRoomMember.class)))
+        given(chatRoomMemberRepository.saveAll(any()))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         // when
         inviteGroupChatMemberService.inviteMembers(roomId, inviterId, inviteeIds);
 
         // then
-        verify(chatRoomMemberRepository, times(2)).save(any(ChatRoomMember.class));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ChatRoomMember>> membersCaptor = ArgumentCaptor.forClass(List.class);
+        verify(chatRoomMemberRepository).saveAll(membersCaptor.capture());
+        assertThat(membersCaptor.getValue()).hasSize(2);
     }
 
     @Test
@@ -172,13 +177,16 @@ class InviteGroupChatMemberServiceTest {
                         createChatRoomMember(2L, roomId, existingMemberId) // 이미 멤버
                 ));
         given(idGenerator.nextId()).willReturn(201L);
-        given(chatRoomMemberRepository.save(any(ChatRoomMember.class)))
+        given(chatRoomMemberRepository.saveAll(any()))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         // when
         inviteGroupChatMemberService.inviteMembers(roomId, inviterId, inviteeIds);
 
         // then - 기존 멤버(5L)는 건너뛰고 새 멤버(6L)만 저장
-        verify(chatRoomMemberRepository, times(1)).save(any(ChatRoomMember.class));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ChatRoomMember>> membersCaptor = ArgumentCaptor.forClass(List.class);
+        verify(chatRoomMemberRepository).saveAll(membersCaptor.capture());
+        assertThat(membersCaptor.getValue()).hasSize(1);
     }
 }

@@ -25,11 +25,11 @@ services:
     container_name: cotalk-redis-dev
     ports:
       - "6380:6379"
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass cotalk
     volumes:
       - redis-dev-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "cotalk", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

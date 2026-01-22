@@ -87,11 +87,14 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             long availableTokens = tokensAfter;
             long retryAfter = calculateRetryAfter(limit);
             
-            long limitValue = limit.getRequestsPerSecond() > 0 
-                    ? limit.getRequestsPerSecond() 
-                    : (limit.getRequestsPerMinute() > 0 
-                            ? limit.getRequestsPerMinute() 
-                            : limit.getRequestsPerHour());
+            long limitValue;
+            if (limit.getRequestsPerSecond() > 0) {
+                limitValue = limit.getRequestsPerSecond();
+            } else if (limit.getRequestsPerMinute() > 0) {
+                limitValue = limit.getRequestsPerMinute();
+            } else {
+                limitValue = limit.getRequestsPerHour();
+            }
             
             response.setHeader("X-RateLimit-Limit", String.valueOf(limitValue));
             response.setHeader("X-RateLimit-Remaining", String.valueOf(availableTokens));
@@ -103,11 +106,14 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         }
 
         // Rate Limit 헤더 추가
-        long limitValue = limit.getRequestsPerSecond() > 0 
-                ? limit.getRequestsPerSecond() 
-                : (limit.getRequestsPerMinute() > 0 
-                        ? limit.getRequestsPerMinute() 
-                        : limit.getRequestsPerHour());
+        long limitValue;
+        if (limit.getRequestsPerSecond() > 0) {
+            limitValue = limit.getRequestsPerSecond();
+        } else if (limit.getRequestsPerMinute() > 0) {
+            limitValue = limit.getRequestsPerMinute();
+        } else {
+            limitValue = limit.getRequestsPerHour();
+        }
         
         response.setHeader("X-RateLimit-Limit", String.valueOf(limitValue));
         response.setHeader("X-RateLimit-Remaining", String.valueOf(bucket.getAvailableTokens()));
@@ -162,17 +168,23 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private Bucket resolveBucket(byte[] key, RateLimitProperties.EndpointRateLimit limit) {
         Supplier<BucketConfiguration> configSupplier = () -> {
             // 분당 제한을 기본으로 사용 (가장 일반적)
-            long capacity = limit.getRequestsPerMinute() > 0 
-                    ? limit.getRequestsPerMinute() 
-                    : (limit.getRequestsPerSecond() > 0 
-                            ? limit.getRequestsPerSecond() 
-                            : limit.getRequestsPerHour());
+            long capacity;
+            if (limit.getRequestsPerMinute() > 0) {
+                capacity = limit.getRequestsPerMinute();
+            } else if (limit.getRequestsPerSecond() > 0) {
+                capacity = limit.getRequestsPerSecond();
+            } else {
+                capacity = limit.getRequestsPerHour();
+            }
             
-            Duration refillDuration = limit.getRequestsPerMinute() > 0 
-                    ? Duration.ofMinutes(1) 
-                    : (limit.getRequestsPerSecond() > 0 
-                            ? Duration.ofSeconds(1) 
-                            : Duration.ofHours(1));
+            Duration refillDuration;
+            if (limit.getRequestsPerMinute() > 0) {
+                refillDuration = Duration.ofMinutes(1);
+            } else if (limit.getRequestsPerSecond() > 0) {
+                refillDuration = Duration.ofSeconds(1);
+            } else {
+                refillDuration = Duration.ofHours(1);
+            }
             
             return BucketConfiguration.builder()
                     .addLimit(bandwidth -> bandwidth

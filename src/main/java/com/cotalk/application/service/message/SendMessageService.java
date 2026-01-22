@@ -7,9 +7,10 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.util.HtmlSanitizer;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -50,12 +51,15 @@ public class SendMessageService implements SendMessageUseCase {
         // 채팅방 멤버인지 확인
         chatRoomMemberValidator.validateMembership(chatRoomId, senderId);
 
+        // XSS 방지를 위한 HTML 이스케이프
+        String sanitizedContent = HtmlSanitizer.escape(content);
+
         // 메시지 생성
         Message message = Message.builder()
                 .id(idGenerator.nextId())
                 .chatRoomId(chatRoomId)
                 .senderId(senderId)
-                .content(content)
+                .content(sanitizedContent)
                 .type(MessageType.TEXT)
                 .build();
 

@@ -5,6 +5,7 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.exception.SelfActionNotAllowedException;
 import com.cotalk.domain.exception.UserNotFoundException;
+import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.domain.validator.UserValidator;
@@ -17,6 +18,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.function.Supplier;
 
@@ -31,6 +34,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class SendFriendRequestServiceTest {
 
     @Mock
@@ -48,12 +52,16 @@ class SendFriendRequestServiceTest {
     @Mock
     private DistributedLockExecutor lockExecutor;
 
+    @Mock
+    private SendPushNotificationUseCase sendPushNotificationUseCase;
+
     private SendFriendRequestService sendFriendRequestService;
 
     @BeforeEach
     void setUp() {
         sendFriendRequestService = new SendFriendRequestService(
-                friendRequestRepository, friendRepository, userValidator, idGenerator, lockExecutor);
+                friendRequestRepository, friendRepository, userValidator, idGenerator, lockExecutor,
+                sendPushNotificationUseCase);
 
         // 분산락 모킹: 락 획득 후 바로 실행 (lenient로 불필요한 stub 경고 방지)
         lenient().when(lockExecutor.executeWithLock(anyString(), any(Supplier.class)))
@@ -160,5 +168,46 @@ class SendFriendRequestServiceTest {
         // when & then
         assertThatThrownBy(() -> sendFriendRequestService.sendFriendRequest(requesterId, receiverId))
                 .isInstanceOf(InvalidFriendRequestException.class);
+    }
+
+    @Test
+    @DisplayName("친구 요청 전송 시 FCM 푸시 알림 전송")
+    void should_sendPushNotification_when_friendRequestSent() {
+        // given
+        Long requesterId = 1L;
+        Long receiverId = 2L;
+        Long requestId = 100L;
+        String requesterNickname = "요청자닉네임";
+
+        User requester = User.builder()
+                .id(requesterId)
+                .email("requester@example.com")
+                .nickname(requesterNickname)
+                .passwordHash("hash")
+                .build();
+
+        User receiver = User.builder()
+                .id(receiverId)
+                .email("receiver@example.com")
+                .nickname("수신자닉네임")
+                .passwordHash("hash")
+                .build();
+
+        doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
+        given(userValidator.validateUserExists(receiverId)).willReturn(receiver);
+        given(userValidator.validateUserExists(requesterId)).willReturn(requester);
+        given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(false);
+        given(friendRequestRepository.existsByRequesterIdAndReceiverId(requesterId, receiverId)).willReturn(false);
+        given(friendRequestRepository.existsByRequesterIdAndReceiverIdAndStatus(
+                receiverId, requesterId, FriendRequest.RequestStatus.PENDING)).willReturn(false);
+        given(idGenerator.nextId()).willReturn(requestId);
+        given(friendRequestRepository.save(any(FriendRequest.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        sendFriendRequestService.sendFriendRequest(requesterId, receiverId);
+
+        // then
+        verify(sendPushNotificationUseCase).sendFriendRequestNotification(receiverId, requesterNickname);
     }
 }

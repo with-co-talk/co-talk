@@ -26,7 +26,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -60,7 +59,7 @@ class CreateGroupChatRoomServiceTest {
         given(idGenerator.nextId()).willReturn(chatRoomId, 101L, 102L, 103L, 104L);
         given(chatRoomRepository.save(any(ChatRoom.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
-        given(chatRoomMemberRepository.save(any(ChatRoomMember.class)))
+        given(chatRoomMemberRepository.saveAll(any()))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         // when
@@ -74,8 +73,11 @@ class CreateGroupChatRoomServiceTest {
         assertThat(chatRoomCaptor.getValue().getType()).isEqualTo(ChatRoom.ChatRoomType.GROUP);
         assertThat(chatRoomCaptor.getValue().getName()).isEqualTo(roomName);
 
-        // 생성자 + 멤버 3명 = 총 4명
-        verify(chatRoomMemberRepository, times(4)).save(any(ChatRoomMember.class));
+        // 생성자 + 멤버 3명 = 총 4명이 saveAll로 한 번에 저장됨
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ChatRoomMember>> membersCaptor = ArgumentCaptor.forClass(List.class);
+        verify(chatRoomMemberRepository).saveAll(membersCaptor.capture());
+        assertThat(membersCaptor.getValue()).hasSize(4);
     }
 
     @Test

@@ -23,6 +23,15 @@ public interface FriendRequestJpaRepository extends JpaRepository<FriendRequest,
     List<FriendRequest> findByReceiverIdAndStatus(Long receiverId, FriendRequest.RequestStatus status);
 
     /**
+     * 요청자 ID와 상태로 친구 요청 목록을 조회한다.
+     *
+     * @param requesterId 요청자 ID
+     * @param status 요청 상태
+     * @return 친구 요청 목록
+     */
+    List<FriendRequest> findByRequesterIdAndStatus(Long requesterId, FriendRequest.RequestStatus status);
+
+    /**
      * 요청자 ID와 수신자 ID로 친구 요청이 존재하는지 확인한다.
      *
      * @param requesterId 요청자 ID

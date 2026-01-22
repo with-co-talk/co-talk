@@ -5,6 +5,7 @@ import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateGroupChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.InviteMembersRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
+import com.cotalk.config.TestRedisConfiguration;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,10 +30,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
-@Import(IntegrationTestSecurityConfig.class)
+@Import(TestRedisConfiguration.class)
 class ChatRoomIntegrationTest {
 
     @Autowired

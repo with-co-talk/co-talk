@@ -3,15 +3,23 @@ package com.cotalk.adapter.inbound.rest;
 import com.cotalk.adapter.inbound.rest.dto.common.MessageResponse;
 import com.cotalk.adapter.inbound.rest.dto.friend.FriendDto;
 import com.cotalk.adapter.inbound.rest.dto.friend.FriendListResponse;
+import com.cotalk.adapter.inbound.rest.dto.friend.FriendRequestDto;
+import com.cotalk.adapter.inbound.rest.dto.friend.FriendRequestListResponse;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestResponse;
+import com.cotalk.adapter.inbound.rest.dto.user.UserDto;
+import com.cotalk.domain.entity.FriendRequest;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.UnauthorizedException;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
+import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
+import com.cotalk.domain.port.inbound.friend.GetReceivedFriendRequestsUseCase;
+import com.cotalk.domain.port.inbound.friend.GetSentFriendRequestsUseCase;
 import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
+import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.SecurityContextHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,7 +36,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 친구 관리를 위한 REST 컨트롤러.
@@ -48,6 +59,9 @@ public class FriendController {
     private final RejectFriendRequestUseCase rejectFriendRequestUseCase;
     private final RemoveFriendUseCase removeFriendUseCase;
     private final GetFriendListUseCase getFriendListUseCase;
+    private final GetReceivedFriendRequestsUseCase getReceivedFriendRequestsUseCase;
+    private final GetSentFriendRequestsUseCase getSentFriendRequestsUseCase;
+    private final UserRepository userRepository;
     private final SecurityContextHelper securityContextHelper;
 
     /**
@@ -134,15 +148,131 @@ public class FriendController {
     }
 
     /**
+     * 받은 친구 요청 목록을 조회합니다.
+     *
+     * @param userId 사용자 ID
+     * @return 받은 친구 요청 목록
+     */
+    @Operation(summary = "받은 친구 요청 목록 조회", description = "사용자가 받은 대기 중인 친구 요청 목록을 조회합니다.")
+    @GetMapping("/requests/received")
+    public ResponseEntity<FriendRequestListResponse> getReceivedFriendRequests(@RequestParam Long userId) {
+        validateUserAccess(userId);
+        List<FriendRequest> requests = getReceivedFriendRequestsUseCase.getReceivedFriendRequests(userId);
+        
+        // 빈 리스트일 때 early return
+        if (requests.isEmpty()) {
+            return ResponseEntity.ok(FriendRequestListResponse.of(List.of()));
+        }
+        
+        // 현재 사용자(수신자) 정보 조회 (한 번만)
+        User receiver = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+        
+        // 요청자 ID 목록 추출
+        List<Long> requesterIds = requests.stream()
+                .map(FriendRequest::getRequesterId)
+                .distinct()
+                .toList();
+        
+        // 요청자 정보 일괄 조회
+        Map<Long, User> requesterMap = userRepository.findAllById(requesterIds)
+                .stream()
+                .collect(Collectors.toMap(User::getId, user -> user));
+        
+        // DTO 변환
+        List<FriendRequestDto> requestDtos = requests.stream()
+                .map(request -> {
+                    User requester = requesterMap.get(request.getRequesterId());
+                    if (requester == null) {
+                        throw new UserNotFoundException(request.getRequesterId());
+                    }
+                    
+                    LocalDateTime createdAt = request.getCreatedAt();
+                    if (createdAt == null) {
+                        throw new IllegalStateException("친구 요청의 생성 시간이 없습니다.");
+                    }
+                    
+                    return FriendRequestDto.of(
+                            request.getId(),
+                            UserDto.from(requester),
+                            UserDto.from(receiver),
+                            request.getStatus().name(),
+                            createdAt
+                    );
+                })
+                .toList();
+        
+        return ResponseEntity.ok(FriendRequestListResponse.of(requestDtos));
+    }
+
+    /**
+     * 보낸 친구 요청 목록을 조회합니다.
+     *
+     * @param userId 사용자 ID
+     * @return 보낸 친구 요청 목록
+     */
+    @Operation(summary = "보낸 친구 요청 목록 조회", description = "사용자가 보낸 대기 중인 친구 요청 목록을 조회합니다.")
+    @GetMapping("/requests/sent")
+    public ResponseEntity<FriendRequestListResponse> getSentFriendRequests(@RequestParam Long userId) {
+        validateUserAccess(userId);
+        List<FriendRequest> requests = getSentFriendRequestsUseCase.getSentFriendRequests(userId);
+        
+        // 빈 리스트일 때 early return
+        if (requests.isEmpty()) {
+            return ResponseEntity.ok(FriendRequestListResponse.of(List.of()));
+        }
+        
+        // 현재 사용자(요청자) 정보 조회 (한 번만)
+        User requester = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+        
+        // 수신자 ID 목록 추출
+        List<Long> receiverIds = requests.stream()
+                .map(FriendRequest::getReceiverId)
+                .distinct()
+                .toList();
+        
+        // 수신자 정보 일괄 조회
+        Map<Long, User> receiverMap = userRepository.findAllById(receiverIds)
+                .stream()
+                .collect(Collectors.toMap(User::getId, user -> user));
+        
+        // DTO 변환
+        List<FriendRequestDto> requestDtos = requests.stream()
+                .map(request -> {
+                    User receiver = receiverMap.get(request.getReceiverId());
+                    if (receiver == null) {
+                        throw new UserNotFoundException(request.getReceiverId());
+                    }
+                    
+                    LocalDateTime createdAt = request.getCreatedAt();
+                    if (createdAt == null) {
+                        throw new IllegalStateException("친구 요청의 생성 시간이 없습니다.");
+                    }
+                    
+                    return FriendRequestDto.of(
+                            request.getId(),
+                            UserDto.from(requester),
+                            UserDto.from(receiver),
+                            request.getStatus().name(),
+                            createdAt
+                    );
+                })
+                .toList();
+        
+        return ResponseEntity.ok(FriendRequestListResponse.of(requestDtos));
+    }
+
+    /**
      * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
      *
      * @param userId 검증할 사용자 ID
-     * @throws UnauthorizedException 사용자 ID가 일치하지 않는 경우
+     * @throws ResourceAccessDeniedException 사용자 ID가 일치하지 않는 경우
      */
     private void validateUserAccess(Long userId) {
         Long currentUserId = securityContextHelper.getCurrentUserId();
         if (!currentUserId.equals(userId)) {
-            throw new UnauthorizedException("자신의 리소스만 접근할 수 있습니다.");
+            throw new ResourceAccessDeniedException();
         }
     }
 }

@@ -45,7 +45,10 @@ class UploadFileServiceTest {
         void should_uploadImage_when_validImageFile() {
             // given
             Long userId = 1L;
-            byte[] content = "fake image content".getBytes();
+            // JPEG magic bytes: FF D8 FF
+            byte[] jpegMagic = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10};
+            byte[] content = new byte[100];
+            System.arraycopy(jpegMagic, 0, content, 0, jpegMagic.length);
             InputStream inputStream = new ByteArrayInputStream(content);
             String originalFileName = "test-image.jpg";
             String contentType = "image/jpeg";
@@ -74,7 +77,10 @@ class UploadFileServiceTest {
         void should_uploadPng_when_validPngFile() {
             // given
             Long userId = 1L;
-            byte[] content = "fake png content".getBytes();
+            // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
+            byte[] pngMagic = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+            byte[] content = new byte[100];
+            System.arraycopy(pngMagic, 0, content, 0, pngMagic.length);
             InputStream inputStream = new ByteArrayInputStream(content);
             String originalFileName = "test.png";
             String contentType = "image/png";
@@ -101,7 +107,10 @@ class UploadFileServiceTest {
         void should_uploadPdf_when_validPdfFile() {
             // given
             Long userId = 1L;
-            byte[] content = "fake pdf content".getBytes();
+            // PDF magic bytes: 25 50 44 46 2D (%PDF-)
+            byte[] pdfMagic = new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D};
+            byte[] content = new byte[100];
+            System.arraycopy(pdfMagic, 0, content, 0, pdfMagic.length);
             InputStream inputStream = new ByteArrayInputStream(content);
             String originalFileName = "document.pdf";
             String contentType = "application/pdf";
@@ -170,7 +179,10 @@ class UploadFileServiceTest {
         void should_uploadGif_when_validGifFile() {
             // given
             Long userId = 1L;
-            byte[] content = "fake gif content".getBytes();
+            // GIF magic bytes: 47 49 46 38 (GIF8)
+            byte[] gifMagic = new byte[]{0x47, 0x49, 0x46, 0x38, 0x39, 0x61};
+            byte[] content = new byte[100];
+            System.arraycopy(gifMagic, 0, content, 0, gifMagic.length);
             InputStream inputStream = new ByteArrayInputStream(content);
             String originalFileName = "animation.gif";
             String contentType = "image/gif";

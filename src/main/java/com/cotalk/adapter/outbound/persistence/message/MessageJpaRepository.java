@@ -40,12 +40,13 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
 
     /**
      * 채팅방에서 가장 최근 메시지를 조회한다.
+     * 같은 생성 시간을 가진 메시지가 있을 경우 ID로 추가 정렬하여 고유성을 보장한다.
      *
      * @param chatRoomId 채팅방 ID
      * @return 가장 최근 메시지 (Optional)
      */
-    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.deleted = false ORDER BY m.createdAt DESC")
-    Optional<Message> findTopByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId);
+    @Query(value = "SELECT * FROM messages WHERE chat_room_id = :chatRoomId AND is_deleted = false ORDER BY created_at DESC, id DESC LIMIT 1", nativeQuery = true)
+    Optional<Message> findTopByChatRoomIdOrderByCreatedAtDesc(@Param("chatRoomId") Long chatRoomId);
 
     /**
      * 특정 메시지 ID 이전의 메시지 목록을 조회한다.

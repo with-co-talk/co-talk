@@ -3,7 +3,12 @@ package com.cotalk.application.service.user;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.UserNotFoundException;
-import com.cotalk.domain.port.outbound.*;
+import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.DeviceTokenRepository;
+import com.cotalk.domain.port.outbound.FriendRepository;
+import com.cotalk.domain.port.outbound.FriendRequestRepository;
+import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
+import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,9 +40,6 @@ class DeleteAccountServiceTest {
     private FriendRequestRepository friendRequestRepository;
 
     @Mock
-    private MessageRepository messageRepository;
-
-    @Mock
     private DeviceTokenRepository deviceTokenRepository;
 
     @Mock
@@ -54,7 +56,6 @@ class DeleteAccountServiceTest {
                 chatRoomMemberRepository,
                 friendRepository,
                 friendRequestRepository,
-                messageRepository,
                 deviceTokenRepository,
                 passwordResetTokenRepository,
                 passwordEncoder

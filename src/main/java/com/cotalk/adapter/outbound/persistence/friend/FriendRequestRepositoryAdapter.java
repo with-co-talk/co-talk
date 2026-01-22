@@ -54,6 +54,17 @@ public class FriendRequestRepositoryAdapter implements FriendRequestRepository {
     }
 
     /**
+     * 요청자 ID로 대기 중인 친구 요청 목록을 조회한다.
+     *
+     * @param requesterId 요청자 ID
+     * @return 대기 중인 친구 요청 목록
+     */
+    @Override
+    public List<FriendRequest> findPendingByRequesterId(Long requesterId) {
+        return friendRequestJpaRepository.findByRequesterIdAndStatus(requesterId, FriendRequest.RequestStatus.PENDING);
+    }
+
+    /**
      * 요청자 ID와 수신자 ID로 친구 요청이 존재하는지 확인한다.
      *
      * @param requesterId 요청자 ID

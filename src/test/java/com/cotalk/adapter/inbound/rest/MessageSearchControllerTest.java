@@ -6,6 +6,7 @@ import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.SecurityContextHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -45,6 +48,15 @@ class MessageSearchControllerTest {
 
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockBean
+    private SecurityContextHelper securityContextHelper;
+
+    @BeforeEach
+    void setUp() {
+        // 기본적으로 userId 100L로 인증된 사용자 설정
+        given(securityContextHelper.getCurrentUserId()).willReturn(100L);
+    }
 
     @Test
     @DisplayName("채팅방 내 메시지 검색 성공")

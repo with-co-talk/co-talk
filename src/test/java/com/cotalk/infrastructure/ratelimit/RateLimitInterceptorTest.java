@@ -1,14 +1,12 @@
 package com.cotalk.infrastructure.ratelimit;
 
-import com.cotalk.domain.exception.RateLimitExceededException;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
-import io.github.bucket4j.Bucket;
-import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -18,12 +16,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
+/**
+ * RateLimitInterceptor 테스트.
+ * ProxyManager의 복잡한 빌더 패턴으로 인해 Rate Limit 통과/초과 시나리오는
+ * 통합 테스트(RateLimitIntegrationTest)에서 검증합니다.
+ *
+ * @author seunggu.lee
+ */
 @ExtendWith(MockitoExtension.class)
+@DisplayName("RateLimitInterceptor")
 class RateLimitInterceptorTest {
 
     @Mock
@@ -41,9 +46,6 @@ class RateLimitInterceptorTest {
     @Mock
     private HttpServletResponse response;
 
-    @Mock
-    private Bucket bucket;
-
     private RateLimitInterceptor interceptor;
 
     @BeforeEach
@@ -51,35 +53,76 @@ class RateLimitInterceptorTest {
         interceptor = new RateLimitInterceptor(rateLimitProperties, proxyManager, jwtTokenProvider);
     }
 
-    @Test
-    @DisplayName("Rate Limit이 비활성화되어 있으면 통과")
-    void should_pass_when_rateLimitDisabled() {
-        // given
-        given(rateLimitProperties.isEnabled()).willReturn(false);
+    @Nested
+    @DisplayName("preHandle 메서드")
+    class PreHandleMethod {
 
-        // when
-        boolean result = interceptor.preHandle(request, response, null);
+        @Test
+        @DisplayName("Rate Limit이 비활성화되어 있으면 통과")
+        void should_pass_when_rateLimitDisabled() {
+            // given
+            given(request.getRequestURI()).willReturn("/api/v1/test");
+            given(rateLimitProperties.isEnabled()).willReturn(false);
 
-        // then
-        assertThat(result).isTrue();
-        verify(proxyManager, never()).builder();
+            // when
+            boolean result = interceptor.preHandle(request, response, null);
+
+            // then
+            assertThat(result).isTrue();
+            verify(proxyManager, never()).builder();
+        }
+
+        @Test
+        @DisplayName("Rate Limit이 설정되지 않은 엔드포인트는 통과")
+        void should_pass_when_noRateLimitConfigured() {
+            // given
+            given(rateLimitProperties.isEnabled()).willReturn(true);
+            given(request.getRequestURI()).willReturn("/api/v1/unknown");
+            given(rateLimitProperties.getEndpoints()).willReturn(new ArrayList<>());
+
+            // when
+            boolean result = interceptor.preHandle(request, response, null);
+
+            // then
+            assertThat(result).isTrue();
+        }
+
+        @Test
+        @DisplayName("path가 null인 엔드포인트 설정은 무시한다")
+        void should_ignoreEndpoint_when_pathIsNull() {
+            // given
+            RateLimitProperties.EndpointRateLimit endpointWithNullPath = new RateLimitProperties.EndpointRateLimit();
+            endpointWithNullPath.setPath(null);
+            endpointWithNullPath.setRequestsPerMinute(100);
+
+            given(rateLimitProperties.isEnabled()).willReturn(true);
+            given(request.getRequestURI()).willReturn("/api/v1/test");
+            given(rateLimitProperties.getEndpoints()).willReturn(List.of(endpointWithNullPath));
+
+            // when
+            boolean result = interceptor.preHandle(request, response, null);
+
+            // then
+            assertThat(result).isTrue();
+        }
+
+        @Test
+        @DisplayName("매칭되는 엔드포인트가 없으면 통과")
+        void should_pass_when_noMatchingEndpoint() {
+            // given
+            RateLimitProperties.EndpointRateLimit endpoint = new RateLimitProperties.EndpointRateLimit();
+            endpoint.setPath("/api/v2/other");
+            endpoint.setRequestsPerMinute(100);
+
+            given(rateLimitProperties.isEnabled()).willReturn(true);
+            given(request.getRequestURI()).willReturn("/api/v1/test");
+            given(rateLimitProperties.getEndpoints()).willReturn(List.of(endpoint));
+
+            // when
+            boolean result = interceptor.preHandle(request, response, null);
+
+            // then
+            assertThat(result).isTrue();
+        }
     }
-
-    @Test
-    @DisplayName("Rate Limit이 설정되지 않은 엔드포인트는 통과")
-    void should_pass_when_noRateLimitConfigured() {
-        // given
-        given(rateLimitProperties.isEnabled()).willReturn(true);
-        given(request.getRequestURI()).willReturn("/api/v1/unknown");
-        given(rateLimitProperties.getEndpoints()).willReturn(new ArrayList<>());
-
-        // when
-        boolean result = interceptor.preHandle(request, response, null);
-
-        // then
-        assertThat(result).isTrue();
-    }
-
-    // Note: ProxyManager.builder()의 반환 타입이 복잡하여 단위 테스트가 어렵습니다.
-    // 실제 Rate Limit 동작은 통합 테스트나 실제 Redis 환경에서 검증하는 것이 적절합니다.
 }

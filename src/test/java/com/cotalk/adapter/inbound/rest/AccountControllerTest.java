@@ -89,7 +89,7 @@ class AccountControllerTest {
             mockMvc.perform(delete("/api/v1/account/{userId}", userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
-                    .andExpect(status().isUnauthorized());
+                    .andExpect(status().isBadRequest());
         }
 
         @Test
