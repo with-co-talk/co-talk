@@ -6,7 +6,7 @@ import com.cotalk.adapter.inbound.rest.dto.user.UpdateOnlineStatusRequest;
 import com.cotalk.adapter.inbound.rest.dto.user.UpdateProfileRequest;
 import com.cotalk.adapter.inbound.rest.dto.user.UserDto;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.UnauthorizedException;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.user.SearchUserUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
@@ -143,12 +143,12 @@ public class UserController {
      * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
      *
      * @param userId 검증할 사용자 ID
-     * @throws UnauthorizedException 사용자 ID가 일치하지 않는 경우
+     * @throws ResourceAccessDeniedException 사용자 ID가 일치하지 않는 경우
      */
     private void validateUserAccess(Long userId) {
         Long currentUserId = securityContextHelper.getCurrentUserId();
         if (!currentUserId.equals(userId)) {
-            throw new UnauthorizedException("자신의 리소스만 접근할 수 있습니다.");
+            throw new ResourceAccessDeniedException();
         }
     }
 }

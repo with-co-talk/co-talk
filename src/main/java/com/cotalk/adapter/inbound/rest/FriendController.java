@@ -7,9 +7,11 @@ import com.cotalk.adapter.inbound.rest.dto.friend.FriendRequestDto;
 import com.cotalk.adapter.inbound.rest.dto.friend.FriendRequestListResponse;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestResponse;
+import com.cotalk.adapter.inbound.rest.dto.user.UserDto;
 import com.cotalk.domain.entity.FriendRequest;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.UnauthorizedException;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
+import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
 import com.cotalk.domain.port.inbound.friend.GetReceivedFriendRequestsUseCase;
@@ -34,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -156,6 +159,15 @@ public class FriendController {
         validateUserAccess(userId);
         List<FriendRequest> requests = getReceivedFriendRequestsUseCase.getReceivedFriendRequests(userId);
         
+        // 빈 리스트일 때 early return
+        if (requests.isEmpty()) {
+            return ResponseEntity.ok(FriendRequestListResponse.of(List.of()));
+        }
+        
+        // 현재 사용자(수신자) 정보 조회 (한 번만)
+        User receiver = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+        
         // 요청자 ID 목록 추출
         List<Long> requesterIds = requests.stream()
                 .map(FriendRequest::getRequesterId)
@@ -171,15 +183,21 @@ public class FriendController {
         List<FriendRequestDto> requestDtos = requests.stream()
                 .map(request -> {
                     User requester = requesterMap.get(request.getRequesterId());
-                    User receiver = userRepository.findById(userId)
-                            .orElseThrow(() -> new UnauthorizedException("사용자를 찾을 수 없습니다."));
+                    if (requester == null) {
+                        throw new UserNotFoundException(request.getRequesterId());
+                    }
+                    
+                    LocalDateTime createdAt = request.getCreatedAt();
+                    if (createdAt == null) {
+                        throw new IllegalStateException("친구 요청의 생성 시간이 없습니다.");
+                    }
                     
                     return FriendRequestDto.of(
                             request.getId(),
-                            FriendDto.from(requester),
-                            FriendDto.from(receiver),
+                            UserDto.from(requester),
+                            UserDto.from(receiver),
                             request.getStatus().name(),
-                            request.getCreatedAt()
+                            createdAt
                     );
                 })
                 .toList();
@@ -199,6 +217,15 @@ public class FriendController {
         validateUserAccess(userId);
         List<FriendRequest> requests = getSentFriendRequestsUseCase.getSentFriendRequests(userId);
         
+        // 빈 리스트일 때 early return
+        if (requests.isEmpty()) {
+            return ResponseEntity.ok(FriendRequestListResponse.of(List.of()));
+        }
+        
+        // 현재 사용자(요청자) 정보 조회 (한 번만)
+        User requester = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+        
         // 수신자 ID 목록 추출
         List<Long> receiverIds = requests.stream()
                 .map(FriendRequest::getReceiverId)
@@ -210,21 +237,25 @@ public class FriendController {
                 .stream()
                 .collect(Collectors.toMap(User::getId, user -> user));
         
-        // 현재 사용자 정보 조회
-        User requester = userRepository.findById(userId)
-                .orElseThrow(() -> new UnauthorizedException("사용자를 찾을 수 없습니다."));
-        
         // DTO 변환
         List<FriendRequestDto> requestDtos = requests.stream()
                 .map(request -> {
                     User receiver = receiverMap.get(request.getReceiverId());
+                    if (receiver == null) {
+                        throw new UserNotFoundException(request.getReceiverId());
+                    }
+                    
+                    LocalDateTime createdAt = request.getCreatedAt();
+                    if (createdAt == null) {
+                        throw new IllegalStateException("친구 요청의 생성 시간이 없습니다.");
+                    }
                     
                     return FriendRequestDto.of(
                             request.getId(),
-                            FriendDto.from(requester),
-                            FriendDto.from(receiver),
+                            UserDto.from(requester),
+                            UserDto.from(receiver),
                             request.getStatus().name(),
-                            request.getCreatedAt()
+                            createdAt
                     );
                 })
                 .toList();
@@ -236,12 +267,12 @@ public class FriendController {
      * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
      *
      * @param userId 검증할 사용자 ID
-     * @throws UnauthorizedException 사용자 ID가 일치하지 않는 경우
+     * @throws ResourceAccessDeniedException 사용자 ID가 일치하지 않는 경우
      */
     private void validateUserAccess(Long userId) {
         Long currentUserId = securityContextHelper.getCurrentUserId();
         if (!currentUserId.equals(userId)) {
-            throw new UnauthorizedException("자신의 리소스만 접근할 수 있습니다.");
+            throw new ResourceAccessDeniedException();
         }
     }
 }

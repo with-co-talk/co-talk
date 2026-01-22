@@ -68,7 +68,7 @@ public class AuthController {
     @Operation(summary = "로그인", description = "이메일과 비밀번호로 로그인하여 JWT 토큰을 발급받습니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "로그인 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 실패")
+            @ApiResponse(responseCode = "400", description = "잘못된 이메일 또는 비밀번호")
     })
     @PostMapping("/login")
     public ResponseEntity<AuthTokenResponse> login(@Valid @RequestBody LoginRequest request) {
