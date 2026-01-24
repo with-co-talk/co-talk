@@ -39,7 +39,8 @@ public class RedisUserEventBroker implements UserEventBroker {
     public void publishChatListUpdate(Long userId, ChatListUpdateEvent event) {
         String channel = channelPrefix + userId + ":chat-list";
         publish(channel, event);
-        log.debug("Published chat list update to Redis channel {}: {}", channel, event);
+        log.info("Published chat list update to Redis channel {}: eventType={}, roomId={}, unreadCount={}", 
+                channel, event.eventType(), event.roomId(), event.unreadCount());
     }
 
     /**

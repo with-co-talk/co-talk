@@ -108,8 +108,8 @@ public class RedisUserEventSubscriber implements MessageListener {
 
             String destination = "/topic/user/" + userId + "/chat-list";
             messagingTemplate.convertAndSend(destination, event);
-            log.debug("Broadcasted chat list update to WebSocket: destination={}, roomId={}", 
-                    destination, event.roomId());
+            log.info("Broadcasted chat list update to WebSocket: destination={}, eventType={}, roomId={}, unreadCount={}", 
+                    destination, event.eventType(), event.roomId(), event.unreadCount());
 
         } catch (JsonProcessingException e) {
             log.error("Failed to deserialize chat list update event", e);
