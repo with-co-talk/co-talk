@@ -10,7 +10,6 @@ import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestResponse;
 import com.cotalk.adapter.inbound.rest.dto.user.UserDto;
 import com.cotalk.domain.entity.FriendRequest;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
@@ -20,20 +19,20 @@ import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.security.SecurityContextHelper;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
@@ -62,19 +61,20 @@ public class FriendController {
     private final GetReceivedFriendRequestsUseCase getReceivedFriendRequestsUseCase;
     private final GetSentFriendRequestsUseCase getSentFriendRequestsUseCase;
     private final UserRepository userRepository;
-    private final SecurityContextHelper securityContextHelper;
 
     /**
      * 다른 사용자에게 친구 요청을 보냅니다.
      *
-     * @param request 친구 요청 전송 요청 (요청자 ID, 수신자 ID)
+     * @param principal 인증된 사용자 정보
+     * @param request   친구 요청 전송 요청 (수신자 ID)
      * @return 생성된 친구 요청 정보
      */
     @Operation(summary = "친구 요청 전송", description = "다른 사용자에게 친구 요청을 보냅니다.")
     @PostMapping("/requests")
     public ResponseEntity<SendFriendRequestResponse> sendFriendRequest(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @Valid @RequestBody SendFriendRequestRequest request) {
-        Long requestId = sendFriendRequestUseCase.sendFriendRequest(request.requesterId(), request.receiverId());
+        Long requestId = sendFriendRequestUseCase.sendFriendRequest(principal.getUserId(), request.receiverId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(SendFriendRequestResponse.of(requestId, "친구 요청이 전송되었습니다."));
     }
@@ -82,48 +82,46 @@ public class FriendController {
     /**
      * 받은 친구 요청을 수락합니다.
      *
+     * @param principal 인증된 사용자 정보
      * @param requestId 친구 요청 ID
-     * @param userId    요청 수락자 ID
      * @return 처리 결과 메시지
      */
     @Operation(summary = "친구 요청 수락", description = "받은 친구 요청을 수락합니다.")
     @PostMapping("/requests/{requestId}/accept")
     public ResponseEntity<MessageResponse> acceptFriendRequest(
-            @PathVariable Long requestId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
-        acceptFriendRequestUseCase.acceptFriendRequest(userId, requestId);
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long requestId) {
+        acceptFriendRequestUseCase.acceptFriendRequest(principal.getUserId(), requestId);
         return ResponseEntity.ok(MessageResponse.of("친구 요청을 수락했습니다."));
     }
 
     /**
      * 받은 친구 요청을 거절합니다.
      *
+     * @param principal 인증된 사용자 정보
      * @param requestId 친구 요청 ID
-     * @param userId    요청 거절자 ID
      * @return 처리 결과 메시지
      */
     @Operation(summary = "친구 요청 거절", description = "받은 친구 요청을 거절합니다.")
     @PostMapping("/requests/{requestId}/reject")
     public ResponseEntity<MessageResponse> rejectFriendRequest(
-            @PathVariable Long requestId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
-        rejectFriendRequestUseCase.rejectFriendRequest(userId, requestId);
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long requestId) {
+        rejectFriendRequestUseCase.rejectFriendRequest(principal.getUserId(), requestId);
         return ResponseEntity.ok(MessageResponse.of("친구 요청을 거절했습니다."));
     }
 
     /**
      * 사용자의 친구 목록을 조회합니다.
      *
-     * @param userId 사용자 ID
+     * @param principal 인증된 사용자 정보
      * @return 친구 목록
      */
     @Operation(summary = "친구 목록 조회", description = "사용자의 친구 목록을 조회합니다.")
     @GetMapping
-    public ResponseEntity<FriendListResponse> getFriendList(@RequestParam Long userId) {
-        validateUserAccess(userId);
-        List<User> friends = getFriendListUseCase.getFriendList(userId);
+    public ResponseEntity<FriendListResponse> getFriendList(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        List<User> friends = getFriendListUseCase.getFriendList(principal.getUserId());
         List<FriendDto> friendDtos = friends.stream()
                 .map(FriendDto::from)
                 .toList();
@@ -133,30 +131,30 @@ public class FriendController {
     /**
      * 친구 관계를 삭제합니다.
      *
+     * @param principal 인증된 사용자 정보
      * @param friendId 삭제할 친구의 사용자 ID
-     * @param userId   요청자 ID
      * @return 처리 결과 메시지
      */
     @Operation(summary = "친구 삭제", description = "친구 관계를 삭제합니다.")
     @DeleteMapping("/{friendId}")
     public ResponseEntity<MessageResponse> removeFriend(
-            @PathVariable Long friendId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
-        removeFriendUseCase.removeFriend(userId, friendId);
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long friendId) {
+        removeFriendUseCase.removeFriend(principal.getUserId(), friendId);
         return ResponseEntity.ok(MessageResponse.of("친구가 삭제되었습니다."));
     }
 
     /**
      * 받은 친구 요청 목록을 조회합니다.
      *
-     * @param userId 사용자 ID
+     * @param principal 인증된 사용자 정보
      * @return 받은 친구 요청 목록
      */
     @Operation(summary = "받은 친구 요청 목록 조회", description = "사용자가 받은 대기 중인 친구 요청 목록을 조회합니다.")
     @GetMapping("/requests/received")
-    public ResponseEntity<FriendRequestListResponse> getReceivedFriendRequests(@RequestParam Long userId) {
-        validateUserAccess(userId);
+    public ResponseEntity<FriendRequestListResponse> getReceivedFriendRequests(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        Long userId = principal.getUserId();
         List<FriendRequest> requests = getReceivedFriendRequestsUseCase.getReceivedFriendRequests(userId);
         
         // 빈 리스트일 때 early return
@@ -208,13 +206,14 @@ public class FriendController {
     /**
      * 보낸 친구 요청 목록을 조회합니다.
      *
-     * @param userId 사용자 ID
+     * @param principal 인증된 사용자 정보
      * @return 보낸 친구 요청 목록
      */
     @Operation(summary = "보낸 친구 요청 목록 조회", description = "사용자가 보낸 대기 중인 친구 요청 목록을 조회합니다.")
     @GetMapping("/requests/sent")
-    public ResponseEntity<FriendRequestListResponse> getSentFriendRequests(@RequestParam Long userId) {
-        validateUserAccess(userId);
+    public ResponseEntity<FriendRequestListResponse> getSentFriendRequests(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        Long userId = principal.getUserId();
         List<FriendRequest> requests = getSentFriendRequestsUseCase.getSentFriendRequests(userId);
         
         // 빈 리스트일 때 early return
@@ -263,16 +262,4 @@ public class FriendController {
         return ResponseEntity.ok(FriendRequestListResponse.of(requestDtos));
     }
 
-    /**
-     * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
-     *
-     * @param userId 검증할 사용자 ID
-     * @throws ResourceAccessDeniedException 사용자 ID가 일치하지 않는 경우
-     */
-    private void validateUserAccess(Long userId) {
-        Long currentUserId = securityContextHelper.getCurrentUserId();
-        if (!currentUserId.equals(userId)) {
-            throw new ResourceAccessDeniedException();
-        }
-    }
 }

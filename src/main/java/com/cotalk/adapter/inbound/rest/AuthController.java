@@ -2,7 +2,6 @@ package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.adapter.inbound.rest.dto.auth.AuthTokenResponse;
 import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
-import com.cotalk.adapter.inbound.rest.dto.auth.LoginResponse;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpResponse;
 import com.cotalk.adapter.inbound.rest.dto.auth.TokenRefreshRequest;
@@ -11,7 +10,7 @@ import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
-import com.cotalk.infrastructure.security.SecurityContextHelper;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -20,6 +19,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,7 +40,6 @@ public class AuthController {
     private final SignUpUseCase signUpUseCase;
     private final LoginUseCase loginUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
-    private final SecurityContextHelper securityContextHelper;
 
     /**
      * 새로운 사용자를 등록한다.
@@ -99,6 +98,7 @@ public class AuthController {
     /**
      * 로그아웃하여 현재 사용자의 모든 Refresh Token을 폐기한다.
      *
+     * @param principal 인증된 사용자 정보
      * @return 로그아웃 성공 메시지
      */
     @Operation(summary = "로그아웃", description = "현재 사용자의 모든 Refresh Token을 폐기합니다.")
@@ -107,9 +107,8 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "인증 필요")
     })
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
-        Long userId = securityContextHelper.getCurrentUserId();
-        refreshTokenUseCase.revokeAllTokensByUserId(userId);
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal CustomUserPrincipal principal) {
+        refreshTokenUseCase.revokeAllTokensByUserId(principal.getUserId());
         return ResponseEntity.ok().build();
     }
 

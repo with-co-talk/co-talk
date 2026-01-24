@@ -16,12 +16,14 @@ import com.cotalk.domain.port.inbound.message.GetMessageHistoryUseCase;
 import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -92,8 +94,8 @@ public class ChatMessageController {
     /**
      * 채팅방의 메시지 히스토리를 커서 기반으로 조회합니다.
      *
+     * @param principal       인증된 사용자 정보
      * @param roomId          채팅방 ID
-     * @param userId          요청 사용자 ID
      * @param beforeMessageId 이 메시지 ID 이전의 메시지 조회 (커서)
      * @param size            조회할 메시지 수 (기본값: 20)
      * @return 메시지 히스토리
@@ -101,11 +103,11 @@ public class ChatMessageController {
     @Operation(summary = "메시지 히스토리 조회", description = "채팅방의 메시지 히스토리를 커서 기반으로 조회합니다.")
     @GetMapping("/rooms/{roomId}")
     public ResponseEntity<MessageHistoryResponse> getMessageHistory(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long roomId,
-            @RequestParam Long userId,
             @RequestParam(required = false) Long beforeMessageId,
             @RequestParam(defaultValue = "20") int size) {
-        List<Message> messages = getMessageHistoryUseCase.getMessageHistory(roomId, userId, beforeMessageId, size);
+        List<Message> messages = getMessageHistoryUseCase.getMessageHistory(roomId, principal.getUserId(), beforeMessageId, size);
         List<MessageDto> messageDtos = messages.stream()
                 .map(MessageDto::from)
                 .toList();
@@ -136,16 +138,16 @@ public class ChatMessageController {
     /**
      * 본인이 보낸 메시지를 삭제합니다.
      *
+     * @param principal 인증된 사용자 정보
      * @param messageId 삭제할 메시지 ID
-     * @param userId    요청 사용자 ID
      * @return 처리 결과 메시지
      */
     @Operation(summary = "메시지 삭제", description = "본인이 보낸 메시지를 삭제합니다.")
     @DeleteMapping("/{messageId}")
     public ResponseEntity<MessageResponse> deleteMessage(
-            @PathVariable Long messageId,
-            @RequestParam Long userId) {
-        deleteMessageUseCase.deleteMessage(messageId, userId);
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long messageId) {
+        deleteMessageUseCase.deleteMessage(messageId, principal.getUserId());
         return ResponseEntity.ok(MessageResponse.of("메시지가 삭제되었습니다."));
     }
 

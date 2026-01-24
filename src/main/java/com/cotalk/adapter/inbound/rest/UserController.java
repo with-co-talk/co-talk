@@ -12,13 +12,14 @@ import com.cotalk.domain.port.inbound.user.SearchUserUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.security.SecurityContextHelper;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -45,19 +46,19 @@ public class UserController {
     private final UpdateProfileUseCase updateProfileUseCase;
     private final UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
     private final UserRepository userRepository;
-    private final SecurityContextHelper securityContextHelper;
 
     /**
      * 현재 로그인한 사용자 정보를 조회한다.
      *
+     * @param principal 인증된 사용자 정보
      * @return 현재 사용자 정보
      */
     @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 정보를 조회합니다.")
     @GetMapping("/me")
-    public ResponseEntity<UserDto> getCurrentUser() {
-        Long currentUserId = securityContextHelper.getCurrentUserId();
-        User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new UserNotFoundException(currentUserId));
+    public ResponseEntity<UserDto> getCurrentUser(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        User user = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> new UserNotFoundException(principal.getUserId()));
         return ResponseEntity.ok(UserDto.from(user));
     }
 
@@ -83,7 +84,7 @@ public class UserController {
         if (searchKeyword == null || searchKeyword.isBlank()) {
             throw new IllegalArgumentException("query 또는 nickname 파라미터 중 하나는 필수입니다.");
         }
-        
+
         List<User> users = searchUserUseCase.searchByNickname(searchKeyword);
         List<UserDto> userDtos = users.stream()
                 .map(UserDto::from)
@@ -94,16 +95,18 @@ public class UserController {
     /**
      * 사용자 프로필을 수정한다.
      *
-     * @param userId  수정할 사용자 ID
-     * @param request 프로필 수정 요청 정보 (닉네임, 아바타 URL)
+     * @param principal 인증된 사용자 정보
+     * @param userId    수정할 사용자 ID
+     * @param request   프로필 수정 요청 정보 (닉네임, 아바타 URL)
      * @return 수정 완료 메시지
      */
     @Operation(summary = "프로필 수정", description = "사용자 프로필(닉네임, 아바타)을 수정합니다.")
     @PutMapping("/{userId}/profile")
     public ResponseEntity<MessageResponse> updateProfile(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long userId,
             @Valid @RequestBody UpdateProfileRequest request) {
-        validateUserAccess(userId);
+        validateUserAccess(principal.getUserId(), userId);
         updateProfileUseCase.updateProfile(userId, request.nickname(), request.avatarUrl());
         return ResponseEntity.ok(MessageResponse.of("프로필이 수정되었습니다."));
     }
@@ -111,16 +114,18 @@ public class UserController {
     /**
      * 사용자의 온라인 상태를 업데이트한다.
      *
-     * @param userId  상태를 업데이트할 사용자 ID
-     * @param request 온라인 상태 업데이트 요청 정보
+     * @param principal 인증된 사용자 정보
+     * @param userId    상태를 업데이트할 사용자 ID
+     * @param request   온라인 상태 업데이트 요청 정보
      * @return 업데이트 완료 메시지
      */
     @Operation(summary = "온라인 상태 업데이트", description = "사용자의 온라인 상태를 업데이트합니다.")
     @PutMapping("/{userId}/online-status")
     public ResponseEntity<MessageResponse> updateOnlineStatus(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long userId,
             @Valid @RequestBody UpdateOnlineStatusRequest request) {
-        validateUserAccess(userId);
+        validateUserAccess(principal.getUserId(), userId);
         updateUserOnlineStatusUseCase.updateOnlineStatus(userId, request.status());
         return ResponseEntity.ok(MessageResponse.of("온라인 상태가 업데이트되었습니다."));
     }
@@ -128,13 +133,16 @@ public class UserController {
     /**
      * 사용자의 마지막 접속 시간을 현재 시간으로 업데이트한다.
      *
-     * @param userId 업데이트할 사용자 ID
+     * @param principal 인증된 사용자 정보
+     * @param userId    업데이트할 사용자 ID
      * @return 업데이트 완료 메시지
      */
     @Operation(summary = "마지막 접속 시간 업데이트", description = "사용자의 마지막 접속 시간을 업데이트합니다.")
     @PutMapping("/{userId}/last-active")
-    public ResponseEntity<MessageResponse> updateLastActive(@PathVariable Long userId) {
-        validateUserAccess(userId);
+    public ResponseEntity<MessageResponse> updateLastActive(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long userId) {
+        validateUserAccess(principal.getUserId(), userId);
         updateUserOnlineStatusUseCase.updateLastActiveAt(userId);
         return ResponseEntity.ok(MessageResponse.of("마지막 접속 시간이 업데이트되었습니다."));
     }
@@ -142,11 +150,11 @@ public class UserController {
     /**
      * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
      *
-     * @param userId 검증할 사용자 ID
+     * @param currentUserId 현재 인증된 사용자 ID
+     * @param userId        검증할 사용자 ID
      * @throws ResourceAccessDeniedException 사용자 ID가 일치하지 않는 경우
      */
-    private void validateUserAccess(Long userId) {
-        Long currentUserId = securityContextHelper.getCurrentUserId();
+    private void validateUserAccess(Long currentUserId, Long userId) {
         if (!currentUserId.equals(userId)) {
             throw new ResourceAccessDeniedException();
         }
