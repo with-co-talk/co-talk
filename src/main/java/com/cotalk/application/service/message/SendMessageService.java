@@ -51,8 +51,9 @@ public class SendMessageService implements SendMessageUseCase {
         // 채팅방 멤버인지 확인
         chatRoomMemberValidator.validateMembership(chatRoomId, senderId);
 
-        // XSS 방지를 위한 HTML 이스케이프
-        String sanitizedContent = HtmlSanitizer.escape(content);
+        // XSS 방지(텍스트 채팅): HTML 태그만 제거하고, 유니코드/특수문자는 그대로 유지한다.
+        // (HTML 엔티티로 저장하면 클라이언트에 &hellip; 같은 문자열이 그대로 노출될 수 있다)
+        String sanitizedContent = HtmlSanitizer.stripAllTags(content);
 
         // 메시지 생성
         Message message = Message.builder()

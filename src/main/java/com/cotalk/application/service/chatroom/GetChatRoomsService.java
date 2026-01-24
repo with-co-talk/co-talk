@@ -92,8 +92,11 @@ public class GetChatRoomsService implements GetChatRoomsUseCase {
      */
     private long calculateUnreadCount(Long chatRoomId, Long userId, Optional<ChatRoomMember> myMember) {
         return myMember
-                .filter(member -> member.getLastReadAt() != null)
-                .map(member -> messageRepository.countUnreadMessages(chatRoomId, userId, member.getLastReadAt()))
+                .map(member -> messageRepository.countUnreadMessagesByLastReadMessageId(
+                        chatRoomId,
+                        userId,
+                        member.getLastReadMessageId()
+                ))
                 .orElse(0L);
     }
 

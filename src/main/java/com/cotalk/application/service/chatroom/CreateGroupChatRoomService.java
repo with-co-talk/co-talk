@@ -7,11 +7,14 @@ import com.cotalk.domain.port.inbound.chatroom.CreateGroupChatRoomUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
 import com.cotalk.domain.validator.UserValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -34,6 +37,7 @@ public class CreateGroupChatRoomService implements CreateGroupChatRoomUseCase {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final UserValidator userValidator;
     private final IdGenerator idGenerator;
+    private final UserEventBroker userEventBroker;
 
     /**
      * 그룹 채팅방을 생성한다.
@@ -75,7 +79,27 @@ public class CreateGroupChatRoomService implements CreateGroupChatRoomUseCase {
                 .toList();
         chatRoomMemberRepository.saveAll(members);
 
+        publishRoomCreatedEvent(chatRoom.getId(), creatorId, allMemberIds);
+
         return chatRoom.getId();
+    }
+
+    private void publishRoomCreatedEvent(Long chatRoomId, Long creatorId, List<Long> allMemberIds) {
+        ChatListUpdateEvent event = new ChatListUpdateEvent(
+                1,
+                "chat-list:ROOM_CREATED:" + chatRoomId + ":" + creatorId,
+                "ROOM_CREATED",
+                chatRoomId,
+                "",
+                "SYSTEM",
+                LocalDateTime.now(),
+                creatorId,
+                "SYSTEM",
+                0
+        );
+        for (Long memberId : allMemberIds) {
+            userEventBroker.publishChatListUpdate(memberId, event);
+        }
     }
 
     private void validateRoomName(String roomName) {
