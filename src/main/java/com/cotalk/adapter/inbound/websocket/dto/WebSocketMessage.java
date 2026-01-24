@@ -22,6 +22,8 @@ import java.time.LocalDateTime;
  * @author seunggu.lee
  */
 public record WebSocketMessage(
+        Integer schemaVersion,
+        String eventId,
         Long messageId,
         Long senderId,
         Long roomId,

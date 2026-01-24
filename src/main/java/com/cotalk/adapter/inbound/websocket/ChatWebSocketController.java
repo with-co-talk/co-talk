@@ -3,6 +3,8 @@ package com.cotalk.adapter.inbound.websocket;
 import com.cotalk.adapter.inbound.websocket.dto.AddReactionRequest;
 import com.cotalk.adapter.inbound.websocket.dto.ChatMessageRequest;
 import com.cotalk.adapter.inbound.websocket.dto.FileMessageRequest;
+import com.cotalk.adapter.inbound.websocket.dto.PresencePingRequest;
+import com.cotalk.adapter.inbound.websocket.dto.PresenceInactiveRequest;
 import com.cotalk.adapter.inbound.websocket.dto.ReactionBroadcastMessage;
 import com.cotalk.adapter.inbound.websocket.dto.RemoveReactionRequest;
 import com.cotalk.domain.entity.Emoji;
@@ -17,6 +19,7 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
@@ -25,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
 import java.time.ZoneId;
@@ -61,6 +65,7 @@ public class ChatWebSocketController {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final UserEventBroker userEventBroker;
     private final UserRepository userRepository;
+    private final ChatRoomPresenceTracker chatRoomPresenceTracker;
 
     /**
      * 텍스트 채팅 메시지를 전송합니다.
@@ -124,10 +129,23 @@ public class ChatWebSocketController {
      */
     private void publishToRedis(Message message) {
         // 읽지 않은 멤버 수 계산 (발신자 제외)
-        int unreadCount = chatRoomMemberRepository.countUnreadMembers(
+        int unreadCountByLastReadMessageId = chatRoomMemberRepository.countUnreadMembersByMessageId(
                 message.getChatRoomId(),
-                message.getCreatedAt(),
+                message.getId(),
                 message.getSenderId()
+        );
+        int activeCount = chatRoomPresenceTracker.countActiveMembers(message.getChatRoomId());
+        int activeReceivers = activeCount - (chatRoomPresenceTracker.isActive(message.getChatRoomId(), message.getSenderId()) ? 1 : 0);
+        int unreadCount = Math.max(0, unreadCountByLastReadMessageId - Math.max(0, activeReceivers));
+        log.info(
+                "[WS] publishToRedis roomId={}, messageId={}, senderId={}, unreadByLastReadMessageId={}, activeCount={}, activeReceivers(exclSender)={}, finalUnreadCount={}",
+                message.getChatRoomId(),
+                message.getId(),
+                message.getSenderId(),
+                unreadCountByLastReadMessageId,
+                activeCount,
+                activeReceivers,
+                unreadCount
         );
 
         ChatBroadcastMessage broadcastMessage = new ChatBroadcastMessage(
@@ -155,6 +173,9 @@ public class ChatWebSocketController {
      * 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
      */
     private void publishChatListUpdate(Message message) {
+        log.debug("Publishing chat list update for message: chatRoomId={}, messageId={}", 
+                message.getChatRoomId(), message.getId());
+
         // 발신자 닉네임 조회
         String senderNickname = userRepository.findById(message.getSenderId())
                 .map(User::getNickname)
@@ -162,16 +183,30 @@ public class ChatWebSocketController {
 
         // 채팅방 참여자 목록 조회
         var members = chatRoomMemberRepository.findByChatRoomId(message.getChatRoomId());
+        log.debug("Found {} members in chat room {}", members.size(), message.getChatRoomId());
 
         for (ChatRoomMember member : members) {
-            // 해당 멤버의 읽지 않은 메시지 수 계산
-            int memberUnreadCount = (int) messageRepository.countUnreadMessages(
+            // 해당 멤버가 현재 방을 보고 있으면 unreadCount는 0이어야 한다.
+            // (lastReadAt 기반 계산은 네트워크 지연/레이스에서 1로 튀는 문제가 있어 presence로 보정)
+            boolean memberActiveInRoom = chatRoomPresenceTracker.isActive(message.getChatRoomId(), member.getUserId());
+            int memberUnreadCount = memberActiveInRoom
+                    ? 0
+                    : (int) messageRepository.countUnreadMessagesByLastReadMessageId(
                     message.getChatRoomId(),
                     member.getUserId(),
-                    member.getLastReadAt()
+                    member.getLastReadMessageId()
+            );
+            log.info(
+                    "[WS] chatListUpdate roomId={}, targetUserId={}, memberActiveInRoom={}, memberUnreadCount={}",
+                    message.getChatRoomId(),
+                    member.getUserId(),
+                    memberActiveInRoom,
+                    memberUnreadCount
             );
 
             ChatListUpdateEvent event = new ChatListUpdateEvent(
+                    1,
+                    "chat-list:" + message.getChatRoomId() + ":" + message.getId() + ":" + member.getUserId(),
                     "NEW_MESSAGE",
                     message.getChatRoomId(),
                     message.getContent(),
@@ -182,6 +217,8 @@ public class ChatWebSocketController {
                     memberUnreadCount
             );
 
+            log.debug("Publishing chat list update to user {}: roomId={}, unreadCount={}", 
+                    member.getUserId(), message.getChatRoomId(), memberUnreadCount);
             userEventBroker.publishChatListUpdate(member.getUserId(), event);
         }
     }
@@ -236,6 +273,34 @@ public class ChatWebSocketController {
     }
 
     /**
+     * 채팅방 presence ping.
+     * 클라이언트가 방을 보고 있는 동안 주기적으로 호출하여 서버 presence TTL을 갱신한다.
+     */
+    @MessageMapping("/chat/presence")
+    public void presencePing(@Payload PresencePingRequest request, StompHeaderAccessor headerAccessor) {
+        if (request == null || request.roomId() == null || request.userId() == null) {
+            return;
+        }
+        String sessionId = headerAccessor != null ? headerAccessor.getSessionId() : null;
+        chatRoomPresenceTracker.markActive(request.roomId(), request.userId(), sessionId);
+        log.debug("[WS] presencePing roomId={}, userId={}, sessionId={}", request.roomId(), request.userId(), sessionId);
+    }
+
+    /**
+     * 채팅방 presence inactive.
+     * 데스크탑에서 창 포커스가 사라지는 등 "보고 있지 않음" 상태로 전환될 때 호출한다.
+     */
+    @MessageMapping("/chat/presence/inactive")
+    public void presenceInactive(@Payload PresenceInactiveRequest request, StompHeaderAccessor headerAccessor) {
+        if (request == null || request.roomId() == null || request.userId() == null) {
+            return;
+        }
+        String sessionId = headerAccessor != null ? headerAccessor.getSessionId() : null;
+        chatRoomPresenceTracker.markInactive(request.roomId(), request.userId(), sessionId);
+        log.debug("[WS] presenceInactive roomId={}, userId={}, sessionId={}", request.roomId(), request.userId(), sessionId);
+    }
+
+    /**
      * 메시지 반응 이벤트를 Redis Pub/Sub으로 발행
      */
     private void publishReactionEvent(MessageReaction reaction, String eventType) {
@@ -250,6 +315,8 @@ public class ChatWebSocketController {
         }
 
         ReactionBroadcastMessage broadcastMessage = new ReactionBroadcastMessage(
+                1,
+                "reaction:" + reaction.getMessageId() + ":" + reaction.getUserId() + ":" + eventType,
                 reaction.getId(),
                 reaction.getMessageId(),
                 reaction.getUserId(),
