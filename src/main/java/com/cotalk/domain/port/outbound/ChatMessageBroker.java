@@ -26,6 +26,16 @@ public interface ChatMessageBroker {
     void publishReaction(Long roomId, Object reactionEvent);
 
     /**
+     * 채팅방 이벤트를 발행한다.
+     * <p>
+     * 읽음(READ)과 같은 "채팅방 상태" 이벤트를 실시간으로 참여자에게 전달하기 위해 사용한다.
+     *
+     * @param roomId 채팅방 ID
+     * @param event  발행할 이벤트 객체
+     */
+    void publishRoomEvent(Long roomId, Object event);
+
+    /**
      * 브로드캐스트할 채팅 메시지.
      * 실시간으로 채팅방 참여자들에게 전송되는 메시지 정보를 담는다.
      *

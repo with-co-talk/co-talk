@@ -41,6 +41,8 @@ public interface UserEventBroker {
      * @param unreadCount     읽지 않은 메시지 수
      */
     record ChatListUpdateEvent(
+            Integer schemaVersion,
+            String eventId,
             String eventType,
             Long roomId,
             String lastMessage,
@@ -57,11 +59,15 @@ public interface UserEventBroker {
      *
      * @param chatRoomId 채팅방 ID
      * @param userId     읽은 사용자 ID
+     * @param lastReadMessageId 마지막으로 읽은 메시지 ID (optional)
      * @param lastReadAt 마지막 읽은 시간 (optional)
      */
     record ReadReceiptEvent(
+            Integer schemaVersion,
+            String eventId,
             Long chatRoomId,
             Long userId,
+            Long lastReadMessageId,
             LocalDateTime lastReadAt
     ) {}
 }
