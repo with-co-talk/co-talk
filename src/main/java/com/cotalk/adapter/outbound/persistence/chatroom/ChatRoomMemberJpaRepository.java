@@ -77,6 +77,23 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
                                 @Param("lastReadAt") LocalDateTime lastReadAt);
 
     /**
+     * 마지막 읽은 메시지 ID를 원자적으로 업데이트한다.
+     * 기존 값보다 큰 경우에만 업데이트하여 Lost Update를 방지한다.
+     *
+     * <p>lastReadAt은 보조 정보로 함께 갱신한다.</p>
+     */
+    @Modifying
+    @Query("UPDATE ChatRoomMember m " +
+           "SET m.lastReadMessageId = :lastReadMessageId, m.lastReadAt = :lastReadAt " +
+           "WHERE m.chatRoomId = :chatRoomId AND m.userId = :userId " +
+           "AND (:lastReadMessageId IS NOT NULL) " +
+           "AND (m.lastReadMessageId IS NULL OR m.lastReadMessageId < :lastReadMessageId)")
+    int updateLastReadMessageIdIfNewer(@Param("chatRoomId") Long chatRoomId,
+                                       @Param("userId") Long userId,
+                                       @Param("lastReadAt") LocalDateTime lastReadAt,
+                                       @Param("lastReadMessageId") Long lastReadMessageId);
+
+    /**
      * 특정 메시지를 읽지 않은 멤버 수를 조회한다.
      * 메시지 생성 시간보다 lastReadAt이 이전이거나 null인 멤버의 수를 반환한다.
      * 발신자는 제외한다.
@@ -93,4 +110,15 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
     int countUnreadMembers(@Param("chatRoomId") Long chatRoomId,
                            @Param("messageCreatedAt") LocalDateTime messageCreatedAt,
                            @Param("senderId") Long senderId);
+
+    /**
+     * 특정 메시지를 읽지 않은 멤버 수를 조회한다. (messageId 기준)
+     */
+    @Query("SELECT COUNT(m) FROM ChatRoomMember m " +
+           "WHERE m.chatRoomId = :chatRoomId " +
+           "AND m.userId != :senderId " +
+           "AND (m.lastReadMessageId IS NULL OR m.lastReadMessageId < :messageId)")
+    int countUnreadMembersByMessageId(@Param("chatRoomId") Long chatRoomId,
+                                      @Param("messageId") Long messageId,
+                                      @Param("senderId") Long senderId);
 }

@@ -67,10 +67,12 @@ public class MessageRepositoryAdapter implements MessageRepository {
      */
     @Override
     public long countUnreadMessages(Long chatRoomId, Long userId, LocalDateTime lastReadAt) {
-        if (lastReadAt == null) {
-            return 0;
-        }
-        return messageJpaRepository.countUnreadMessages(chatRoomId, lastReadAt);
+        return messageJpaRepository.countUnreadMessages(chatRoomId, userId, lastReadAt);
+    }
+
+    @Override
+    public long countUnreadMessagesByLastReadMessageId(Long chatRoomId, Long userId, Long lastReadMessageId) {
+        return messageJpaRepository.countUnreadMessagesByLastReadMessageId(chatRoomId, userId, lastReadMessageId);
     }
 
     /**

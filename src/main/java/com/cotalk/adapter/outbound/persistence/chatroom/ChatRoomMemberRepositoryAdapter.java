@@ -122,6 +122,11 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
         return chatRoomMemberJpaRepository.updateLastReadAtIfNewer(chatRoomId, userId, lastReadAt);
     }
 
+    @Override
+    public int updateLastReadMessageIdIfNewer(Long chatRoomId, Long userId, LocalDateTime lastReadAt, Long lastReadMessageId) {
+        return chatRoomMemberJpaRepository.updateLastReadMessageIdIfNewer(chatRoomId, userId, lastReadAt, lastReadMessageId);
+    }
+
     /**
      * 특정 메시지를 읽지 않은 멤버 수를 조회한다.
      *
@@ -133,5 +138,10 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
     @Override
     public int countUnreadMembers(Long chatRoomId, LocalDateTime messageCreatedAt, Long senderId) {
         return chatRoomMemberJpaRepository.countUnreadMembers(chatRoomId, messageCreatedAt, senderId);
+    }
+
+    @Override
+    public int countUnreadMembersByMessageId(Long chatRoomId, Long messageId, Long senderId) {
+        return chatRoomMemberJpaRepository.countUnreadMembersByMessageId(chatRoomId, messageId, senderId);
     }
 }

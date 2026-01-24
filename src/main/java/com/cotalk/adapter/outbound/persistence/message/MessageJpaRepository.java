@@ -32,11 +32,41 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * 채팅방에서 마지막 읽은 시각 이후의 읽지 않은 메시지 수를 조회한다.
      *
      * @param chatRoomId 채팅방 ID
+     * @param userId 사용자 ID (본인 메시지 제외)
      * @param lastReadAt 마지막 읽은 시각
      * @return 읽지 않은 메시지 수
      */
-    @Query("SELECT COUNT(m) FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.createdAt > :lastReadAt AND m.deleted = false")
-    long countUnreadMessages(@Param("chatRoomId") Long chatRoomId, @Param("lastReadAt") LocalDateTime lastReadAt);
+    @Query("""
+        SELECT COUNT(m)
+        FROM Message m
+        WHERE m.chatRoomId = :chatRoomId
+          AND m.deleted = false
+          AND m.senderId <> :userId
+          AND (:lastReadAt IS NULL OR m.createdAt > :lastReadAt)
+        """)
+    long countUnreadMessages(@Param("chatRoomId") Long chatRoomId,
+                             @Param("userId") Long userId,
+                             @Param("lastReadAt") LocalDateTime lastReadAt);
+
+    /**
+     * 채팅방에서 마지막 읽은 메시지 ID 이후의 읽지 않은 메시지 수를 조회한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId 사용자 ID (본인 메시지 제외)
+     * @param lastReadMessageId 마지막 읽은 메시지 ID (null이면 모두 안 읽음)
+     * @return 읽지 않은 메시지 수
+     */
+    @Query("""
+        SELECT COUNT(m)
+        FROM Message m
+        WHERE m.chatRoomId = :chatRoomId
+          AND m.deleted = false
+          AND m.senderId <> :userId
+          AND (:lastReadMessageId IS NULL OR m.id > :lastReadMessageId)
+        """)
+    long countUnreadMessagesByLastReadMessageId(@Param("chatRoomId") Long chatRoomId,
+                                                @Param("userId") Long userId,
+                                                @Param("lastReadMessageId") Long lastReadMessageId);
 
     /**
      * 채팅방에서 가장 최근 메시지를 조회한다.
