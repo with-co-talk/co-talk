@@ -1,6 +1,7 @@
 package com.cotalk.adapter.inbound.rest.dto.message;
 
 import com.cotalk.domain.entity.Message;
+import com.cotalk.domain.util.HtmlSanitizer;
 
 import java.time.LocalDateTime;
 
@@ -46,7 +47,8 @@ public record MessageDto(
         return new MessageDto(
                 message.getId(),
                 message.getSenderId(),
-                message.getContent(),
+                // 과거 데이터 호환: 저장된 HTML 엔티티를 복원해 클라이언트에 원문으로 보여준다.
+                HtmlSanitizer.unescape(message.getContent()),
                 message.getType().name(),
                 message.getCreatedAt(),
                 message.getFileUrl(),
