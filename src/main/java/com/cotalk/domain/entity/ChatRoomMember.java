@@ -38,6 +38,9 @@ public class ChatRoomMember extends BaseEntity {
 
     private LocalDateTime lastReadAt;
 
+    @Column(name = "last_read_message_id")
+    private Long lastReadMessageId;
+
     /**
      * 채팅방 멤버 역할을 나타내는 열거형.
      *
@@ -67,6 +70,15 @@ public class ChatRoomMember extends BaseEntity {
      */
     public void updateLastReadAt(LocalDateTime lastReadAt) {
         this.lastReadAt = lastReadAt;
+    }
+
+    /**
+     * 마지막 읽은 메시지 ID를 갱신한다.
+     *
+     * @param lastReadMessageId 마지막 읽은 메시지 ID
+     */
+    public void updateLastReadMessageId(Long lastReadMessageId) {
+        this.lastReadMessageId = lastReadMessageId;
     }
 
     /**

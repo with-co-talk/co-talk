@@ -4,11 +4,13 @@ import com.cotalk.adapter.inbound.rest.dto.auth.FileUploadResponse;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadCommand;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadResult;
-import com.cotalk.infrastructure.security.SecurityContextHelper;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -26,40 +28,28 @@ import java.io.IOException;
 @Tag(name = "File", description = "파일 업로드 API")
 @RestController
 @RequestMapping("/api/v1/files")
+@RequiredArgsConstructor
 public class FileController {
 
     private final UploadFileUseCase uploadFileUseCase;
-    private final SecurityContextHelper securityContextHelper;
-
-    /**
-     * FileController 생성자.
-     *
-     * @param uploadFileUseCase 파일 업로드 유스케이스
-     * @param securityContextHelper 보안 컨텍스트 헬퍼
-     */
-    public FileController(UploadFileUseCase uploadFileUseCase,
-                          SecurityContextHelper securityContextHelper) {
-        this.uploadFileUseCase = uploadFileUseCase;
-        this.securityContextHelper = securityContextHelper;
-    }
 
     /**
      * 파일을 업로드한다.
      * 인증된 사용자의 ID를 SecurityContext에서 자동으로 조회하여 사용한다.
      *
-     * @param file 업로드할 파일
+     * @param principal 인증된 사용자 정보
+     * @param file      업로드할 파일
      * @return 업로드된 파일 정보 (URL, 파일명, 타입, 크기, 이미지 여부)
      * @throws IOException 파일 읽기 중 오류 발생 시
      */
     @Operation(summary = "파일 업로드", description = "이미지, PDF, 문서 등의 파일을 업로드합니다. 인증된 사용자만 업로드 가능합니다.")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<FileUploadResponse> uploadFile(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @RequestParam("file") MultipartFile file) throws IOException {
 
-        Long currentUserId = securityContextHelper.getCurrentUserId();
-
         FileUploadCommand command = new FileUploadCommand(
-                currentUserId,
+                principal.getUserId(),
                 file.getInputStream(),
                 file.getOriginalFilename(),
                 file.getContentType(),

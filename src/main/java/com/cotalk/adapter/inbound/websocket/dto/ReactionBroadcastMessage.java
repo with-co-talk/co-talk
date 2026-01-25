@@ -15,6 +15,8 @@ package com.cotalk.adapter.inbound.websocket.dto;
  * @author seunggu.lee
  */
 public record ReactionBroadcastMessage(
+        Integer schemaVersion,
+        String eventId,
         Long reactionId,
         Long messageId,
         Long userId,

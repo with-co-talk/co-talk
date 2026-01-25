@@ -75,4 +75,24 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
             throw MessageBrokerException.reactionSerializationFailed(e);
         }
     }
+
+    /**
+     * 지정된 채팅방에 이벤트를 발행한다.
+     * 이벤트를 JSON으로 직렬화하여 Redis 채널(chat:room:{roomId}:event)에 발행한다.
+     *
+     * @param roomId 채팅방 ID
+     * @param event  발행할 이벤트 객체
+     */
+    @Override
+    public void publishRoomEvent(Long roomId, Object event) {
+        String channel = channelPrefix + roomId + ":event";
+        try {
+            String jsonMessage = objectMapper.writeValueAsString(event);
+            redisTemplate.convertAndSend(channel, jsonMessage);
+            log.debug("Published room event to channel {}: {}", channel, event);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize room event: {}", event, e);
+            throw MessageBrokerException.serializationFailed(e);
+        }
+    }
 }

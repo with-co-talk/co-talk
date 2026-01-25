@@ -29,6 +29,9 @@ public class RedisMessagingConfig {
     @Value("${app.redis.channel-prefix:chat:room:}")
     private String channelPrefix;
 
+    @Value("${app.redis.user-event-prefix:user:event:}")
+    private String userEventPrefix;
+
     /**
      * Redis 문자열 직렬화를 위한 RedisTemplate을 생성한다.
      *
@@ -48,25 +51,32 @@ public class RedisMessagingConfig {
 
     /**
      * Redis 메시지 리스너 컨테이너를 생성한다.
-     * 모든 채팅방 채널 패턴(chat:room:*)을 구독하여 메시지를 수신한다.
+     * 채팅 메시지와 사용자 이벤트 채널 패턴을 구독하여 메시지를 수신한다.
      *
      * @param connectionFactory Redis 연결 팩토리
-     * @param subscriber 채팅 메시지 구독자
+     * @param chatMessageSubscriber 채팅 메시지 구독자
+     * @param userEventSubscriber 사용자 이벤트 구독자
      * @return Redis 메시지 리스너 컨테이너
      */
     @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer(
             RedisConnectionFactory connectionFactory,
-            RedisChatMessageSubscriber subscriber) {
+            RedisChatMessageSubscriber chatMessageSubscriber,
+            RedisUserEventSubscriber userEventSubscriber) {
         
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         
         // 모든 채팅방 채널 패턴 구독 (예: chat:room:*)
-        String channelPattern = channelPrefix + "*";
-        container.addMessageListener(subscriber, new PatternTopic(channelPattern));
+        String chatChannelPattern = channelPrefix + "*";
+        container.addMessageListener(chatMessageSubscriber, new PatternTopic(chatChannelPattern));
+        log.info("Redis Pub/Sub listener registered for pattern: {}", chatChannelPattern);
         
-        log.info("Redis Pub/Sub listener registered for pattern: {}", channelPattern);
+        // 모든 사용자 이벤트 채널 패턴 구독 (예: user:event:*:*)
+        String userEventChannelPattern = userEventPrefix + "*:*";
+        container.addMessageListener(userEventSubscriber, new PatternTopic(userEventChannelPattern));
+        log.info("Redis Pub/Sub listener registered for pattern: {}", userEventChannelPattern);
+        
         return container;
     }
 

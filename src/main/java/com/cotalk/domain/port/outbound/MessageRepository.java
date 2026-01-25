@@ -51,6 +51,19 @@ public interface MessageRepository {
     long countUnreadMessages(Long chatRoomId, Long userId, LocalDateTime lastReadAt);
 
     /**
+     * 채팅방에서 마지막 읽은 메시지 ID 이후의 읽지 않은 메시지 수를 조회한다.
+     *
+     * <p>카톡/라인 스타일: unreadCount(채팅 목록)는 "내가 아직 읽지 않은 메시지 수"이며
+     * messageId 기준으로 결정적으로 계산한다.</p>
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId 사용자 ID (본인 메시지 제외)
+     * @param lastReadMessageId 마지막 읽은 메시지 ID (null이면 모두 안 읽음)
+     * @return 읽지 않은 메시지 수
+     */
+    long countUnreadMessagesByLastReadMessageId(Long chatRoomId, Long userId, Long lastReadMessageId);
+
+    /**
      * 채팅방의 가장 최근 메시지를 조회한다.
      *
      * @param chatRoomId 채팅방 ID

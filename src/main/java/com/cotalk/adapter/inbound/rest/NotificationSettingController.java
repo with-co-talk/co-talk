@@ -5,15 +5,16 @@ import com.cotalk.adapter.inbound.rest.dto.notification.UpdateNotificationSettin
 import com.cotalk.domain.entity.NotificationSetting;
 import com.cotalk.domain.port.inbound.notification.GetNotificationSettingUseCase;
 import com.cotalk.domain.port.inbound.notification.UpdateNotificationSettingUseCase;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -35,31 +36,32 @@ public class NotificationSettingController {
     /**
      * 사용자의 알림 설정을 조회합니다.
      *
-     * @param userId 사용자 ID
+     * @param principal 인증된 사용자 정보
      * @return 알림 설정 정보
      */
     @Operation(summary = "알림 설정 조회", description = "사용자의 알림 설정을 조회합니다.")
     @GetMapping
-    public ResponseEntity<NotificationSettingResponse> getNotificationSetting(@RequestParam Long userId) {
-        NotificationSetting setting = getNotificationSettingUseCase.getNotificationSetting(userId);
+    public ResponseEntity<NotificationSettingResponse> getNotificationSetting(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        NotificationSetting setting = getNotificationSettingUseCase.getNotificationSetting(principal.getUserId());
         return ResponseEntity.ok(NotificationSettingResponse.from(setting));
     }
 
     /**
      * 사용자의 알림 설정을 업데이트합니다.
      *
-     * @param userId  사용자 ID
-     * @param request 알림 설정 업데이트 요청
+     * @param principal 인증된 사용자 정보
+     * @param request   알림 설정 업데이트 요청
      * @return 업데이트된 알림 설정 정보
      */
     @Operation(summary = "알림 설정 업데이트", description = "사용자의 알림 설정을 업데이트합니다.")
     @PutMapping
     public ResponseEntity<NotificationSettingResponse> updateNotificationSetting(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @RequestBody UpdateNotificationSettingRequest request) {
 
         NotificationSetting setting = updateNotificationSettingUseCase.updateNotificationSetting(
-                userId,
+                principal.getUserId(),
                 request.messageNotification(),
                 request.friendRequestNotification(),
                 request.groupInviteNotification(),

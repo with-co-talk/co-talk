@@ -2,6 +2,7 @@ package com.cotalk.infrastructure.messaging;
 
 import com.cotalk.adapter.inbound.websocket.dto.WebSocketMessage;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
+import com.cotalk.domain.util.HtmlSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -28,6 +29,7 @@ import java.time.ZoneId;
 public class InMemoryChatMessageBroker implements ChatMessageBroker {
 
     private final SimpMessagingTemplate messagingTemplate;
+    private static final String ROOM_TOPIC_PREFIX = "/topic/chat/room/";
 
     /**
      * 지정된 채팅방에 메시지를 발행한다.
@@ -42,7 +44,7 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
 
         // 직접 WebSocket으로 브로드캐스트 (단일 서버 환경)
         WebSocketMessage wsMessage = toWebSocketMessage(message);
-        String destination = "/topic/chat/room/" + roomId;
+        String destination = ROOM_TOPIC_PREFIX + roomId;
         
         messagingTemplate.convertAndSend(destination, wsMessage);
     }
@@ -60,17 +62,21 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
         );
 
         return new WebSocketMessage(
+                1,
+                "message:" + msg.messageId(),
                 msg.messageId(),
                 msg.senderId(),
                 msg.roomId(),
-                msg.content(),
+                // 과거 데이터 호환: 저장된 HTML 엔티티를 복원해 클라이언트에 원문으로 보여준다.
+                HtmlSanitizer.unescape(msg.content()),
                 msg.type(),
                 createdAt,
                 msg.fileUrl(),
                 msg.fileName(),
                 msg.fileSize(),
                 msg.contentType(),
-                msg.thumbnailUrl()
+                msg.thumbnailUrl(),
+                msg.unreadCount()
         );
     }
 
@@ -86,7 +92,21 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
         log.debug("InMemory broadcast reaction to room {}: {}", roomId, reactionEvent);
         
         // 직접 WebSocket으로 브로드캐스트 (단일 서버 환경)
-        String destination = "/topic/chat/room/" + roomId + "/reaction";
+        String destination = ROOM_TOPIC_PREFIX + roomId + "/reaction";
         messagingTemplate.convertAndSend(destination, reactionEvent);
+    }
+
+    /**
+     * 지정된 채팅방에 이벤트를 발행한다.
+     * 인메모리 구현이므로 직접 WebSocket(/topic/chat/room/{roomId})으로 브로드캐스트한다.
+     *
+     * @param roomId 채팅방 ID
+     * @param event  발행할 이벤트 객체
+     */
+    @Override
+    public void publishRoomEvent(Long roomId, Object event) {
+        log.debug("InMemory broadcast room event to room {}: {}", roomId, event);
+        String destination = ROOM_TOPIC_PREFIX + roomId;
+        messagingTemplate.convertAndSend(destination, event);
     }
 }

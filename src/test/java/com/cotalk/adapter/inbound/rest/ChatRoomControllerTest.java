@@ -165,8 +165,7 @@ class ChatRoomControllerTest {
             given(getChatRoomsUseCase.getChatRooms(userId)).willReturn(chatRooms);
 
             // when & then
-            mockMvc.perform(get("/api/v1/chat/rooms")
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(get("/api/v1/chat/rooms"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.rooms").isArray())
                     .andExpect(jsonPath("$.rooms.length()").value(2))
@@ -187,8 +186,7 @@ class ChatRoomControllerTest {
             given(getChatRoomsUseCase.getChatRooms(userId)).willReturn(List.of());
 
             // when & then
-            mockMvc.perform(get("/api/v1/chat/rooms")
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(get("/api/v1/chat/rooms"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.rooms").isArray())
                     .andExpect(jsonPath("$.rooms.length()").value(0));
@@ -216,8 +214,7 @@ class ChatRoomControllerTest {
             given(getChatRoomMembersUseCase.getChatRoomMembers(roomId, userId)).willReturn(members);
 
             // when & then
-            mockMvc.perform(get("/api/v1/chat/rooms/{roomId}/members", roomId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(get("/api/v1/chat/rooms/{roomId}/members", roomId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.members").isArray())
                     .andExpect(jsonPath("$.members.length()").value(2))
@@ -238,8 +235,7 @@ class ChatRoomControllerTest {
             given(getChatRoomMembersUseCase.getChatRoomMembers(roomId, userId)).willReturn(List.of());
 
             // when & then
-            mockMvc.perform(get("/api/v1/chat/rooms/{roomId}/members", roomId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(get("/api/v1/chat/rooms/{roomId}/members", roomId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.members").isArray())
                     .andExpect(jsonPath("$.members.length()").value(0));
@@ -260,8 +256,7 @@ class ChatRoomControllerTest {
             willDoNothing().given(leaveChatRoomUseCase).leaveChatRoom(anyLong(), anyLong());
 
             // when & then
-            mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/leave", roomId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/leave", roomId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("채팅방을 나갔습니다."));
         }
@@ -278,11 +273,11 @@ class ChatRoomControllerTest {
             Long roomId = 100L;
             Long userId = 1L;
 
+            given(securityContextHelper.getCurrentUserId()).willReturn(userId);
             willDoNothing().given(markAsReadUseCase).markAsRead(anyLong(), anyLong());
 
             // when & then
-            mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/read", roomId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/read", roomId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("읽음 처리되었습니다."));
         }
@@ -458,8 +453,7 @@ class ChatRoomControllerTest {
             given(chatRoomManagementUseCase.clearAnnouncement(roomId, userId)).willReturn(chatRoom);
 
             // when & then
-            mockMvc.perform(delete("/api/v1/chat/rooms/{roomId}/announcement", roomId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(delete("/api/v1/chat/rooms/{roomId}/announcement", roomId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("공지사항이 삭제되었습니다."));
         }
@@ -488,8 +482,7 @@ class ChatRoomControllerTest {
                     .willReturn(member);
 
             // when & then
-            mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/admins/{targetUserId}", roomId, targetUserId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/admins/{targetUserId}", roomId, targetUserId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.userId").value(targetUserId))
                     .andExpect(jsonPath("$.role").value("ADMIN"))
@@ -520,8 +513,7 @@ class ChatRoomControllerTest {
                     .willReturn(member);
 
             // when & then
-            mockMvc.perform(delete("/api/v1/chat/rooms/{roomId}/admins/{targetUserId}", roomId, targetUserId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(delete("/api/v1/chat/rooms/{roomId}/admins/{targetUserId}", roomId, targetUserId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.userId").value(targetUserId))
                     .andExpect(jsonPath("$.role").value("MEMBER"))
@@ -544,24 +536,11 @@ class ChatRoomControllerTest {
             willDoNothing().given(kickChatRoomMemberUseCase).kickMember(roomId, userId, targetUserId);
 
             // when & then
-            mockMvc.perform(delete("/api/v1/chat/rooms/{roomId}/members/{targetUserId}", roomId, targetUserId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(delete("/api/v1/chat/rooms/{roomId}/members/{targetUserId}", roomId, targetUserId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("멤버가 강제 퇴장되었습니다."));
         }
 
-        @Test
-        @DisplayName("인증된 사용자와 요청 userId가 다르면 접근 거부")
-        void should_returnForbidden_when_userIdMismatch() throws Exception {
-            // given
-            Long roomId = 100L;
-            Long targetUserId = 2L;
-            Long requestUserId = 999L; // 인증된 사용자(1L)와 다른 userId
-
-            // when & then
-            mockMvc.perform(delete("/api/v1/chat/rooms/{roomId}/members/{targetUserId}", roomId, targetUserId)
-                            .param("userId", String.valueOf(requestUserId)))
-                    .andExpect(status().isForbidden());
-        }
+        // 이 테스트는 더 이상 필요하지 않음 - JWT에서 userId를 추출하므로 query parameter 검증이 없음
     }
 }

@@ -18,7 +18,6 @@ import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.ChatRoomSummary;
 import com.cotalk.domain.port.inbound.chatroom.ChatRoomManagementUseCase;
-import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.CreateGroupChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomMembersUseCase;
@@ -27,13 +26,14 @@ import com.cotalk.domain.port.inbound.chatroom.InviteGroupChatMemberUseCase;
 import com.cotalk.domain.port.inbound.chatroom.KickChatRoomMemberUseCase;
 import com.cotalk.domain.port.inbound.chatroom.LeaveChatRoomUseCase;
 import com.cotalk.domain.port.inbound.message.MarkAsReadUseCase;
-import com.cotalk.infrastructure.security.SecurityContextHelper;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,7 +41,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -68,7 +67,6 @@ public class ChatRoomController {
     private final ChatRoomManagementUseCase chatRoomManagementUseCase;
     private final GetChatRoomMembersUseCase getChatRoomMembersUseCase;
     private final KickChatRoomMemberUseCase kickChatRoomMemberUseCase;
-    private final SecurityContextHelper securityContextHelper;
 
     /**
      * 1:1 채팅방을 생성합니다.
@@ -87,14 +85,14 @@ public class ChatRoomController {
     /**
      * 사용자의 채팅방 목록을 조회합니다.
      *
-     * @param userId 사용자 ID
+     * @param principal 인증된 사용자 정보
      * @return 채팅방 목록
      */
     @Operation(summary = "채팅방 목록 조회", description = "사용자의 채팅방 목록을 조회합니다.")
     @GetMapping
-    public ResponseEntity<ChatRoomsResponse> getChatRooms(@RequestParam Long userId) {
-        validateUserAccess(userId);
-        List<ChatRoomSummary> chatRooms = getChatRoomsUseCase.getChatRooms(userId);
+    public ResponseEntity<ChatRoomsResponse> getChatRooms(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        List<ChatRoomSummary> chatRooms = getChatRoomsUseCase.getChatRooms(principal.getUserId());
         List<ChatRoomDto> roomDtos = chatRooms.stream()
                 .map(ChatRoomDto::from)
                 .toList();
@@ -104,18 +102,17 @@ public class ChatRoomController {
     /**
      * 채팅방 멤버 목록을 조회합니다.
      *
-     * @param roomId 채팅방 ID
-     * @param userId 요청 사용자 ID
+     * @param principal 인증된 사용자 정보
+     * @param roomId    채팅방 ID
      * @return 멤버 목록
      */
     @Operation(summary = "채팅방 멤버 목록 조회", description = "채팅방의 멤버 목록을 조회합니다.")
     @GetMapping("/{roomId}/members")
     public ResponseEntity<ChatRoomMembersResponse> getChatRoomMembers(
-            @PathVariable Long roomId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long roomId) {
         List<GetChatRoomMembersUseCase.MemberInfo> members =
-                getChatRoomMembersUseCase.getChatRoomMembers(roomId, userId);
+                getChatRoomMembersUseCase.getChatRoomMembers(roomId, principal.getUserId());
         List<ChatRoomMemberDto> memberDtos = members.stream()
                 .map(ChatRoomMemberDto::from)
                 .toList();
@@ -125,34 +122,32 @@ public class ChatRoomController {
     /**
      * 채팅방에서 나갑니다.
      *
-     * @param roomId 채팅방 ID
-     * @param userId 사용자 ID
+     * @param principal 인증된 사용자 정보
+     * @param roomId    채팅방 ID
      * @return 처리 결과 메시지
      */
     @Operation(summary = "채팅방 나가기", description = "채팅방에서 나갑니다.")
     @PostMapping("/{roomId}/leave")
     public ResponseEntity<MessageResponse> leaveChatRoom(
-            @PathVariable Long roomId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
-        leaveChatRoomUseCase.leaveChatRoom(roomId, userId);
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long roomId) {
+        leaveChatRoomUseCase.leaveChatRoom(roomId, principal.getUserId());
         return ResponseEntity.ok(MessageResponse.of("채팅방을 나갔습니다."));
     }
 
     /**
      * 채팅방 메시지를 읽음 처리합니다.
      *
-     * @param roomId 채팅방 ID
-     * @param userId 사용자 ID
+     * @param principal 인증된 사용자 정보
+     * @param roomId    채팅방 ID
      * @return 처리 결과 메시지
      */
     @Operation(summary = "읽음 표시", description = "채팅방 메시지를 읽음 처리합니다.")
     @PostMapping("/{roomId}/read")
     public ResponseEntity<MessageResponse> markAsRead(
-            @PathVariable Long roomId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
-        markAsReadUseCase.markAsRead(userId, roomId);
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long roomId) {
+        markAsReadUseCase.markAsRead(principal.getUserId(), roomId);
         return ResponseEntity.ok(MessageResponse.of("읽음 처리되었습니다."));
     }
 
@@ -223,87 +218,71 @@ public class ChatRoomController {
     /**
      * 채팅방 공지사항을 삭제합니다. (관리자 권한 필요)
      *
-     * @param roomId 채팅방 ID
-     * @param userId 사용자 ID
+     * @param principal 인증된 사용자 정보
+     * @param roomId    채팅방 ID
      * @return 처리 결과 메시지
      */
     @Operation(summary = "공지사항 삭제", description = "채팅방 공지사항을 삭제합니다. (관리자 권한 필요)")
     @DeleteMapping("/{roomId}/announcement")
     public ResponseEntity<MessageResponse> clearAnnouncement(
-            @PathVariable Long roomId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
-        chatRoomManagementUseCase.clearAnnouncement(roomId, userId);
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long roomId) {
+        chatRoomManagementUseCase.clearAnnouncement(roomId, principal.getUserId());
         return ResponseEntity.ok(MessageResponse.of("공지사항이 삭제되었습니다."));
     }
 
     /**
      * 멤버를 관리자로 임명합니다. (관리자 권한 필요)
      *
+     * @param principal    인증된 사용자 정보
      * @param roomId       채팅방 ID
      * @param targetUserId 관리자로 임명할 사용자 ID
-     * @param userId       요청자 ID (관리자)
      * @return 임명된 관리자 정보
      */
     @Operation(summary = "관리자 임명", description = "멤버를 관리자로 임명합니다. (관리자 권한 필요)")
     @PostMapping("/{roomId}/admins/{targetUserId}")
     public ResponseEntity<AdminResponse> promoteToAdmin(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long roomId,
-            @PathVariable Long targetUserId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
-        ChatRoomMember member = chatRoomManagementUseCase.promoteToAdmin(roomId, userId, targetUserId);
+            @PathVariable Long targetUserId) {
+        ChatRoomMember member = chatRoomManagementUseCase.promoteToAdmin(roomId, principal.getUserId(), targetUserId);
         return ResponseEntity.ok(AdminResponse.from(member, "관리자로 임명되었습니다."));
     }
 
     /**
      * 관리자 권한을 해제합니다. (관리자 권한 필요)
      *
+     * @param principal    인증된 사용자 정보
      * @param roomId       채팅방 ID
      * @param targetUserId 권한 해제할 사용자 ID
-     * @param userId       요청자 ID (관리자)
      * @return 권한 해제된 멤버 정보
      */
     @Operation(summary = "관리자 해제", description = "관리자 권한을 해제합니다. (관리자 권한 필요)")
     @DeleteMapping("/{roomId}/admins/{targetUserId}")
     public ResponseEntity<AdminResponse> demoteFromAdmin(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long roomId,
-            @PathVariable Long targetUserId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
-        ChatRoomMember member = chatRoomManagementUseCase.demoteFromAdmin(roomId, userId, targetUserId);
+            @PathVariable Long targetUserId) {
+        ChatRoomMember member = chatRoomManagementUseCase.demoteFromAdmin(roomId, principal.getUserId(), targetUserId);
         return ResponseEntity.ok(AdminResponse.from(member, "관리자 권한이 해제되었습니다."));
     }
 
     /**
      * 채팅방에서 멤버를 강제 퇴장시킵니다. (관리자 권한 필요)
      *
+     * @param principal    인증된 사용자 정보
      * @param roomId       채팅방 ID
      * @param targetUserId 강제 퇴장시킬 사용자 ID
-     * @param userId       요청자 ID (관리자)
      * @return 처리 결과 메시지
      */
     @Operation(summary = "멤버 강제 퇴장", description = "채팅방에서 멤버를 강제 퇴장시킵니다. (관리자 권한 필요)")
     @DeleteMapping("/{roomId}/members/{targetUserId}")
     public ResponseEntity<MessageResponse> kickMember(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long roomId,
-            @PathVariable Long targetUserId,
-            @RequestParam Long userId) {
-        validateUserAccess(userId);
-        kickChatRoomMemberUseCase.kickMember(roomId, userId, targetUserId);
+            @PathVariable Long targetUserId) {
+        kickChatRoomMemberUseCase.kickMember(roomId, principal.getUserId(), targetUserId);
         return ResponseEntity.ok(MessageResponse.of("멤버가 강제 퇴장되었습니다."));
     }
 
-    /**
-     * 요청된 userId가 현재 인증된 사용자의 ID와 일치하는지 검증합니다.
-     *
-     * @param userId 검증할 사용자 ID
-     * @throws ResourceAccessDeniedException 사용자 ID가 일치하지 않는 경우
-     */
-    private void validateUserAccess(Long userId) {
-        Long currentUserId = securityContextHelper.getCurrentUserId();
-        if (!currentUserId.equals(userId)) {
-            throw new ResourceAccessDeniedException();
-        }
-    }
 }

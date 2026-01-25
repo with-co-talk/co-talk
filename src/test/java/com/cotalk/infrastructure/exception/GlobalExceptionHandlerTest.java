@@ -322,8 +322,8 @@ class GlobalExceptionHandlerTest {
     class HandleInvalidCredentialsException {
 
         @Test
-        @DisplayName("InvalidCredentialsException은 400 BAD_REQUEST 반환")
-        void should_returnBadRequest_when_invalidCredentials() {
+        @DisplayName("InvalidCredentialsException은 401 UNAUTHORIZED 반환")
+        void should_returnUnauthorized_when_invalidCredentials() {
             // given
             InvalidCredentialsException exception = new InvalidCredentialsException();
 
@@ -331,7 +331,7 @@ class GlobalExceptionHandlerTest {
             ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleInvalidCredentialsException(exception);
 
             // then
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().code()).isEqualTo("INVALID_CREDENTIALS");
         }

@@ -57,7 +57,8 @@ class InMemoryChatMessageBrokerTest {
                 null,           // fileName
                 null,           // fileSize
                 null,           // contentType
-                null            // thumbnailUrl
+                null,           // thumbnailUrl
+                1               // unreadCount
         );
 
         // when
@@ -91,7 +92,8 @@ class InMemoryChatMessageBrokerTest {
                 "image.png",
                 1024L,
                 "image/png",
-                "https://storage.example.com/thumb.png"
+                "https://storage.example.com/thumb.png",
+                1  // unreadCount
         );
 
         // when
@@ -138,7 +140,7 @@ class InMemoryChatMessageBrokerTest {
         Long roomId = 123L;
         ChatBroadcastMessage message = new ChatBroadcastMessage(
                 1L, 1L, roomId, "test", "TEXT",
-                System.currentTimeMillis(), null, null, null, null, null
+                System.currentTimeMillis(), null, null, null, null, null, 1
         );
 
         // when

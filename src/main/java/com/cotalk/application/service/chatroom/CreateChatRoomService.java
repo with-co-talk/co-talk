@@ -6,10 +6,13 @@ import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
@@ -26,6 +29,7 @@ public class CreateChatRoomService implements CreateChatRoomUseCase {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final IdGenerator idGenerator;
+    private final UserEventBroker userEventBroker;
 
     /**
      * 1:1 채팅방을 생성한다.
@@ -64,6 +68,26 @@ public class CreateChatRoomService implements CreateChatRoomUseCase {
         chatRoomMemberRepository.save(member1);
         chatRoomMemberRepository.save(member2);
 
+        publishRoomCreatedEvent(chatRoom.getId(), userId1);
+
         return chatRoom.getId();
+    }
+
+    private void publishRoomCreatedEvent(Long chatRoomId, Long userId1) {
+        ChatListUpdateEvent event = new ChatListUpdateEvent(
+                1,
+                "chat-list:ROOM_CREATED:" + chatRoomId + ":" + userId1,
+                "ROOM_CREATED",
+                chatRoomId,
+                "",
+                "SYSTEM",
+                LocalDateTime.now(),
+                userId1,
+                "SYSTEM",
+                0
+        );
+        // 1:1 채팅은 "대화하기"로 방만 만든 단계에서는 상대방 목록에 노출되지 않아야 한다.
+        // 따라서 ROOM_CREATED 이벤트는 요청자(보통 userId1)에게만 보낸다.
+        userEventBroker.publishChatListUpdate(userId1, event);
     }
 }
