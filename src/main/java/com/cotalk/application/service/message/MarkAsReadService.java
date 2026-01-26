@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 /**
@@ -69,15 +70,15 @@ public class MarkAsReadService implements MarkAsReadUseCase {
                 .map(Message::getId)
                 .orElse(null);
 
+        // 메시지가 없으면 읽음 처리할 것이 없으므로 아무것도 하지 않음
+        if (lastReadMessageId == null) {
+            log.debug("No messages in chat room {}, nothing to mark as read", chatRoomId);
+            return;
+        }
+
         // 원자적 업데이트 (기존 메시지 ID보다 큰 경우에만)
         LocalDateTime now = LocalDateTime.now();
-        int updated;
-        if (lastReadMessageId == null) {
-            // 메시지가 없으면 시간만 갱신(기존 로직 유지)
-            updated = chatRoomMemberRepository.updateLastReadAtIfNewer(chatRoomId, userId, now);
-        } else {
-            updated = chatRoomMemberRepository.updateLastReadMessageIdIfNewer(chatRoomId, userId, now, lastReadMessageId);
-        }
+        int updated = chatRoomMemberRepository.updateLastReadMessageIdIfNewer(chatRoomId, userId, now, lastReadMessageId);
 
         if (updated > 0) {
             log.info("Marked as read: userId={}, chatRoomId={}, lastReadAt={}", userId, chatRoomId, now);
@@ -92,6 +93,11 @@ public class MarkAsReadService implements MarkAsReadUseCase {
 
         // 채팅방 토픽용 READ 이벤트 발행 (카톡/라인 스타일: 방 화면은 방 구독만으로 읽음 반영 가능)
         publishRoomReadEvent(chatRoomId, userId, now, lastReadMessageId);
+
+        // 읽음 처리 후 업데이트된 메시지들을 브로드캐스트
+        // 클라이언트가 서버가 보내주는 메시지의 unreadCount를 그대로 사용하므로
+        // 업데이트된 unreadCount가 포함된 메시지를 다시 전송해야 함
+        publishUpdatedMessages(chatRoomId, userId, now, lastReadMessageId);
 
         // 채팅 목록 업데이트 이벤트 브로드캐스트 (unreadCount 재계산)
         // 읽은 사용자의 현재 lastReadMessageId를 기준으로 정확한 unreadCount 계산
@@ -113,16 +119,21 @@ public class MarkAsReadService implements MarkAsReadUseCase {
     /**
      * 채팅방 토픽에 READ 이벤트를 발행한다.
      *
+     * <p>이벤트 ID는 사용자 채널과 동일하게 통일하여 중복 체크가 제대로 작동하도록 한다.
+     *
      * @param chatRoomId 채팅방 ID
      * @param readerId   읽은 사용자 ID
      * @param lastReadAt 읽은 시간
      */
     private void publishRoomReadEvent(Long chatRoomId, Long readerId, LocalDateTime lastReadAt, Long lastReadMessageId) {
+        // 이벤트 ID를 사용자 채널과 동일하게 통일 (중복 체크를 위해)
+        String eventId = "read-receipt:" + chatRoomId + ":" + readerId + ":" + lastReadMessageId;
+        
         chatMessageBroker.publishRoomEvent(
                 chatRoomId,
                 new RoomReadEvent(
                         1,
-                        "room-event:READ:" + chatRoomId + ":" + readerId + ":" + lastReadMessageId,
+                        eventId,
                         "READ",
                         chatRoomId,
                         readerId,
@@ -174,6 +185,64 @@ public class MarkAsReadService implements MarkAsReadUseCase {
     }
 
     /**
+     * 읽음 처리 후 업데이트된 메시지들을 브로드캐스트한다.
+     * 각 메시지의 unreadCount를 재계산하여 클라이언트에 전송한다.
+     *
+     * <p>클라이언트 요구사항:
+     * - 서버가 보내주는 메시지의 unreadCount를 그대로 사용
+     * - 기존 메시지가 있으면 서버가 보내준 값으로 업데이트
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param readerId   읽은 사용자 ID
+     * @param lastReadAt 읽은 시간
+     * @param lastReadMessageId 읽은 메시지 ID
+     */
+    private void publishUpdatedMessages(Long chatRoomId, Long readerId, LocalDateTime lastReadAt, Long lastReadMessageId) {
+        // 최근 메시지들을 조회 (최근 50개)
+        // 읽음 처리로 인해 unreadCount가 변경될 수 있는 메시지들만 재전송
+        List<Message> recentMessages = messageRepository.findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, 0, 50);
+        
+        if (recentMessages.isEmpty()) {
+            log.debug("No messages found in chat room {}, skipping message update broadcast", chatRoomId);
+            return;
+        }
+
+        log.info("Publishing updated messages after markAsRead: chatRoomId={}, readerId={}, messageCount={}", 
+                chatRoomId, readerId, recentMessages.size());
+
+        // 각 메시지에 대해 업데이트된 unreadCount를 계산하여 브로드캐스트
+        for (Message message : recentMessages) {
+            // 해당 메시지를 읽지 않은 멤버 수 계산 (발신자 제외)
+            int unreadCount = chatRoomMemberRepository.countUnreadMembersByMessageId(
+                    chatRoomId,
+                    message.getId(),
+                    message.getSenderId()
+            );
+
+            log.debug("Calculated unreadCount for message {}: unreadCount={}", message.getId(), unreadCount);
+
+            // 업데이트된 unreadCount가 포함된 메시지를 브로드캐스트
+            ChatMessageBroker.ChatBroadcastMessage broadcastMessage = new ChatMessageBroker.ChatBroadcastMessage(
+                    message.getId(),
+                    message.getSenderId(),
+                    message.getChatRoomId(),
+                    message.getContent(),
+                    message.getType().name(),
+                    message.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                    message.getFileUrl(),
+                    message.getFileName(),
+                    message.getFileSize(),
+                    message.getFileContentType(),
+                    message.getThumbnailUrl(),
+                    unreadCount
+            );
+
+            chatMessageBroker.publish(chatRoomId, broadcastMessage);
+            log.debug("Published updated message: messageId={}, unreadCount={}", message.getId(), unreadCount);
+        }
+    }
+
+    /**
      * 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트한다.
      * 읽음 처리 후 각 멤버의 unreadCount를 재계산하여 전송한다.
      *
@@ -217,7 +286,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
                     ? readerLastReadMessageId
                     : member.getLastReadMessageId();
             
-            log.debug("Calculating unreadCount for member {}: lastReadMessageId={}, readerId={}, readerLastReadMessageId={}", 
+            log.info("Calculating unreadCount for member {}: lastReadMessageId={}, readerId={}, readerLastReadMessageId={}", 
                     member.getUserId(), memberLastReadMessageId, readerId, readerLastReadMessageId);
             
             int memberUnreadCount = (int) messageRepository.countUnreadMessagesByLastReadMessageId(
@@ -226,7 +295,8 @@ public class MarkAsReadService implements MarkAsReadUseCase {
                     memberLastReadMessageId
             );
             
-            log.debug("Calculated unreadCount for member {}: unreadCount={}", member.getUserId(), memberUnreadCount);
+            log.info("Calculated unreadCount for member {}: unreadCount={}, lastReadMessageId={}", 
+                    member.getUserId(), memberUnreadCount, memberLastReadMessageId);
 
             ChatListUpdateEvent event = new ChatListUpdateEvent(
                     1,

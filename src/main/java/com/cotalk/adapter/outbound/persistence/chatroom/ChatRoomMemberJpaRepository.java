@@ -81,12 +81,14 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * 기존 값보다 큰 경우에만 업데이트하여 Lost Update를 방지한다.
      *
      * <p>lastReadAt은 보조 정보로 함께 갱신한다.</p>
+     * 
+     * <p>lastReadMessageId가 null이 아닌 경우에만 업데이트한다.</p>
      */
     @Modifying
     @Query("UPDATE ChatRoomMember m " +
            "SET m.lastReadMessageId = :lastReadMessageId, m.lastReadAt = :lastReadAt " +
            "WHERE m.chatRoomId = :chatRoomId AND m.userId = :userId " +
-           "AND (:lastReadMessageId IS NOT NULL) " +
+           "AND :lastReadMessageId IS NOT NULL " +
            "AND (m.lastReadMessageId IS NULL OR m.lastReadMessageId < :lastReadMessageId)")
     int updateLastReadMessageIdIfNewer(@Param("chatRoomId") Long chatRoomId,
                                        @Param("userId") Long userId,

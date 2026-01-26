@@ -129,22 +129,19 @@ public class ChatWebSocketController {
      */
     private void publishToRedis(Message message) {
         // 읽지 않은 멤버 수 계산 (발신자 제외)
-        int unreadCountByLastReadMessageId = chatRoomMemberRepository.countUnreadMembersByMessageId(
-                message.getChatRoomId(),
-                message.getId(),
-                message.getSenderId()
-        );
-        int activeCount = chatRoomPresenceTracker.countActiveMembers(message.getChatRoomId());
-        int activeReceivers = activeCount - (chatRoomPresenceTracker.isActive(message.getChatRoomId(), message.getSenderId()) ? 1 : 0);
-        int unreadCount = Math.max(0, unreadCountByLastReadMessageId - Math.max(0, activeReceivers));
+        // 카톡/라인 스타일: 채팅방 인원 수 - 1 (나) = 초기 unreadCount
+        // 포커스가 있는지 여부는 클라이언트가 markAsRead를 호출할 때만 고려
+        // 서버는 presence를 고려하지 않고 전체 인원 수 기준으로 계산
+        var members = chatRoomMemberRepository.findByChatRoomId(message.getChatRoomId());
+        int totalMembers = members.size();
+        int unreadCount = Math.max(0, totalMembers - 1); // 발신자 제외
+        
         log.info(
-                "[WS] publishToRedis roomId={}, messageId={}, senderId={}, unreadByLastReadMessageId={}, activeCount={}, activeReceivers(exclSender)={}, finalUnreadCount={}",
+                "[WS] publishToRedis roomId={}, messageId={}, senderId={}, totalMembers={}, unreadCount={}",
                 message.getChatRoomId(),
                 message.getId(),
                 message.getSenderId(),
-                unreadCountByLastReadMessageId,
-                activeCount,
-                activeReceivers,
+                totalMembers,
                 unreadCount
         );
 
@@ -189,13 +186,30 @@ public class ChatWebSocketController {
             // 해당 멤버가 현재 방을 보고 있으면 unreadCount는 0이어야 한다.
             // (lastReadAt 기반 계산은 네트워크 지연/레이스에서 1로 튀는 문제가 있어 presence로 보정)
             boolean memberActiveInRoom = chatRoomPresenceTracker.isActive(message.getChatRoomId(), member.getUserId());
-            int memberUnreadCount = memberActiveInRoom
-                    ? 0
-                    : (int) messageRepository.countUnreadMessagesByLastReadMessageId(
-                    message.getChatRoomId(),
-                    member.getUserId(),
-                    member.getLastReadMessageId()
-            );
+            int memberUnreadCount;
+            if (memberActiveInRoom) {
+                // 방을 보고 있으면 unreadCount는 0
+                memberUnreadCount = 0;
+            } else {
+                // 방을 보고 있지 않으면 lastReadMessageId 기준으로 계산
+                Long lastReadMessageId = member.getLastReadMessageId();
+                if (lastReadMessageId == null) {
+                    // lastReadMessageId가 null이면 아직 읽지 않은 메시지가 있을 수 있음
+                    // 하지만 실제로는 마지막 메시지 ID를 기준으로 계산해야 함
+                    // 일단 모든 메시지를 카운트하되, 발신자의 메시지는 제외
+                    memberUnreadCount = (int) messageRepository.countUnreadMessagesByLastReadMessageId(
+                            message.getChatRoomId(),
+                            member.getUserId(),
+                            null
+                    );
+                } else {
+                    memberUnreadCount = (int) messageRepository.countUnreadMessagesByLastReadMessageId(
+                            message.getChatRoomId(),
+                            member.getUserId(),
+                            lastReadMessageId
+                    );
+                }
+            }
             log.info(
                     "[WS] chatListUpdate roomId={}, targetUserId={}, memberActiveInRoom={}, memberUnreadCount={}",
                     message.getChatRoomId(),

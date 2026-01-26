@@ -91,13 +91,26 @@ public class GetChatRoomsService implements GetChatRoomsUseCase {
      * 안 읽은 메시지 개수를 계산합니다.
      */
     private long calculateUnreadCount(Long chatRoomId, Long userId, Optional<ChatRoomMember> myMember) {
-        return myMember
-                .map(member -> messageRepository.countUnreadMessagesByLastReadMessageId(
-                        chatRoomId,
-                        userId,
-                        member.getLastReadMessageId()
-                ))
-                .orElse(0L);
+        if (myMember.isEmpty()) {
+            return 0L;
+        }
+        
+        ChatRoomMember member = myMember.get();
+        Long lastReadMessageId = member.getLastReadMessageId();
+        
+        long unreadCount = messageRepository.countUnreadMessagesByLastReadMessageId(
+                chatRoomId,
+                userId,
+                lastReadMessageId
+        );
+        
+        // 디버깅용 로그
+        System.out.println("[GetChatRoomsService] calculateUnreadCount: chatRoomId=" + chatRoomId 
+                + ", userId=" + userId 
+                + ", lastReadMessageId=" + lastReadMessageId 
+                + ", unreadCount=" + unreadCount);
+        
+        return unreadCount;
     }
 
     /**
