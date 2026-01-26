@@ -4,6 +4,7 @@ import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -32,6 +34,9 @@ class CreateChatRoomServiceTest {
 
     @Mock
     private SnowflakeIdGenerator idGenerator;
+
+    @Mock
+    private UserEventBroker userEventBroker;
 
     @InjectMocks
     private CreateChatRoomService createChatRoomService;
@@ -92,5 +97,34 @@ class CreateChatRoomServiceTest {
         // then
         assertThat(result).isEqualTo(existingRoomId);
         verify(chatRoomRepository, times(0)).save(any(ChatRoom.class));
+        verify(userEventBroker, times(0)).publishChatListUpdate(any(), any());
+    }
+
+    @Test
+    @DisplayName("새 채팅방 생성 시 ROOM_CREATED 이벤트 발행")
+    void should_publishRoomCreatedEvent_when_newChatRoomCreated() {
+        // given
+        Long userId1 = 1L;
+        Long userId2 = 2L;
+        Long chatRoomId = 100L;
+        Long memberId1 = 101L;
+        Long memberId2 = 102L;
+
+        given(chatRoomRepository.findDirectChatRoomByUserIds(userId1, userId2))
+                .willReturn(Optional.empty());
+        given(idGenerator.nextId())
+                .willReturn(chatRoomId)
+                .willReturn(memberId1)
+                .willReturn(memberId2);
+        given(chatRoomRepository.save(any(ChatRoom.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+        given(chatRoomMemberRepository.save(any(ChatRoomMember.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        createChatRoomService.createChatRoom(userId1, userId2);
+
+        // then
+        verify(userEventBroker).publishChatListUpdate(eq(userId1), any());
     }
 }

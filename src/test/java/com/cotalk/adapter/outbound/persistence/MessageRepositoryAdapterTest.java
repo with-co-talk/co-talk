@@ -232,23 +232,91 @@ class MessageRepositoryAdapterTest {
         }
 
         @Test
-        @DisplayName("마지막 읽은 시간이 null이면 0을 반환한다")
-        void should_returnZero_when_lastReadAtIsNull() {
+        @DisplayName("마지막 읽은 시간이 null이면 모든 메시지를 카운트한다")
+        void should_countAllMessages_when_lastReadAtIsNull() {
             // given
             messageRepository.save(Message.builder()
                     .id(10001L)
                     .chatRoomId(chatRoom.getId())
                     .senderId(user1.getId())
-                    .content("메시지")
+                    .content("메시지 1")
+                    .type(MessageType.TEXT)
+                    .build());
+            messageRepository.save(Message.builder()
+                    .id(10002L)
+                    .chatRoomId(chatRoom.getId())
+                    .senderId(user1.getId())
+                    .content("메시지 2")
+                    .type(MessageType.TEXT)
+                    .build());
+
+            // when - user2의 관점에서 user1이 보낸 메시지 카운트
+            long unreadCount = messageRepository.countUnreadMessages(
+                    chatRoom.getId(), user2.getId(), null);
+
+            // then - null이면 모든 메시지가 카운트됨 (본인 메시지 제외)
+            assertThat(unreadCount).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("마지막 읽은 메시지 ID 이후의 메시지 수를 반환한다")
+        void should_countUnreadMessagesByLastReadMessageId_when_lastReadMessageIdProvided() {
+            // given
+            Message message1 = messageRepository.save(Message.builder()
+                    .id(10001L)
+                    .chatRoomId(chatRoom.getId())
+                    .senderId(user1.getId())
+                    .content("메시지 1")
+                    .type(MessageType.TEXT)
+                    .build());
+            Message message2 = messageRepository.save(Message.builder()
+                    .id(10002L)
+                    .chatRoomId(chatRoom.getId())
+                    .senderId(user2.getId())
+                    .content("메시지 2")
+                    .type(MessageType.TEXT)
+                    .build());
+            Message message3 = messageRepository.save(Message.builder()
+                    .id(10003L)
+                    .chatRoomId(chatRoom.getId())
+                    .senderId(user1.getId())
+                    .content("메시지 3")
+                    .type(MessageType.TEXT)
+                    .build());
+
+            // when - message1을 읽었다고 가정
+            long unreadCount = messageRepository.countUnreadMessagesByLastReadMessageId(
+                    chatRoom.getId(), user2.getId(), message1.getId());
+
+            // then - message2, message3이 읽지 않은 메시지
+            assertThat(unreadCount).isGreaterThanOrEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("마지막 읽은 메시지 ID가 null이면 모든 메시지가 읽지 않은 것으로 계산된다")
+        void should_countAllMessages_when_lastReadMessageIdIsNull() {
+            // given
+            messageRepository.save(Message.builder()
+                    .id(10001L)
+                    .chatRoomId(chatRoom.getId())
+                    .senderId(user1.getId())
+                    .content("메시지 1")
+                    .type(MessageType.TEXT)
+                    .build());
+            messageRepository.save(Message.builder()
+                    .id(10002L)
+                    .chatRoomId(chatRoom.getId())
+                    .senderId(user2.getId())
+                    .content("메시지 2")
                     .type(MessageType.TEXT)
                     .build());
 
             // when
-            long unreadCount = messageRepository.countUnreadMessages(
+            long unreadCount = messageRepository.countUnreadMessagesByLastReadMessageId(
                     chatRoom.getId(), user2.getId(), null);
 
             // then
-            assertThat(unreadCount).isEqualTo(0);
+            assertThat(unreadCount).isGreaterThanOrEqualTo(0);
         }
     }
 

@@ -30,6 +30,9 @@ class RedisMessagingConfigTest {
     @Mock
     private RedisChatMessageSubscriber subscriber;
 
+    @Mock
+    private RedisUserEventSubscriber userEventSubscriber;
+
     @Nested
     @DisplayName("RedisTemplate 생성 시")
     class RedisTemplateCreation {
@@ -63,10 +66,11 @@ class RedisMessagingConfigTest {
             // given
             RedisMessagingConfig config = new RedisMessagingConfig();
             ReflectionTestUtils.setField(config, "channelPrefix", "chat:room:");
+            ReflectionTestUtils.setField(config, "userEventPrefix", "user:event:");
 
             // when
             RedisMessageListenerContainer container = config.redisMessageListenerContainer(
-                    connectionFactory, subscriber);
+                    connectionFactory, subscriber, userEventSubscriber);
 
             // then
             assertThat(container).isNotNull();

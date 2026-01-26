@@ -6,6 +6,7 @@ import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateGroupChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.InviteMembersRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.config.TestRedisConfiguration;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,10 +17,16 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 import java.util.List;
 
@@ -71,7 +78,8 @@ class ChatRoomIntegrationTest {
     }
 
     private void makeFriends(Long userId1, Long userId2) throws Exception {
-        SendFriendRequestRequest sendRequest = new SendFriendRequestRequest(userId1, userId2);
+        setSecurityContext(userId1);
+        SendFriendRequestRequest sendRequest = new SendFriendRequestRequest(userId2);
 
         MvcResult result = mockMvc.perform(post("/api/v1/friends/requests")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -82,9 +90,22 @@ class ChatRoomIntegrationTest {
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
         Long requestId = response.get("requestId").asLong();
 
-        mockMvc.perform(post("/api/v1/friends/requests/{requestId}/accept", requestId)
-                        .param("userId", userId2.toString()))
+        setSecurityContext(userId2);
+        mockMvc.perform(post("/api/v1/friends/requests/{requestId}/accept", requestId))
                 .andExpect(status().isOk());
+    }
+
+    private void setSecurityContext(Long userId) {
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        CustomUserPrincipal principal = new CustomUserPrincipal(
+                userId,
+                "USER",
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+        context.setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
+        );
+        SecurityContextHolder.setContext(context);
     }
 
     @Test
@@ -104,16 +125,16 @@ class ChatRoomIntegrationTest {
         Long chatRoomId = response.get("roomId").asLong();
 
         // 2. user1의 채팅방 목록 조회
-        mockMvc.perform(get("/api/v1/chat/rooms")
-                        .param("userId", user1Id.toString()))
+        setSecurityContext(user1Id);
+        mockMvc.perform(get("/api/v1/chat/rooms"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rooms").isArray())
                 .andExpect(jsonPath("$.rooms.length()").value(1))
                 .andExpect(jsonPath("$.rooms[0].id").value(chatRoomId));
 
         // 3. user2의 채팅방 목록 조회
-        mockMvc.perform(get("/api/v1/chat/rooms")
-                        .param("userId", user2Id.toString()))
+        setSecurityContext(user2Id);
+        mockMvc.perform(get("/api/v1/chat/rooms"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rooms").isArray())
                 .andExpect(jsonPath("$.rooms.length()").value(1));
@@ -183,14 +204,13 @@ class ChatRoomIntegrationTest {
         Long chatRoomId = response.get("roomId").asLong();
 
         // 2. user2가 채팅방 나가기
-        mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/leave", chatRoomId)
-                        .param("userId", user2Id.toString()))
+        setSecurityContext(user2Id);
+        mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/leave", chatRoomId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("채팅방을 나갔습니다."));
 
         // 3. user2의 채팅방 목록에서 사라짐
-        mockMvc.perform(get("/api/v1/chat/rooms")
-                        .param("userId", user2Id.toString()))
+        mockMvc.perform(get("/api/v1/chat/rooms"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rooms.length()").value(0));
     }

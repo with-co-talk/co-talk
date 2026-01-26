@@ -294,6 +294,50 @@ class SendMessageServiceTest {
         }
 
         @Test
+        @DisplayName("contentType이 null인 경우 FILE 타입으로 처리")
+        void should_CreateFileMessage_when_contentTypeIsNull() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+            Long messageId = 100L;
+
+            ChatRoomMember member = ChatRoomMember.builder()
+                    .id(10L)
+                    .chatRoomId(chatRoomId)
+                    .userId(senderId)
+                    .build();
+
+            User sender = User.builder()
+                    .id(senderId)
+                    .email("sender@test.com")
+                    .nickname("발신자")
+                    .passwordHash("hash")
+                    .build();
+
+            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+                    "https://storage.example.com/file",
+                    "unknown.file",
+                    1024L,
+                    null, // contentType이 null
+                    null
+            );
+
+            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
+                    .willReturn(Optional.of(member));
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
+                    .willReturn(List.of(member));
+            given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
+            given(idGenerator.nextId()).willReturn(messageId);
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+            // when
+            Message result = sendMessageService.sendFileMessage(chatRoomId, senderId, command);
+
+            // then
+            assertThat(result.getType()).isEqualTo(Message.MessageType.FILE);
+        }
+
+        @Test
         @DisplayName("이미지 파일 전송 시 사진 알림이 전송된다")
         void should_SendImageNotification_when_ImageFileSent() {
             // given

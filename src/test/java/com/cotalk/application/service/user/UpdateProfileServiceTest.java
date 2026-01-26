@@ -142,4 +142,30 @@ class UpdateProfileServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("닉네임은 비어있을 수 없습니다");
     }
+
+    @Test
+    @DisplayName("닉네임과 아바타 URL이 모두 null이면 변경하지 않음")
+    void should_notUpdate_when_bothAreNull() {
+        // given
+        Long userId = 1L;
+        String originalNickname = "기존닉네임";
+        String originalAvatarUrl = "https://example.com/original-avatar.png";
+        User user = User.builder()
+                .id(userId)
+                .email("test@test.com")
+                .passwordHash("hashedPassword")
+                .nickname(originalNickname)
+                .avatarUrl(originalAvatarUrl)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
+        // when
+        updateProfileUseCase.updateProfile(userId, null, null);
+
+        // then - 값이 변경되지 않았지만 save는 호출됨
+        assertThat(user.getNickname()).isEqualTo(originalNickname);
+        assertThat(user.getAvatarUrl()).isEqualTo(originalAvatarUrl);
+        verify(userRepository).save(user);
+    }
 }

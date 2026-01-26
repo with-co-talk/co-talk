@@ -181,5 +181,50 @@ class GetChatRoomMembersServiceTest {
             assertThat(result.get(0).role()).isEqualTo(ChatRoomMember.MemberRole.ADMIN);
             assertThat(result.get(0).nickname()).isEqualTo("관리자");
         }
+
+        @Test
+        @DisplayName("사용자 정보가 없는 멤버는 null로 처리")
+        void should_handleNullUser_when_userNotFound() {
+            // given
+            ChatRoomMember member = ChatRoomMember.builder()
+                    .id(1L)
+                    .chatRoomId(chatRoomId)
+                    .userId(requestUserId)
+                    .role(ChatRoomMember.MemberRole.MEMBER)
+                    .build();
+
+            ChatRoomMember memberWithDeletedUser = ChatRoomMember.builder()
+                    .id(2L)
+                    .chatRoomId(chatRoomId)
+                    .userId(999L) // 삭제된 사용자
+                    .role(ChatRoomMember.MemberRole.MEMBER)
+                    .build();
+
+            User user = User.builder()
+                    .id(requestUserId)
+                    .email("user@example.com")
+                    .nickname("일반멤버")
+                    .passwordHash("hash")
+                    .build();
+
+            given(chatRoomMemberValidator.getMemberOrThrow(chatRoomId, requestUserId))
+                    .willReturn(member);
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
+                    .willReturn(List.of(member, memberWithDeletedUser));
+            given(userRepository.findAllById(List.of(requestUserId, 999L)))
+                    .willReturn(List.of(user)); // 999L 사용자는 없음
+
+            // when
+            List<GetChatRoomMembersUseCase.MemberInfo> result =
+                    getChatRoomMembersService.getChatRoomMembers(chatRoomId, requestUserId);
+
+            // then
+            assertThat(result).hasSize(2);
+            assertThat(result.stream()
+                    .filter(m -> m.userId().equals(999L))
+                    .findFirst()
+                    .orElseThrow()
+                    .nickname()).isNull();
+        }
     }
 }

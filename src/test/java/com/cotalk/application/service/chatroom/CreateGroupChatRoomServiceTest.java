@@ -7,6 +7,7 @@ import com.cotalk.domain.exception.InvalidGroupChatException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.validator.UserValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.DisplayName;
@@ -26,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,6 +44,9 @@ class CreateGroupChatRoomServiceTest {
 
     @Mock
     private SnowflakeIdGenerator idGenerator;
+
+    @Mock
+    private UserEventBroker userEventBroker;
 
     @InjectMocks
     private CreateGroupChatRoomService createGroupChatRoomService;
@@ -165,5 +170,28 @@ class CreateGroupChatRoomServiceTest {
         assertThatThrownBy(() -> createGroupChatRoomService.createGroupChatRoom(creatorId, roomName, memberIds))
                 .isInstanceOf(InvalidGroupChatException.class)
                 .hasMessageContaining("그룹 채팅방 이름은 50자를 초과할 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("그룹 채팅방 생성 시 모든 멤버에게 ROOM_CREATED 이벤트 발행")
+    void should_publishRoomCreatedEvent_when_groupChatRoomCreated() {
+        // given
+        Long creatorId = 1L;
+        String roomName = "개발팀 채팅방";
+        List<Long> memberIds = List.of(2L, 3L, 4L);
+        Long chatRoomId = 100L;
+
+        doNothing().when(userValidator).validateUsersExist(any());
+        given(idGenerator.nextId()).willReturn(chatRoomId, 101L, 102L, 103L, 104L);
+        given(chatRoomRepository.save(any(ChatRoom.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+        given(chatRoomMemberRepository.saveAll(any()))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        createGroupChatRoomService.createGroupChatRoom(creatorId, roomName, memberIds);
+
+        // then - 생성자 + 멤버 3명 = 총 4명에게 이벤트 발행
+        verify(userEventBroker, times(4)).publishChatListUpdate(any(), any());
     }
 }

@@ -142,4 +142,56 @@ class GetMessageHistoryServiceTest {
         assertThatThrownBy(() -> getMessageHistoryService.getMessageHistory(chatRoomId, userId, null, size))
                 .isInstanceOf(ChatRoomAccessDeniedException.class);
     }
+
+    @Test
+    @DisplayName("메시지가 없는 경우 빈 리스트 반환")
+    void should_returnEmptyList_when_noMessages() {
+        // given
+        Long chatRoomId = 100L;
+        Long userId = 1L;
+        int size = 20;
+
+        ChatRoomMember member = ChatRoomMember.builder()
+                .id(1L)
+                .chatRoomId(chatRoomId)
+                .userId(userId)
+                .build();
+
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
+                .willReturn(Optional.of(member));
+        given(messageRepository.findByChatRoomIdBeforeMessageId(chatRoomId, null, size))
+                .willReturn(List.of());
+
+        // when
+        List<Message> result = getMessageHistoryService.getMessageHistory(chatRoomId, userId, null, size);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("size가 0인 경우 빈 리스트 반환")
+    void should_returnEmptyList_when_sizeIsZero() {
+        // given
+        Long chatRoomId = 100L;
+        Long userId = 1L;
+        int size = 0;
+
+        ChatRoomMember member = ChatRoomMember.builder()
+                .id(1L)
+                .chatRoomId(chatRoomId)
+                .userId(userId)
+                .build();
+
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
+                .willReturn(Optional.of(member));
+        given(messageRepository.findByChatRoomIdBeforeMessageId(chatRoomId, null, size))
+                .willReturn(List.of());
+
+        // when
+        List<Message> result = getMessageHistoryService.getMessageHistory(chatRoomId, userId, null, size);
+
+        // then
+        assertThat(result).isEmpty();
+    }
 }

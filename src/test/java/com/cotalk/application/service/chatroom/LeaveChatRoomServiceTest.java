@@ -131,4 +131,32 @@ class LeaveChatRoomServiceTest {
         verify(chatRoomMemberRepository).delete(member);
         verify(chatRoomRepository).delete(chatRoom);
     }
+
+    @Test
+    @DisplayName("마지막 멤버가 나갔지만 채팅방이 이미 삭제된 경우 처리")
+    void should_handleGracefully_when_chatRoomAlreadyDeleted() {
+        // given
+        Long chatRoomId = 100L;
+        Long userId = 1L;
+
+        ChatRoomMember member = ChatRoomMember.builder()
+                .id(500L)
+                .chatRoomId(chatRoomId)
+                .userId(userId)
+                .build();
+
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
+                .willReturn(Optional.of(member));
+        given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
+                .willReturn(List.of()); // 삭제 후 빈 리스트
+        given(chatRoomRepository.findById(chatRoomId))
+                .willReturn(Optional.empty()); // 채팅방이 이미 삭제됨
+
+        // when
+        service.leaveChatRoom(chatRoomId, userId);
+
+        // then
+        verify(chatRoomMemberRepository).delete(member);
+        // 채팅방이 없으므로 delete 호출되지 않음
+    }
 }

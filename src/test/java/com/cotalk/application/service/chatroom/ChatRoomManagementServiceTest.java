@@ -3,7 +3,9 @@ package com.cotalk.application.service.chatroom;
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
+import com.cotalk.domain.exception.ChatRoomNotFoundException;
 import com.cotalk.domain.exception.InvalidChatRoomException;
+import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -247,6 +249,58 @@ class ChatRoomManagementServiceTest {
 
             // then
             assertThat(result.getRole()).isEqualTo(ChatRoomMember.MemberRole.MEMBER);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 채팅방에서 관리자 승격 시 예외 발생")
+        void should_throwException_when_chatRoomNotFoundInPromote() {
+            // given
+            given(chatRoomRepository.findById(chatRoomId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() ->
+                    chatRoomManagementService.promoteToAdmin(chatRoomId, adminUserId, normalUserId))
+                    .isInstanceOf(ChatRoomNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 사용자 관리자 승격 시 예외 발생")
+        void should_throwException_when_targetUserNotFoundInPromote() {
+            // given
+            given(chatRoomRepository.findById(chatRoomId)).willReturn(Optional.of(groupChatRoom));
+            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, adminUserId))
+                    .willReturn(Optional.of(adminMember));
+            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, normalUserId))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() ->
+                    chatRoomManagementService.promoteToAdmin(chatRoomId, adminUserId, normalUserId))
+                    .isInstanceOf(UserNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 채팅방에서 공지사항 설정 시 예외 발생")
+        void should_throwException_when_chatRoomNotFoundInSetAnnouncement() {
+            // given
+            given(chatRoomRepository.findById(chatRoomId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() ->
+                    chatRoomManagementService.setAnnouncement(chatRoomId, adminUserId, "공지"))
+                    .isInstanceOf(ChatRoomNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 채팅방에서 이름 변경 시 예외 발생")
+        void should_throwException_when_chatRoomNotFoundInUpdateName() {
+            // given
+            given(chatRoomRepository.findById(chatRoomId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() ->
+                    chatRoomManagementService.updateChatRoomName(chatRoomId, adminUserId, "새 이름"))
+                    .isInstanceOf(ChatRoomNotFoundException.class);
         }
     }
 }

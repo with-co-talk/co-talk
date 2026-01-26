@@ -146,4 +146,64 @@ class NotificationSettingServiceTest {
         assertThat(result.getUserId()).isEqualTo(userId);
         assertThat(result.isMessageNotification()).isFalse();
     }
+
+    @Test
+    @DisplayName("모든 파라미터가 null인 경우 기존 설정 유지")
+    void should_keepExistingSetting_when_allParametersNull() {
+        // given
+        Long userId = 100L;
+        NotificationSetting existingSetting = NotificationSetting.builder()
+                .id(1L)
+                .userId(userId)
+                .messageNotification(true)
+                .friendRequestNotification(true)
+                .soundEnabled(true)
+                .build();
+
+        given(notificationSettingRepository.findByUserId(userId))
+                .willReturn(Optional.of(existingSetting));
+        given(notificationSettingRepository.save(any(NotificationSetting.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        NotificationSetting result = notificationSettingService.updateNotificationSetting(
+                userId,
+                null, null, null, null, null, null, null, null
+        );
+
+        // then
+        assertThat(result.isMessageNotification()).isTrue();
+        assertThat(result.isFriendRequestNotification()).isTrue();
+        assertThat(result.isSoundEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("방해 금지 모드만 업데이트")
+    void should_updateOnlyDoNotDisturb_when_otherParametersNull() {
+        // given
+        Long userId = 100L;
+        NotificationSetting existingSetting = NotificationSetting.builder()
+                .id(1L)
+                .userId(userId)
+                .messageNotification(true)
+                .build();
+
+        given(notificationSettingRepository.findByUserId(userId))
+                .willReturn(Optional.of(existingSetting));
+        given(notificationSettingRepository.save(any(NotificationSetting.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        NotificationSetting result = notificationSettingService.updateNotificationSetting(
+                userId,
+                null, null, null, null, null,
+                true, "22:00", "07:00"
+        );
+
+        // then
+        assertThat(result.isMessageNotification()).isTrue(); // 기존 값 유지
+        assertThat(result.isDoNotDisturbEnabled()).isTrue();
+        assertThat(result.getDoNotDisturbStart()).isEqualTo("22:00");
+        assertThat(result.getDoNotDisturbEnd()).isEqualTo("07:00");
+    }
 }

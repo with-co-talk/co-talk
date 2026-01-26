@@ -184,4 +184,18 @@ class ResetPasswordServiceTest {
         // then
         assertThat(result).isFalse();
     }
+
+    @Test
+    @DisplayName("토큰 유효성 검증 - 존재하지 않는 토큰")
+    void should_returnFalse_when_tokenNotFound() {
+        // given
+        String token = "nonexistent-token";
+        given(tokenRepository.findByToken(token)).willReturn(Optional.empty());
+
+        // when
+        boolean result = service.validateToken(token);
+
+        // then
+        assertThat(result).isFalse();
+    }
 }

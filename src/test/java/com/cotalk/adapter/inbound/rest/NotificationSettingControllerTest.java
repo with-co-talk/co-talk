@@ -7,6 +7,7 @@ import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,7 @@ class NotificationSettingControllerTest {
 
     @Test
     @DisplayName("알림 설정 조회 성공")
+    @WithMockCustomUser(userId = 100L)
     void should_returnNotificationSetting_when_validUserId() throws Exception {
         // given
         Long userId = 100L;
@@ -69,8 +71,7 @@ class NotificationSettingControllerTest {
                 .willReturn(setting);
 
         // when & then
-        mockMvc.perform(get("/api/v1/notifications/settings")
-                        .param("userId", userId.toString()))
+        mockMvc.perform(get("/api/v1/notifications/settings"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.userId").value(userId))
                 .andExpect(jsonPath("$.messageNotification").value(true))
@@ -80,6 +81,7 @@ class NotificationSettingControllerTest {
 
     @Test
     @DisplayName("알림 설정 업데이트 성공")
+    @WithMockCustomUser(userId = 100L)
     void should_updateNotificationSetting_when_validRequest() throws Exception {
         // given
         Long userId = 100L;
@@ -113,7 +115,6 @@ class NotificationSettingControllerTest {
 
         // when & then
         mockMvc.perform(put("/api/v1/notifications/settings")
-                        .param("userId", userId.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
@@ -121,13 +122,5 @@ class NotificationSettingControllerTest {
                 .andExpect(jsonPath("$.messageNotification").value(false))
                 .andExpect(jsonPath("$.doNotDisturbEnabled").value(true))
                 .andExpect(jsonPath("$.doNotDisturbStart").value("22:00"));
-    }
-
-    @Test
-    @DisplayName("알림 설정 조회 실패 - userId 누락")
-    void should_returnBadRequest_when_userIdMissing() throws Exception {
-        // when & then
-        mockMvc.perform(get("/api/v1/notifications/settings"))
-                .andExpect(status().isBadRequest());
     }
 }

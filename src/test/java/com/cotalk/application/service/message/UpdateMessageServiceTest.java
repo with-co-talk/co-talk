@@ -144,4 +144,73 @@ class UpdateMessageServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("텍스트 메시지만");
     }
+
+    @Test
+    @DisplayName("파일 메시지 수정 시 예외")
+    void should_throwException_when_fileMessage() {
+        // given
+        Long messageId = 100L;
+        Long userId = 1L;
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(10L)
+                .senderId(userId)
+                .content("파일")
+                .type(Message.MessageType.FILE)
+                .fileUrl("http://example.com/file.pdf")
+                .build();
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+
+        // when & then
+        assertThatThrownBy(() -> service.updateMessage(messageId, userId, "새 내용"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("텍스트 메시지만");
+    }
+
+    @Test
+    @DisplayName("빈 메시지 내용으로 수정 시 예외")
+    void should_throwException_when_emptyContent() {
+        // given
+        Long messageId = 100L;
+        Long userId = 1L;
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(10L)
+                .senderId(userId)
+                .content("원본 메시지")
+                .type(Message.MessageType.TEXT)
+                .build();
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+
+        // when & then
+        assertThatThrownBy(() -> service.updateMessage(messageId, userId, ""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("내용");
+    }
+
+    @Test
+    @DisplayName("null 메시지 내용으로 수정 시 예외")
+    void should_throwException_when_nullContent() {
+        // given
+        Long messageId = 100L;
+        Long userId = 1L;
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(10L)
+                .senderId(userId)
+                .content("원본 메시지")
+                .type(Message.MessageType.TEXT)
+                .build();
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+
+        // when & then
+        assertThatThrownBy(() -> service.updateMessage(messageId, userId, null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

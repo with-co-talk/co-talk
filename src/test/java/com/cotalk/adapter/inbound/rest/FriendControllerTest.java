@@ -11,12 +11,12 @@ import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
+import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
-import com.cotalk.infrastructure.security.SecurityContextHelper;
-import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -43,7 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(FriendController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import(RateLimitTestConfiguration.class)
+@Import({RateLimitTestConfiguration.class, GlobalExceptionHandler.class})
 class FriendControllerTest {
 
     @Autowired
@@ -82,24 +82,16 @@ class FriendControllerTest {
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @MockBean
-    private SecurityContextHelper securityContextHelper;
-
-    @BeforeEach
-    void setUp() {
-        // 기본적으로 userId 1L로 인증된 사용자 설정
-        given(securityContextHelper.getCurrentUserId()).willReturn(1L);
-    }
-
     @Nested
     @DisplayName("친구 요청 API")
     class SendFriendRequestApi {
 
         @Test
         @DisplayName("유효한 요청으로 친구 요청 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_validRequest() throws Exception {
             // given
-            SendFriendRequestRequest request = new SendFriendRequestRequest(1L, 2L);
+            SendFriendRequestRequest request = new SendFriendRequestRequest(2L);
 
             given(sendFriendRequestUseCase.sendFriendRequest(anyLong(), anyLong())).willReturn(100L);
 
@@ -119,6 +111,7 @@ class FriendControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 친구 요청 수락 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long requestId = 100L;
@@ -127,8 +120,7 @@ class FriendControllerTest {
             given(acceptFriendRequestUseCase.acceptFriendRequest(anyLong(), anyLong())).willReturn(200L);
 
             // when & then
-            mockMvc.perform(post("/api/v1/friends/requests/{requestId}/accept", requestId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(post("/api/v1/friends/requests/{requestId}/accept", requestId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("친구 요청을 수락했습니다."));
         }
@@ -140,6 +132,7 @@ class FriendControllerTest {
 
         @Test
         @DisplayName("친구 목록 조회 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnFriendList_when_validUserId() throws Exception {
             // given
             Long userId = 1L;
@@ -161,8 +154,7 @@ class FriendControllerTest {
             given(getFriendListUseCase.getFriendList(userId)).willReturn(friends);
 
             // when & then
-            mockMvc.perform(get("/api/v1/friends")
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(get("/api/v1/friends"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.friends").isArray())
                     .andExpect(jsonPath("$.friends.length()").value(2))
@@ -176,6 +168,7 @@ class FriendControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 친구 요청 거절 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long requestId = 100L;
@@ -184,8 +177,7 @@ class FriendControllerTest {
             willDoNothing().given(rejectFriendRequestUseCase).rejectFriendRequest(anyLong(), anyLong());
 
             // when & then
-            mockMvc.perform(post("/api/v1/friends/requests/{requestId}/reject", requestId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(post("/api/v1/friends/requests/{requestId}/reject", requestId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("친구 요청을 거절했습니다."));
         }
@@ -197,6 +189,7 @@ class FriendControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 친구 삭제 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long userId = 1L;
@@ -205,8 +198,7 @@ class FriendControllerTest {
             willDoNothing().given(removeFriendUseCase).removeFriend(anyLong(), anyLong());
 
             // when & then
-            mockMvc.perform(delete("/api/v1/friends/{friendId}", friendId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(delete("/api/v1/friends/{friendId}", friendId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("친구가 삭제되었습니다."));
         }
@@ -218,6 +210,7 @@ class FriendControllerTest {
 
         @Test
         @DisplayName("받은 친구 요청 목록 조회 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnReceivedFriendRequests_when_validUserId() throws Exception {
             // given
             Long userId = 1L;
@@ -258,8 +251,7 @@ class FriendControllerTest {
             given(userRepository.findById(userId)).willReturn(java.util.Optional.of(receiver));
 
             // when & then
-            mockMvc.perform(get("/api/v1/friends/requests/received")
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(get("/api/v1/friends/requests/received"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.requests").isArray())
                     .andExpect(jsonPath("$.requests.length()").value(1))
@@ -271,6 +263,7 @@ class FriendControllerTest {
 
         @Test
         @DisplayName("받은 친구 요청이 없을 때 빈 리스트 반환")
+        @WithMockCustomUser(userId = 1L)
         void should_returnEmptyList_when_noReceivedRequests() throws Exception {
             // given
             Long userId = 1L;
@@ -278,8 +271,7 @@ class FriendControllerTest {
                     .willReturn(List.of());
 
             // when & then
-            mockMvc.perform(get("/api/v1/friends/requests/received")
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(get("/api/v1/friends/requests/received"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.requests").isArray())
                     .andExpect(jsonPath("$.requests.length()").value(0));
@@ -292,6 +284,7 @@ class FriendControllerTest {
 
         @Test
         @DisplayName("보낸 친구 요청 목록 조회 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnSentFriendRequests_when_validUserId() throws Exception {
             // given
             Long userId = 1L;
@@ -332,8 +325,7 @@ class FriendControllerTest {
             given(userRepository.findById(userId)).willReturn(java.util.Optional.of(requester));
 
             // when & then
-            mockMvc.perform(get("/api/v1/friends/requests/sent")
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(get("/api/v1/friends/requests/sent"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.requests").isArray())
                     .andExpect(jsonPath("$.requests.length()").value(1))
@@ -345,6 +337,7 @@ class FriendControllerTest {
 
         @Test
         @DisplayName("보낸 친구 요청이 없을 때 빈 리스트 반환")
+        @WithMockCustomUser(userId = 1L)
         void should_returnEmptyList_when_noSentRequests() throws Exception {
             // given
             Long userId = 1L;
@@ -352,8 +345,7 @@ class FriendControllerTest {
                     .willReturn(List.of());
 
             // when & then
-            mockMvc.perform(get("/api/v1/friends/requests/sent")
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(get("/api/v1/friends/requests/sent"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.requests").isArray())
                     .andExpect(jsonPath("$.requests.length()").value(0));

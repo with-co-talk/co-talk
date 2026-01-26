@@ -686,6 +686,27 @@ class GlobalExceptionHandlerTest {
     }
 
     @Nested
+    @DisplayName("IllegalArgumentException 처리")
+    class HandleIllegalArgumentException {
+
+        @Test
+        @DisplayName("IllegalArgumentException은 400 BAD_REQUEST 반환")
+        void should_returnBadRequest_when_illegalArgument() {
+            // given
+            IllegalArgumentException exception = new IllegalArgumentException("잘못된 인자입니다.");
+
+            // when
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleIllegalArgumentException(exception);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().code()).isEqualTo("INVALID_ARGUMENT");
+            assertThat(response.getBody().error()).isEqualTo("잘못된 인자입니다.");
+        }
+    }
+
+    @Nested
     @DisplayName("ErrorResponse record 테스트")
     class ErrorResponseTest {
 

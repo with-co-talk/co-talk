@@ -6,7 +6,7 @@ import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
-import com.cotalk.infrastructure.security.SecurityContextHelper;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,8 +19,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
-import org.junit.jupiter.api.BeforeEach;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -49,17 +47,9 @@ class MessageSearchControllerTest {
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @MockBean
-    private SecurityContextHelper securityContextHelper;
-
-    @BeforeEach
-    void setUp() {
-        // 기본적으로 userId 100L로 인증된 사용자 설정
-        given(securityContextHelper.getCurrentUserId()).willReturn(100L);
-    }
-
     @Test
     @DisplayName("채팅방 내 메시지 검색 성공")
+    @WithMockCustomUser(userId = 100L)
     void should_returnMessages_when_searchInChatRoom() throws Exception {
         // given
         Long chatRoomId = 1L;
@@ -86,7 +76,6 @@ class MessageSearchControllerTest {
         // when & then
         mockMvc.perform(get("/api/v1/messages/search")
                         .param("chatRoomId", chatRoomId.toString())
-                        .param("userId", userId.toString())
                         .param("keyword", keyword))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.messages").isArray())
@@ -96,6 +85,7 @@ class MessageSearchControllerTest {
 
     @Test
     @DisplayName("전체 채팅방에서 메시지 검색 성공")
+    @WithMockCustomUser(userId = 100L)
     void should_returnMessages_when_searchAcrossAllChatRooms() throws Exception {
         // given
         Long userId = 100L;
@@ -113,7 +103,6 @@ class MessageSearchControllerTest {
 
         // when & then
         mockMvc.perform(get("/api/v1/messages/search/all")
-                        .param("userId", userId.toString())
                         .param("keyword", keyword))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.messages").isArray())
@@ -123,16 +112,17 @@ class MessageSearchControllerTest {
 
     @Test
     @DisplayName("검색어가 없으면 400 에러")
+    @WithMockCustomUser(userId = 100L)
     void should_returnBadRequest_when_keywordMissing() throws Exception {
         // when & then
         mockMvc.perform(get("/api/v1/messages/search")
-                        .param("chatRoomId", "1")
-                        .param("userId", "100"))
+                        .param("chatRoomId", "1"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     @DisplayName("페이지네이션 파라미터 적용")
+    @WithMockCustomUser(userId = 100L)
     void should_applyPagination_when_provided() throws Exception {
         // given
         Long chatRoomId = 1L;
@@ -145,7 +135,6 @@ class MessageSearchControllerTest {
         // when & then
         mockMvc.perform(get("/api/v1/messages/search")
                         .param("chatRoomId", chatRoomId.toString())
-                        .param("userId", userId.toString())
                         .param("keyword", keyword)
                         .param("page", "1")
                         .param("size", "10"))

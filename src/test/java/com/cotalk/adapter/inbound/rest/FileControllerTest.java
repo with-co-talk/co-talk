@@ -4,11 +4,11 @@ import com.cotalk.domain.exception.FileUploadException;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadCommand;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadResult;
+import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
+import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
-import com.cotalk.infrastructure.security.SecurityContextHelper;
-import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
-import org.junit.jupiter.api.BeforeEach;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(FileController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import(RateLimitTestConfiguration.class)
+@Import({RateLimitTestConfiguration.class, GlobalExceptionHandler.class})
 class FileControllerTest {
 
     @Autowired
@@ -43,20 +43,13 @@ class FileControllerTest {
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @MockBean
-    private SecurityContextHelper securityContextHelper;
-
-    @BeforeEach
-    void setUp() {
-        given(securityContextHelper.getCurrentUserId()).willReturn(1L);
-    }
-
     @Nested
     @DisplayName("파일 업로드 API")
     class UploadFileApi {
 
         @Test
         @DisplayName("이미지 파일 업로드 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_uploadImage_when_validImageFile() throws Exception {
             // given
             MockMultipartFile file = new MockMultipartFile(
@@ -88,6 +81,7 @@ class FileControllerTest {
 
         @Test
         @DisplayName("PDF 파일 업로드 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_uploadPdf_when_validPdfFile() throws Exception {
             // given
             MockMultipartFile file = new MockMultipartFile(
@@ -116,6 +110,7 @@ class FileControllerTest {
 
         @Test
         @DisplayName("지원하지 않는 파일 형식 업로드 시 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_unsupportedFileType() throws Exception {
             // given
             MockMultipartFile file = new MockMultipartFile(
@@ -136,6 +131,7 @@ class FileControllerTest {
 
         @Test
         @DisplayName("파일 크기 초과 시 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_fileTooLarge() throws Exception {
             // given
             MockMultipartFile file = new MockMultipartFile(

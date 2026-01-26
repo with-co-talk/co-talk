@@ -26,6 +26,7 @@ import java.util.function.Supplier;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
@@ -209,5 +210,90 @@ class SendFriendRequestServiceTest {
 
         // then
         verify(sendPushNotificationUseCase).sendFriendRequestNotification(receiverId, requesterNickname);
+    }
+
+    @Test
+    @DisplayName("상대방이 이미 나에게 요청을 보낸 경우 예외 발생")
+    void should_throwException_when_oppositeRequestExists() {
+        // given
+        Long requesterId = 1L;
+        Long receiverId = 2L;
+
+        doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
+        given(userValidator.validateUserExists(receiverId)).willReturn(
+                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+        );
+        given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(false);
+        given(friendRequestRepository.existsByRequesterIdAndReceiverIdAndStatus(
+                receiverId, requesterId, FriendRequest.RequestStatus.PENDING)).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> sendFriendRequestService.sendFriendRequest(requesterId, receiverId))
+                .isInstanceOf(InvalidFriendRequestException.class)
+                .hasMessageContaining("상대방이 이미 친구 요청을 보냈습니다");
+    }
+
+    @Test
+    @DisplayName("동시성 제어: DataIntegrityViolationException 발생 시 예외 처리")
+    void should_handleDataIntegrityViolation_when_concurrentRequest() {
+        // given
+        Long requesterId = 1L;
+        Long receiverId = 2L;
+        Long requestId = 100L;
+
+        doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
+        given(userValidator.validateUserExists(receiverId)).willReturn(
+                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+        );
+        given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(false);
+        given(friendRequestRepository.existsByRequesterIdAndReceiverId(requesterId, receiverId)).willReturn(false);
+        given(friendRequestRepository.existsByRequesterIdAndReceiverIdAndStatus(
+                receiverId, requesterId, FriendRequest.RequestStatus.PENDING)).willReturn(false);
+        given(idGenerator.nextId()).willReturn(requestId);
+        given(friendRequestRepository.save(any(FriendRequest.class)))
+                .willThrow(new org.springframework.dao.DataIntegrityViolationException("Duplicate entry"));
+
+        // when & then
+        assertThatThrownBy(() -> sendFriendRequestService.sendFriendRequest(requesterId, receiverId))
+                .isInstanceOf(InvalidFriendRequestException.class)
+                .hasMessageContaining("이미 친구 요청을 보냈습니다");
+    }
+
+    @Test
+    @DisplayName("푸시 알림 실패 시에도 친구 요청은 성공")
+    void should_succeedEvenWhenPushNotificationFails() {
+        // given
+        Long requesterId = 1L;
+        Long receiverId = 2L;
+        Long requestId = 100L;
+
+        User requester = User.builder()
+                .id(requesterId)
+                .email("requester@example.com")
+                .nickname("요청자닉네임")
+                .passwordHash("hash")
+                .build();
+
+        doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
+        given(userValidator.validateUserExists(receiverId)).willReturn(
+                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+        );
+        given(userValidator.validateUserExists(requesterId)).willReturn(requester);
+        given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(false);
+        given(friendRequestRepository.existsByRequesterIdAndReceiverId(requesterId, receiverId)).willReturn(false);
+        given(friendRequestRepository.existsByRequesterIdAndReceiverIdAndStatus(
+                receiverId, requesterId, FriendRequest.RequestStatus.PENDING)).willReturn(false);
+        given(idGenerator.nextId()).willReturn(requestId);
+        given(friendRequestRepository.save(any(FriendRequest.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+        org.mockito.Mockito.doThrow(new RuntimeException("Push notification failed"))
+                .when(sendPushNotificationUseCase).sendFriendRequestNotification(anyLong(), anyString());
+
+        // when
+        Long result = sendFriendRequestService.sendFriendRequest(requesterId, receiverId);
+
+        // then - 푸시 알림 실패해도 친구 요청은 성공
+        assertThat(result).isEqualTo(requestId);
+        verify(friendRequestRepository).save(any(FriendRequest.class));
     }
 }

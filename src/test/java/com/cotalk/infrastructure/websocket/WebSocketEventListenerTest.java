@@ -1,6 +1,7 @@
 package com.cotalk.infrastructure.websocket;
 
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
+import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -33,9 +34,12 @@ class WebSocketEventListenerTest {
 
     private WebSocketEventListener eventListener;
 
+    @Mock
+    private ChatRoomPresenceTracker chatRoomPresenceTracker;
+
     @BeforeEach
     void setUp() {
-        eventListener = new WebSocketEventListener(updateUserOnlineStatusUseCase);
+        eventListener = new WebSocketEventListener(updateUserOnlineStatusUseCase, chatRoomPresenceTracker);
     }
 
     @Nested

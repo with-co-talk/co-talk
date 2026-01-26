@@ -125,6 +125,32 @@ class SendPushNotificationServiceTest {
 
             assertThat(bodyCaptor.getValue().length()).isLessThanOrEqualTo(103); // 100 + "..."
         }
+
+        @Test
+        @DisplayName("null 메시지는 빈 문자열로 변환됨")
+        void should_handleNullMessage_when_sending() {
+            // given
+            Long receiverUserId = 1L;
+
+            DeviceToken token = DeviceToken.builder()
+                    .id(1L)
+                    .userId(receiverUserId)
+                    .token("fcm-token")
+                    .deviceType(DeviceToken.DeviceType.ANDROID)
+                    .build();
+
+            given(deviceTokenRepository.findActiveByUserId(receiverUserId)).willReturn(List.of(token));
+            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap())).willReturn(1);
+
+            // when
+            sendPushNotificationService.sendNewMessageNotification(receiverUserId, "친구", null, 100L);
+
+            // then
+            ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+            verify(pushNotificationSender).sendMultiple(anyList(), anyString(), bodyCaptor.capture(), anyMap());
+
+            assertThat(bodyCaptor.getValue()).isEmpty();
+        }
     }
 
     @Nested

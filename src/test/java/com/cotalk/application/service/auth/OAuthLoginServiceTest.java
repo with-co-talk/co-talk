@@ -151,4 +151,64 @@ class OAuthLoginServiceTest {
         assertThat(result.token()).isEqualTo("apple_jwt_token");
         assertThat(result.isNewUser()).isTrue();
     }
+
+    @Test
+    @DisplayName("avatarUrl이 null인 경우에도 회원가입이 성공한다")
+    void should_signUp_when_avatarUrlIsNull() {
+        // given
+        String oauthId = "kakao_12345";
+        User.OAuthProvider provider = User.OAuthProvider.KAKAO;
+        String email = "oauth@kakao.com";
+        String nickname = "카카오유저";
+
+        given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
+                .willReturn(Optional.empty());
+        given(idGenerator.nextId()).willReturn(100L);
+        given(userRepository.save(any(User.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+        given(jwtTokenProvider.generateToken(any())).willReturn("jwt_token");
+
+        // when
+        OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
+                provider, oauthId, email, nickname, null);
+
+        // then
+        assertThat(result.token()).isEqualTo("jwt_token");
+        assertThat(result.isNewUser()).isTrue();
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        User savedUser = userCaptor.getValue();
+        assertThat(savedUser.getAvatarUrl()).isNull();
+    }
+
+    @Test
+    @DisplayName("기존 사용자의 avatarUrl이 null이어도 로그인이 성공한다")
+    void should_login_when_existingUserAvatarUrlIsNull() {
+        // given
+        String oauthId = "kakao_12345";
+        User.OAuthProvider provider = User.OAuthProvider.KAKAO;
+
+        User existingUser = User.builder()
+                .id(100L)
+                .email("oauth@kakao.com")
+                .nickname("카카오유저")
+                .oauthProvider(provider)
+                .oauthId(oauthId)
+                .avatarUrl(null)
+                .build();
+
+        given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
+                .willReturn(Optional.of(existingUser));
+        given(jwtTokenProvider.generateToken(any())).willReturn("jwt_token");
+
+        // when
+        OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
+                provider, oauthId, "oauth@kakao.com", "카카오유저", null);
+
+        // then
+        assertThat(result.token()).isEqualTo("jwt_token");
+        assertThat(result.isNewUser()).isFalse();
+        assertThat(result.userId()).isEqualTo(100L);
+    }
 }

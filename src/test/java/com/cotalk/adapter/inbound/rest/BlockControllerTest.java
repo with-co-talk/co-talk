@@ -11,6 +11,7 @@ import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -64,6 +65,7 @@ class BlockControllerTest {
 
         @Test
         @DisplayName("사용자 차단 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_blockUserSuccess() throws Exception {
             // given
             Long blockerId = 1L;
@@ -73,7 +75,6 @@ class BlockControllerTest {
 
             String requestBody = """
                     {
-                        "blockerId": 1,
                         "blockedId": 2
                     }
                     """;
@@ -88,6 +89,7 @@ class BlockControllerTest {
 
         @Test
         @DisplayName("자기 자신 차단 시 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_blockSelf() throws Exception {
             // given
             Long userId = 1L;
@@ -97,7 +99,6 @@ class BlockControllerTest {
 
             String requestBody = """
                     {
-                        "blockerId": 1,
                         "blockedId": 1
                     }
                     """;
@@ -111,6 +112,7 @@ class BlockControllerTest {
 
         @Test
         @DisplayName("이미 차단된 사용자 재차단 시 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_alreadyBlocked() throws Exception {
             // given
             Long blockerId = 1L;
@@ -121,7 +123,6 @@ class BlockControllerTest {
 
             String requestBody = """
                     {
-                        "blockerId": 1,
                         "blockedId": 2
                     }
                     """;
@@ -135,6 +136,7 @@ class BlockControllerTest {
 
         @Test
         @DisplayName("존재하지 않는 사용자 차단 시 404 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnNotFound_when_userNotFound() throws Exception {
             // given
             Long blockerId = 1L;
@@ -145,7 +147,6 @@ class BlockControllerTest {
 
             String requestBody = """
                     {
-                        "blockerId": 1,
                         "blockedId": 999
                     }
                     """;
@@ -158,29 +159,12 @@ class BlockControllerTest {
         }
 
         @Test
-        @DisplayName("blockerId 누락 시 400 에러")
-        void should_returnBadRequest_when_blockerIdMissing() throws Exception {
-            // given
-            String requestBody = """
-                    {
-                        "blockedId": 2
-                    }
-                    """;
-
-            // when & then
-            mockMvc.perform(post("/api/v1/blocks")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(requestBody))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
         @DisplayName("blockedId 누락 시 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_blockedIdMissing() throws Exception {
             // given
             String requestBody = """
                     {
-                        "blockerId": 1
                     }
                     """;
 
@@ -208,6 +192,7 @@ class BlockControllerTest {
 
         @Test
         @DisplayName("차단 해제 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_unblockSuccess() throws Exception {
             // given
             Long blockerId = 1L;
@@ -216,15 +201,14 @@ class BlockControllerTest {
             willDoNothing().given(unblockUserUseCase).unblockUser(eq(blockerId), eq(blockedId));
 
             // when & then
-            mockMvc.perform(delete("/api/v1/blocks")
-                            .param("blockerId", blockerId.toString())
-                            .param("blockedId", blockedId.toString()))
+            mockMvc.perform(delete("/api/v1/blocks/{blockedId}", blockedId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("차단을 해제했습니다."));
         }
 
         @Test
-        @DisplayName("차단되지 않은 사용자 해제 시 404 에러 (BlockNotFoundException은 ResourceNotFoundException)")
+        @DisplayName("차단되지 않은 사용자 해제 시 404 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnNotFound_when_blockNotFound() throws Exception {
             // given
             Long blockerId = 1L;
@@ -234,38 +218,8 @@ class BlockControllerTest {
                     .given(unblockUserUseCase).unblockUser(eq(blockerId), eq(blockedId));
 
             // when & then
-            mockMvc.perform(delete("/api/v1/blocks")
-                            .param("blockerId", blockerId.toString())
-                            .param("blockedId", blockedId.toString()))
+            mockMvc.perform(delete("/api/v1/blocks/{blockedId}", blockedId))
                     .andExpect(status().isNotFound());
-        }
-
-        @Test
-        @DisplayName("blockerId 파라미터 누락 시 400 에러")
-        void should_returnBadRequest_when_blockerIdParamMissing() throws Exception {
-            // when & then
-            mockMvc.perform(delete("/api/v1/blocks")
-                            .param("blockedId", "2"))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("blockedId 파라미터 누락 시 400 에러")
-        void should_returnBadRequest_when_blockedIdParamMissing() throws Exception {
-            // when & then
-            mockMvc.perform(delete("/api/v1/blocks")
-                            .param("blockerId", "1"))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("잘못된 타입의 blockerId 시 500 에러 (타입 변환 실패)")
-        void should_returnInternalError_when_invalidBlockerIdType() throws Exception {
-            // when & then - Spring이 Long 변환 실패 시 내부 오류 발생
-            mockMvc.perform(delete("/api/v1/blocks")
-                            .param("blockerId", "invalid")
-                            .param("blockedId", "2"))
-                    .andExpect(status().isInternalServerError());
         }
     }
 
@@ -275,6 +229,7 @@ class BlockControllerTest {
 
         @Test
         @DisplayName("차단 목록 조회 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBlockedUsers_when_getBlockedUsersSuccess() throws Exception {
             // given
             Long userId = 1L;
@@ -295,8 +250,7 @@ class BlockControllerTest {
                     .willReturn(List.of(blockedUser1, blockedUser2));
 
             // when & then
-            mockMvc.perform(get("/api/v1/blocks")
-                            .param("userId", userId.toString()))
+            mockMvc.perform(get("/api/v1/blocks"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.blockedUsers").isArray())
                     .andExpect(jsonPath("$.blockedUsers.length()").value(2))
@@ -309,6 +263,7 @@ class BlockControllerTest {
 
         @Test
         @DisplayName("차단 목록 빈 경우 빈 배열 반환")
+        @WithMockCustomUser(userId = 1L)
         void should_returnEmptyList_when_noBlockedUsers() throws Exception {
             // given
             Long userId = 1L;
@@ -317,23 +272,15 @@ class BlockControllerTest {
                     .willReturn(Collections.emptyList());
 
             // when & then
-            mockMvc.perform(get("/api/v1/blocks")
-                            .param("userId", userId.toString()))
+            mockMvc.perform(get("/api/v1/blocks"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.blockedUsers").isArray())
                     .andExpect(jsonPath("$.blockedUsers.length()").value(0));
         }
 
         @Test
-        @DisplayName("userId 파라미터 누락 시 400 에러")
-        void should_returnBadRequest_when_userIdMissing() throws Exception {
-            // when & then
-            mockMvc.perform(get("/api/v1/blocks"))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
         @DisplayName("존재하지 않는 사용자 조회 시 404 에러")
+        @WithMockCustomUser(userId = 999L)
         void should_returnNotFound_when_userNotFoundForBlockedList() throws Exception {
             // given
             Long userId = 999L;
@@ -342,22 +289,13 @@ class BlockControllerTest {
                     .willThrow(new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
             // when & then
-            mockMvc.perform(get("/api/v1/blocks")
-                            .param("userId", userId.toString()))
+            mockMvc.perform(get("/api/v1/blocks"))
                     .andExpect(status().isNotFound());
         }
 
         @Test
-        @DisplayName("잘못된 타입의 userId 시 500 에러 (타입 변환 실패)")
-        void should_returnInternalError_when_invalidUserIdType() throws Exception {
-            // when & then - Spring이 Long 변환 실패 시 내부 오류 발생
-            mockMvc.perform(get("/api/v1/blocks")
-                            .param("userId", "not-a-number"))
-                    .andExpect(status().isInternalServerError());
-        }
-
-        @Test
         @DisplayName("avatarUrl이 null인 사용자도 정상 조회")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBlockedUsers_when_avatarUrlIsNull() throws Exception {
             // given
             Long userId = 1L;
@@ -372,8 +310,7 @@ class BlockControllerTest {
                     .willReturn(List.of(blockedUser));
 
             // when & then
-            mockMvc.perform(get("/api/v1/blocks")
-                            .param("userId", userId.toString()))
+            mockMvc.perform(get("/api/v1/blocks"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.blockedUsers[0].id").value(2))
                     .andExpect(jsonPath("$.blockedUsers[0].nickname").value("user2"))

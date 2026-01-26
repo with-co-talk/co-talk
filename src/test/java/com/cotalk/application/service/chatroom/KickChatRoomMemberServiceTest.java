@@ -3,6 +3,7 @@ package com.cotalk.application.service.chatroom;
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
+import com.cotalk.domain.exception.ChatRoomNotFoundException;
 import com.cotalk.domain.exception.InvalidChatRoomException;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
@@ -153,6 +154,32 @@ class KickChatRoomMemberServiceTest {
             given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, adminUserId))
                     .willReturn(Optional.of(adminMember));
             given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, targetUserId))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() ->
+                    kickChatRoomMemberService.kickMember(chatRoomId, adminUserId, targetUserId))
+                    .isInstanceOf(ChatRoomAccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 채팅방에서 강제 퇴장 시 예외 발생")
+        void should_throwException_when_chatRoomNotFound() {
+            // given
+            given(chatRoomRepository.findById(chatRoomId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() ->
+                    kickChatRoomMemberService.kickMember(chatRoomId, adminUserId, targetUserId))
+                    .isInstanceOf(ChatRoomNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("관리자가 아닌 사용자가 강제 퇴장 시도 시 예외 발생")
+        void should_throwException_when_adminNotMember() {
+            // given
+            given(chatRoomRepository.findById(chatRoomId)).willReturn(Optional.of(groupChatRoom));
+            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, adminUserId))
                     .willReturn(Optional.empty());
 
             // when & then

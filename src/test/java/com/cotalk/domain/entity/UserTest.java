@@ -4,6 +4,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -143,6 +145,308 @@ class UserTest {
 
             // then
             assertThat(user.getAvatarUrl()).isEqualTo(newAvatarUrl);
+        }
+
+        @Test
+        @DisplayName("null 아바타 URL로 변경할 수 있다")
+        void should_UpdateAvatarUrl_when_NullUrlProvided() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .avatarUrl("https://example.com/old.png")
+                    .build();
+
+            // when
+            user.updateAvatarUrl(null);
+
+            // then
+            assertThat(user.getAvatarUrl()).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("비밀번호 변경 시")
+    class UpdatePassword {
+
+        @Test
+        @DisplayName("새 비밀번호 해시로 변경할 수 있다")
+        void should_UpdatePassword_when_ValidPasswordHashProvided() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("oldHash")
+                    .nickname("test")
+                    .build();
+            String newPasswordHash = "newHash123";
+
+            // when
+            user.updatePassword(newPasswordHash);
+
+            // then
+            assertThat(user.getPasswordHash()).isEqualTo(newPasswordHash);
+        }
+
+        @Test
+        @DisplayName("빈 비밀번호 해시로 변경할 수 없다")
+        void should_ThrowException_when_EmptyPasswordHashProvided() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("oldHash")
+                    .nickname("test")
+                    .build();
+
+            // when & then
+            assertThatThrownBy(() -> user.updatePassword(""))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("비밀번호");
+        }
+
+        @Test
+        @DisplayName("null 비밀번호 해시로 변경할 수 없다")
+        void should_ThrowException_when_NullPasswordHashProvided() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("oldHash")
+                    .nickname("test")
+                    .build();
+
+            // when & then
+            assertThatThrownBy(() -> user.updatePassword(null))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("계정 상태 변경 시")
+    class AccountStatus {
+
+        @Test
+        @DisplayName("계정을 비활성화할 수 있다")
+        void should_Deactivate_when_DeactivateCalled() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .status(User.UserStatus.ACTIVE)
+                    .build();
+
+            // when
+            user.deactivate();
+
+            // then
+            assertThat(user.getStatus()).isEqualTo(User.UserStatus.INACTIVE);
+        }
+
+        @Test
+        @DisplayName("계정을 정지시킬 수 있다")
+        void should_Suspend_when_SuspendCalled() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .status(User.UserStatus.ACTIVE)
+                    .build();
+
+            // when
+            user.suspend();
+
+            // then
+            assertThat(user.getStatus()).isEqualTo(User.UserStatus.SUSPENDED);
+        }
+
+        @Test
+        @DisplayName("계정을 활성화할 수 있다")
+        void should_Activate_when_ActivateCalled() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .status(User.UserStatus.INACTIVE)
+                    .build();
+
+            // when
+            user.activate();
+
+            // then
+            assertThat(user.getStatus()).isEqualTo(User.UserStatus.ACTIVE);
+        }
+
+        @Test
+        @DisplayName("활성 상태인지 확인할 수 있다")
+        void should_ReturnTrue_when_UserIsActive() {
+            // given
+            User activeUser = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .status(User.UserStatus.ACTIVE)
+                    .build();
+
+            User inactiveUser = User.builder()
+                    .email("test2@example.com")
+                    .passwordHash("hash")
+                    .nickname("test2")
+                    .status(User.UserStatus.INACTIVE)
+                    .build();
+
+            // when & then
+            assertThat(activeUser.isActive()).isTrue();
+            assertThat(inactiveUser.isActive()).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("온라인 상태 변경 시")
+    class OnlineStatus {
+
+        @Test
+        @DisplayName("사용자를 온라인 상태로 설정할 수 있다")
+        void should_SetOnline_when_SetOnlineCalled() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .onlineStatus(User.OnlineStatus.OFFLINE)
+                    .build();
+
+            // when
+            user.setOnline();
+
+            // then
+            assertThat(user.getOnlineStatus()).isEqualTo(User.OnlineStatus.ONLINE);
+            assertThat(user.getLastActiveAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("사용자를 오프라인 상태로 설정할 수 있다")
+        void should_SetOffline_when_SetOfflineCalled() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .onlineStatus(User.OnlineStatus.ONLINE)
+                    .build();
+
+            // when
+            user.setOffline();
+
+            // then
+            assertThat(user.getOnlineStatus()).isEqualTo(User.OnlineStatus.OFFLINE);
+            assertThat(user.getLastActiveAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("사용자를 자리비움 상태로 설정할 수 있다")
+        void should_SetAway_when_SetAwayCalled() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .onlineStatus(User.OnlineStatus.ONLINE)
+                    .build();
+
+            // when
+            user.setAway();
+
+            // then
+            assertThat(user.getOnlineStatus()).isEqualTo(User.OnlineStatus.AWAY);
+            assertThat(user.getLastActiveAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("마지막 활동 시간을 갱신할 수 있다")
+        void should_UpdateLastActiveAt_when_UpdateLastActiveAtCalled() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .lastActiveAt(LocalDateTime.now().minusHours(1))
+                    .build();
+            LocalDateTime beforeUpdate = user.getLastActiveAt();
+
+            // when
+            user.updateLastActiveAt();
+
+            // then
+            assertThat(user.getLastActiveAt()).isNotNull();
+            assertThat(user.getLastActiveAt()).isAfter(beforeUpdate);
+        }
+
+        @Test
+        @DisplayName("온라인 상태인지 확인할 수 있다")
+        void should_ReturnTrue_when_UserIsOnline() {
+            // given
+            User onlineUser = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .onlineStatus(User.OnlineStatus.ONLINE)
+                    .build();
+
+            User offlineUser = User.builder()
+                    .email("test2@example.com")
+                    .passwordHash("hash")
+                    .nickname("test2")
+                    .onlineStatus(User.OnlineStatus.OFFLINE)
+                    .build();
+
+            // when & then
+            assertThat(onlineUser.isOnline()).isTrue();
+            assertThat(offlineUser.isOnline()).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("OAuth 사용자 확인 시")
+    class OAuthUser {
+
+        @Test
+        @DisplayName("OAuth 사용자인지 확인할 수 있다")
+        void should_ReturnTrue_when_UserIsOAuthUser() {
+            // given
+            User oauthUser = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .oauthProvider(User.OAuthProvider.KAKAO)
+                    .oauthId("oauth123")
+                    .build();
+
+            User normalUser = User.builder()
+                    .email("test2@example.com")
+                    .passwordHash("hash")
+                    .nickname("test2")
+                    .build();
+
+            // when & then
+            assertThat(oauthUser.isOAuthUser()).isTrue();
+            assertThat(normalUser.isOAuthUser()).isFalse();
+        }
+
+        @Test
+        @DisplayName("OAuth 제공자가 null이면 OAuth 사용자가 아니다")
+        void should_ReturnFalse_when_OAuthProviderIsNull() {
+            // given
+            User user = User.builder()
+                    .email("test@example.com")
+                    .passwordHash("hash")
+                    .nickname("test")
+                    .oauthProvider(null)
+                    .build();
+
+            // when & then
+            assertThat(user.isOAuthUser()).isFalse();
         }
     }
 }

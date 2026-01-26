@@ -21,9 +21,8 @@ import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
-import com.cotalk.infrastructure.security.SecurityContextHelper;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -94,15 +93,6 @@ class ChatRoomControllerTest {
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @MockBean
-    private SecurityContextHelper securityContextHelper;
-
-    @BeforeEach
-    void setUp() {
-        // 기본적으로 userId 1L로 인증된 사용자 설정
-        given(securityContextHelper.getCurrentUserId()).willReturn(1L);
-    }
-
     @Nested
     @DisplayName("채팅방 생성 API")
     class CreateChatRoomApi {
@@ -131,6 +121,7 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("사용자의 채팅방 목록 조회 성공 - 마지막 메시지, 안읽은 개수, 상대방 정보 포함")
+        @WithMockCustomUser(userId = 1L)
         void should_returnChatRoomSummaries_when_validUserId() throws Exception {
             // given
             Long userId = 1L;
@@ -180,6 +171,7 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("채팅방이 없을 때 빈 배열 반환")
+        @WithMockCustomUser(userId = 1L)
         void should_returnEmptyArray_when_noChatRooms() throws Exception {
             // given
             Long userId = 1L;
@@ -199,6 +191,7 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("채팅방 멤버 목록 조회 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnMembers_when_validRequest() throws Exception {
             // given
             Long roomId = 100L;
@@ -227,6 +220,7 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("빈 멤버 목록 조회 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnEmptyList_when_noMembers() throws Exception {
             // given
             Long roomId = 100L;
@@ -248,6 +242,7 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 채팅방 나가기 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long roomId = 100L;
@@ -268,12 +263,12 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 읽음 표시 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long roomId = 100L;
             Long userId = 1L;
 
-            given(securityContextHelper.getCurrentUserId()).willReturn(userId);
             willDoNothing().given(markAsReadUseCase).markAsRead(anyLong(), anyLong());
 
             // when & then
@@ -438,6 +433,7 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 공지사항 삭제 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long roomId = 100L;
@@ -465,6 +461,7 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 관리자 임명 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long roomId = 100L;
@@ -496,6 +493,7 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 관리자 해제 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long roomId = 100L;
@@ -527,6 +525,7 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 멤버 강제 퇴장 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long roomId = 100L;
@@ -540,7 +539,5 @@ class ChatRoomControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("멤버가 강제 퇴장되었습니다."));
         }
-
-        // 이 테스트는 더 이상 필요하지 않음 - JWT에서 userId를 추출하므로 query parameter 검증이 없음
     }
 }

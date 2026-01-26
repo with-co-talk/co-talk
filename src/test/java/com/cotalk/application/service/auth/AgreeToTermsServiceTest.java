@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -109,6 +110,21 @@ class AgreeToTermsServiceTest {
         // then
         assertThat(agreement.isAgreed()).isFalse();
         verify(termsAgreementRepository).save(agreement);
+    }
+
+    @Test
+    @DisplayName("마케팅 동의가 없는 경우 철회 시 아무 작업도 하지 않음")
+    void should_doNothing_when_marketingAgreementNotFound() {
+        // given
+        Long userId = 1L;
+        given(termsAgreementRepository.findByUserIdAndTermsType(userId, TermsType.MARKETING))
+                .willReturn(Optional.empty());
+
+        // when
+        service.withdrawMarketingAgreement(userId);
+
+        // then
+        verify(termsAgreementRepository, never()).save(any());
     }
 
     @Test

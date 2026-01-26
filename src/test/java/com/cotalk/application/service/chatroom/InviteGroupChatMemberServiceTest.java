@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import org.mockito.ArgumentCaptor;
@@ -188,5 +189,33 @@ class InviteGroupChatMemberServiceTest {
         ArgumentCaptor<List<ChatRoomMember>> membersCaptor = ArgumentCaptor.forClass(List.class);
         verify(chatRoomMemberRepository).saveAll(membersCaptor.capture());
         assertThat(membersCaptor.getValue()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("모든 초대 대상이 이미 멤버인 경우 저장하지 않음")
+    void should_notSave_when_allInviteesAlreadyMembers() {
+        // given
+        Long roomId = 100L;
+        Long inviterId = 1L;
+        Long existingMemberId = 5L;
+        List<Long> inviteeIds = List.of(existingMemberId);
+
+        given(chatRoomRepository.findById(roomId))
+                .willReturn(Optional.of(createGroupChatRoom(roomId, "테스트방")));
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, inviterId))
+                .willReturn(Optional.of(createChatRoomMember(1L, roomId, inviterId)));
+        given(userRepository.findAllById(inviteeIds))
+                .willReturn(List.of(createUser(existingMemberId)));
+        given(chatRoomMemberRepository.findByChatRoomId(roomId))
+                .willReturn(List.of(
+                        createChatRoomMember(1L, roomId, inviterId),
+                        createChatRoomMember(2L, roomId, existingMemberId) // 이미 멤버
+                ));
+
+        // when
+        inviteGroupChatMemberService.inviteMembers(roomId, inviterId, inviteeIds);
+
+        // then - 모든 초대 대상이 이미 멤버이므로 saveAll 호출되지 않음
+        verify(chatRoomMemberRepository, org.mockito.Mockito.never()).saveAll(any());
     }
 }

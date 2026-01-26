@@ -103,7 +103,7 @@ class RedisChatMessageSubscriberTest {
                     "thumbnailUrl": "https://storage.example.com/thumb.png"
                 }
                 """;
-            Message redisMessage = createRedisMessage(jsonMessage);
+            Message redisMessage = createRedisMessage(jsonMessage, 20L);
 
             // when
             subscriber.onMessage(redisMessage, null);
@@ -124,7 +124,7 @@ class RedisChatMessageSubscriberTest {
         void should_handleGracefully_when_invalidJsonReceived() {
             // given
             String invalidJson = "{ invalid json }";
-            Message redisMessage = createRedisMessage(invalidJson);
+            Message redisMessage = createRedisMessage(invalidJson, 10L);
 
             // when
             subscriber.onMessage(redisMessage, null);
@@ -170,7 +170,7 @@ class RedisChatMessageSubscriberTest {
                     "createdAtMillis": 1704067200000
                 }
                 """;
-            Message redisMessage = createRedisMessage(jsonMessage);
+            Message redisMessage = createRedisMessage(jsonMessage, 40L);
 
             // when
             subscriber.onMessage(redisMessage, null);
@@ -191,12 +191,16 @@ class RedisChatMessageSubscriberTest {
         void should_createRecord_when_validArguments() {
             // when
             WebSocketChatMessage message = new WebSocketChatMessage(
+                    1,
+                    "message:1",
                     1L, 2L, 3L, "content", "TEXT",
                     java.time.LocalDateTime.now(),
                     "fileUrl", "fileName", 100L, "text/plain", "thumbUrl", 1
             );
 
             // then
+            assertThat(message.schemaVersion()).isEqualTo(1);
+            assertThat(message.eventId()).isEqualTo("message:1");
             assertThat(message.messageId()).isEqualTo(1L);
             assertThat(message.senderId()).isEqualTo(2L);
             assertThat(message.roomId()).isEqualTo(3L);
@@ -212,6 +216,10 @@ class RedisChatMessageSubscriberTest {
     }
 
     private Message createRedisMessage(String body) {
+        return createRedisMessage(body, 10L);
+    }
+
+    private Message createRedisMessage(String body, Long roomId) {
         return new Message() {
             @Override
             public byte[] getBody() {
@@ -220,7 +228,7 @@ class RedisChatMessageSubscriberTest {
 
             @Override
             public byte[] getChannel() {
-                return "chat:room:test".getBytes(StandardCharsets.UTF_8);
+                return ("chat:room:" + roomId).getBytes(StandardCharsets.UTF_8);
             }
         };
     }

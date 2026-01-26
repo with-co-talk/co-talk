@@ -68,6 +68,7 @@ class GetChatRoomsServiceTest {
                 .chatRoomId(chatRoomId)
                 .userId(userId)
                 .lastReadAt(lastReadAt)
+                .lastReadMessageId(900L)
                 .build();
 
         ChatRoomMember otherMember = ChatRoomMember.builder()
@@ -99,7 +100,7 @@ class GetChatRoomsServiceTest {
         given(userRepository.findById(otherUserId)).willReturn(Optional.of(otherUser));
         given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
                 .willReturn(Optional.of(lastMessage));
-        given(messageRepository.countUnreadMessages(chatRoomId, userId, lastReadAt))
+        given(messageRepository.countUnreadMessagesByLastReadMessageId(chatRoomId, userId, 900L))
                 .willReturn(5L);
 
         // when
@@ -149,6 +150,7 @@ class GetChatRoomsServiceTest {
                 .id(500L)
                 .chatRoomId(chatRoomId)
                 .userId(userId)
+                .lastReadMessageId(null)
                 .build();
 
         ChatRoomMember otherMember = ChatRoomMember.builder()
@@ -182,5 +184,118 @@ class GetChatRoomsServiceTest {
         assertThat(summary.lastMessage()).isEmpty();
         assertThat(summary.lastMessageAt()).isNull();
         assertThat(summary.unreadCount()).isEqualTo(0L);
+    }
+
+    @Test
+    @DisplayName("멤버 정보가 없는 경우 unreadCount는 0")
+    void should_returnZeroUnreadCount_when_memberNotFound() {
+        // given
+        Long userId = 1L;
+        Long chatRoomId = 100L;
+
+        ChatRoom chatRoom = ChatRoom.builder()
+                .id(chatRoomId)
+                .name("채팅방")
+                .type(ChatRoom.ChatRoomType.DIRECT)
+                .build();
+
+        given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
+                .willReturn(Optional.empty()); // 멤버 정보 없음
+        given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
+                .willReturn(Optional.empty());
+
+        // when
+        List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).unreadCount()).isEqualTo(0L);
+    }
+
+    @Test
+    @DisplayName("그룹 채팅방은 상대방 정보가 null")
+    void should_returnNullOtherUserInfo_when_groupChatRoom() {
+        // given
+        Long userId = 1L;
+        Long chatRoomId = 100L;
+
+        ChatRoom groupChatRoom = ChatRoom.builder()
+                .id(chatRoomId)
+                .name("그룹 채팅방")
+                .type(ChatRoom.ChatRoomType.GROUP)
+                .build();
+
+        ChatRoomMember myMember = ChatRoomMember.builder()
+                .id(500L)
+                .chatRoomId(chatRoomId)
+                .userId(userId)
+                .lastReadMessageId(null)
+                .build();
+
+        given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(groupChatRoom));
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
+                .willReturn(Optional.of(myMember));
+        // 그룹 채팅방은 getOtherUserInfo에서 바로 null 반환하므로 userRepository 호출 안됨
+        given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
+                .willReturn(Optional.empty());
+
+        // when
+        List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+
+        // then
+        assertThat(result).hasSize(1);
+        ChatRoomSummary summary = result.get(0);
+        assertThat(summary.otherUserId()).isNull();
+        assertThat(summary.otherUserNickname()).isNull();
+        assertThat(summary.otherUserAvatarUrl()).isNull();
+    }
+
+    @Test
+    @DisplayName("1:1 채팅방에서 상대방 사용자 정보가 없는 경우 null 처리")
+    void should_handleNullOtherUser_when_otherUserNotFound() {
+        // given
+        Long userId = 1L;
+        Long otherUserId = 999L; // 삭제된 사용자
+        Long chatRoomId = 100L;
+
+        ChatRoom chatRoom = ChatRoom.builder()
+                .id(chatRoomId)
+                .name("채팅방")
+                .type(ChatRoom.ChatRoomType.DIRECT)
+                .build();
+
+        ChatRoomMember myMember = ChatRoomMember.builder()
+                .id(500L)
+                .chatRoomId(chatRoomId)
+                .userId(userId)
+                .lastReadMessageId(null)
+                .build();
+
+        ChatRoomMember otherMember = ChatRoomMember.builder()
+                .id(501L)
+                .chatRoomId(chatRoomId)
+                .userId(otherUserId)
+                .build();
+
+        given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
+                .willReturn(Optional.of(myMember));
+        given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
+                .willReturn(List.of(myMember, otherMember));
+        given(userRepository.findById(otherUserId))
+                .willReturn(Optional.empty()); // 사용자 없음
+        given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
+                .willReturn(Optional.empty());
+
+        // when
+        List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+
+        // then
+        assertThat(result).hasSize(1);
+        ChatRoomSummary summary = result.get(0);
+        assertThat(summary.otherUserId()).isNull();
+        assertThat(summary.otherUserNickname()).isNull();
+        assertThat(summary.otherUserAvatarUrl()).isNull();
     }
 }
