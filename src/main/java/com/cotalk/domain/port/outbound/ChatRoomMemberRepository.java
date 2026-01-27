@@ -125,4 +125,16 @@ public interface ChatRoomMemberRepository {
      * @return 읽지 않은 멤버 수
      */
     int countUnreadMembersByMessageId(Long chatRoomId, Long messageId, Long senderId);
+
+    /**
+     * 마지막 읽은 시간만 업데이트한다 (메시지가 없는 채팅방용).
+     * 메시지가 없는 채팅방에서도 lastReadAt을 설정하여,
+     * 나중에 메시지가 추가될 때 정확한 unreadCount를 계산할 수 있도록 한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId     사용자 ID
+     * @param lastReadAt 새로운 읽은 시간
+     * @return 업데이트된 행 수
+     */
+    int updateLastReadAt(Long chatRoomId, Long userId, LocalDateTime lastReadAt);
 }

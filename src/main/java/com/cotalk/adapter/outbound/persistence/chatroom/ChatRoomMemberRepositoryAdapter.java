@@ -144,4 +144,17 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
     public int countUnreadMembersByMessageId(Long chatRoomId, Long messageId, Long senderId) {
         return chatRoomMemberJpaRepository.countUnreadMembersByMessageId(chatRoomId, messageId, senderId);
     }
+
+    /**
+     * 마지막 읽은 시간만 업데이트한다 (메시지가 없는 채팅방용).
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId     사용자 ID
+     * @param lastReadAt 새로운 읽은 시간
+     * @return 업데이트된 행 수
+     */
+    @Override
+    public int updateLastReadAt(Long chatRoomId, Long userId, LocalDateTime lastReadAt) {
+        return chatRoomMemberJpaRepository.updateLastReadAt(chatRoomId, userId, lastReadAt);
+    }
 }

@@ -68,7 +68,7 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * @param lastReadAt 새로운 읽은 시간
      * @return 업데이트된 행 수
      */
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("UPDATE ChatRoomMember m SET m.lastReadAt = :lastReadAt " +
            "WHERE m.chatRoomId = :chatRoomId AND m.userId = :userId " +
            "AND (m.lastReadAt IS NULL OR m.lastReadAt < :lastReadAt)")
@@ -81,10 +81,13 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * 기존 값보다 큰 경우에만 업데이트하여 Lost Update를 방지한다.
      *
      * <p>lastReadAt은 보조 정보로 함께 갱신한다.</p>
-     * 
+     *
      * <p>lastReadMessageId가 null이 아닌 경우에만 업데이트한다.</p>
+     *
+     * <p>flushAutomatically=true: 같은 트랜잭션 내에서 후속 쿼리가 업데이트된 데이터를 읽을 수 있도록 함</p>
+     * <p>clearAutomatically=true: 영속성 컨텍스트를 클리어하여 캐시된 이전 값 대신 DB의 최신 값을 읽도록 함</p>
      */
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("UPDATE ChatRoomMember m " +
            "SET m.lastReadMessageId = :lastReadMessageId, m.lastReadAt = :lastReadAt " +
            "WHERE m.chatRoomId = :chatRoomId AND m.userId = :userId " +
@@ -123,4 +126,21 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
     int countUnreadMembersByMessageId(@Param("chatRoomId") Long chatRoomId,
                                       @Param("messageId") Long messageId,
                                       @Param("senderId") Long senderId);
+
+    /**
+     * 마지막 읽은 시간만 업데이트한다 (메시지가 없는 채팅방용).
+     * 메시지가 없는 채팅방에서도 lastReadAt을 설정하여,
+     * 나중에 메시지가 추가될 때 정확한 unreadCount를 계산할 수 있도록 한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId     사용자 ID
+     * @param lastReadAt 새로운 읽은 시간
+     * @return 업데이트된 행 수
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE ChatRoomMember m SET m.lastReadAt = :lastReadAt " +
+           "WHERE m.chatRoomId = :chatRoomId AND m.userId = :userId")
+    int updateLastReadAt(@Param("chatRoomId") Long chatRoomId,
+                         @Param("userId") Long userId,
+                         @Param("lastReadAt") LocalDateTime lastReadAt);
 }

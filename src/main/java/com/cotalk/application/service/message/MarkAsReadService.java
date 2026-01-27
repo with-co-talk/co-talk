@@ -65,19 +65,22 @@ public class MarkAsReadService implements MarkAsReadUseCase {
         // 멤버 검증
         chatRoomMemberValidator.getMemberOrThrow(chatRoomId, userId);
 
+        LocalDateTime now = LocalDateTime.now();
+
         // 마지막 메시지 ID(= 읽음 기준점). 메시지가 없으면 lastReadMessageId는 null이다.
         Long lastReadMessageId = messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId)
                 .map(Message::getId)
                 .orElse(null);
 
-        // 메시지가 없으면 읽음 처리할 것이 없으므로 아무것도 하지 않음
+        // 메시지가 없으면 lastReadAt만 업데이트하고 종료
+        // (나중에 메시지가 추가될 때 정확한 unreadCount를 계산하기 위함)
         if (lastReadMessageId == null) {
-            log.debug("No messages in chat room {}, nothing to mark as read", chatRoomId);
+            log.debug("No messages in chat room {}, updating lastReadAt only", chatRoomId);
+            chatRoomMemberRepository.updateLastReadAt(chatRoomId, userId, now);
             return;
         }
 
         // 원자적 업데이트 (기존 메시지 ID보다 큰 경우에만)
-        LocalDateTime now = LocalDateTime.now();
         int updated = chatRoomMemberRepository.updateLastReadMessageIdIfNewer(chatRoomId, userId, now, lastReadMessageId);
 
         if (updated > 0) {
