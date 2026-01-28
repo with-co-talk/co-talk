@@ -120,7 +120,7 @@ public class RedisChatMessageSubscriber implements MessageListener {
         
         return new WebSocketChatMessage(
                 1,
-                "message:" + msg.messageId(),
+                "message:" + msg.messageId() + ":" + System.currentTimeMillis(),
                 msg.messageId(),
                 msg.senderId(),
                 msg.roomId(),

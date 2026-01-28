@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
  * @param thumbnailUrl           썸네일 URL
  * @param replyToMessageId       답장 대상 메시지 ID
  * @param forwardedFromMessageId 전달 원본 메시지 ID
+ * @param unreadCount            읽지 않은 멤버 수
  * @author seunggu.lee
  */
 public record MessageDto(
@@ -34,16 +35,18 @@ public record MessageDto(
         String contentType,
         String thumbnailUrl,
         Long replyToMessageId,
-        Long forwardedFromMessageId
+        Long forwardedFromMessageId,
+        Integer unreadCount
 ) {
 
     /**
-     * Message 엔티티로부터 DTO를 생성합니다.
+     * Message 엔티티로부터 DTO를 생성합니다. (unreadCount 포함)
      *
-     * @param message Message 엔티티
+     * @param message     Message 엔티티
+     * @param unreadCount 읽지 않은 멤버 수
      * @return MessageDto 인스턴스
      */
-    public static MessageDto from(Message message) {
+    public static MessageDto from(Message message, Integer unreadCount) {
         return new MessageDto(
                 message.getId(),
                 message.getSenderId(),
@@ -57,7 +60,18 @@ public record MessageDto(
                 message.getFileContentType(),
                 message.getThumbnailUrl(),
                 message.getReplyToMessageId(),
-                message.getForwardedFromMessageId()
+                message.getForwardedFromMessageId(),
+                unreadCount
         );
+    }
+
+    /**
+     * Message 엔티티로부터 DTO를 생성합니다. (unreadCount 미포함, 기본값 0)
+     *
+     * @param message Message 엔티티
+     * @return MessageDto 인스턴스
+     */
+    public static MessageDto from(Message message) {
+        return from(message, 0);
     }
 }

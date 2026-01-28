@@ -16,6 +16,7 @@ import com.cotalk.domain.port.inbound.message.GetMessageHistoryUseCase;
 import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
+import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -54,6 +55,7 @@ public class ChatMessageController {
     private final UpdateMessageUseCase updateMessageUseCase;
     private final DeleteMessageUseCase deleteMessageUseCase;
     private final MessageReplyForwardUseCase messageReplyForwardUseCase;
+    private final ChatRoomMemberRepository chatRoomMemberRepository;
 
     /**
      * 채팅방에 텍스트 메시지를 전송합니다.
@@ -108,8 +110,17 @@ public class ChatMessageController {
             @RequestParam(required = false) Long beforeMessageId,
             @RequestParam(defaultValue = "20") int size) {
         List<Message> messages = getMessageHistoryUseCase.getMessageHistory(roomId, principal.getUserId(), beforeMessageId, size);
+
+        // 각 메시지에 대해 unreadCount를 계산
         List<MessageDto> messageDtos = messages.stream()
-                .map(MessageDto::from)
+                .map(message -> {
+                    int unreadCount = chatRoomMemberRepository.countUnreadMembersByMessageId(
+                            roomId,
+                            message.getId(),
+                            message.getSenderId()
+                    );
+                    return MessageDto.from(message, unreadCount);
+                })
                 .toList();
 
         // 다음 페이지 존재 여부를 위한 nextCursor 계산
