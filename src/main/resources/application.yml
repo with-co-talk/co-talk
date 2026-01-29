@@ -2,6 +2,13 @@ spring:
   application:
     name: co-talk-backend
 
+  # 파일 업로드 설정 (Servlet 레벨)
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 50MB
+
   # Jackson 날짜 직렬화 설정 (ISO 8601 형식)
   jackson:
     serialization:
@@ -82,12 +89,12 @@ firebase:
 # MinIO 설정 (파일 저장소)
 # 보안: 프로덕션에서는 반드시 환경변수로 자격증명 설정 필요
 minio:
-  enabled: ${MINIO_ENABLED:false}
+  enabled: ${MINIO_ENABLED:true}
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
-  access-key: ${MINIO_ACCESS_KEY}
-  secret-key: ${MINIO_SECRET_KEY}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
   bucket: ${MINIO_BUCKET:cotalk}
-  public-url: ${MINIO_PUBLIC_URL:}
+  public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
   region: ${MINIO_REGION:us-east-1}
 
 # 파일 업로드 설정
