@@ -6,7 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -156,5 +158,65 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
     @Override
     public int updateLastReadAt(Long chatRoomId, Long userId, LocalDateTime lastReadAt) {
         return chatRoomMemberJpaRepository.updateLastReadAt(chatRoomId, userId, lastReadAt);
+    }
+
+    /**
+     * 여러 메시지의 읽지 않은 멤버 수를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param messageIds 메시지 ID 목록
+     * @return 메시지 ID를 키로, 읽지 않은 멤버 수를 값으로 하는 Map
+     */
+    @Override
+    public Map<Long, Integer> batchCountUnreadMembersByMessageIds(Long chatRoomId, List<Long> messageIds) {
+        if (messageIds == null || messageIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        List<Object[]> results = chatRoomMemberJpaRepository.batchCountUnreadMembersByMessageIds(chatRoomId, messageIds);
+        Map<Long, Integer> unreadCountMap = new HashMap<>();
+
+        for (Object[] row : results) {
+            Long messageId = ((Number) row[0]).longValue();
+            Integer unreadCount = ((Number) row[1]).intValue();
+            unreadCountMap.put(messageId, unreadCount);
+        }
+
+        // 결과에 없는 메시지 ID는 0으로 설정 (발신자만 있는 경우 등)
+        for (Long messageId : messageIds) {
+            unreadCountMap.putIfAbsent(messageId, 0);
+        }
+
+        return unreadCountMap;
+    }
+
+    /**
+     * 특정 사용자의 여러 채팅방 멤버 정보를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param userId 사용자 ID
+     * @param chatRoomIds 채팅방 ID 목록
+     * @return 채팅방 멤버 목록
+     */
+    @Override
+    public List<ChatRoomMember> findByUserIdAndChatRoomIds(Long userId, List<Long> chatRoomIds) {
+        if (chatRoomIds == null || chatRoomIds.isEmpty()) {
+            return List.of();
+        }
+        return chatRoomMemberJpaRepository.findByUserIdAndChatRoomIdIn(userId, chatRoomIds);
+    }
+
+    /**
+     * 여러 채팅방의 상대방(본인 제외) 멤버 정보를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param userId 본인 사용자 ID (제외할 사용자)
+     * @param chatRoomIds 채팅방 ID 목록
+     * @return 상대방 멤버 목록
+     */
+    @Override
+    public List<ChatRoomMember> findOtherMembersByChatRoomIds(Long userId, List<Long> chatRoomIds) {
+        if (chatRoomIds == null || chatRoomIds.isEmpty()) {
+            return List.of();
+        }
+        return chatRoomMemberJpaRepository.findOtherMembersByUserIdAndChatRoomIdIn(userId, chatRoomIds);
     }
 }

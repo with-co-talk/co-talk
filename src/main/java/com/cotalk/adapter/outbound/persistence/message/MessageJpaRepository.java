@@ -131,4 +131,58 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
             @Param("userId") Long userId,
             @Param("keyword") String keyword,
             Pageable pageable);
+
+    /**
+     * 여러 채팅방의 마지막 메시지를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     * 각 채팅방별로 가장 최근 메시지 1개씩 반환한다.
+     *
+     * @param chatRoomIds 채팅방 ID 목록
+     * @return 마지막 메시지 목록
+     */
+    @Query(value = """
+        SELECT m.* FROM messages m
+        INNER JOIN (
+            SELECT chat_room_id, MAX(id) as max_id
+            FROM messages
+            WHERE chat_room_id IN :chatRoomIds AND is_deleted = false
+            GROUP BY chat_room_id
+        ) latest ON m.id = latest.max_id
+        """, nativeQuery = true)
+    List<Message> findLastMessagesByRoomIds(@Param("chatRoomIds") List<Long> chatRoomIds);
+
+    /**
+     * 여러 채팅방의 읽지 않은 메시지 수를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param userId 사용자 ID
+     * @param chatRoomIds 채팅방 ID 목록
+     * @return 채팅방 ID와 읽지 않은 메시지 수 배열의 목록 (Object[0]=chatRoomId, Object[1]=unreadCount)
+     */
+    @Query(value = """
+        SELECT m.chat_room_id as chatRoomId,
+               COUNT(m.id) as unreadCount
+        FROM messages m
+        INNER JOIN chat_room_members crm
+            ON crm.chat_room_id = m.chat_room_id AND crm.user_id = :userId
+        WHERE m.chat_room_id IN :chatRoomIds
+          AND m.is_deleted = false
+          AND m.sender_id <> :userId
+          AND (crm.last_read_message_id IS NULL OR m.id > crm.last_read_message_id)
+        GROUP BY m.chat_room_id
+        """, nativeQuery = true)
+    List<Object[]> batchCountUnreadMessages(
+            @Param("userId") Long userId,
+            @Param("chatRoomIds") List<Long> chatRoomIds);
+
+    /**
+     * 채팅방에서 특정 사용자를 제외한 다른 발신자 ID 목록을 조회한다.
+     * 1:1 채팅방에서 상대방이 나갔을 때 상대방 ID를 찾는 데 사용한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param excludeUserId 제외할 사용자 ID
+     * @return 다른 발신자 ID 목록
+     */
+    @Query("SELECT DISTINCT m.senderId FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.senderId <> :excludeUserId AND m.deleted = false")
+    List<Long> findDistinctSenderIdsByChatRoomIdExcludingUser(
+            @Param("chatRoomId") Long chatRoomId,
+            @Param("excludeUserId") Long excludeUserId);
 }
