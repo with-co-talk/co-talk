@@ -24,14 +24,20 @@
    - `feat:`, `refactor:`, `fix:`, `test:`, `docs:`, `chore:` 등
 
 ### Phase 2: 브랜치 생성
-1. **변경사항 유형 판단**: 
+1. **변경사항 분석**: Phase 1에서 분석한 변경사항을 기반으로 브랜치 타입 결정
+2. **변경사항 유형 판단**: 
    - 새로운 기능 추가 → `feat/`
    - 코드 리팩토링 → `refactor/`
    - 버그 수정 → `bugfix/`
    - 문서화 → `docs/`
    - 기타 → `chore/`
-2. **브랜치명 생성**: `{type}/{kebab-case-description}`
-3. **브랜치 생성 및 체크아웃**: `git checkout -b {branch-name}`
+3. **브랜치명 생성**: 변경사항을 분석하여 의미있는 브랜치명 생성
+   - 형식: `{type}/{kebab-case-description}`
+   - 예: `feat/user-authentication`, `refactor/exception-handling`
+4. **새 브랜치 생성**: **항상** 변경사항에 맞는 새 브랜치 생성
+   - 현재 브랜치와 관계없이 무조건 새 브랜치 생성
+   - `git checkout -b {branch-name}` 실행
+   - 사용자가 명시적으로 현재 브랜치에 커밋하라고 하지 않는 이상 항상 새 브랜치 생성
 
 ### Phase 3: 이슈 생성
 1. **이슈 타입 결정**: 변경사항 분석 결과 기반
@@ -158,13 +164,23 @@ git diff --cached --stat
 
 ### Step 4: 브랜치 생성
 ```bash
-# 변경사항 유형에 따라 브랜치명 결정
-BRANCH_TYPE="feat"  # 또는 refactor, bugfix, docs, chore
-BRANCH_DESC="kebab-case-description"
+# 변경사항 분석 결과를 기반으로 브랜치 타입 결정
+# (Step 2-3에서 분석한 변경사항 유형 사용)
+BRANCH_TYPE="feat"  # 변경사항 분석 결과에 따라 결정 (feat, refactor, bugfix, docs, chore)
+
+# 변경사항을 분석하여 의미있는 브랜치명 생성
+# 예: "사용자 인증 기능 추가" → "user-authentication"
+# 예: "예외 처리 리팩토링" → "exception-handling"
+BRANCH_DESC="kebab-case-description"  # 변경사항 분석 결과에 따라 생성
+
+# 브랜치명 생성
 BRANCH_NAME="${BRANCH_TYPE}/${BRANCH_DESC}"
 
-# 브랜치 생성
+# 항상 새 브랜치 생성 (현재 브랜치와 관계없이)
+# 사용자가 명시적으로 현재 브랜치에 커밋하라고 하지 않는 이상 항상 새 브랜치 생성
 git checkout -b "$BRANCH_NAME"
+
+echo "✅ 새 브랜치 생성: $BRANCH_NAME"
 ```
 
 ### Step 5: 이슈 본문 생성
@@ -282,3 +298,4 @@ fi
 - 메인 브랜치에 직접 커밋
 - 사용자 확인 없이 원격 저장소에 푸시 (--auto-push 옵션 제외)
 - 기존 이슈/PR 수정
+- 사용자가 명시적으로 현재 브랜치에 커밋하라고 하지 않는 이상 기존 브랜치에 커밋
