@@ -142,11 +142,17 @@ public class ChatWebSocketController {
         // 상대방이 채팅방에 들어가서 markAsRead를 호출하면 unreadCount가 감소함
         int unreadCount = Math.max(0, totalMembers - 1);
 
+        // 발신자 닉네임 조회
+        String senderNickname = userRepository.findById(message.getSenderId())
+                .map(User::getNickname)
+                .orElse("알 수 없음");
+
         log.info(
-                "[WS] publishToRedis roomId={}, messageId={}, senderId={}, totalMembers={}, unreadCount={}",
+                "[WS] publishToRedis roomId={}, messageId={}, senderId={}, senderNickname={}, totalMembers={}, unreadCount={}",
                 message.getChatRoomId(),
                 message.getId(),
                 message.getSenderId(),
+                senderNickname,
                 totalMembers,
                 unreadCount
         );
@@ -154,6 +160,7 @@ public class ChatWebSocketController {
         ChatBroadcastMessage broadcastMessage = new ChatBroadcastMessage(
                 message.getId(),
                 message.getSenderId(),
+                senderNickname,
                 message.getChatRoomId(),
                 message.getContent(),
                 message.getType().name(),
@@ -163,7 +170,10 @@ public class ChatWebSocketController {
                 message.getFileSize(),
                 message.getFileContentType(),
                 message.getThumbnailUrl(),
-                unreadCount
+                unreadCount,
+                null,  // eventType (일반 메시지)
+                null,  // relatedUserId
+                null   // relatedUserNickname
         );
 
         chatMessageBroker.publish(message.getChatRoomId(), broadcastMessage);
