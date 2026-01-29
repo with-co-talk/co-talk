@@ -20,6 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 메시지 읽음 처리 유스케이스 구현체.
@@ -100,7 +104,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
         // 읽음 처리 후 업데이트된 메시지들을 브로드캐스트
         // 클라이언트가 서버가 보내주는 메시지의 unreadCount를 그대로 사용하므로
         // 업데이트된 unreadCount가 포함된 메시지를 다시 전송해야 함
-        publishUpdatedMessages(chatRoomId, userId, now, lastReadMessageId);
+        publishUpdatedMessages(chatRoomId, userId);
 
         // 채팅 목록 업데이트 이벤트 브로드캐스트 (unreadCount 재계산)
         // 읽은 사용자의 현재 lastReadMessageId를 기준으로 정확한 unreadCount 계산
@@ -195,32 +199,38 @@ public class MarkAsReadService implements MarkAsReadUseCase {
      * - 서버가 보내주는 메시지의 unreadCount를 그대로 사용
      * - 기존 메시지가 있으면 서버가 보내준 값으로 업데이트
      *
+     * <p>성능 최적화:
+     * - 최근 20개 메시지만 브로드캐스트 (50 -> 20)
+     * - N+1 쿼리 대신 배치 쿼리 사용
+     *
      * @param chatRoomId 채팅방 ID
      * @param readerId   읽은 사용자 ID
-     * @param lastReadAt 읽은 시간
-     * @param lastReadMessageId 읽은 메시지 ID
      */
-    private void publishUpdatedMessages(Long chatRoomId, Long readerId, LocalDateTime lastReadAt, Long lastReadMessageId) {
-        // 최근 메시지들을 조회 (최근 50개)
-        // 읽음 처리로 인해 unreadCount가 변경될 수 있는 메시지들만 재전송
-        List<Message> recentMessages = messageRepository.findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, 0, 50);
-        
+    private void publishUpdatedMessages(Long chatRoomId, Long readerId) {
+        // 최근 메시지들을 조회 (최근 20개로 제한하여 브로드캐스트 부하 감소)
+        List<Message> recentMessages = messageRepository.findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, 0, 20);
+
         if (recentMessages.isEmpty()) {
             log.debug("No messages found in chat room {}, skipping message update broadcast", chatRoomId);
             return;
         }
 
-        log.info("Publishing updated messages after markAsRead: chatRoomId={}, readerId={}, messageCount={}", 
+        log.info("Publishing updated messages after markAsRead: chatRoomId={}, readerId={}, messageCount={}",
                 chatRoomId, readerId, recentMessages.size());
 
-        // 각 메시지에 대해 업데이트된 unreadCount를 계산하여 브로드캐스트
+        // 배치 쿼리로 모든 메시지의 unreadCount를 한 번에 조회 (N+1 쿼리 방지)
+        List<Long> messageIds = recentMessages.stream().map(Message::getId).toList();
+        Map<Long, Integer> unreadCountMap = chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(chatRoomId, messageIds);
+
+        // 배치 쿼리로 모든 발신자의 닉네임을 한 번에 조회 (N+1 쿼리 방지)
+        Set<Long> senderIds = recentMessages.stream().map(Message::getSenderId).collect(Collectors.toSet());
+        Map<Long, String> senderNicknameMap = userRepository.findAllById(senderIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getNickname));
+
+        // 각 메시지에 대해 업데이트된 unreadCount를 포함하여 브로드캐스트
         for (Message message : recentMessages) {
-            // 해당 메시지를 읽지 않은 멤버 수 계산 (발신자 제외)
-            int unreadCount = chatRoomMemberRepository.countUnreadMembersByMessageId(
-                    chatRoomId,
-                    message.getId(),
-                    message.getSenderId()
-            );
+            int unreadCount = unreadCountMap.getOrDefault(message.getId(), 0);
+            String senderNickname = senderNicknameMap.get(message.getSenderId());
 
             log.debug("Calculated unreadCount for message {}: unreadCount={}", message.getId(), unreadCount);
 
@@ -228,6 +238,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
             ChatMessageBroker.ChatBroadcastMessage broadcastMessage = new ChatMessageBroker.ChatBroadcastMessage(
                     message.getId(),
                     message.getSenderId(),
+                    senderNickname,
                     message.getChatRoomId(),
                     message.getContent(),
                     message.getType().name(),
@@ -237,7 +248,10 @@ public class MarkAsReadService implements MarkAsReadUseCase {
                     message.getFileSize(),
                     message.getFileContentType(),
                     message.getThumbnailUrl(),
-                    unreadCount
+                    unreadCount,
+                    null,  // eventType (일반 메시지)
+                    null,  // relatedUserId
+                    null   // relatedUserNickname
             );
 
             chatMessageBroker.publish(chatRoomId, broadcastMessage);

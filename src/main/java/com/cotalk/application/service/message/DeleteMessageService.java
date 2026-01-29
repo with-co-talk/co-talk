@@ -48,6 +48,11 @@ public class DeleteMessageService implements DeleteMessageUseCase {
             throw MessageAccessDeniedException.alreadyDeleted();
         }
 
+        // 5분 초과 여부 확인
+        if (message.isEditTimeExpired()) {
+            throw MessageAccessDeniedException.timeExpired();
+        }
+
         // 메시지 삭제 (소프트 삭제)
         message.delete();
         messageRepository.save(message);

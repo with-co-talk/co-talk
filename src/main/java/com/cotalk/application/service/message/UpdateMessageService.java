@@ -50,6 +50,11 @@ public class UpdateMessageService implements UpdateMessageUseCase {
             throw MessageAccessDeniedException.alreadyDeleted();
         }
 
+        // 5분 초과 여부 확인
+        if (message.isEditTimeExpired()) {
+            throw MessageAccessDeniedException.timeExpired();
+        }
+
         // 메시지 수정
         message.updateContent(newContent);
         Message updated = messageRepository.save(message);

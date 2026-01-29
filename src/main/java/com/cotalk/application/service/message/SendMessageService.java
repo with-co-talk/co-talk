@@ -7,6 +7,7 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -38,6 +39,7 @@ public class SendMessageService implements SendMessageUseCase {
     private final IdGenerator idGenerator;
     private final SendPushNotificationUseCase sendPushNotificationUseCase;
     private final ChatRoomMemberValidator chatRoomMemberValidator;
+    private final ChatRoomPresenceTracker chatRoomPresenceTracker;
 
     /**
      * 텍스트 메시지를 전송한다.
@@ -147,11 +149,13 @@ public class SendMessageService implements SendMessageUseCase {
                 .map(User::getNickname)
                 .orElse("알 수 없음");
 
-        // 채팅방의 다른 멤버들 ID 목록 추출
+        // 채팅방의 다른 멤버들 중 현재 채팅방을 보고 있지 않은 사용자만 필터링
+        // (채팅방에 있는 사용자는 WebSocket으로 실시간 메시지를 받으므로 푸시 불필요)
         List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(chatRoomId);
         List<Long> receiverUserIds = members.stream()
                 .map(ChatRoomMember::getUserId)
                 .filter(userId -> !userId.equals(senderId))
+                .filter(userId -> !chatRoomPresenceTracker.isActive(chatRoomId, userId))
                 .toList();
 
         // 벌크 푸시 알림 전송 (한 번의 호출로 처리)
@@ -162,6 +166,9 @@ public class SendMessageService implements SendMessageUseCase {
                     content,
                     chatRoomId
             );
+            log.debug("Push notification sent to {} users (excluded {} active users in room)",
+                    receiverUserIds.size(),
+                    members.size() - receiverUserIds.size() - 1);
         }
     }
 }
