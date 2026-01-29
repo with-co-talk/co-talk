@@ -28,6 +28,14 @@ public interface UserEventBroker {
     void publishReadReceipt(Long userId, ReadReceiptEvent event);
 
     /**
+     * 특정 사용자에게 온라인 상태 변경 이벤트를 발행한다.
+     *
+     * @param userId 대상 사용자 ID
+     * @param event  온라인 상태 이벤트
+     */
+    void publishOnlineStatus(Long userId, OnlineStatusEvent event);
+
+    /**
      * 채팅 목록 업데이트 이벤트.
      * 새 메시지가 도착하거나 채팅방 정보가 변경되었을 때 발행된다.
      *
@@ -69,5 +77,21 @@ public interface UserEventBroker {
             Long userId,
             Long lastReadMessageId,
             LocalDateTime lastReadAt
+    ) {}
+
+    /**
+     * 온라인 상태 변경 이벤트.
+     * 사용자의 온라인/오프라인 상태가 변경되었을 때 발행된다.
+     *
+     * @param userId       상태가 변경된 사용자 ID
+     * @param isOnline     온라인 여부
+     * @param lastActiveAt 마지막 활동 시간
+     */
+    record OnlineStatusEvent(
+            Integer schemaVersion,
+            String eventId,
+            Long userId,
+            boolean isOnline,
+            LocalDateTime lastActiveAt
     ) {}
 }
