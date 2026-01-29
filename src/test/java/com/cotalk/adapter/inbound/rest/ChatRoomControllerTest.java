@@ -12,10 +12,12 @@ import com.cotalk.domain.port.inbound.chatroom.ChatRoomManagementUseCase;
 import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.CreateGroupChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomMembersUseCase;
+import com.cotalk.domain.port.inbound.chatroom.GetChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomsUseCase;
 import com.cotalk.domain.port.inbound.chatroom.InviteGroupChatMemberUseCase;
 import com.cotalk.domain.port.inbound.chatroom.KickChatRoomMemberUseCase;
 import com.cotalk.domain.port.inbound.chatroom.LeaveChatRoomUseCase;
+import com.cotalk.domain.port.inbound.chatroom.ReinviteDirectChatMemberUseCase;
 import com.cotalk.domain.port.inbound.message.MarkAsReadUseCase;
 import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
@@ -67,6 +69,9 @@ class ChatRoomControllerTest {
     private GetChatRoomsUseCase getChatRoomsUseCase;
 
     @MockBean
+    private GetChatRoomUseCase getChatRoomUseCase;
+
+    @MockBean
     private LeaveChatRoomUseCase leaveChatRoomUseCase;
 
     @MockBean
@@ -86,6 +91,9 @@ class ChatRoomControllerTest {
 
     @MockBean
     private KickChatRoomMemberUseCase kickChatRoomMemberUseCase;
+
+    @MockBean
+    private ReinviteDirectChatMemberUseCase reinviteDirectChatMemberUseCase;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
@@ -137,7 +145,8 @@ class ChatRoomControllerTest {
                             5L,
                             2L,
                             "상대방",
-                            "https://example.com/avatar.png"
+                            "https://example.com/avatar.png",
+                            false
                     ),
                     new ChatRoomSummary(
                             101L,
@@ -149,7 +158,8 @@ class ChatRoomControllerTest {
                             0L,
                             3L,
                             "다른상대방",
-                            null
+                            null,
+                            false
                     )
             );
 

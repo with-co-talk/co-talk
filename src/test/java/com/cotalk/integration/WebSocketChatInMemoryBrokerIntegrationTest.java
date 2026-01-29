@@ -118,8 +118,8 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
 
     @Test
     @Timeout(value = 30)
-    @DisplayName("B가 방 구독 중이면 unreadCount=0, 구독 해제하면 unreadCount가 증가한다 (chat-list 기준)")
-    void should_adjustUnreadCount_byPresenceSubscription_inMemoryBroker() throws Exception {
+    @DisplayName("카톡/라인 방식: 메시지 전송 시 unreadCount=1로 시작, markAsRead 후 0으로 감소 (chat-list 기준)")
+    void should_adjustUnreadCount_byMarkAsRead_inMemoryBroker() throws Exception {
         // given
         Long roomId = idGenerator.nextId();
         chatRoomRepository.save(ChatRoom.builder()
@@ -175,15 +175,17 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
                     "content", "m1"
             ));
 
+            // 카톡/라인 방식: 메시지 전송 시 unreadCount = memberCount - 1 (발신자 제외)
+            // B가 구독 중이더라도 markAsRead를 호출하기 전까지는 unreadCount = 1
             Map<String, Object> e1 = pollChatListNewMessage(chatListEvents, "m1");
             assertThat(e1.get("eventType")).isEqualTo("NEW_MESSAGE");
             assertThat(((Number) e1.get("roomId")).longValue()).isEqualTo(roomId);
-            assertThat(((Number) e1.get("unreadCount")).intValue()).isZero();
+            assertThat(((Number) e1.get("unreadCount")).intValue()).isEqualTo(1);
 
             // B가 방을 보고 있었던 상태를 REST 읽음 처리로 반영(실제 앱과 동일하게 lastReadAt 갱신)
             markAsReadViaRest(2L, roomId);
 
-            // 2) B가 방 구독을 해제(=presence inactive)한 뒤, A가 메시지 전송 -> unreadCount 증가
+            // 2) B가 방 구독을 해제한 뒤, A가 메시지 전송 -> unreadCount는 여전히 1 (markAsRead 전까지)
             roomSub.unsubscribe();
 
             sessionA.send("/app/chat/message", Map.of(

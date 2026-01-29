@@ -12,6 +12,7 @@ import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -19,12 +20,24 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
+/**
+ * GetChatRoomsService 단위 테스트.
+ * 배치 쿼리를 사용하여 N+1 문제를 해결한 새로운 구현을 테스트한다.
+ *
+ * @author seunggu.lee
+ */
 @ExtendWith(MockitoExtension.class)
+@DisplayName("GetChatRoomsService 배치 쿼리")
 class GetChatRoomsServiceTest {
 
     @Mock
@@ -47,255 +60,431 @@ class GetChatRoomsServiceTest {
                 chatRoomRepository, chatRoomMemberRepository, messageRepository, userRepository);
     }
 
-    @Test
-    @DisplayName("사용자의 채팅방 목록 조회 성공 - 마지막 메시지, 안읽은 개수, 상대방 정보 포함")
-    void should_returnChatRoomSummaries_when_validUserId() {
-        // given
-        Long userId = 1L;
-        Long otherUserId = 2L;
-        Long chatRoomId = 100L;
-        LocalDateTime lastReadAt = LocalDateTime.now().minusHours(1);
-        LocalDateTime lastMessageAt = LocalDateTime.now();
+    @Nested
+    @DisplayName("채팅방 목록 조회 시")
+    class GetChatRoomsTest {
 
-        ChatRoom chatRoom = ChatRoom.builder()
-                .id(chatRoomId)
-                .name("채팅방1")
-                .type(ChatRoom.ChatRoomType.DIRECT)
-                .build();
+        @Test
+        @DisplayName("마지막 메시지, 안읽은 개수, 상대방 정보를 포함하여 반환한다")
+        void should_returnChatRoomSummaries_when_validUserId() {
+            // given
+            Long userId = 1L;
+            Long otherUserId = 2L;
+            Long chatRoomId = 100L;
+            LocalDateTime lastReadAt = LocalDateTime.now().minusHours(1);
 
-        ChatRoomMember myMember = ChatRoomMember.builder()
-                .id(500L)
-                .chatRoomId(chatRoomId)
-                .userId(userId)
-                .lastReadAt(lastReadAt)
-                .lastReadMessageId(900L)
-                .build();
+            ChatRoom chatRoom = ChatRoom.builder()
+                    .id(chatRoomId)
+                    .name("채팅방1")
+                    .type(ChatRoom.ChatRoomType.DIRECT)
+                    .build();
 
-        ChatRoomMember otherMember = ChatRoomMember.builder()
-                .id(501L)
-                .chatRoomId(chatRoomId)
-                .userId(otherUserId)
-                .build();
+            ChatRoomMember myMember = ChatRoomMember.builder()
+                    .id(500L)
+                    .chatRoomId(chatRoomId)
+                    .userId(userId)
+                    .lastReadAt(lastReadAt)
+                    .lastReadMessageId(900L)
+                    .build();
 
-        User otherUser = User.builder()
-                .id(otherUserId)
-                .email("other@test.com")
-                .nickname("상대방")
-                .passwordHash("hash")
-                .avatarUrl("https://example.com/avatar.png")
-                .build();
+            ChatRoomMember otherMember = ChatRoomMember.builder()
+                    .id(501L)
+                    .chatRoomId(chatRoomId)
+                    .userId(otherUserId)
+                    .build();
 
-        Message lastMessage = Message.builder()
-                .id(1000L)
-                .chatRoomId(chatRoomId)
-                .senderId(otherUserId)
-                .content("마지막 메시지입니다")
-                .build();
+            User otherUser = User.builder()
+                    .id(otherUserId)
+                    .email("other@test.com")
+                    .nickname("상대방")
+                    .passwordHash("hash")
+                    .avatarUrl("https://example.com/avatar.png")
+                    .build();
 
-        given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
-        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
-                .willReturn(Optional.of(myMember));
-        given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
-                .willReturn(List.of(myMember, otherMember));
-        given(userRepository.findById(otherUserId)).willReturn(Optional.of(otherUser));
-        given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
-                .willReturn(Optional.of(lastMessage));
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(chatRoomId, userId, 900L))
-                .willReturn(5L);
+            Message lastMessage = Message.builder()
+                    .id(1000L)
+                    .chatRoomId(chatRoomId)
+                    .senderId(otherUserId)
+                    .content("마지막 메시지입니다")
+                    .build();
 
-        // when
-        List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+            // 배치 쿼리 모킹
+            given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
+            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of(myMember));
+            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
+                    .willReturn(List.of(lastMessage));
+            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
+                    .willReturn(Map.of(chatRoomId, 5L));
+            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of(otherMember));
+            given(userRepository.findAllById(any())).willReturn(List.of(otherUser));
 
-        // then
-        assertThat(result).hasSize(1);
-        ChatRoomSummary summary = result.get(0);
-        assertThat(summary.id()).isEqualTo(chatRoomId);
-        assertThat(summary.name()).isEqualTo("채팅방1");
-        assertThat(summary.lastMessage()).isEqualTo("마지막 메시지입니다");
-        assertThat(summary.unreadCount()).isEqualTo(5L);
-        assertThat(summary.otherUserId()).isEqualTo(otherUserId);
-        assertThat(summary.otherUserNickname()).isEqualTo("상대방");
-        assertThat(summary.otherUserAvatarUrl()).isEqualTo("https://example.com/avatar.png");
+            // when
+            List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+
+            // then
+            assertThat(result).hasSize(1);
+            ChatRoomSummary summary = result.get(0);
+            assertThat(summary.id()).isEqualTo(chatRoomId);
+            assertThat(summary.name()).isEqualTo("채팅방1");
+            assertThat(summary.lastMessage()).isEqualTo("마지막 메시지입니다");
+            assertThat(summary.unreadCount()).isEqualTo(5L);
+            assertThat(summary.otherUserId()).isEqualTo(otherUserId);
+            assertThat(summary.otherUserNickname()).isEqualTo("상대방");
+            assertThat(summary.otherUserAvatarUrl()).isEqualTo("https://example.com/avatar.png");
+        }
+
+        @Test
+        @DisplayName("채팅방이 없을 때 빈 목록을 반환한다")
+        void should_returnEmptyList_when_noChatRooms() {
+            // given
+            Long userId = 1L;
+            given(chatRoomRepository.findByUserId(userId)).willReturn(List.of());
+
+            // when
+            List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+
+            // then
+            assertThat(result).isEmpty();
+            // 빈 목록일 때 다른 배치 쿼리가 호출되지 않음
+            verify(chatRoomMemberRepository, never()).findByUserIdAndChatRoomIds(any(), anyList());
+            verify(messageRepository, never()).findLastMessagesByRoomIds(anyList());
+        }
+
+        @Test
+        @DisplayName("메시지가 없는 채팅방도 정상 조회된다")
+        void should_returnSummaryWithoutMessage_when_noMessages() {
+            // given
+            Long userId = 1L;
+            Long otherUserId = 2L;
+            Long chatRoomId = 100L;
+
+            ChatRoom chatRoom = ChatRoom.builder()
+                    .id(chatRoomId)
+                    .name("새 채팅방")
+                    .type(ChatRoom.ChatRoomType.DIRECT)
+                    .build();
+
+            ChatRoomMember myMember = ChatRoomMember.builder()
+                    .id(500L)
+                    .chatRoomId(chatRoomId)
+                    .userId(userId)
+                    .lastReadMessageId(null)
+                    .build();
+
+            ChatRoomMember otherMember = ChatRoomMember.builder()
+                    .id(501L)
+                    .chatRoomId(chatRoomId)
+                    .userId(otherUserId)
+                    .build();
+
+            User otherUser = User.builder()
+                    .id(otherUserId)
+                    .email("other@test.com")
+                    .nickname("상대방")
+                    .passwordHash("hash")
+                    .build();
+
+            // 배치 쿼리 모킹 - 빈 결과
+            given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
+            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of(myMember));
+            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
+                    .willReturn(List.of()); // 메시지 없음
+            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
+                    .willReturn(Map.of()); // 읽지 않은 메시지 없음
+            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of(otherMember));
+            given(userRepository.findAllById(any())).willReturn(List.of(otherUser));
+
+            // when
+            List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+
+            // then
+            assertThat(result).hasSize(1);
+            ChatRoomSummary summary = result.get(0);
+            assertThat(summary.lastMessage()).isEmpty();
+            assertThat(summary.lastMessageAt()).isNull();
+            assertThat(summary.unreadCount()).isEqualTo(0L);
+        }
+
+        @Test
+        @DisplayName("멤버 정보가 없는 경우 unreadCount는 0이다")
+        void should_returnZeroUnreadCount_when_memberNotFound() {
+            // given
+            Long userId = 1L;
+            Long chatRoomId = 100L;
+
+            ChatRoom chatRoom = ChatRoom.builder()
+                    .id(chatRoomId)
+                    .name("채팅방")
+                    .type(ChatRoom.ChatRoomType.DIRECT)
+                    .build();
+
+            // 배치 쿼리 모킹 - 멤버 없음
+            given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
+            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of()); // 멤버 없음
+            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
+                    .willReturn(List.of());
+            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
+                    .willReturn(Map.of());
+            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of());
+            given(userRepository.findAllById(any())).willReturn(List.of());
+
+            // when
+            List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+
+            // then
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).unreadCount()).isEqualTo(0L);
+        }
+
+        @Test
+        @DisplayName("그룹 채팅방은 상대방 정보가 null이다")
+        void should_returnNullOtherUserInfo_when_groupChatRoom() {
+            // given
+            Long userId = 1L;
+            Long chatRoomId = 100L;
+
+            ChatRoom groupChatRoom = ChatRoom.builder()
+                    .id(chatRoomId)
+                    .name("그룹 채팅방")
+                    .type(ChatRoom.ChatRoomType.GROUP)
+                    .build();
+
+            ChatRoomMember myMember = ChatRoomMember.builder()
+                    .id(500L)
+                    .chatRoomId(chatRoomId)
+                    .userId(userId)
+                    .lastReadMessageId(null)
+                    .build();
+
+            // 배치 쿼리 모킹
+            given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(groupChatRoom));
+            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of(myMember));
+            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
+                    .willReturn(List.of());
+            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
+                    .willReturn(Map.of());
+            // 그룹 채팅방은 DIRECT 타입이 아니므로 빈 리스트로 호출됨
+            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(eq(userId), anyList()))
+                    .willReturn(List.of());
+            given(userRepository.findAllById(any())).willReturn(List.of());
+
+            // when
+            List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+
+            // then
+            assertThat(result).hasSize(1);
+            ChatRoomSummary summary = result.get(0);
+            assertThat(summary.otherUserId()).isNull();
+            assertThat(summary.otherUserNickname()).isNull();
+            assertThat(summary.otherUserAvatarUrl()).isNull();
+        }
+
+        @Test
+        @DisplayName("1:1 채팅방에서 상대방 사용자 정보가 없는 경우 null 처리된다")
+        void should_handleNullOtherUser_when_otherUserNotFound() {
+            // given
+            Long userId = 1L;
+            Long otherUserId = 999L; // 삭제된 사용자
+            Long chatRoomId = 100L;
+
+            ChatRoom chatRoom = ChatRoom.builder()
+                    .id(chatRoomId)
+                    .name("채팅방")
+                    .type(ChatRoom.ChatRoomType.DIRECT)
+                    .build();
+
+            ChatRoomMember myMember = ChatRoomMember.builder()
+                    .id(500L)
+                    .chatRoomId(chatRoomId)
+                    .userId(userId)
+                    .lastReadMessageId(null)
+                    .build();
+
+            ChatRoomMember otherMember = ChatRoomMember.builder()
+                    .id(501L)
+                    .chatRoomId(chatRoomId)
+                    .userId(otherUserId)
+                    .build();
+
+            // 배치 쿼리 모킹
+            given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
+            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of(myMember));
+            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
+                    .willReturn(List.of());
+            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
+                    .willReturn(Map.of());
+            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of(otherMember));
+            given(userRepository.findAllById(any())).willReturn(List.of()); // 사용자 없음
+
+            // when
+            List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+
+            // then
+            assertThat(result).hasSize(1);
+            ChatRoomSummary summary = result.get(0);
+            assertThat(summary.otherUserId()).isNull();
+            assertThat(summary.otherUserNickname()).isNull();
+            assertThat(summary.otherUserAvatarUrl()).isNull();
+        }
+
+        @Test
+        @DisplayName("1:1 채팅방에서 상대방이 나간 경우 메시지 기록에서 상대방 ID를 복구한다")
+        void should_recoverOtherUserId_when_otherUserLeftButHasMessages() {
+            // given
+            Long userId = 1L;
+            Long leftUserId = 2L; // 나간 사용자
+            Long chatRoomId = 100L;
+
+            ChatRoom chatRoom = ChatRoom.builder()
+                    .id(chatRoomId)
+                    .name("채팅방")
+                    .type(ChatRoom.ChatRoomType.DIRECT)
+                    .build();
+
+            ChatRoomMember myMember = ChatRoomMember.builder()
+                    .id(500L)
+                    .chatRoomId(chatRoomId)
+                    .userId(userId)
+                    .lastReadMessageId(null)
+                    .build();
+
+            User leftUser = User.builder()
+                    .id(leftUserId)
+                    .email("left@test.com")
+                    .nickname("나간유저")
+                    .passwordHash("hash")
+                    .avatarUrl("https://example.com/avatar.png")
+                    .build();
+
+            // 배치 쿼리 모킹
+            given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
+            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of(myMember));
+            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
+                    .willReturn(List.of());
+            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
+                    .willReturn(Map.of());
+            // 상대방 멤버가 없음 (나갔기 때문)
+            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of());
+            // 메시지 기록에서 상대방 ID 복구
+            given(messageRepository.findDistinctSenderIdsByChatRoomIdExcludingUser(chatRoomId, userId))
+                    .willReturn(List.of(leftUserId));
+            given(userRepository.findAllById(any())).willReturn(List.of(leftUser));
+
+            // when
+            List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+
+            // then
+            assertThat(result).hasSize(1);
+            ChatRoomSummary summary = result.get(0);
+            assertThat(summary.isOtherUserLeft()).isTrue();
+            assertThat(summary.otherUserId()).isEqualTo(leftUserId);
+            assertThat(summary.otherUserNickname()).isEqualTo("나간유저");
+            assertThat(summary.otherUserAvatarUrl()).isEqualTo("https://example.com/avatar.png");
+        }
     }
 
-    @Test
-    @DisplayName("채팅방이 없을 때 빈 목록 반환")
-    void should_returnEmptyList_when_noChatRooms() {
-        // given
-        Long userId = 1L;
-        given(chatRoomRepository.findByUserId(userId)).willReturn(List.of());
+    @Nested
+    @DisplayName("배치 쿼리 동작 시")
+    class BatchQueryBehaviorTest {
 
-        // when
-        List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+        @Test
+        @DisplayName("여러 채팅방 조회 시 배치 쿼리가 사용된다")
+        void should_useBatchQueries_when_multipleChatRooms() {
+            // given
+            Long userId = 1L;
+            Long chatRoomId1 = 100L;
+            Long chatRoomId2 = 101L;
+            Long chatRoomId3 = 102L;
 
-        // then
-        assertThat(result).isEmpty();
-    }
+            List<Long> chatRoomIds = List.of(chatRoomId1, chatRoomId2, chatRoomId3);
 
-    @Test
-    @DisplayName("메시지가 없는 채팅방도 정상 조회")
-    void should_returnSummaryWithoutMessage_when_noMessages() {
-        // given
-        Long userId = 1L;
-        Long otherUserId = 2L;
-        Long chatRoomId = 100L;
+            ChatRoom chatRoom1 = ChatRoom.builder().id(chatRoomId1).name("채팅방1").type(ChatRoom.ChatRoomType.DIRECT).build();
+            ChatRoom chatRoom2 = ChatRoom.builder().id(chatRoomId2).name("채팅방2").type(ChatRoom.ChatRoomType.DIRECT).build();
+            ChatRoom chatRoom3 = ChatRoom.builder().id(chatRoomId3).name("채팅방3").type(ChatRoom.ChatRoomType.GROUP).build();
 
-        ChatRoom chatRoom = ChatRoom.builder()
-                .id(chatRoomId)
-                .name("새 채팅방")
-                .type(ChatRoom.ChatRoomType.DIRECT)
-                .build();
+            // 배치 쿼리 모킹
+            given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom1, chatRoom2, chatRoom3));
+            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(eq(userId), eq(chatRoomIds)))
+                    .willReturn(List.of());
+            given(messageRepository.findLastMessagesByRoomIds(eq(chatRoomIds)))
+                    .willReturn(List.of());
+            given(messageRepository.batchCountUnreadMessages(eq(userId), eq(chatRoomIds)))
+                    .willReturn(Map.of(chatRoomId1, 3L, chatRoomId2, 0L, chatRoomId3, 10L));
+            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(eq(userId), anyList()))
+                    .willReturn(List.of());
+            given(userRepository.findAllById(any())).willReturn(List.of());
 
-        ChatRoomMember myMember = ChatRoomMember.builder()
-                .id(500L)
-                .chatRoomId(chatRoomId)
-                .userId(userId)
-                .lastReadMessageId(null)
-                .build();
+            // when
+            List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
 
-        ChatRoomMember otherMember = ChatRoomMember.builder()
-                .id(501L)
-                .chatRoomId(chatRoomId)
-                .userId(otherUserId)
-                .build();
+            // then
+            assertThat(result).hasSize(3);
 
-        User otherUser = User.builder()
-                .id(otherUserId)
-                .email("other@test.com")
-                .nickname("상대방")
-                .passwordHash("hash")
-                .build();
+            // 배치 쿼리가 사용되었는지 검증
+            verify(chatRoomMemberRepository).findByUserIdAndChatRoomIds(userId, chatRoomIds);
+            verify(messageRepository).findLastMessagesByRoomIds(chatRoomIds);
+            verify(messageRepository).batchCountUnreadMessages(userId, chatRoomIds);
 
-        given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
-        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
-                .willReturn(Optional.of(myMember));
-        given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
-                .willReturn(List.of(myMember, otherMember));
-        given(userRepository.findById(otherUserId)).willReturn(Optional.of(otherUser));
-        given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
-                .willReturn(Optional.empty());
+            // unreadCount가 올바르게 매핑되었는지 확인
+            ChatRoomSummary summary1 = result.stream().filter(s -> s.id().equals(chatRoomId1)).findFirst().orElseThrow();
+            assertThat(summary1.unreadCount()).isEqualTo(3L);
 
-        // when
-        List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+            ChatRoomSummary summary2 = result.stream().filter(s -> s.id().equals(chatRoomId2)).findFirst().orElseThrow();
+            assertThat(summary2.unreadCount()).isEqualTo(0L);
 
-        // then
-        assertThat(result).hasSize(1);
-        ChatRoomSummary summary = result.get(0);
-        assertThat(summary.lastMessage()).isEmpty();
-        assertThat(summary.lastMessageAt()).isNull();
-        assertThat(summary.unreadCount()).isEqualTo(0L);
-    }
+            ChatRoomSummary summary3 = result.stream().filter(s -> s.id().equals(chatRoomId3)).findFirst().orElseThrow();
+            assertThat(summary3.unreadCount()).isEqualTo(10L);
+        }
 
-    @Test
-    @DisplayName("멤버 정보가 없는 경우 unreadCount는 0")
-    void should_returnZeroUnreadCount_when_memberNotFound() {
-        // given
-        Long userId = 1L;
-        Long chatRoomId = 100L;
+        @Test
+        @DisplayName("DIRECT 채팅방만 상대방 멤버 조회에 포함된다")
+        void should_queryOtherMembersOnlyForDirectRooms() {
+            // given
+            Long userId = 1L;
+            Long directChatRoomId = 100L;
+            Long groupChatRoomId = 101L;
 
-        ChatRoom chatRoom = ChatRoom.builder()
-                .id(chatRoomId)
-                .name("채팅방")
-                .type(ChatRoom.ChatRoomType.DIRECT)
-                .build();
+            ChatRoom directChatRoom = ChatRoom.builder()
+                    .id(directChatRoomId)
+                    .name("1:1 채팅방")
+                    .type(ChatRoom.ChatRoomType.DIRECT)
+                    .build();
 
-        given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
-        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
-                .willReturn(Optional.empty()); // 멤버 정보 없음
-        given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
-                .willReturn(Optional.empty());
+            ChatRoom groupChatRoom = ChatRoom.builder()
+                    .id(groupChatRoomId)
+                    .name("그룹 채팅방")
+                    .type(ChatRoom.ChatRoomType.GROUP)
+                    .build();
 
-        // when
-        List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
+            // 배치 쿼리 모킹
+            given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(directChatRoom, groupChatRoom));
+            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(eq(userId), anyList()))
+                    .willReturn(List.of());
+            given(messageRepository.findLastMessagesByRoomIds(anyList()))
+                    .willReturn(List.of());
+            given(messageRepository.batchCountUnreadMessages(eq(userId), anyList()))
+                    .willReturn(Map.of());
+            // DIRECT 채팅방 ID만 전달되어야 함
+            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(eq(userId), eq(List.of(directChatRoomId))))
+                    .willReturn(List.of());
+            given(userRepository.findAllById(any())).willReturn(List.of());
 
-        // then
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).unreadCount()).isEqualTo(0L);
-    }
+            // when
+            getChatRoomsUseCase.getChatRooms(userId);
 
-    @Test
-    @DisplayName("그룹 채팅방은 상대방 정보가 null")
-    void should_returnNullOtherUserInfo_when_groupChatRoom() {
-        // given
-        Long userId = 1L;
-        Long chatRoomId = 100L;
-
-        ChatRoom groupChatRoom = ChatRoom.builder()
-                .id(chatRoomId)
-                .name("그룹 채팅방")
-                .type(ChatRoom.ChatRoomType.GROUP)
-                .build();
-
-        ChatRoomMember myMember = ChatRoomMember.builder()
-                .id(500L)
-                .chatRoomId(chatRoomId)
-                .userId(userId)
-                .lastReadMessageId(null)
-                .build();
-
-        given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(groupChatRoom));
-        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
-                .willReturn(Optional.of(myMember));
-        // 그룹 채팅방은 getOtherUserInfo에서 바로 null 반환하므로 userRepository 호출 안됨
-        given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
-                .willReturn(Optional.empty());
-
-        // when
-        List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
-
-        // then
-        assertThat(result).hasSize(1);
-        ChatRoomSummary summary = result.get(0);
-        assertThat(summary.otherUserId()).isNull();
-        assertThat(summary.otherUserNickname()).isNull();
-        assertThat(summary.otherUserAvatarUrl()).isNull();
-    }
-
-    @Test
-    @DisplayName("1:1 채팅방에서 상대방 사용자 정보가 없는 경우 null 처리")
-    void should_handleNullOtherUser_when_otherUserNotFound() {
-        // given
-        Long userId = 1L;
-        Long otherUserId = 999L; // 삭제된 사용자
-        Long chatRoomId = 100L;
-
-        ChatRoom chatRoom = ChatRoom.builder()
-                .id(chatRoomId)
-                .name("채팅방")
-                .type(ChatRoom.ChatRoomType.DIRECT)
-                .build();
-
-        ChatRoomMember myMember = ChatRoomMember.builder()
-                .id(500L)
-                .chatRoomId(chatRoomId)
-                .userId(userId)
-                .lastReadMessageId(null)
-                .build();
-
-        ChatRoomMember otherMember = ChatRoomMember.builder()
-                .id(501L)
-                .chatRoomId(chatRoomId)
-                .userId(otherUserId)
-                .build();
-
-        given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
-        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
-                .willReturn(Optional.of(myMember));
-        given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
-                .willReturn(List.of(myMember, otherMember));
-        given(userRepository.findById(otherUserId))
-                .willReturn(Optional.empty()); // 사용자 없음
-        given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
-                .willReturn(Optional.empty());
-
-        // when
-        List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
-
-        // then
-        assertThat(result).hasSize(1);
-        ChatRoomSummary summary = result.get(0);
-        assertThat(summary.otherUserId()).isNull();
-        assertThat(summary.otherUserNickname()).isNull();
-        assertThat(summary.otherUserAvatarUrl()).isNull();
+            // then - DIRECT 채팅방 ID만 전달되었는지 검증
+            verify(chatRoomMemberRepository).findOtherMembersByChatRoomIds(userId, List.of(directChatRoomId));
+        }
     }
 }

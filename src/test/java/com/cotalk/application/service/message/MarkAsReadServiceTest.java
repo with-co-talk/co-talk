@@ -71,7 +71,7 @@ class MarkAsReadServiceTest {
     }
 
     @Test
-    @DisplayName("읽음 표시 성공")
+    @DisplayName("읽음 표시 성공 - 메시지가 없는 경우 lastReadAt만 업데이트")
     void should_markAsRead_when_validRequest() {
         // given
         Long userId = 1L;
@@ -84,16 +84,16 @@ class MarkAsReadServiceTest {
 
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.of(member));
-        given(chatRoomMemberRepository.updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
+        given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
+                .willReturn(Optional.empty()); // 메시지 없음
+        given(chatRoomMemberRepository.updateLastReadAt(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
                 .willReturn(1);
-        given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
-                .willReturn(List.of(member));
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
 
-        // then
-        verify(chatRoomMemberRepository).updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), any(LocalDateTime.class));
+        // then - 메시지가 없으므로 updateLastReadAt만 호출
+        verify(chatRoomMemberRepository).updateLastReadAt(eq(chatRoomId), eq(userId), any(LocalDateTime.class));
     }
 
     @Test
@@ -111,7 +111,7 @@ class MarkAsReadServiceTest {
     }
 
     @Test
-    @DisplayName("읽음 시간이 현재 시간으로 업데이트됨")
+    @DisplayName("읽음 시간이 현재 시간으로 업데이트됨 - 메시지가 없는 경우")
     void should_updateLastReadAtToCurrentTime_when_markAsRead() {
         // given
         Long userId = 1L;
@@ -126,18 +126,16 @@ class MarkAsReadServiceTest {
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.of(member));
         given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
-                .willReturn(Optional.empty());
-        given(chatRoomMemberRepository.updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
+                .willReturn(Optional.empty()); // 메시지 없음
+        given(chatRoomMemberRepository.updateLastReadAt(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
                 .willReturn(1);
-        given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
-                .willReturn(List.of(member));
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
 
-        // then
+        // then - 메시지가 없으므로 updateLastReadAt 호출
         ArgumentCaptor<LocalDateTime> timeCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(chatRoomMemberRepository).updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), timeCaptor.capture());
+        verify(chatRoomMemberRepository).updateLastReadAt(eq(chatRoomId), eq(userId), timeCaptor.capture());
         assertThat(timeCaptor.getValue()).isAfter(beforeMark);
     }
 
@@ -148,6 +146,7 @@ class MarkAsReadServiceTest {
         Long readerId = 1L;
         Long otherUserId = 2L;
         Long chatRoomId = 100L;
+        Long messageId = 1000L;
 
         ChatRoomMember readerMember = ChatRoomMember.builder()
                 .id(500L)
@@ -160,14 +159,38 @@ class MarkAsReadServiceTest {
                 .userId(otherUserId)
                 .build();
 
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(chatRoomId)
+                .senderId(otherUserId)
+                .content("테스트 메시지")
+                .type(Message.MessageType.TEXT)
+                .build();
+        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+
+        User sender = User.builder()
+                .id(otherUserId)
+                .email("sender@test.com")
+                .nickname("발신자")
+                .passwordHash("hash")
+                .build();
+
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, readerId))
                 .willReturn(Optional.of(readerMember));
         given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
-                .willReturn(Optional.empty());
-        given(chatRoomMemberRepository.updateLastReadAtIfNewer(eq(chatRoomId), eq(readerId), any(LocalDateTime.class)))
+                .willReturn(Optional.of(message));
+        given(chatRoomMemberRepository.updateLastReadMessageIdIfNewer(
+                eq(chatRoomId), eq(readerId), any(LocalDateTime.class), eq(messageId)))
                 .willReturn(1);
         given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                 .willReturn(List.of(readerMember, otherMember));
+        given(messageRepository.findByChatRoomIdOrderByCreatedAtDesc(eq(chatRoomId), eq(0), eq(20)))
+                .willReturn(List.of(message));
+        given(chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(eq(chatRoomId), any()))
+                .willReturn(java.util.Map.of(messageId, 0));
+        given(userRepository.findById(otherUserId)).willReturn(Optional.of(sender));
+        given(messageRepository.countUnreadMessagesByLastReadMessageId(eq(chatRoomId), any(), any()))
+                .willReturn(0L);
 
         // when
         markAsReadUseCase.markAsRead(readerId, chatRoomId);
@@ -189,6 +212,7 @@ class MarkAsReadServiceTest {
         // given
         Long userId = 1L;
         Long chatRoomId = 100L;
+        Long messageId = 1000L;
 
         ChatRoomMember member = ChatRoomMember.builder()
                 .id(500L)
@@ -196,14 +220,38 @@ class MarkAsReadServiceTest {
                 .userId(userId)
                 .build();
 
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(chatRoomId)
+                .senderId(2L)
+                .content("테스트 메시지")
+                .type(Message.MessageType.TEXT)
+                .build();
+        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+
+        User sender = User.builder()
+                .id(2L)
+                .email("sender@test.com")
+                .nickname("발신자")
+                .passwordHash("hash")
+                .build();
+
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.of(member));
         given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
-                .willReturn(Optional.empty());
-        given(chatRoomMemberRepository.updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
+                .willReturn(Optional.of(message));
+        given(chatRoomMemberRepository.updateLastReadMessageIdIfNewer(
+                eq(chatRoomId), eq(userId), any(LocalDateTime.class), eq(messageId)))
                 .willReturn(1);
         given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                 .willReturn(List.of(member));
+        given(messageRepository.findByChatRoomIdOrderByCreatedAtDesc(eq(chatRoomId), eq(0), eq(20)))
+                .willReturn(List.of(message));
+        given(chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(eq(chatRoomId), any()))
+                .willReturn(java.util.Map.of(messageId, 0));
+        given(userRepository.findById(2L)).willReturn(Optional.of(sender));
+        given(messageRepository.countUnreadMessagesByLastReadMessageId(eq(chatRoomId), any(), any()))
+                .willReturn(0L);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -224,21 +272,49 @@ class MarkAsReadServiceTest {
         // given
         Long userId = 1L;
         Long chatRoomId = 100L;
+        Long messageId = 1000L;
+        Long existingLastReadMessageId = 900L;
 
         ChatRoomMember member = ChatRoomMember.builder()
                 .id(500L)
                 .chatRoomId(chatRoomId)
                 .userId(userId)
+                .lastReadMessageId(existingLastReadMessageId)
+                .build();
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(chatRoomId)
+                .senderId(2L)
+                .content("테스트 메시지")
+                .type(Message.MessageType.TEXT)
+                .build();
+        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+
+        User sender = User.builder()
+                .id(2L)
+                .email("sender@test.com")
+                .nickname("발신자")
+                .passwordHash("hash")
                 .build();
 
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.of(member));
         given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
-                .willReturn(Optional.empty());
-        given(chatRoomMemberRepository.updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
+                .willReturn(Optional.of(message));
+        given(chatRoomMemberRepository.updateLastReadMessageIdIfNewer(
+                eq(chatRoomId), eq(userId), any(LocalDateTime.class), eq(messageId)))
                 .willReturn(0); // 업데이트 발생하지 않음
         given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                 .willReturn(List.of(member));
+        given(messageRepository.findByChatRoomIdOrderByCreatedAtDesc(eq(chatRoomId), eq(0), eq(20)))
+                .willReturn(List.of(message));
+        given(chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(eq(chatRoomId), any()))
+                .willReturn(java.util.Map.of(messageId, 0));
+        given(userRepository.findById(2L)).willReturn(Optional.of(sender));
+        given(messageRepository.countUnreadMessagesByLastReadMessageId(
+                chatRoomId, userId, existingLastReadMessageId))
+                .willReturn(5L);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -461,18 +537,18 @@ class MarkAsReadServiceTest {
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.of(member));
         given(messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId))
-                .willReturn(Optional.empty()) // 첫 번째 조회: 메시지 없음
-                .willReturn(Optional.empty()); // publishChatListUpdate에서도 메시지 없음
-        given(chatRoomMemberRepository.updateLastReadAtIfNewer(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
+                .willReturn(Optional.empty()); // 메시지 없음
+        given(chatRoomMemberRepository.updateLastReadAt(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
                 .willReturn(1);
-        given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
-                .willReturn(List.of(member));
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
 
-        // then - 채팅 목록 업데이트는 호출되지 않음 (메시지가 없으므로)
+        // then - 메시지가 없으므로 updateLastReadAt만 호출하고 이벤트 발행 없이 조기 종료
+        verify(chatRoomMemberRepository).updateLastReadAt(eq(chatRoomId), eq(userId), any(LocalDateTime.class));
+        verify(userEventBroker, never()).publishReadReceipt(any(), any());
         verify(userEventBroker, never()).publishChatListUpdate(any(), any());
+        verify(chatMessageBroker, never()).publishRoomEvent(any(), any());
     }
 
     @Test

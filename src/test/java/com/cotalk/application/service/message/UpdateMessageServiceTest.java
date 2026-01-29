@@ -11,6 +11,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.test.util.ReflectionTestUtils;
+
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -212,5 +214,31 @@ class UpdateMessageServiceTest {
         // when & then
         assertThatThrownBy(() -> service.updateMessage(messageId, userId, null))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("5분 초과된 메시지 수정 시 예외")
+    void should_throwException_when_messageOlderThan5Minutes() {
+        // given
+        Long messageId = 100L;
+        Long userId = 1L;
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(10L)
+                .senderId(userId)
+                .content("원본 메시지")
+                .type(Message.MessageType.TEXT)
+                .build();
+
+        // BaseEntity의 createdAt은 빌더에 없으므로 ReflectionTestUtils 사용
+        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now().minusMinutes(6));
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+
+        // when & then
+        assertThatThrownBy(() -> service.updateMessage(messageId, userId, "새 내용"))
+                .isInstanceOf(MessageAccessDeniedException.class)
+                .hasMessageContaining("5분");
     }
 }

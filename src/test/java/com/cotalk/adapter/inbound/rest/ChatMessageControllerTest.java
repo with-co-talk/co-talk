@@ -13,6 +13,8 @@ import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
+import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -75,6 +77,12 @@ class ChatMessageControllerTest {
 
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockBean
+    private ChatRoomMemberRepository chatRoomMemberRepository;
+
+    @MockBean
+    private UserRepository userRepository;
 
     @Nested
     @DisplayName("메시지 전송 API")

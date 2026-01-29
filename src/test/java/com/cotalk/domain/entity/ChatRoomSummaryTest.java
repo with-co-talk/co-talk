@@ -37,7 +37,8 @@ class ChatRoomSummaryTest {
                     5,
                     2L,
                     "상대방",
-                    "https://example.com/avatar.jpg"
+                    "https://example.com/avatar.jpg",
+                    false
             );
 
             // then
@@ -51,6 +52,7 @@ class ChatRoomSummaryTest {
             assertThat(summary.otherUserId()).isEqualTo(2L);
             assertThat(summary.otherUserNickname()).isEqualTo("상대방");
             assertThat(summary.otherUserAvatarUrl()).isEqualTo("https://example.com/avatar.jpg");
+            assertThat(summary.isOtherUserLeft()).isFalse();
         }
 
         @Test
@@ -70,7 +72,8 @@ class ChatRoomSummaryTest {
                     10,
                     null,
                     null,
-                    null
+                    null,
+                    false
             );
 
             // then
@@ -81,6 +84,7 @@ class ChatRoomSummaryTest {
             assertThat(summary.otherUserId()).isNull();
             assertThat(summary.otherUserNickname()).isNull();
             assertThat(summary.otherUserAvatarUrl()).isNull();
+            assertThat(summary.isOtherUserLeft()).isFalse();
         }
 
         @Test
@@ -100,13 +104,41 @@ class ChatRoomSummaryTest {
                     0,
                     4L,
                     "새친구",
-                    null
+                    null,
+                    false
             );
 
             // then
             assertThat(summary.lastMessage()).isNull();
             assertThat(summary.lastMessageAt()).isNull();
             assertThat(summary.unreadCount()).isZero();
+        }
+
+        @Test
+        @DisplayName("상대방이 나간 1:1 채팅방 요약 정보를 생성할 수 있다")
+        void should_createSummary_when_otherUserLeft() {
+            // given
+            LocalDateTime now = LocalDateTime.now();
+
+            // when
+            ChatRoomSummary summary = new ChatRoomSummary(
+                    4L,
+                    "나간 채팅방",
+                    ChatRoom.ChatRoomType.DIRECT,
+                    now,
+                    "OOO님이 나갔습니다",
+                    now,
+                    0,
+                    null,
+                    null,
+                    null,
+                    true
+            );
+
+            // then
+            assertThat(summary.isOtherUserLeft()).isTrue();
+            assertThat(summary.otherUserId()).isNull();
+            assertThat(summary.otherUserNickname()).isNull();
         }
     }
 
@@ -122,11 +154,11 @@ class ChatRoomSummaryTest {
 
             ChatRoomSummary summary1 = new ChatRoomSummary(
                     1L, "채팅방", ChatRoom.ChatRoomType.DIRECT, now,
-                    "메시지", now, 0, 2L, "닉네임", null
+                    "메시지", now, 0, 2L, "닉네임", null, false
             );
             ChatRoomSummary summary2 = new ChatRoomSummary(
                     1L, "채팅방", ChatRoom.ChatRoomType.DIRECT, now,
-                    "메시지", now, 0, 2L, "닉네임", null
+                    "메시지", now, 0, 2L, "닉네임", null, false
             );
 
             // then
@@ -142,11 +174,11 @@ class ChatRoomSummaryTest {
 
             ChatRoomSummary summary1 = new ChatRoomSummary(
                     1L, "채팅방1", ChatRoom.ChatRoomType.DIRECT, now,
-                    "메시지", now, 0, 2L, "닉네임", null
+                    "메시지", now, 0, 2L, "닉네임", null, false
             );
             ChatRoomSummary summary2 = new ChatRoomSummary(
                     2L, "채팅방2", ChatRoom.ChatRoomType.GROUP, now,
-                    "메시지", now, 5, null, null, null
+                    "메시지", now, 5, null, null, null, false
             );
 
             // then
@@ -159,7 +191,7 @@ class ChatRoomSummaryTest {
             // given
             ChatRoomSummary summary = new ChatRoomSummary(
                     1L, "테스트 채팅방", ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
-                    null, null, 0, 2L, "테스터", null
+                    null, null, 0, 2L, "테스터", null, false
             );
 
             // when

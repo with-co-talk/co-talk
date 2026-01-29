@@ -121,12 +121,6 @@ class ChatWebSocketControllerTest {
                 .willReturn(mockMessage);
         given(chatRoomMemberRepository.findByChatRoomId(100L))
                 .willReturn(List.of(member1, member2));
-        given(userRepository.findById(1L))
-                .willReturn(Optional.of(User.builder().id(1L).nickname("사용자1").build()));
-        given(chatRoomPresenceTracker.isActive(anyLong(), anyLong()))
-                .willReturn(false);
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(anyLong(), anyLong(), any()))
-                .willReturn(1L);
 
         // when
         chatWebSocketController.sendMessage(request);
@@ -144,6 +138,7 @@ class ChatWebSocketControllerTest {
         assertThat(messageCaptor.getValue().content()).isEqualTo("테스트 메시지");
         assertThat(messageCaptor.getValue().senderId()).isEqualTo(1L);
         assertThat(messageCaptor.getValue().messageId()).isEqualTo(1L);
+        // 카톡/라인 방식: unreadCount = 멤버 수 - 1 (발신자 제외)
         assertThat(messageCaptor.getValue().unreadCount()).isEqualTo(1);
     }
 
@@ -188,12 +183,6 @@ class ChatWebSocketControllerTest {
                 .willReturn(fileMessage);
         given(chatRoomMemberRepository.findByChatRoomId(100L))
                 .willReturn(List.of(member1, member2));
-        given(userRepository.findById(1L))
-                .willReturn(Optional.of(User.builder().id(1L).nickname("사용자1").build()));
-        given(chatRoomPresenceTracker.isActive(anyLong(), anyLong()))
-                .willReturn(false);
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(anyLong(), anyLong(), any()))
-                .willReturn(1L);
 
         // when
         chatWebSocketController.sendFileMessage(request);
@@ -254,12 +243,6 @@ class ChatWebSocketControllerTest {
                 .willReturn(imageMessage);
         given(chatRoomMemberRepository.findByChatRoomId(100L))
                 .willReturn(List.of(member1, member2));
-        given(userRepository.findById(1L))
-                .willReturn(Optional.of(User.builder().id(1L).nickname("사용자1").build()));
-        given(chatRoomPresenceTracker.isActive(anyLong(), anyLong()))
-                .willReturn(false);
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(anyLong(), anyLong(), any()))
-                .willReturn(1L);
 
         // when
         chatWebSocketController.sendFileMessage(request);
