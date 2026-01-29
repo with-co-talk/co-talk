@@ -46,4 +46,17 @@ public class InMemoryUserEventBroker implements UserEventBroker {
         log.debug("Publishing read receipt to user {}: {}", userId, event);
         messagingTemplate.convertAndSend(destination, event);
     }
+
+    /**
+     * 특정 사용자에게 온라인 상태 변경 이벤트를 발행한다.
+     *
+     * @param userId 대상 사용자 ID
+     * @param event  온라인 상태 이벤트
+     */
+    @Override
+    public void publishOnlineStatus(Long userId, OnlineStatusEvent event) {
+        String destination = "/topic/user/" + userId + "/online-status";
+        log.debug("Publishing online status to user {}: {}", userId, event);
+        messagingTemplate.convertAndSend(destination, event);
+    }
 }

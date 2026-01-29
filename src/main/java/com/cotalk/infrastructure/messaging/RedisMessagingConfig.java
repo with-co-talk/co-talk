@@ -1,6 +1,7 @@
 package com.cotalk.infrastructure.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -82,6 +83,7 @@ public class RedisMessagingConfig {
 
     /**
      * Java 8 시간 API를 지원하는 ObjectMapper를 생성한다.
+     * ISO 8601 형식으로 날짜를 직렬화한다. (예: "2026-01-29T17:01:34")
      *
      * @return JavaTimeModule이 등록된 ObjectMapper
      */
@@ -89,6 +91,8 @@ public class RedisMessagingConfig {
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
+        // LocalDateTime을 배열이 아닌 ISO 8601 문자열로 직렬화
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return mapper;
     }
 }
