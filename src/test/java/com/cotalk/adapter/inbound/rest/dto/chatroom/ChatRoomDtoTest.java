@@ -315,8 +315,8 @@ class ChatRoomDtoTest {
             LocalDateTime now = LocalDateTime.now();
             ChatRoomSummary summary = new ChatRoomSummary(
                     1L, "채팅방 이름", ChatRoomType.DIRECT, now,
-                    "마지막 메시지", now, 5L,
-                    2L, "상대방닉네임", "https://avatar.url", false
+                    "마지막 메시지", "TEXT", now, 5L,
+                    2L, "상대방닉네임", "https://avatar.url", false, true, now
             );
 
             // when
@@ -342,8 +342,8 @@ class ChatRoomDtoTest {
             LocalDateTime now = LocalDateTime.now();
             ChatRoomSummary summary = new ChatRoomSummary(
                     1L, "그룹 채팅방", ChatRoomType.GROUP, now,
-                    null, null, 0L,
-                    null, null, null, false
+                    null, null, null, 0L,
+                    null, null, null, false, false, null
             );
 
             // when
@@ -400,8 +400,8 @@ class ChatRoomDtoTest {
             // given
             LocalDateTime now = LocalDateTime.now();
             List<ChatRoomDto> rooms = List.of(
-                    new ChatRoomDto(1L, "방1", "PRIVATE", now, null, null, 0, null, null, null, false),
-                    new ChatRoomDto(2L, "방2", "GROUP", now, null, null, 0, null, null, null, false)
+                    new ChatRoomDto(1L, "방1", "PRIVATE", now, null, null, null, 0, null, null, null, false, false, null),
+                    new ChatRoomDto(2L, "방2", "GROUP", now, null, null, null, 0, null, null, null, false, false, null)
             );
 
             // when

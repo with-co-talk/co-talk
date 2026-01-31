@@ -2,6 +2,8 @@ package com.cotalk.application.service.user;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.UserNotFoundException;
+import com.cotalk.domain.port.outbound.FriendRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,7 +18,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,11 +29,20 @@ class UpdateUserOnlineStatusServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private FriendRepository friendRepository;
+
+    @Mock
+    private UserEventBroker userEventBroker;
+
     private UpdateUserOnlineStatusService service;
 
     @BeforeEach
     void setUp() {
-        service = new UpdateUserOnlineStatusService(userRepository);
+        service = new UpdateUserOnlineStatusService(userRepository, friendRepository, userEventBroker);
+
+        // Default mock behavior - no friends by default (lenient to avoid UnnecessaryStubbingException)
+        lenient().when(friendRepository.findAcceptedFriendsByUserId(anyLong())).thenReturn(java.util.List.of());
     }
 
     @Test

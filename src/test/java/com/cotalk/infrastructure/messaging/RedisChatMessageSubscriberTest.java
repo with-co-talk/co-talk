@@ -193,7 +193,7 @@ class RedisChatMessageSubscriberTest {
             WebSocketChatMessage message = new WebSocketChatMessage(
                     1,
                     "message:1",
-                    1L, 2L, "테스트유저", 3L, "content", "TEXT",
+                    1L, 2L, "테스트유저", "https://example.com/avatar.jpg", 3L, "content", "TEXT",
                     java.time.LocalDateTime.now(),
                     "fileUrl", "fileName", 100L, "text/plain", "thumbUrl", 1,
                     null, null, null  // eventType, relatedUserId, relatedUserNickname

@@ -50,6 +50,7 @@ class InMemoryChatMessageBrokerTest {
                 100L,           // messageId
                 1L,             // senderId
                 "테스트유저",   // senderNickname
+                "https://example.com/avatar.jpg", // senderAvatarUrl
                 roomId,         // roomId
                 "안녕하세요",   // content
                 "TEXT",         // type
@@ -89,6 +90,7 @@ class InMemoryChatMessageBrokerTest {
                 100L,
                 1L,
                 "테스트유저",   // senderNickname
+                "https://example.com/avatar.jpg", // senderAvatarUrl
                 roomId,
                 null,
                 "IMAGE",
@@ -147,7 +149,7 @@ class InMemoryChatMessageBrokerTest {
         // given
         Long roomId = 123L;
         ChatBroadcastMessage message = new ChatBroadcastMessage(
-                1L, 1L, "테스트유저", roomId, "test", "TEXT",
+                1L, 1L, "테스트유저", null, roomId, "test", "TEXT",
                 System.currentTimeMillis(), null, null, null, null, null, 1,
                 null, null, null
         );
