@@ -118,6 +118,11 @@ spring.mail:
 # 앱 설정
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  encryption:
+    # AES-256 암호화 키 (32바이트, Base64 인코딩)
+    # 프로덕션: 반드시 환경변수로 안전한 키 설정 필요
+    # 키 생성: openssl rand -base64 32
+    key: ${ENCRYPTION_KEY:dGhpc2lzYXRlc3RrZXlmb3JkZXZlbG9wbWVudG9ubHk=}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   redis:

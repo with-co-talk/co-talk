@@ -41,3 +41,6 @@ snowflake:
 app:
   rate-limit:
     enabled: false
+  encryption:
+    key: dGhpc2lzYXRlc3RrZXlmb3JkZXZlbG9wbWVudG9ubHk=
+    enabled: false  # 테스트에서는 암호화 비활성화 (검색 테스트 등)
