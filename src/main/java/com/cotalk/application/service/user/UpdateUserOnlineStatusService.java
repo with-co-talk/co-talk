@@ -1,14 +1,23 @@
 package com.cotalk.application.service.user;
 
+import com.cotalk.domain.entity.Friend;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.entity.User.OnlineStatus;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
+import com.cotalk.domain.port.outbound.FriendRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.domain.port.outbound.UserEventBroker.OnlineStatusEvent;
 import com.cotalk.domain.port.outbound.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * 사용자 온라인 상태 업데이트 유스케이스 구현체.
@@ -23,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class UpdateUserOnlineStatusService implements UpdateUserOnlineStatusUseCase {
 
     private final UserRepository userRepository;
+    private final FriendRepository friendRepository;
+    private final UserEventBroker userEventBroker;
 
     /**
      * 사용자의 온라인 상태를 업데이트한다.
@@ -43,7 +54,47 @@ public class UpdateUserOnlineStatusService implements UpdateUserOnlineStatusUseC
         }
 
         userRepository.save(user);
-        log.debug("User online status updated: userId={}, status={}", userId, status);
+        log.info("User online status updated: userId={}, status={}", userId, status);
+
+        // 모든 친구들에게 온라인 상태 변경 알림
+        broadcastOnlineStatusToFriends(user);
+    }
+
+    /**
+     * 모든 친구들에게 온라인 상태 변경을 브로드캐스트한다.
+     *
+     * @param user 상태가 변경된 사용자
+     */
+    private void broadcastOnlineStatusToFriends(User user) {
+        // 사용자의 모든 친구 조회
+        List<Friend> friends = friendRepository.findAcceptedFriendsByUserId(user.getId());
+
+        // 중복 알림 방지를 위한 Set
+        Set<Long> notifiedUserIds = new HashSet<>();
+
+        for (Friend friend : friends) {
+            Long friendUserId = friend.getFriendId();
+
+            // 이미 알림을 보낸 사용자는 제외
+            if (notifiedUserIds.contains(friendUserId)) {
+                continue;
+            }
+
+            OnlineStatusEvent event = new OnlineStatusEvent(
+                    1,
+                    UUID.randomUUID().toString(),
+                    user.getId(),
+                    user.isOnline(),
+                    user.getLastActiveAt()
+            );
+            userEventBroker.publishOnlineStatus(friendUserId, event);
+            notifiedUserIds.add(friendUserId);
+
+            log.debug("Broadcast online status to friend userId={}: targetUserId={}, isOnline={}",
+                    friendUserId, user.getId(), user.isOnline());
+        }
+
+        log.info("Broadcasted online status to {} friends for userId={}", notifiedUserIds.size(), user.getId());
     }
 
     /**

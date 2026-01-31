@@ -24,14 +24,20 @@
    - `feat:`, `refactor:`, `fix:`, `test:`, `docs:`, `chore:` 등
 
 ### Phase 2: 브랜치 생성
-1. **변경사항 유형 판단**: 
+1. **변경사항 분석**: Phase 1에서 분석한 변경사항을 기반으로 브랜치 타입 결정
+2. **변경사항 유형 판단**: 
    - 새로운 기능 추가 → `feat/`
    - 코드 리팩토링 → `refactor/`
    - 버그 수정 → `bugfix/`
    - 문서화 → `docs/`
    - 기타 → `chore/`
-2. **브랜치명 생성**: `{type}/{kebab-case-description}`
-3. **브랜치 생성 및 체크아웃**: `git checkout -b {branch-name}`
+3. **브랜치명 생성**: 변경사항을 분석하여 의미있는 브랜치명 생성
+   - 형식: `{type}/{kebab-case-description}`
+   - 예: `feat/user-authentication`, `refactor/exception-handling`
+4. **새 브랜치 생성**: **항상** 변경사항에 맞는 새 브랜치 생성
+   - 현재 브랜치와 관계없이 무조건 새 브랜치 생성
+   - `git checkout -b {branch-name}` 실행
+   - 사용자가 명시적으로 현재 브랜치에 커밋하라고 하지 않는 이상 항상 새 브랜치 생성
 
 ### Phase 3: 이슈 생성
 1. **이슈 타입 결정**: 변경사항 분석 결과 기반
@@ -43,16 +49,16 @@
    - 변경사항 요약 작성
    - 목표 및 주요 변경사항 정리
    - 가독성을 위해 간결하게 작성
-   - 임시 파일로 저장 (커밋하지 않음)
+   - 변수에 저장 (임시 파일 생성하지 않음)
 3. **이슈 생성**:
    ```bash
+   ISSUE_BODY="변경사항 요약 및 목표 내용"
    gh issue create \
      --title "[{TYPE}] {제목}" \
-     --body-file .github/issue_body.md \
+     --body "$ISSUE_BODY" \
      --label "{라벨}"
    ```
 4. **이슈 번호 저장**: 생성된 이슈 번호를 변수에 저장
-5. **임시 파일 삭제**: `.github/issue_body.md` 삭제
 
 ### Phase 4: PR 생성
 1. **브랜치 푸시**: PR 생성 전 브랜치를 원격에 푸시
@@ -64,23 +70,25 @@
    - 통계 정보 추가 (변경 파일 수, 추가/삭제 줄 수, 커밋 수)
    - `Closes #{이슈번호}` 자동 추가 (이슈가 생성된 경우)
    - 테스트 방법 및 리뷰 포인트 작성
-   - 임시 파일로 저장 (커밋하지 않음)
+   - 변수에 저장 (임시 파일 생성하지 않음)
 3. **PR 생성**:
    ```bash
+   PR_BODY="변경사항 상세 리스트 및 통계 정보"
+   if [ -n "$ISSUE_NUMBER" ]; then
+     PR_BODY="$PR_BODY\n\nCloses #$ISSUE_NUMBER"
+   fi
    gh pr create \
      --title "[{TYPE}] {제목}" \
-     --body-file .github/pr_body.md \
+     --body "$PR_BODY" \
      --base {base-branch} \
      --head {current-branch} \
      --label "{라벨}"
    ```
-4. **임시 파일 삭제**: `.github/pr_body.md` 삭제
 
 
 ## Tool Coordination
 - **Git Operations**: 변경사항 분석, 커밋, 브랜치 생성
-- **GitHub CLI**: 이슈 및 PR 생성
-- **File Operations**: 이슈/PR 본문 템플릿 생성
+- **GitHub CLI**: 이슈 및 PR 생성 (본문은 직접 전달, 임시 파일 사용하지 않음)
 - **Analysis**: 변경사항 분석하여 타입, 라벨, 제목 자동 결정
 - **Smart Commit**: `/sc/git --smart-commit` 활용
 
@@ -158,33 +166,58 @@ git diff --cached --stat
 
 ### Step 4: 브랜치 생성
 ```bash
-# 변경사항 유형에 따라 브랜치명 결정
-BRANCH_TYPE="feat"  # 또는 refactor, bugfix, docs, chore
-BRANCH_DESC="kebab-case-description"
+# 변경사항 분석 결과를 기반으로 브랜치 타입 결정
+# (Step 2-3에서 분석한 변경사항 유형 사용)
+BRANCH_TYPE="feat"  # 변경사항 분석 결과에 따라 결정 (feat, refactor, bugfix, docs, chore)
+
+# 변경사항을 분석하여 의미있는 브랜치명 생성
+# 예: "사용자 인증 기능 추가" → "user-authentication"
+# 예: "예외 처리 리팩토링" → "exception-handling"
+BRANCH_DESC="kebab-case-description"  # 변경사항 분석 결과에 따라 생성
+
+# 브랜치명 생성
 BRANCH_NAME="${BRANCH_TYPE}/${BRANCH_DESC}"
 
-# 브랜치 생성
+# 항상 새 브랜치 생성 (현재 브랜치와 관계없이)
+# 사용자가 명시적으로 현재 브랜치에 커밋하라고 하지 않는 이상 항상 새 브랜치 생성
 git checkout -b "$BRANCH_NAME"
+
+echo "✅ 새 브랜치 생성: $BRANCH_NAME"
 ```
 
-### Step 5: 이슈 본문 생성
-- 변경사항을 분석하여 이슈 본문 작성
-- 템플릿 형식에 맞춰 작성
-- `.github/issue_body.md`에 저장
-
-### Step 6: 이슈 생성
+### Step 5: 이슈 본문 생성 및 이슈 생성
 ```bash
+# 이슈 본문 생성 (변수에 저장)
+ISSUE_BODY="## 개요
+변경사항 요약
+
+## 목표
+- 목표 1
+- 목표 2
+
+## 주요 변경사항
+- 변경사항 1
+- 변경사항 2
+
+## 통계
+- 변경 파일: X개
+- 추가: Y줄 / 삭제: Z줄
+- 커밋: N개
+
+## 체크리스트
+- [ ] 코드 리뷰 준비 완료
+- [ ] 테스트 통과
+- [ ] 문서 업데이트 완료"
+
 # 이슈 생성
 ISSUE_NUMBER=$(gh issue create \
   --title "[${ISSUE_TYPE}] ${ISSUE_TITLE}" \
-  --body-file .github/issue_body.md \
+  --body "$ISSUE_BODY" \
   --label "${LABEL}" \
   2>&1 | grep -oE 'issues/[0-9]+' | grep -oE '[0-9]+' | head -1)
 
 if [ -n "$ISSUE_NUMBER" ]; then
   echo "✅ 이슈 생성 완료: #$ISSUE_NUMBER"
-  # 임시 파일 삭제
-  rm -f .github/issue_body.md
 else
   echo "⚠️  이슈 생성 실패"
 fi
@@ -196,34 +229,50 @@ fi
 git push -u origin "$BRANCH_NAME"
 ```
 
-### Step 8: PR 본문 생성
-- 이슈 번호를 포함하여 PR 본문 작성
-- `Closes #${ISSUE_NUMBER}` 자동 추가 (이슈가 생성된 경우)
-- 통계 정보 포함
-- `.github/pr_body.md`에 임시 저장
-
-### Step 9: PR 생성
+### Step 8: PR 본문 생성 및 PR 생성
 ```bash
-# PR 본문에 이슈 번호 추가 (이슈가 생성된 경우)
+# PR 본문 생성 (변수에 저장)
+PR_BODY="## 📋 개요
+변경사항 요약
+
+## 🎯 변경사항
+- 변경사항 1
+- 변경사항 2
+
+## 통계
+- 변경 파일: X개
+- 추가: Y줄 / 삭제: Z줄
+- 커밋: N개"
+
+# 이슈 번호 추가 (이슈가 생성된 경우)
 if [ -n "$ISSUE_NUMBER" ]; then
-  sed "s/Closes #\[이슈번호\]/Closes #$ISSUE_NUMBER/" .github/pr_body.md > .github/pr_body_final.md
-  PR_BODY_FILE=".github/pr_body_final.md"
-else
-  PR_BODY_FILE=".github/pr_body.md"
+  PR_BODY="$PR_BODY
+
+## 🔗 관련 이슈
+Closes #$ISSUE_NUMBER"
 fi
+
+PR_BODY="$PR_BODY
+
+## ✅ 체크리스트
+- [x] 코드 리뷰 준비 완료
+- [x] 테스트 통과
+- [x] 문서 업데이트 완료
+
+## 📝 테스트 방법
+1. 테스트 방법 1
+2. 테스트 방법 2"
 
 # PR 생성
 PR_URL=$(gh pr create \
   --title "[${PR_TYPE}] ${PR_TITLE}" \
-  --body-file "$PR_BODY_FILE" \
+  --body "$PR_BODY" \
   --base "${BASE_BRANCH:-main}" \
   --head "$BRANCH_NAME" \
   --label "${LABEL}" 2>&1)
 
 if [ $? -eq 0 ]; then
   echo "✅ PR 생성 완료: $PR_URL"
-  # 임시 파일 삭제
-  rm -f .github/pr_body.md .github/pr_body_final.md
 else
   echo "⚠️  PR 생성 실패"
 fi
@@ -258,15 +307,14 @@ fi
 
 ## Output Files
 
-- `.github/issue_body.md`: 생성된 이슈 본문 (임시, 생성 후 삭제)
-- `.github/pr_body.md`: 생성된 PR 본문 (임시, 생성 후 삭제)
-- Git에 커밋하지 않음
+- 임시 파일을 생성하지 않음
+- 이슈/PR 본문은 변수에 저장하여 직접 전달
 
 ## Error Handling
 
 - **Git 변경사항 없음**: 종료 메시지 출력
-- **이슈 생성 실패**: 에러 메시지 출력, 임시 파일은 삭제
-- **PR 생성 실패**: 에러 메시지 출력, 임시 파일은 삭제
+- **이슈 생성 실패**: 에러 메시지 출력
+- **PR 생성 실패**: 에러 메시지 출력
 - **브랜치 충돌**: 기존 브랜치 확인 후 처리
 
 ## Boundaries
@@ -274,11 +322,12 @@ fi
 **Will:**
 - 변경사항을 분석하여 의미있는 단위로 커밋
 - 변경사항에 맞는 브랜치, 이슈, PR 자동 생성
-- GitHub CLI를 사용한 이슈/PR 생성
-- 임시 파일은 생성 후 자동 삭제
+- GitHub CLI를 사용한 이슈/PR 생성 (본문은 변수에 저장하여 직접 전달)
+- 임시 파일 생성하지 않음
 
 **Will Not:**
 - 강제 푸시 (force push) 수행
 - 메인 브랜치에 직접 커밋
 - 사용자 확인 없이 원격 저장소에 푸시 (--auto-push 옵션 제외)
 - 기존 이슈/PR 수정
+- 사용자가 명시적으로 현재 브랜치에 커밋하라고 하지 않는 이상 기존 브랜치에 커밋

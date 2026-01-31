@@ -65,6 +65,7 @@ public class MinioFileStorage implements FileStorage {
 
     /**
      * 버킷이 존재하는지 확인하고, 없으면 생성한다.
+     * 생성 후 공개 읽기 정책을 설정한다.
      */
     private void ensureBucketExists() {
         try {
@@ -77,6 +78,38 @@ public class MinioFileStorage implements FileStorage {
             s3Client.createBucket(CreateBucketRequest.builder()
                     .bucket(bucketName)
                     .build());
+        }
+        // 항상 공개 읽기 정책 적용 (기존 버킷도 포함)
+        setPublicReadPolicy();
+    }
+
+    /**
+     * 버킷에 공개 읽기 정책을 설정한다.
+     * 업로드된 파일에 인증 없이 접근할 수 있도록 한다.
+     */
+    private void setPublicReadPolicy() {
+        String policy = """
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": "*",
+                        "Action": ["s3:GetObject"],
+                        "Resource": ["arn:aws:s3:::%s/*"]
+                    }
+                ]
+            }
+            """.formatted(bucketName);
+
+        try {
+            s3Client.putBucketPolicy(PutBucketPolicyRequest.builder()
+                    .bucket(bucketName)
+                    .policy(policy)
+                    .build());
+            log.info("Public read policy set for bucket '{}'", bucketName);
+        } catch (Exception e) {
+            log.warn("Failed to set public read policy for bucket '{}': {}", bucketName, e.getMessage());
         }
     }
 

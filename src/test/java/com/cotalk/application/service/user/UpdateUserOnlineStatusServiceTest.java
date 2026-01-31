@@ -142,4 +142,28 @@ class UpdateUserOnlineStatusServiceTest {
         assertThatThrownBy(() -> service.setOnline(userId))
                 .isInstanceOf(UserNotFoundException.class);
     }
+
+    @Test
+    @DisplayName("온라인 상태 업데이트 - AWAY")
+    void should_updateOnlineStatus_when_away() {
+        // given
+        Long userId = 1L;
+        User user = User.builder()
+                .id(userId)
+                .email("user@example.com")
+                .nickname("테스트유저")
+                .passwordHash("hash")
+                .onlineStatus(User.OnlineStatus.ONLINE)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+
+        // when
+        service.updateOnlineStatus(userId, User.OnlineStatus.AWAY);
+
+        // then
+        assertThat(user.getOnlineStatus()).isEqualTo(User.OnlineStatus.AWAY);
+        verify(userRepository).save(user);
+    }
 }

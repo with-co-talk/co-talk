@@ -2,15 +2,19 @@ package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.adapter.inbound.rest.dto.message.ForwardMessageRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.ReplyMessageRequest;
+import com.cotalk.adapter.inbound.rest.dto.message.SendFileMessageRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.SendMessageRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.UpdateMessageRequest;
 import com.cotalk.domain.entity.Message;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import com.cotalk.domain.port.inbound.message.DeleteMessageUseCase;
 import com.cotalk.domain.port.inbound.message.GetMessageHistoryUseCase;
 import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
+import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -73,6 +78,12 @@ class ChatMessageControllerTest {
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @MockBean
+    private ChatRoomMemberRepository chatRoomMemberRepository;
+
+    @MockBean
+    private UserRepository userRepository;
+
     @Nested
     @DisplayName("메시지 전송 API")
     class SendMessageApi {
@@ -103,11 +114,92 @@ class ChatMessageControllerTest {
     }
 
     @Nested
+    @DisplayName("파일 메시지 전송 API")
+    class SendFileMessageApi {
+
+        @Test
+        @DisplayName("유효한 요청으로 이미지 메시지 전송 성공")
+        void should_returnCreated_when_validImageMessage() throws Exception {
+            // given
+            SendFileMessageRequest request = new SendFileMessageRequest(
+                    1L, 100L,
+                    "https://example.com/image.png",
+                    "image.png",
+                    1024L,
+                    "image/png",
+                    "https://example.com/thumbnail.png"
+            );
+
+            Message message = Message.builder()
+                    .id(500L)
+                    .senderId(1L)
+                    .chatRoomId(100L)
+                    .type(Message.MessageType.IMAGE)
+                    .fileUrl("https://example.com/image.png")
+                    .fileName("image.png")
+                    .fileSize(1024L)
+                    .fileContentType("image/png")
+                    .thumbnailUrl("https://example.com/thumbnail.png")
+                    .build();
+
+            given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any()))
+                    .willReturn(message);
+
+            // when & then
+            mockMvc.perform(post("/api/v1/chat/messages/file")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.messageId").value(500L))
+                    .andExpect(jsonPath("$.type").value("IMAGE"))
+                    .andExpect(jsonPath("$.fileUrl").value("https://example.com/image.png"));
+        }
+
+        @Test
+        @DisplayName("유효한 요청으로 파일 메시지 전송 성공")
+        void should_returnCreated_when_validFileMessage() throws Exception {
+            // given
+            SendFileMessageRequest request = new SendFileMessageRequest(
+                    1L, 100L,
+                    "https://example.com/file.pdf",
+                    "document.pdf",
+                    2048L,
+                    "application/pdf",
+                    null
+            );
+
+            Message message = Message.builder()
+                    .id(500L)
+                    .senderId(1L)
+                    .chatRoomId(100L)
+                    .type(Message.MessageType.FILE)
+                    .fileUrl("https://example.com/file.pdf")
+                    .fileName("document.pdf")
+                    .fileSize(2048L)
+                    .fileContentType("application/pdf")
+                    .build();
+
+            given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any()))
+                    .willReturn(message);
+
+            // when & then
+            mockMvc.perform(post("/api/v1/chat/messages/file")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.messageId").value(500L))
+                    .andExpect(jsonPath("$.type").value("FILE"))
+                    .andExpect(jsonPath("$.fileUrl").value("https://example.com/file.pdf"));
+        }
+    }
+
+    @Nested
     @DisplayName("메시지 히스토리 조회 API")
     class GetMessageHistoryApi {
 
         @Test
         @DisplayName("커서 기반 메시지 조회 - 최신 메시지부터 (beforeMessageId 없음)")
+        @WithMockCustomUser(userId = 1L)
         void should_returnLatestMessages_when_noBeforeMessageId() throws Exception {
             // given
             Long roomId = 100L;
@@ -132,7 +224,6 @@ class ChatMessageControllerTest {
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/messages/rooms/{roomId}", roomId)
-                            .param("userId", String.valueOf(userId))
                             .param("size", "20"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.messages").isArray())
@@ -145,6 +236,7 @@ class ChatMessageControllerTest {
 
         @Test
         @DisplayName("커서 기반 메시지 조회 - 특정 메시지 이전부터 (위로 스크롤)")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOlderMessages_when_beforeMessageIdProvided() throws Exception {
             // given
             Long roomId = 100L;
@@ -172,7 +264,6 @@ class ChatMessageControllerTest {
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/messages/rooms/{roomId}", roomId)
-                            .param("userId", String.valueOf(userId))
                             .param("beforeMessageId", String.valueOf(beforeMessageId))
                             .param("size", String.valueOf(size)))
                     .andExpect(status().isOk())
@@ -186,6 +277,7 @@ class ChatMessageControllerTest {
 
         @Test
         @DisplayName("커서 기반 메시지 조회 - 더 많은 메시지가 있을 때 hasMore가 true")
+        @WithMockCustomUser(userId = 1L)
         void should_returnHasMoreTrue_when_morePagesExist() throws Exception {
             // given
             Long roomId = 100L;
@@ -213,12 +305,31 @@ class ChatMessageControllerTest {
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/messages/rooms/{roomId}", roomId)
-                            .param("userId", String.valueOf(userId))
                             .param("size", String.valueOf(size)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.messages.length()").value(2))
                     .andExpect(jsonPath("$.nextCursor").value(999))
                     .andExpect(jsonPath("$.hasMore").value(true));
+        }
+
+        @Test
+        @DisplayName("메시지가 없을 때 빈 배열과 null nextCursor 반환")
+        @WithMockCustomUser(userId = 1L)
+        void should_returnEmptyArray_when_noMessages() throws Exception {
+            // given
+            Long roomId = 100L;
+            Long userId = 1L;
+
+            given(getMessageHistoryUseCase.getMessageHistory(eq(roomId), eq(userId), isNull(), eq(20)))
+                    .willReturn(List.of());
+
+            // when & then
+            mockMvc.perform(get("/api/v1/chat/messages/rooms/{roomId}", roomId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.messages").isArray())
+                    .andExpect(jsonPath("$.messages.length()").value(0))
+                    .andExpect(jsonPath("$.nextCursor").isEmpty())
+                    .andExpect(jsonPath("$.hasMore").value(false));
         }
     }
 
@@ -259,6 +370,7 @@ class ChatMessageControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 메시지 삭제 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validDelete() throws Exception {
             // given
             Long messageId = 500L;
@@ -267,8 +379,7 @@ class ChatMessageControllerTest {
             willDoNothing().given(deleteMessageUseCase).deleteMessage(messageId, userId);
 
             // when & then
-            mockMvc.perform(delete("/api/v1/chat/messages/{messageId}", messageId)
-                            .param("userId", String.valueOf(userId)))
+            mockMvc.perform(delete("/api/v1/chat/messages/{messageId}", messageId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("메시지가 삭제되었습니다."));
         }

@@ -122,6 +122,22 @@ class ReportServiceTest {
     }
 
     @Test
+    @DisplayName("이미 신고한 메시지를 다시 신고하면 실패")
+    void should_throwException_when_alreadyReportedMessage() {
+        // given
+        Long reporterId = 100L;
+        Long messageId = 500L;
+
+        given(reportRepository.existsByReporterIdAndReportedMessageId(reporterId, messageId))
+                .willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> reportService.reportMessage(reporterId, messageId, Report.ReportReason.SPAM, "테스트"))
+                .isInstanceOf(InvalidReportException.class)
+                .hasMessage("이미 신고한 메시지입니다.");
+    }
+
+    @Test
     @DisplayName("내 신고 내역 조회")
     void should_returnMyReports_when_validUserId() {
         // given

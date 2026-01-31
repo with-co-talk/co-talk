@@ -6,6 +6,7 @@ import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.SendMessageRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.UpdateMessageRequest;
 import com.cotalk.config.TestRedisConfiguration;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,10 +17,16 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -66,8 +73,9 @@ class MessageIntegrationTest {
     }
 
     private void makeFriends(Long userId1, Long userId2) throws Exception {
-        SendFriendRequestRequest sendRequest = new SendFriendRequestRequest(userId1, userId2);
+        SendFriendRequestRequest sendRequest = new SendFriendRequestRequest(userId2);
 
+        setSecurityContext(userId1);
         MvcResult result = mockMvc.perform(post("/api/v1/friends/requests")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sendRequest)))
@@ -77,8 +85,8 @@ class MessageIntegrationTest {
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
         Long requestId = response.get("requestId").asLong();
 
-        mockMvc.perform(post("/api/v1/friends/requests/{requestId}/accept", requestId)
-                        .param("userId", userId2.toString()))
+        setSecurityContext(userId2);
+        mockMvc.perform(post("/api/v1/friends/requests/{requestId}/accept", requestId))
                 .andExpect(status().isOk());
     }
 
@@ -93,6 +101,19 @@ class MessageIntegrationTest {
 
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
         return response.get("roomId").asLong();
+    }
+
+    private void setSecurityContext(Long userId) {
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        CustomUserPrincipal principal = new CustomUserPrincipal(
+                userId,
+                "USER",
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+        context.setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
+        );
+        SecurityContextHolder.setContext(context);
     }
 
     @Test
@@ -117,8 +138,8 @@ class MessageIntegrationTest {
                 .andExpect(status().isCreated());
 
         // 3. 메시지 히스토리 조회
+        setSecurityContext(user1Id);
         mockMvc.perform(get("/api/v1/chat/messages/rooms/{roomId}", chatRoomId)
-                        .param("userId", user1Id.toString())
                         .param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.messages").isArray())
@@ -166,14 +187,13 @@ class MessageIntegrationTest {
         Long messageId = response.get("messageId").asLong();
 
         // 2. 메시지 삭제
-        mockMvc.perform(delete("/api/v1/chat/messages/{messageId}", messageId)
-                        .param("userId", user1Id.toString()))
+        setSecurityContext(user1Id);
+        mockMvc.perform(delete("/api/v1/chat/messages/{messageId}", messageId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("메시지가 삭제되었습니다."));
 
         // 3. 삭제된 메시지는 히스토리에서 제외됨
         mockMvc.perform(get("/api/v1/chat/messages/rooms/{roomId}", chatRoomId)
-                        .param("userId", user1Id.toString())
                         .param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.messages.length()").value(0));
@@ -193,9 +213,9 @@ class MessageIntegrationTest {
         }
 
         // 2. "안녕" 키워드로 검색
+        setSecurityContext(user1Id);
         mockMvc.perform(get("/api/v1/messages/search")
                         .param("chatRoomId", chatRoomId.toString())
-                        .param("userId", user1Id.toString())
                         .param("keyword", "안녕")
                         .param("page", "0")
                         .param("size", "20"))

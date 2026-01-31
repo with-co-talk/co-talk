@@ -1,16 +1,26 @@
 package com.cotalk.application.service.chatroom;
 
 import com.cotalk.domain.entity.ChatRoomMember;
+import com.cotalk.domain.entity.Message;
+import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.inbound.chatroom.LeaveChatRoomUseCase;
+import com.cotalk.domain.port.outbound.ChatMessageBroker;
+import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
+import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
+import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.lock.DistributedLockExecutor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneId;
 import java.util.List;
 
 /**
@@ -33,6 +43,11 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final DistributedLockExecutor lockExecutor;
+    private final IdGenerator idGenerator;
+    private final MessageRepository messageRepository;
+    private final UserRepository userRepository;
+    private final ChatMessageBroker chatMessageBroker;
+    private final UserEventBroker userEventBroker;
 
     /**
      * 채팅방에서 나간다.
@@ -67,6 +82,11 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
         ChatRoomMember member = chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId)
                 .orElseThrow(() -> new ChatRoomAccessDeniedException(chatRoomId, userId));
 
+        // 사용자 닉네임 조회
+        String userNickname = userRepository.findById(userId)
+                .map(User::getNickname)
+                .orElse("알 수 없음");
+
         // 멤버 삭제
         chatRoomMemberRepository.delete(member);
         log.info("User left chat room: userId={}, chatRoomId={}", userId, chatRoomId);
@@ -79,6 +99,73 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
                 chatRoomRepository.delete(chatRoom);
                 log.info("Chat room deleted as last member left: chatRoomId={}", chatRoomId);
             });
+        } else {
+            // 시스템 메시지 생성 및 브로드캐스트 (남은 멤버가 있을 때만)
+            sendLeaveSystemMessage(chatRoomId, userId, userNickname, remainingMembers);
+        }
+    }
+
+    /**
+     * 채팅방 퇴장 시스템 메시지를 생성하고 브로드캐스트한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param leavingUserId 나가는 사용자 ID
+     * @param userNickname 나가는 사용자 닉네임
+     * @param remainingMembers 남은 멤버 목록
+     */
+    private void sendLeaveSystemMessage(Long chatRoomId, Long leavingUserId, String userNickname,
+                                        List<ChatRoomMember> remainingMembers) {
+        String systemMessageContent = userNickname + "님이 나갔습니다";
+
+        // 시스템 메시지 생성
+        Message systemMessage = Message.createSystemMessage(
+                idGenerator.nextId(),
+                chatRoomId,
+                systemMessageContent
+        );
+
+        // 메시지 저장
+        Message savedMessage = messageRepository.save(systemMessage);
+        log.info("System message created for user leave: chatRoomId={}, messageId={}, content={}",
+                chatRoomId, savedMessage.getId(), systemMessageContent);
+
+        // WebSocket으로 브로드캐스트
+        ChatBroadcastMessage broadcastMessage = new ChatBroadcastMessage(
+                savedMessage.getId(),
+                savedMessage.getSenderId(),
+                null, // senderNickname (시스템 메시지)
+                savedMessage.getChatRoomId(),
+                savedMessage.getContent(),
+                savedMessage.getType().name(),
+                savedMessage.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                null, // fileUrl
+                null, // fileName
+                null, // fileSize
+                null, // fileContentType
+                null, // thumbnailUrl
+                0,    // unreadCount (시스템 메시지는 읽음 처리 불필요)
+                "USER_LEFT",     // eventType
+                leavingUserId,   // relatedUserId
+                userNickname     // relatedUserNickname
+        );
+
+        chatMessageBroker.publish(chatRoomId, broadcastMessage);
+
+        // 채팅 목록 업데이트 이벤트 전송
+        for (ChatRoomMember member : remainingMembers) {
+            ChatListUpdateEvent event = new ChatListUpdateEvent(
+                    1,
+                    "chat-list:" + chatRoomId + ":" + savedMessage.getId() + ":" + member.getUserId(),
+                    "USER_LEFT",
+                    chatRoomId,
+                    systemMessageContent,
+                    savedMessage.getType().name(),
+                    savedMessage.getCreatedAt(),
+                    leavingUserId,
+                    userNickname,
+                    0 // unreadCount
+            );
+            userEventBroker.publishChatListUpdate(member.getUserId(), event);
         }
     }
 }

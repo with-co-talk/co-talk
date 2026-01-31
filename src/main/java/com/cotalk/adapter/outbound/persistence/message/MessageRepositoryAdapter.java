@@ -7,7 +7,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -138,5 +140,61 @@ public class MessageRepositoryAdapter implements MessageRepository {
     @Override
     public long count() {
         return messageJpaRepository.count();
+    }
+
+    /**
+     * 여러 채팅방의 마지막 메시지를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param chatRoomIds 채팅방 ID 목록
+     * @return 마지막 메시지 목록
+     */
+    @Override
+    public List<Message> findLastMessagesByRoomIds(List<Long> chatRoomIds) {
+        if (chatRoomIds == null || chatRoomIds.isEmpty()) {
+            return List.of();
+        }
+        return messageJpaRepository.findLastMessagesByRoomIds(chatRoomIds);
+    }
+
+    /**
+     * 여러 채팅방의 읽지 않은 메시지 수를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param userId 사용자 ID
+     * @param chatRoomIds 채팅방 ID 목록
+     * @return 채팅방 ID를 키로, 읽지 않은 메시지 수를 값으로 하는 Map
+     */
+    @Override
+    public Map<Long, Long> batchCountUnreadMessages(Long userId, List<Long> chatRoomIds) {
+        if (chatRoomIds == null || chatRoomIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        List<Object[]> results = messageJpaRepository.batchCountUnreadMessages(userId, chatRoomIds);
+        Map<Long, Long> unreadCountMap = new HashMap<>();
+
+        for (Object[] row : results) {
+            Long chatRoomId = ((Number) row[0]).longValue();
+            Long unreadCount = ((Number) row[1]).longValue();
+            unreadCountMap.put(chatRoomId, unreadCount);
+        }
+
+        // 결과에 없는 채팅방 ID는 0으로 설정
+        for (Long chatRoomId : chatRoomIds) {
+            unreadCountMap.putIfAbsent(chatRoomId, 0L);
+        }
+
+        return unreadCountMap;
+    }
+
+    /**
+     * 채팅방에서 특정 사용자를 제외한 다른 발신자 ID 목록을 조회한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param excludeUserId 제외할 사용자 ID
+     * @return 다른 발신자 ID 목록
+     */
+    @Override
+    public List<Long> findDistinctSenderIdsByChatRoomIdExcludingUser(Long chatRoomId, Long excludeUserId) {
+        return messageJpaRepository.findDistinctSenderIdsByChatRoomIdExcludingUser(chatRoomId, excludeUserId);
     }
 }

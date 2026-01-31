@@ -61,6 +61,8 @@ public class RedisUserEventSubscriber implements MessageListener {
                 handleReadReceipt(userId, jsonMessage);
             } else if ("chat-list".equals(eventType)) {
                 handleChatListUpdate(userId, jsonMessage);
+            } else if ("online-status".equals(eventType)) {
+                handleOnlineStatus(userId, jsonMessage);
             } else {
                 log.warn("Unknown event type: {} from channel: {}", eventType, channel);
             }
@@ -102,17 +104,40 @@ public class RedisUserEventSubscriber implements MessageListener {
     private void handleChatListUpdate(Long userId, String jsonMessage) {
         try {
             UserEventBroker.ChatListUpdateEvent event = objectMapper.readValue(
-                    jsonMessage, 
+                    jsonMessage,
                     UserEventBroker.ChatListUpdateEvent.class
             );
 
             String destination = "/topic/user/" + userId + "/chat-list";
             messagingTemplate.convertAndSend(destination, event);
-            log.info("Broadcasted chat list update to WebSocket: destination={}, eventType={}, roomId={}, unreadCount={}", 
+            log.info("Broadcasted chat list update to WebSocket: destination={}, eventType={}, roomId={}, unreadCount={}",
                     destination, event.eventType(), event.roomId(), event.unreadCount());
 
         } catch (JsonProcessingException e) {
             log.error("Failed to deserialize chat list update event", e);
+        }
+    }
+
+    /**
+     * 온라인 상태 이벤트를 처리한다.
+     *
+     * @param userId      대상 사용자 ID
+     * @param jsonMessage JSON 메시지
+     */
+    private void handleOnlineStatus(Long userId, String jsonMessage) {
+        try {
+            UserEventBroker.OnlineStatusEvent event = objectMapper.readValue(
+                    jsonMessage,
+                    UserEventBroker.OnlineStatusEvent.class
+            );
+
+            String destination = "/topic/user/" + userId + "/online-status";
+            messagingTemplate.convertAndSend(destination, event);
+            log.info("Broadcasted online status to WebSocket: destination={}, targetUserId={}, isOnline={}",
+                    destination, event.userId(), event.isOnline());
+
+        } catch (JsonProcessingException e) {
+            log.error("Failed to deserialize online status event", e);
         }
     }
 }

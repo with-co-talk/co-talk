@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.Optional;
 
@@ -170,5 +171,76 @@ class AddMessageReactionServiceTest {
         // when & then
         assertThatThrownBy(() -> service.addReaction(messageId, 1L, ""))
                 .isInstanceOf(InvalidEmojiException.class);
+    }
+
+    @Test
+    @DisplayName("동시성으로 인한 중복 반응 추가 시 기존 반응 반환")
+    void should_returnExistingReaction_when_concurrentDuplicateReaction() {
+        // given
+        Long messageId = 100L;
+        Long userId = 1L;
+        String emojiString = "👍";
+        Emoji emoji = Emoji.THUMBS_UP;
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(10L)
+                .senderId(2L)
+                .content("테스트 메시지")
+                .type(Message.MessageType.TEXT)
+                .build();
+
+        MessageReaction existingReaction = MessageReaction.builder()
+                .id(1L)
+                .messageId(messageId)
+                .userId(userId)
+                .emoji(emoji)
+                .build();
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(messageValidator.validateAndParseEmoji(emojiString)).willReturn(emoji);
+        given(reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji))
+                .willReturn(Optional.empty()) // 첫 번째 조회: 없음
+                .willReturn(Optional.of(existingReaction)); // 예외 후 조회: 있음
+        given(reactionRepository.save(any(MessageReaction.class)))
+                .willThrow(new DataIntegrityViolationException("Duplicate key"));
+
+        // when
+        MessageReaction result = service.addReaction(messageId, userId, emojiString);
+
+        // then
+        assertThat(result).isEqualTo(existingReaction);
+        verify(reactionRepository).save(any(MessageReaction.class));
+    }
+
+    @Test
+    @DisplayName("DataIntegrityViolationException 후 반응을 찾을 수 없으면 IllegalStateException 발생")
+    void should_throwIllegalStateException_when_reactionNotFoundAfterDataIntegrityViolation() {
+        // given
+        Long messageId = 100L;
+        Long userId = 1L;
+        String emojiString = "👍";
+        Emoji emoji = Emoji.THUMBS_UP;
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(10L)
+                .senderId(2L)
+                .content("테스트 메시지")
+                .type(Message.MessageType.TEXT)
+                .build();
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(messageValidator.validateAndParseEmoji(emojiString)).willReturn(emoji);
+        given(reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji))
+                .willReturn(Optional.empty()) // 첫 번째 조회: 없음
+                .willReturn(Optional.empty()); // 예외 후 조회: 여전히 없음 (비정상 상황)
+        given(reactionRepository.save(any(MessageReaction.class)))
+                .willThrow(new DataIntegrityViolationException("Duplicate key"));
+
+        // when & then
+        assertThatThrownBy(() -> service.addReaction(messageId, userId, emojiString))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Reaction should exist after DataIntegrityViolationException");
     }
 }

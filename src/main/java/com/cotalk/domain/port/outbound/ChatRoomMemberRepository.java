@@ -4,6 +4,7 @@ import com.cotalk.domain.entity.ChatRoomMember;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -125,4 +126,43 @@ public interface ChatRoomMemberRepository {
      * @return 읽지 않은 멤버 수
      */
     int countUnreadMembersByMessageId(Long chatRoomId, Long messageId, Long senderId);
+
+    /**
+     * 마지막 읽은 시간만 업데이트한다 (메시지가 없는 채팅방용).
+     * 메시지가 없는 채팅방에서도 lastReadAt을 설정하여,
+     * 나중에 메시지가 추가될 때 정확한 unreadCount를 계산할 수 있도록 한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId     사용자 ID
+     * @param lastReadAt 새로운 읽은 시간
+     * @return 업데이트된 행 수
+     */
+    int updateLastReadAt(Long chatRoomId, Long userId, LocalDateTime lastReadAt);
+
+    /**
+     * 여러 메시지의 읽지 않은 멤버 수를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param messageIds 메시지 ID 목록
+     * @return 메시지 ID를 키로, 읽지 않은 멤버 수를 값으로 하는 Map
+     */
+    Map<Long, Integer> batchCountUnreadMembersByMessageIds(Long chatRoomId, List<Long> messageIds);
+
+    /**
+     * 특정 사용자의 여러 채팅방 멤버 정보를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param userId 사용자 ID
+     * @param chatRoomIds 채팅방 ID 목록
+     * @return 채팅방 멤버 목록
+     */
+    List<ChatRoomMember> findByUserIdAndChatRoomIds(Long userId, List<Long> chatRoomIds);
+
+    /**
+     * 여러 채팅방의 상대방(본인 제외) 멤버 정보를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param userId 본인 사용자 ID (제외할 사용자)
+     * @param chatRoomIds 채팅방 ID 목록
+     * @return 상대방 멤버 목록
+     */
+    List<ChatRoomMember> findOtherMembersByChatRoomIds(Long userId, List<Long> chatRoomIds);
 }

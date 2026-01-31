@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -235,6 +236,21 @@ class RefreshTokenServiceTest {
             // then
             assertThat(refreshToken.isRevoked()).isTrue();
             verify(refreshTokenRepository).save(refreshToken);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 토큰을 폐기하려고 하면 아무 작업도 하지 않는다")
+        void should_DoNothing_when_TokenNotFound() {
+            // given
+            String token = "nonexistent-token";
+            given(refreshTokenRepository.findByToken(token))
+                    .willReturn(Optional.empty());
+
+            // when
+            refreshTokenService.revokeToken(token);
+
+            // then - 예외가 발생하지 않고, save가 호출되지 않음
+            verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
         }
     }
 }

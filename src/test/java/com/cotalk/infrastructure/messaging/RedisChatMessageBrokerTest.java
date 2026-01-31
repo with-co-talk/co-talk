@@ -57,12 +57,14 @@ class RedisChatMessageBrokerTest {
             ChatBroadcastMessage message = new ChatBroadcastMessage(
                     1L,           // messageId
                     10L,          // senderId
+                    "테스트유저", // senderNickname
                     roomId,       // roomId
                     "Hello!",     // content
                     "TEXT",       // type
                     System.currentTimeMillis(),
                     null, null, null, null, null,  // file fields
-                    1             // unreadCount
+                    1,            // unreadCount
+                    null, null, null  // eventType, relatedUserId, relatedUserNickname
             );
 
             // when
@@ -87,6 +89,7 @@ class RedisChatMessageBrokerTest {
             ChatBroadcastMessage message = new ChatBroadcastMessage(
                     1L,
                     10L,
+                    "테스트유저", // senderNickname
                     roomId,
                     "photo.jpg",
                     "IMAGE",
@@ -96,7 +99,8 @@ class RedisChatMessageBrokerTest {
                     102400L,
                     "image/jpeg",
                     "https://storage.example.com/thumb.jpg",
-                    1  // unreadCount
+                    1,  // unreadCount
+                    null, null, null  // eventType, relatedUserId, relatedUserNickname
             );
 
             // when
@@ -121,8 +125,9 @@ class RedisChatMessageBrokerTest {
 
             Long roomId = 1L;
             ChatBroadcastMessage message = new ChatBroadcastMessage(
-                    100L, 1L, roomId, "test", "TEXT",
-                    System.currentTimeMillis(), null, null, null, null, null, 1
+                    100L, 1L, "테스트유저", roomId, "test", "TEXT",
+                    System.currentTimeMillis(), null, null, null, null, null, 1,
+                    null, null, null
             );
             when(mockMapper.writeValueAsString(message))
                     .thenThrow(new JsonProcessingException("Serialization failed") {});

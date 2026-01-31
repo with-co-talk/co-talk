@@ -10,12 +10,21 @@ import com.cotalk.adapter.inbound.rest.dto.message.SendMessageRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.SendMessageResponse;
 import com.cotalk.adapter.inbound.rest.dto.message.UpdateMessageRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.UpdateMessageResponse;
+import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
+import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.message.DeleteMessageUseCase;
 import com.cotalk.domain.port.inbound.message.GetMessageHistoryUseCase;
 import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
+import com.cotalk.domain.port.outbound.ChatMessageBroker;
+import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
+import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
+import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,7 +43,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.extern.slf4j.Slf4j;
+
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 채팅 메시지 관리를 위한 REST 컨트롤러.
@@ -43,6 +58,7 @@ import java.util.List;
  *
  * @author seunggu.lee
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/chat/messages")
 @RequiredArgsConstructor
@@ -54,6 +70,11 @@ public class ChatMessageController {
     private final UpdateMessageUseCase updateMessageUseCase;
     private final DeleteMessageUseCase deleteMessageUseCase;
     private final MessageReplyForwardUseCase messageReplyForwardUseCase;
+    private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final UserRepository userRepository;
+    private final ChatMessageBroker chatMessageBroker;
+    private final MessageRepository messageRepository;
+    private final UserEventBroker userEventBroker;
 
     /**
      * 채팅방에 텍스트 메시지를 전송합니다.
@@ -71,13 +92,18 @@ public class ChatMessageController {
 
     /**
      * 채팅방에 파일 또는 이미지를 전송합니다.
+     * 발신자 ID는 JWT 토큰에서 자동으로 추출됩니다.
+     * 저장 후 WebSocket으로 브로드캐스트하여 실시간 전달합니다.
      *
+     * @param principal 인증된 사용자 정보
      * @param request 파일 메시지 전송 요청
      * @return 전송된 메시지 정보
      */
     @Operation(summary = "파일/이미지 메시지 전송", description = "채팅방에 파일 또는 이미지를 전송합니다.")
     @PostMapping("/file")
-    public ResponseEntity<SendMessageResponse> sendFileMessage(@Valid @RequestBody SendFileMessageRequest request) {
+    public ResponseEntity<SendMessageResponse> sendFileMessage(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @Valid @RequestBody SendFileMessageRequest request) {
         SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
                 request.fileUrl(),
                 request.fileName(),
@@ -86,9 +112,85 @@ public class ChatMessageController {
                 request.thumbnailUrl()
         );
 
-        Message message = sendMessageUseCase.sendFileMessage(request.chatRoomId(), request.senderId(), command);
+        // senderId는 JWT 토큰에서 추출 (요청의 senderId는 무시)
+        Message message = sendMessageUseCase.sendFileMessage(request.chatRoomId(), principal.getUserId(), command);
+
+        // WebSocket으로 브로드캐스트
+        publishToRedis(message);
+
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(SendMessageResponse.from(message));
+    }
+
+    /**
+     * 메시지를 Redis Pub/Sub으로 발행하여 WebSocket으로 브로드캐스트합니다.
+     */
+    private void publishToRedis(Message message) {
+        List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(message.getChatRoomId());
+        int totalMembers = members.size();
+        int unreadCount = Math.max(0, totalMembers - 1);
+
+        String senderNickname = userRepository.findById(message.getSenderId())
+                .map(User::getNickname)
+                .orElse("알 수 없음");
+
+        log.info("[REST] publishToRedis roomId={}, messageId={}, senderId={}, type={}",
+                message.getChatRoomId(), message.getId(), message.getSenderId(), message.getType());
+
+        ChatBroadcastMessage broadcastMessage = new ChatBroadcastMessage(
+                message.getId(),
+                message.getSenderId(),
+                senderNickname,
+                message.getChatRoomId(),
+                message.getContent(),
+                message.getType().name(),
+                message.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                message.getFileUrl(),
+                message.getFileName(),
+                message.getFileSize(),
+                message.getFileContentType(),
+                message.getThumbnailUrl(),
+                unreadCount,
+                null, null, null
+        );
+
+        chatMessageBroker.publish(message.getChatRoomId(), broadcastMessage);
+        publishChatListUpdate(message);
+    }
+
+    /**
+     * 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트합니다.
+     */
+    private void publishChatListUpdate(Message message) {
+        String senderNickname = userRepository.findById(message.getSenderId())
+                .map(User::getNickname)
+                .orElse("알 수 없음");
+
+        List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(message.getChatRoomId());
+
+        for (ChatRoomMember member : members) {
+            Long lastReadMessageId = member.getLastReadMessageId();
+            int memberUnreadCount = (int) messageRepository.countUnreadMessagesByLastReadMessageId(
+                    message.getChatRoomId(),
+                    member.getUserId(),
+                    lastReadMessageId
+            );
+
+            ChatListUpdateEvent event = new ChatListUpdateEvent(
+                    1,
+                    "chat-list:" + message.getChatRoomId() + ":" + message.getId() + ":" + member.getUserId(),
+                    "NEW_MESSAGE",
+                    message.getChatRoomId(),
+                    message.getContent(),
+                    message.getType().name(),
+                    message.getCreatedAt(),
+                    message.getSenderId(),
+                    senderNickname,
+                    memberUnreadCount
+            );
+
+            userEventBroker.publishChatListUpdate(member.getUserId(), event);
+        }
     }
 
     /**
@@ -108,8 +210,22 @@ public class ChatMessageController {
             @RequestParam(required = false) Long beforeMessageId,
             @RequestParam(defaultValue = "20") int size) {
         List<Message> messages = getMessageHistoryUseCase.getMessageHistory(roomId, principal.getUserId(), beforeMessageId, size);
+
+        // 배치 쿼리로 모든 메시지의 unreadCount를 한 번에 조회 (N+1 쿼리 방지)
+        List<Long> messageIds = messages.stream().map(Message::getId).toList();
+        Map<Long, Integer> unreadCountMap = chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(roomId, messageIds);
+
+        // 배치 쿼리로 모든 발신자의 닉네임을 한 번에 조회 (N+1 쿼리 방지)
+        Set<Long> senderIds = messages.stream().map(Message::getSenderId).collect(Collectors.toSet());
+        Map<Long, String> senderNicknameMap = userRepository.findAllById(senderIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getNickname));
+
         List<MessageDto> messageDtos = messages.stream()
-                .map(MessageDto::from)
+                .map(message -> {
+                    int unreadCount = unreadCountMap.getOrDefault(message.getId(), 0);
+                    String senderNickname = senderNicknameMap.get(message.getSenderId());
+                    return MessageDto.from(message, unreadCount, senderNickname);
+                })
                 .toList();
 
         // 다음 페이지 존재 여부를 위한 nextCursor 계산

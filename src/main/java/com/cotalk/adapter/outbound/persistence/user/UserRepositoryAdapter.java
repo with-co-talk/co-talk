@@ -2,7 +2,10 @@ package com.cotalk.adapter.outbound.persistence.user;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.infrastructure.config.CacheConfig;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -22,10 +25,12 @@ public class UserRepositoryAdapter implements UserRepository {
 
     /**
      * 사용자를 저장한다.
+     * 저장 후 해당 사용자 캐시를 무효화한다.
      *
      * @param user 저장할 사용자 엔티티
      * @return 저장된 사용자 엔티티
      */
+    @CacheEvict(value = CacheConfig.USER_CACHE, key = "#user.id", condition = "#user.id != null")
     @Override
     public User save(User user) {
         return userJpaRepository.save(user);
@@ -33,10 +38,12 @@ public class UserRepositoryAdapter implements UserRepository {
 
     /**
      * ID로 사용자를 조회한다.
+     * 결과는 캐시에 저장되어 반복 조회 시 DB 접근을 줄인다.
      *
      * @param id 사용자 ID
      * @return 사용자 (Optional)
      */
+    @Cacheable(value = CacheConfig.USER_CACHE, key = "#id")
     @Override
     public Optional<User> findById(Long id) {
         return userJpaRepository.findById(id);
@@ -100,9 +107,11 @@ public class UserRepositoryAdapter implements UserRepository {
 
     /**
      * 사용자를 삭제한다.
+     * 삭제 시 해당 사용자 캐시를 무효화한다.
      *
      * @param user 삭제할 사용자 엔티티
      */
+    @CacheEvict(value = CacheConfig.USER_CACHE, key = "#user.id")
     @Override
     public void delete(User user) {
         userJpaRepository.delete(user);

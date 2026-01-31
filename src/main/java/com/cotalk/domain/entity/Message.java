@@ -80,7 +80,9 @@ public class Message extends BaseEntity {
         /** 이미지 메시지 */
         IMAGE,
         /** 파일 메시지 */
-        FILE
+        FILE,
+        /** 시스템 메시지 (입장/퇴장 알림 등) */
+        SYSTEM
     }
 
     /**
@@ -172,5 +174,44 @@ public class Message extends BaseEntity {
      */
     public boolean isDeleted() {
         return deleted;
+    }
+
+    /**
+     * 시스템 메시지인지 확인한다.
+     *
+     * @return 시스템 메시지이면 true, 그렇지 않으면 false
+     */
+    public boolean isSystem() {
+        return type == MessageType.SYSTEM;
+    }
+
+    /**
+     * 시스템 메시지를 생성한다.
+     *
+     * @param id 메시지 ID
+     * @param chatRoomId 채팅방 ID
+     * @param content 시스템 메시지 내용
+     * @return 생성된 시스템 메시지
+     */
+    public static Message createSystemMessage(Long id, Long chatRoomId, String content) {
+        return Message.builder()
+                .id(id)
+                .chatRoomId(chatRoomId)
+                .senderId(0L) // 시스템 메시지는 senderId를 0으로 설정
+                .content(content)
+                .type(MessageType.SYSTEM)
+                .build();
+    }
+
+    /**
+     * 메시지 수정/삭제 가능 시간(5분)이 지났는지 확인한다.
+     *
+     * @return 5분이 지났으면 true, 아직 수정/삭제 가능하면 false
+     */
+    public boolean isEditTimeExpired() {
+        if (getCreatedAt() == null) {
+            return false;
+        }
+        return getCreatedAt().plusMinutes(5).isBefore(LocalDateTime.now());
     }
 }

@@ -4,6 +4,7 @@ import com.cotalk.domain.entity.Message;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -110,4 +111,31 @@ public interface MessageRepository {
      * @return 메시지 수
      */
     long count();
+
+    /**
+     * 여러 채팅방의 마지막 메시지를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param chatRoomIds 채팅방 ID 목록
+     * @return 마지막 메시지 목록
+     */
+    List<Message> findLastMessagesByRoomIds(List<Long> chatRoomIds);
+
+    /**
+     * 여러 채팅방의 읽지 않은 메시지 수를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param userId 사용자 ID
+     * @param chatRoomIds 채팅방 ID 목록
+     * @return 채팅방 ID를 키로, 읽지 않은 메시지 수를 값으로 하는 Map
+     */
+    Map<Long, Long> batchCountUnreadMessages(Long userId, List<Long> chatRoomIds);
+
+    /**
+     * 채팅방에서 특정 사용자를 제외한 다른 발신자 ID 목록을 조회한다.
+     * 1:1 채팅방에서 상대방이 나갔을 때 상대방 ID를 찾는 데 사용한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param excludeUserId 제외할 사용자 ID
+     * @return 다른 발신자 ID 목록
+     */
+    List<Long> findDistinctSenderIdsByChatRoomIdExcludingUser(Long chatRoomId, Long excludeUserId);
 }

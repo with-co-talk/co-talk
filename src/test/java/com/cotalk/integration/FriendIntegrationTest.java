@@ -4,6 +4,7 @@ import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.config.TestRedisConfiguration;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,10 +15,16 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -77,14 +84,27 @@ class FriendIntegrationTest {
         return response.get("accessToken").asText();
     }
 
+    private void setSecurityContext(Long userId) {
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        CustomUserPrincipal principal = new CustomUserPrincipal(
+                userId,
+                "USER",
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+        context.setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
+        );
+        SecurityContextHolder.setContext(context);
+    }
+
     @Test
     @DisplayName("친구 요청 전체 플로우 - 요청, 수락, 목록 조회")
     void should_completeFriendRequestFlow() throws Exception {
         // 1. 친구 요청 전송
-        SendFriendRequestRequest sendRequest = new SendFriendRequestRequest(user1Id, user2Id);
+        setSecurityContext(user1Id);
+        SendFriendRequestRequest sendRequest = new SendFriendRequestRequest(user2Id);
 
         MvcResult requestResult = mockMvc.perform(post("/api/v1/friends/requests")
-                        .header("Authorization", "Bearer " + user1Token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sendRequest)))
                 .andExpect(status().isCreated())
@@ -95,25 +115,22 @@ class FriendIntegrationTest {
         Long requestId = requestResponse.get("requestId").asLong();
 
         // 2. 친구 요청 수락
-        mockMvc.perform(post("/api/v1/friends/requests/{requestId}/accept", requestId)
-                        .header("Authorization", "Bearer " + user2Token)
-                        .param("userId", user2Id.toString()))
+        setSecurityContext(user2Id);
+        mockMvc.perform(post("/api/v1/friends/requests/{requestId}/accept", requestId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("친구 요청을 수락했습니다."));
 
         // 3. 친구 목록 조회 - user1
-        mockMvc.perform(get("/api/v1/friends")
-                        .header("Authorization", "Bearer " + user1Token)
-                        .param("userId", user1Id.toString()))
+        setSecurityContext(user1Id);
+        mockMvc.perform(get("/api/v1/friends"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.friends").isArray())
                 .andExpect(jsonPath("$.friends.length()").value(1))
                 .andExpect(jsonPath("$.friends[0].nickname").value("사용자2"));
 
         // 4. 친구 목록 조회 - user2
-        mockMvc.perform(get("/api/v1/friends")
-                        .header("Authorization", "Bearer " + user2Token)
-                        .param("userId", user2Id.toString()))
+        setSecurityContext(user2Id);
+        mockMvc.perform(get("/api/v1/friends"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.friends").isArray())
                 .andExpect(jsonPath("$.friends.length()").value(1))
@@ -124,10 +141,10 @@ class FriendIntegrationTest {
     @DisplayName("친구 요청 거절 플로우")
     void should_rejectFriendRequest() throws Exception {
         // 1. 친구 요청 전송
-        SendFriendRequestRequest sendRequest = new SendFriendRequestRequest(user1Id, user2Id);
+        setSecurityContext(user1Id);
+        SendFriendRequestRequest sendRequest = new SendFriendRequestRequest(user2Id);
 
         MvcResult requestResult = mockMvc.perform(post("/api/v1/friends/requests")
-                        .header("Authorization", "Bearer " + user1Token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sendRequest)))
                 .andExpect(status().isCreated())
@@ -137,16 +154,14 @@ class FriendIntegrationTest {
         Long requestId = requestResponse.get("requestId").asLong();
 
         // 2. 친구 요청 거절
-        mockMvc.perform(post("/api/v1/friends/requests/{requestId}/reject", requestId)
-                        .header("Authorization", "Bearer " + user2Token)
-                        .param("userId", user2Id.toString()))
+        setSecurityContext(user2Id);
+        mockMvc.perform(post("/api/v1/friends/requests/{requestId}/reject", requestId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("친구 요청을 거절했습니다."));
 
         // 3. 친구 목록이 비어있어야 함
-        mockMvc.perform(get("/api/v1/friends")
-                        .header("Authorization", "Bearer " + user1Token)
-                        .param("userId", user1Id.toString()))
+        setSecurityContext(user1Id);
+        mockMvc.perform(get("/api/v1/friends"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.friends").isArray())
                 .andExpect(jsonPath("$.friends.length()").value(0));
@@ -156,10 +171,10 @@ class FriendIntegrationTest {
     @DisplayName("친구 삭제 플로우")
     void should_removeFriend() throws Exception {
         // 1. 친구 관계 생성
-        SendFriendRequestRequest sendRequest = new SendFriendRequestRequest(user1Id, user2Id);
+        setSecurityContext(user1Id);
+        SendFriendRequestRequest sendRequest = new SendFriendRequestRequest(user2Id);
 
         MvcResult requestResult = mockMvc.perform(post("/api/v1/friends/requests")
-                        .header("Authorization", "Bearer " + user1Token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sendRequest)))
                 .andExpect(status().isCreated())
@@ -168,28 +183,23 @@ class FriendIntegrationTest {
         JsonNode requestResponse = objectMapper.readTree(requestResult.getResponse().getContentAsString());
         Long requestId = requestResponse.get("requestId").asLong();
 
-        mockMvc.perform(post("/api/v1/friends/requests/{requestId}/accept", requestId)
-                        .header("Authorization", "Bearer " + user2Token)
-                        .param("userId", user2Id.toString()))
+        setSecurityContext(user2Id);
+        mockMvc.perform(post("/api/v1/friends/requests/{requestId}/accept", requestId))
                 .andExpect(status().isOk());
 
         // 2. 친구 삭제
-        mockMvc.perform(delete("/api/v1/friends/{friendId}", user2Id)
-                        .header("Authorization", "Bearer " + user1Token)
-                        .param("userId", user1Id.toString()))
+        setSecurityContext(user1Id);
+        mockMvc.perform(delete("/api/v1/friends/{friendId}", user2Id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("친구가 삭제되었습니다."));
 
         // 3. 양쪽 모두 친구 목록이 비어있어야 함
-        mockMvc.perform(get("/api/v1/friends")
-                        .header("Authorization", "Bearer " + user1Token)
-                        .param("userId", user1Id.toString()))
+        mockMvc.perform(get("/api/v1/friends"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.friends.length()").value(0));
 
-        mockMvc.perform(get("/api/v1/friends")
-                        .header("Authorization", "Bearer " + user2Token)
-                        .param("userId", user2Id.toString()))
+        setSecurityContext(user2Id);
+        mockMvc.perform(get("/api/v1/friends"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.friends.length()").value(0));
     }
@@ -197,10 +207,10 @@ class FriendIntegrationTest {
     @Test
     @DisplayName("자기 자신에게 친구 요청 실패")
     void should_failSendFriendRequest_when_self() throws Exception {
-        SendFriendRequestRequest request = new SendFriendRequestRequest(user1Id, user1Id);
+        setSecurityContext(user1Id);
+        SendFriendRequestRequest request = new SendFriendRequestRequest(user1Id);
 
         mockMvc.perform(post("/api/v1/friends/requests")
-                        .header("Authorization", "Bearer " + user1Token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());

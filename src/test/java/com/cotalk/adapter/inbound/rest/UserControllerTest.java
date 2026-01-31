@@ -1,17 +1,21 @@
 package com.cotalk.adapter.inbound.rest;
 
+import com.cotalk.adapter.inbound.rest.dto.user.UpdateOnlineStatusRequest;
 import com.cotalk.adapter.inbound.rest.dto.user.UpdateProfileRequest;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.entity.User.OnlineStatus;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
+import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.user.SearchUserUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
+import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
-import com.cotalk.infrastructure.security.SecurityContextHelper;
-import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,13 +27,17 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -37,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(UserController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import(RateLimitTestConfiguration.class)
+@Import({RateLimitTestConfiguration.class, GlobalExceptionHandler.class})
 class UserControllerTest {
 
     @Autowired
@@ -63,15 +71,6 @@ class UserControllerTest {
 
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    @MockBean
-    private SecurityContextHelper securityContextHelper;
-
-    @BeforeEach
-    void setUp() {
-        // 기본적으로 userId 1L로 인증된 사용자 설정
-        given(securityContextHelper.getCurrentUserId()).willReturn(1L);
-    }
 
     @Nested
     @DisplayName("사용자 검색 API")
@@ -182,6 +181,84 @@ class UserControllerTest {
             mockMvc.perform(get("/api/v1/users/search"))
                     .andExpect(status().isBadRequest());
         }
+
+        @Test
+        @DisplayName("query가 빈 문자열일 때 nickname 사용")
+        void should_useNickname_when_queryIsBlank() throws Exception {
+            // given
+            List<User> users = List.of(
+                    User.builder()
+                            .id(1L)
+                            .email("user1@example.com")
+                            .nickname("테스트유저1")
+                            .passwordHash("hash")
+                            .build()
+            );
+
+            given(searchUserUseCase.searchByNickname("nickname값")).willReturn(users);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/users/search")
+                            .param("query", "   ")
+                            .param("nickname", "nickname값"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.users.length()").value(1));
+        }
+
+        @Test
+        @DisplayName("nickname이 빈 문자열일 때 400 에러 반환")
+        void should_returnBadRequest_when_nicknameIsBlank() throws Exception {
+            // when & then
+            mockMvc.perform(get("/api/v1/users/search")
+                            .param("nickname", "   "))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("내 정보 조회 API")
+    class GetCurrentUserApi {
+
+        @Test
+        @DisplayName("현재 로그인한 사용자 정보 조회 성공")
+        @WithMockCustomUser(userId = 1L)
+        void should_returnCurrentUser_when_validPrincipal() throws Exception {
+            // given
+            Long userId = 1L;
+            User user = User.builder()
+                    .id(userId)
+                    .email("test@example.com")
+                    .nickname("테스트유저")
+                    .passwordHash("hash")
+                    .avatarUrl("https://example.com/avatar.png")
+                    .onlineStatus(OnlineStatus.ONLINE)
+                    .lastActiveAt(LocalDateTime.now())
+                    .build();
+
+            given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
+            // when & then
+            mockMvc.perform(get("/api/v1/users/me"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(userId))
+                    .andExpect(jsonPath("$.email").value("test@example.com"))
+                    .andExpect(jsonPath("$.nickname").value("테스트유저"))
+                    .andExpect(jsonPath("$.avatarUrl").value("https://example.com/avatar.png"))
+                    .andExpect(jsonPath("$.onlineStatus").value("ONLINE"));
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 사용자 조회 시 404 에러")
+        @WithMockCustomUser(userId = 999L)
+        void should_returnNotFound_when_userNotFound() throws Exception {
+            // given
+            Long userId = 999L;
+            given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+            // when & then
+            mockMvc.perform(get("/api/v1/users/me"))
+                    .andExpect(status().isNotFound());
+        }
     }
 
     @Nested
@@ -190,6 +267,7 @@ class UserControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 프로필 수정 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long userId = 1L;
@@ -208,6 +286,7 @@ class UserControllerTest {
 
         @Test
         @DisplayName("닉네임만 수정")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_updateNicknameOnly() throws Exception {
             // given
             Long userId = 1L;
@@ -222,6 +301,95 @@ class UserControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("프로필이 수정되었습니다."));
+        }
+
+        @Test
+        @DisplayName("다른 사용자의 프로필 수정 시 403 에러")
+        @WithMockCustomUser(userId = 1L)
+        void should_returnForbidden_when_updateOtherUserProfile() throws Exception {
+            // given
+            Long currentUserId = 1L;
+            Long targetUserId = 2L;
+            UpdateProfileRequest request = new UpdateProfileRequest(
+                    "새닉네임", "https://example.com/avatar.png");
+
+            // when & then
+            mockMvc.perform(put("/api/v1/users/{userId}/profile", targetUserId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("온라인 상태 업데이트 API")
+    class UpdateOnlineStatusApi {
+
+        @Test
+        @DisplayName("유효한 요청으로 온라인 상태 업데이트 성공")
+        @WithMockCustomUser(userId = 1L)
+        void should_returnOk_when_validRequest() throws Exception {
+            // given
+            Long userId = 1L;
+            UpdateOnlineStatusRequest request = new UpdateOnlineStatusRequest(OnlineStatus.ONLINE);
+
+            willDoNothing().given(updateUserOnlineStatusUseCase).updateOnlineStatus(anyLong(), any(OnlineStatus.class));
+
+            // when & then
+            mockMvc.perform(put("/api/v1/users/{userId}/online-status", userId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("온라인 상태가 업데이트되었습니다."));
+        }
+
+        @Test
+        @DisplayName("다른 사용자의 온라인 상태 업데이트 시 403 에러")
+        @WithMockCustomUser(userId = 1L)
+        void should_returnForbidden_when_updateOtherUserOnlineStatus() throws Exception {
+            // given
+            Long currentUserId = 1L;
+            Long targetUserId = 2L;
+            UpdateOnlineStatusRequest request = new UpdateOnlineStatusRequest(OnlineStatus.ONLINE);
+
+            // when & then
+            mockMvc.perform(put("/api/v1/users/{userId}/online-status", targetUserId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("마지막 접속 시간 업데이트 API")
+    class UpdateLastActiveApi {
+
+        @Test
+        @DisplayName("유효한 요청으로 마지막 접속 시간 업데이트 성공")
+        @WithMockCustomUser(userId = 1L)
+        void should_returnOk_when_validRequest() throws Exception {
+            // given
+            Long userId = 1L;
+
+            willDoNothing().given(updateUserOnlineStatusUseCase).updateLastActiveAt(anyLong());
+
+            // when & then
+            mockMvc.perform(put("/api/v1/users/{userId}/last-active", userId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("마지막 접속 시간이 업데이트되었습니다."));
+        }
+
+        @Test
+        @DisplayName("다른 사용자의 마지막 접속 시간 업데이트 시 403 에러")
+        @WithMockCustomUser(userId = 1L)
+        void should_returnForbidden_when_updateOtherUserLastActive() throws Exception {
+            // given
+            Long currentUserId = 1L;
+            Long targetUserId = 2L;
+
+            // when & then
+            mockMvc.perform(put("/api/v1/users/{userId}/last-active", targetUserId))
+                    .andExpect(status().isForbidden());
         }
     }
 }

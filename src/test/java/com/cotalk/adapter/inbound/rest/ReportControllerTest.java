@@ -8,6 +8,7 @@ import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,6 +55,7 @@ class ReportControllerTest {
 
     @Test
     @DisplayName("사용자 신고 성공")
+    @WithMockCustomUser(userId = 100L)
     void should_returnCreated_when_reportUserSuccess() throws Exception {
         // given
         Long reporterId = 100L;
@@ -86,7 +88,6 @@ class ReportControllerTest {
 
         // when & then
         mockMvc.perform(post("/api/v1/reports/users")
-                        .param("reporterId", reporterId.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
@@ -98,6 +99,7 @@ class ReportControllerTest {
 
     @Test
     @DisplayName("메시지 신고 성공")
+    @WithMockCustomUser(userId = 100L)
     void should_returnCreated_when_reportMessageSuccess() throws Exception {
         // given
         Long reporterId = 100L;
@@ -130,7 +132,6 @@ class ReportControllerTest {
 
         // when & then
         mockMvc.perform(post("/api/v1/reports/messages")
-                        .param("reporterId", reporterId.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
@@ -142,6 +143,7 @@ class ReportControllerTest {
 
     @Test
     @DisplayName("내 신고 목록 조회 성공")
+    @WithMockCustomUser(userId = 100L)
     void should_returnReportList_when_getMyReports() throws Exception {
         // given
         Long userId = 100L;
@@ -168,8 +170,7 @@ class ReportControllerTest {
                 .willReturn(List.of(report1, report2));
 
         // when & then
-        mockMvc.perform(get("/api/v1/reports/my")
-                        .param("userId", userId.toString()))
+        mockMvc.perform(get("/api/v1/reports/my"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reports").isArray())
                 .andExpect(jsonPath("$.reports.length()").value(2))
@@ -181,6 +182,7 @@ class ReportControllerTest {
 
     @Test
     @DisplayName("사용자 신고 실패 - 자기 자신 신고")
+    @WithMockCustomUser(userId = 100L)
     void should_returnBadRequest_when_reportSelf() throws Exception {
         // given
         Long userId = 100L;
@@ -202,7 +204,6 @@ class ReportControllerTest {
 
         // when & then
         mockMvc.perform(post("/api/v1/reports/users")
-                        .param("reporterId", userId.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest());
@@ -210,6 +211,7 @@ class ReportControllerTest {
 
     @Test
     @DisplayName("사용자 신고 실패 - 중복 신고")
+    @WithMockCustomUser(userId = 100L)
     void should_returnBadRequest_when_duplicateReport() throws Exception {
         // given
         Long reporterId = 100L;
@@ -226,26 +228,6 @@ class ReportControllerTest {
                 {
                     "reportedUserId": 200,
                     "reason": "SPAM",
-                    "description": "test"
-                }
-                """;
-
-        // when & then
-        mockMvc.perform(post("/api/v1/reports/users")
-                        .param("reporterId", reporterId.toString())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("신고 실패 - reporterId 누락")
-    void should_returnBadRequest_when_reporterIdMissing() throws Exception {
-        // given
-        String requestBody = """
-                {
-                    "reportedUserId": 200,
-                    "reason": "HARASSMENT",
                     "description": "test"
                 }
                 """;

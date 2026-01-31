@@ -2,7 +2,10 @@ package com.cotalk.adapter.outbound.persistence.chatroom;
 
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
+import com.cotalk.infrastructure.config.CacheConfig;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -22,10 +25,12 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
 
     /**
      * 채팅방을 저장한다.
+     * 저장 후 해당 채팅방 캐시를 무효화한다.
      *
      * @param chatRoom 저장할 채팅방 엔티티
      * @return 저장된 채팅방 엔티티
      */
+    @CacheEvict(value = CacheConfig.CHAT_ROOM_CACHE, key = "#chatRoom.id", condition = "#chatRoom.id != null")
     @Override
     public ChatRoom save(ChatRoom chatRoom) {
         return chatRoomJpaRepository.save(chatRoom);
@@ -33,10 +38,12 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
 
     /**
      * ID로 채팅방을 조회한다.
+     * 결과는 캐시에 저장되어 반복 조회 시 DB 접근을 줄인다.
      *
      * @param id 채팅방 ID
      * @return 채팅방 (Optional)
      */
+    @Cacheable(value = CacheConfig.CHAT_ROOM_CACHE, key = "#id")
     @Override
     public Optional<ChatRoom> findById(Long id) {
         return chatRoomJpaRepository.findById(id);
@@ -67,9 +74,11 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
 
     /**
      * 채팅방을 삭제한다.
+     * 삭제 시 해당 채팅방 캐시를 무효화한다.
      *
      * @param chatRoom 삭제할 채팅방 엔티티
      */
+    @CacheEvict(value = CacheConfig.CHAT_ROOM_CACHE, key = "#chatRoom.id")
     @Override
     public void delete(ChatRoom chatRoom) {
         chatRoomJpaRepository.delete(chatRoom);

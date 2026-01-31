@@ -126,31 +126,41 @@ public class ChatWebSocketController {
     /**
      * 메시지를 Redis Pub/Sub으로 발행
      * Redis Subscriber가 이를 수신하여 WebSocket으로 전달
+     *
+     * <p>카톡/라인 방식:</p>
+     * <ul>
+     *   <li>메시지 전송 시 unreadCount = 멤버 수 - 1 (발신자 제외)</li>
+     *   <li>상대방이 markAsRead 호출 시 unreadCount 감소</li>
+     *   <li>클라이언트가 ReadReceiptEvent를 받아서 UI 업데이트</li>
+     * </ul>
      */
     private void publishToRedis(Message message) {
-        // 읽지 않은 멤버 수 계산 (발신자 제외)
-        int unreadCountByLastReadMessageId = chatRoomMemberRepository.countUnreadMembersByMessageId(
-                message.getChatRoomId(),
-                message.getId(),
-                message.getSenderId()
-        );
-        int activeCount = chatRoomPresenceTracker.countActiveMembers(message.getChatRoomId());
-        int activeReceivers = activeCount - (chatRoomPresenceTracker.isActive(message.getChatRoomId(), message.getSenderId()) ? 1 : 0);
-        int unreadCount = Math.max(0, unreadCountByLastReadMessageId - Math.max(0, activeReceivers));
+        var members = chatRoomMemberRepository.findByChatRoomId(message.getChatRoomId());
+        int totalMembers = members.size();
+
+        // 카톡/라인 방식: 발신자를 제외한 모든 멤버가 읽지 않은 상태로 시작
+        // 상대방이 채팅방에 들어가서 markAsRead를 호출하면 unreadCount가 감소함
+        int unreadCount = Math.max(0, totalMembers - 1);
+
+        // 발신자 닉네임 조회
+        String senderNickname = userRepository.findById(message.getSenderId())
+                .map(User::getNickname)
+                .orElse("알 수 없음");
+
         log.info(
-                "[WS] publishToRedis roomId={}, messageId={}, senderId={}, unreadByLastReadMessageId={}, activeCount={}, activeReceivers(exclSender)={}, finalUnreadCount={}",
+                "[WS] publishToRedis roomId={}, messageId={}, senderId={}, senderNickname={}, totalMembers={}, unreadCount={}",
                 message.getChatRoomId(),
                 message.getId(),
                 message.getSenderId(),
-                unreadCountByLastReadMessageId,
-                activeCount,
-                activeReceivers,
+                senderNickname,
+                totalMembers,
                 unreadCount
         );
 
         ChatBroadcastMessage broadcastMessage = new ChatBroadcastMessage(
                 message.getId(),
                 message.getSenderId(),
+                senderNickname,
                 message.getChatRoomId(),
                 message.getContent(),
                 message.getType().name(),
@@ -160,7 +170,10 @@ public class ChatWebSocketController {
                 message.getFileSize(),
                 message.getFileContentType(),
                 message.getThumbnailUrl(),
-                unreadCount
+                unreadCount,
+                null,  // eventType (일반 메시지)
+                null,  // relatedUserId
+                null   // relatedUserNickname
         );
 
         chatMessageBroker.publish(message.getChatRoomId(), broadcastMessage);
@@ -186,21 +199,20 @@ public class ChatWebSocketController {
         log.debug("Found {} members in chat room {}", members.size(), message.getChatRoomId());
 
         for (ChatRoomMember member : members) {
-            // 해당 멤버가 현재 방을 보고 있으면 unreadCount는 0이어야 한다.
-            // (lastReadAt 기반 계산은 네트워크 지연/레이스에서 1로 튀는 문제가 있어 presence로 보정)
-            boolean memberActiveInRoom = chatRoomPresenceTracker.isActive(message.getChatRoomId(), member.getUserId());
-            int memberUnreadCount = memberActiveInRoom
-                    ? 0
-                    : (int) messageRepository.countUnreadMessagesByLastReadMessageId(
+            // 카톡/라인 방식: lastReadMessageId 기준으로 안 읽은 메시지 수 계산
+            // 채팅방을 보고 있어도 markAsRead를 호출해야 lastReadMessageId가 업데이트됨
+            Long lastReadMessageId = member.getLastReadMessageId();
+            int memberUnreadCount = (int) messageRepository.countUnreadMessagesByLastReadMessageId(
                     message.getChatRoomId(),
                     member.getUserId(),
-                    member.getLastReadMessageId()
+                    lastReadMessageId
             );
+
             log.info(
-                    "[WS] chatListUpdate roomId={}, targetUserId={}, memberActiveInRoom={}, memberUnreadCount={}",
+                    "[WS] chatListUpdate roomId={}, targetUserId={}, lastReadMessageId={}, memberUnreadCount={}",
                     message.getChatRoomId(),
                     member.getUserId(),
-                    memberActiveInRoom,
+                    lastReadMessageId,
                     memberUnreadCount
             );
 

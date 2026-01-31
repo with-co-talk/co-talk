@@ -120,12 +120,22 @@ kubectl apply -k k8s/overlays/prod
 ## 주요 기능
 
 - 실시간 1:1 / 그룹 채팅 (WebSocket)
+- 읽음 표시 기능 (카톡/라인 스타일)
 - 사용자 인증 및 권한 관리
 - 친구 관리 및 차단
 - 파일 업로드 (이미지, 동영상)
 - 푸시 알림 (FCM)
 - 메시지 검색
 - Rate Limiting
+
+### 읽기 기능
+
+카카오톡/라인 스타일의 읽음 표시 시스템을 제공합니다.
+
+- **REST API**: `POST /api/v1/chat/rooms/{roomId}/read` (하이브리드 방식: 요청은 REST, 업데이트는 WebSocket)
+- **실시간 동기화**: 읽음 처리 후 WebSocket으로 업데이트된 메시지 및 채팅 목록 전송
+
+자세한 내용은 [읽기 기능 가이드](docs/READ_FEATURE.md)를 참조하세요.
 
 ## 문서
 

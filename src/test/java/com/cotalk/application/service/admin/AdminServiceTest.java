@@ -77,6 +77,64 @@ class AdminServiceTest {
         }
 
         @Test
+        @DisplayName("전체 신고 목록을 조회할 수 있다 (status가 null인 경우)")
+        void should_returnAllReports_when_statusIsNull() {
+            // given
+            List<Report> allReports = List.of(
+                    Report.builder()
+                            .id(1L)
+                            .reporterId(100L)
+                            .reportedUserId(200L)
+                            .type(Report.ReportType.USER)
+                            .reason(Report.ReportReason.SPAM)
+                            .status(Report.ReportStatus.PENDING)
+                            .build(),
+                    Report.builder()
+                            .id(2L)
+                            .reporterId(101L)
+                            .reportedUserId(201L)
+                            .type(Report.ReportType.MESSAGE)
+                            .reason(Report.ReportReason.HARASSMENT)
+                            .status(Report.ReportStatus.RESOLVED)
+                            .build()
+            );
+
+            given(reportRepository.findAll()).willReturn(allReports);
+
+            // when
+            List<Report> result = adminService.getAllReports(null);
+
+            // then
+            assertThat(result).hasSize(2);
+        }
+
+        @Test
+        @DisplayName("특정 상태의 신고 목록을 조회할 수 있다")
+        void should_returnReportsByStatus_when_statusProvided() {
+            // given
+            List<Report> resolvedReports = List.of(
+                    Report.builder()
+                            .id(1L)
+                            .reporterId(100L)
+                            .reportedUserId(200L)
+                            .type(Report.ReportType.USER)
+                            .reason(Report.ReportReason.SPAM)
+                            .status(Report.ReportStatus.RESOLVED)
+                            .build()
+            );
+
+            given(reportRepository.findByStatus(Report.ReportStatus.RESOLVED))
+                    .willReturn(resolvedReports);
+
+            // when
+            List<Report> result = adminService.getAllReports(Report.ReportStatus.RESOLVED);
+
+            // then
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getStatus()).isEqualTo(Report.ReportStatus.RESOLVED);
+        }
+
+        @Test
         @DisplayName("신고를 처리할 수 있다")
         void should_processReport_when_validRequest() {
             // given
@@ -235,6 +293,19 @@ class AdminServiceTest {
 
             // when & then
             assertThatThrownBy(() -> adminService.suspendUser(1L, userId, "reason"))
+                    .isInstanceOf(UserNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 사용자 활성화시 예외 발생")
+        void should_throwException_when_activateUserNotFound() {
+            // given
+            Long userId = 999L;
+
+            given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> adminService.activateUser(1L, userId))
                     .isInstanceOf(UserNotFoundException.class);
         }
     }

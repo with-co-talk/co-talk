@@ -2,6 +2,7 @@ package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DomainException;
+import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -117,6 +118,46 @@ class LoginServiceTest {
             assertThatThrownBy(() -> loginService.login(email, wrongPassword))
                     .isInstanceOf(DomainException.class)
                     .hasMessageContaining("비밀번호");
+        }
+    }
+
+    @Nested
+    @DisplayName("이메일로 사용자 ID 조회")
+    class GetUserIdByEmail {
+
+        @Test
+        @DisplayName("유효한 이메일로 사용자 ID를 조회할 수 있다")
+        void should_ReturnUserId_when_ValidEmail() {
+            // given
+            String email = "test@example.com";
+            Long userId = 1L;
+
+            User user = User.builder()
+                    .id(userId)
+                    .email(email)
+                    .passwordHash("hash")
+                    .nickname("testUser")
+                    .build();
+
+            given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+
+            // when
+            Long result = loginService.getUserIdByEmail(email);
+
+            // then
+            assertThat(result).isEqualTo(userId);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 이메일이면 예외가 발생한다")
+        void should_ThrowException_when_EmailNotFound() {
+            // given
+            String email = "notfound@example.com";
+            given(userRepository.findByEmail(email)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> loginService.getUserIdByEmail(email))
+                    .isInstanceOf(UserNotFoundException.class);
         }
     }
 }

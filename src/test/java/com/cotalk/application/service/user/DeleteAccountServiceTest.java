@@ -147,4 +147,16 @@ class DeleteAccountServiceTest {
         // then
         verify(userRepository).delete(user);
     }
+
+    @Test
+    @DisplayName("관리자가 존재하지 않는 사용자 탈퇴 시 예외")
+    void should_throwException_when_userNotFoundInAdminDelete() {
+        // given
+        Long userId = 999L;
+        given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> service.deleteAccountByAdmin(userId))
+                .isInstanceOf(UserNotFoundException.class);
+    }
 }

@@ -41,6 +41,7 @@ public interface ChatMessageBroker {
      *
      * @param messageId       메시지 ID
      * @param senderId        발신자 ID
+     * @param senderNickname  발신자 닉네임
      * @param roomId          채팅방 ID
      * @param content         메시지 내용
      * @param type            메시지 유형 (TEXT, IMAGE, FILE 등)
@@ -51,10 +52,14 @@ public interface ChatMessageBroker {
      * @param contentType     파일 MIME 타입 (파일 메시지인 경우)
      * @param thumbnailUrl    썸네일 URL (이미지/비디오 메시지인 경우)
      * @param unreadCount     읽지 않은 멤버 수 (발신자 제외)
+     * @param eventType       이벤트 유형 (USER_LEFT, USER_JOINED 등, 시스템 메시지인 경우)
+     * @param relatedUserId   관련 사용자 ID (나간 사용자, 참여한 사용자 등)
+     * @param relatedUserNickname 관련 사용자 닉네임
      */
     record ChatBroadcastMessage(
             Long messageId,
             Long senderId,
+            String senderNickname,
             Long roomId,
             String content,
             String type,
@@ -64,6 +69,9 @@ public interface ChatMessageBroker {
             Long fileSize,
             String contentType,
             String thumbnailUrl,
-            Integer unreadCount
+            Integer unreadCount,
+            String eventType,
+            Long relatedUserId,
+            String relatedUserNickname
     ) {}
 }

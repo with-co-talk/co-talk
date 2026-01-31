@@ -97,6 +97,40 @@ class SearchMessageServiceTest {
     }
 
     @Test
+    @DisplayName("검색어가 null인 경우 빈 결과 반환")
+    void should_returnEmpty_when_keywordIsNull() {
+        // given
+        Long chatRoomId = 1L;
+        Long userId = 100L;
+        String keyword = null;
+
+        given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
+
+        // when
+        List<Message> result = searchMessageService.searchInChatRoom(chatRoomId, userId, keyword, 0, 20);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("검색어가 공백만 있는 경우 빈 결과 반환")
+    void should_returnEmpty_when_keywordIsWhitespace() {
+        // given
+        Long chatRoomId = 1L;
+        Long userId = 100L;
+        String keyword = "   ";
+
+        given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
+
+        // when
+        List<Message> result = searchMessageService.searchInChatRoom(chatRoomId, userId, keyword, 0, 20);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     @DisplayName("사용자의 모든 채팅방에서 메시지 검색 성공")
     void should_returnMessages_when_searchAcrossAllChatRooms() {
         // given
@@ -141,6 +175,34 @@ class SearchMessageServiceTest {
 
         // when
         List<Message> result = searchMessageService.searchInChatRoom(chatRoomId, userId, keyword, 0, 20);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("전체 채팅방 검색에서 null 키워드는 빈 결과 반환")
+    void should_returnEmpty_when_keywordIsNullInAllChatRooms() {
+        // given
+        Long userId = 100L;
+        String keyword = null;
+
+        // when
+        List<Message> result = searchMessageService.searchAcrossAllChatRooms(userId, keyword, 0, 20);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("전체 채팅방 검색에서 빈 키워드는 빈 결과 반환")
+    void should_returnEmpty_when_keywordIsEmptyInAllChatRooms() {
+        // given
+        Long userId = 100L;
+        String keyword = "";
+
+        // when
+        List<Message> result = searchMessageService.searchAcrossAllChatRooms(userId, keyword, 0, 20);
 
         // then
         assertThat(result).isEmpty();

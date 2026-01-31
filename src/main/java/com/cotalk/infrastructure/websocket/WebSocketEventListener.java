@@ -140,9 +140,11 @@ public class WebSocketEventListener {
             return;
         }
 
-        Long roomId = roomsBySessionAndSubscription
-                .getOrDefault(sessionId, Map.of())
-                .remove(subscriptionId);
+        Map<String, Long> subscriptionMap = roomsBySessionAndSubscription.get(sessionId);
+        if (subscriptionMap == null) {
+            return;
+        }
+        Long roomId = subscriptionMap.remove(subscriptionId);
         if (roomId == null) {
             return;
         }

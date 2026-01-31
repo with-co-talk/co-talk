@@ -71,4 +71,29 @@ class GetBlockedUsersServiceTest {
         // then
         assertThat(result).isEmpty();
     }
+
+    @Test
+    @DisplayName("차단한 사용자가 삭제된 경우 필터링됨")
+    void should_filterDeletedUsers_when_blockedUserNotFound() {
+        // given
+        Long blockerId = 1L;
+        Long blockedId1 = 2L;
+        Long blockedId2 = 3L; // 삭제된 사용자
+
+        Block block1 = Block.builder().id(100L).blockerId(blockerId).blockedId(blockedId1).build();
+        Block block2 = Block.builder().id(101L).blockerId(blockerId).blockedId(blockedId2).build();
+
+        User blockedUser1 = createUser(blockedId1, "blocked1@test.com", "차단유저1");
+
+        given(blockRepository.findByBlockerId(blockerId)).willReturn(List.of(block1, block2));
+        given(userRepository.findById(blockedId1)).willReturn(Optional.of(blockedUser1));
+        given(userRepository.findById(blockedId2)).willReturn(Optional.empty()); // 삭제된 사용자
+
+        // when
+        List<User> result = getBlockedUsersService.getBlockedUsers(blockerId);
+
+        // then - 삭제된 사용자는 필터링되어 결과에 포함되지 않음
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getNickname()).isEqualTo("차단유저1");
+    }
 }

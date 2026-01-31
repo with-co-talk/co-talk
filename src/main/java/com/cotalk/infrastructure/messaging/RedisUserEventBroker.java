@@ -56,6 +56,20 @@ public class RedisUserEventBroker implements UserEventBroker {
         log.debug("Published read receipt to Redis channel {}: {}", channel, event);
     }
 
+    /**
+     * 특정 사용자에게 온라인 상태 변경 이벤트를 발행한다.
+     *
+     * @param userId 대상 사용자 ID
+     * @param event  온라인 상태 이벤트
+     */
+    @Override
+    public void publishOnlineStatus(Long userId, OnlineStatusEvent event) {
+        String channel = channelPrefix + userId + ":online-status";
+        publish(channel, event);
+        log.info("Published online status to Redis channel {}: userId={}, isOnline={}",
+                channel, event.userId(), event.isOnline());
+    }
+
     private void publish(String channel, Object event) {
         try {
             String json = objectMapper.writeValueAsString(event);

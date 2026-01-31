@@ -10,6 +10,7 @@ import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateChatRoomResponse;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateGroupChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.InviteMembersRequest;
+import com.cotalk.adapter.inbound.rest.dto.chatroom.ReinviteMemberRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.SetAnnouncementRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.UpdateChatRoomNameRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.UpdateChatRoomNameResponse;
@@ -21,10 +22,12 @@ import com.cotalk.domain.port.inbound.chatroom.ChatRoomManagementUseCase;
 import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.CreateGroupChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomMembersUseCase;
+import com.cotalk.domain.port.inbound.chatroom.GetChatRoomUseCase;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomsUseCase;
 import com.cotalk.domain.port.inbound.chatroom.InviteGroupChatMemberUseCase;
 import com.cotalk.domain.port.inbound.chatroom.KickChatRoomMemberUseCase;
 import com.cotalk.domain.port.inbound.chatroom.LeaveChatRoomUseCase;
+import com.cotalk.domain.port.inbound.chatroom.ReinviteDirectChatMemberUseCase;
 import com.cotalk.domain.port.inbound.message.MarkAsReadUseCase;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,6 +63,7 @@ public class ChatRoomController {
 
     private final CreateChatRoomUseCase createChatRoomUseCase;
     private final GetChatRoomsUseCase getChatRoomsUseCase;
+    private final GetChatRoomUseCase getChatRoomUseCase;
     private final LeaveChatRoomUseCase leaveChatRoomUseCase;
     private final MarkAsReadUseCase markAsReadUseCase;
     private final CreateGroupChatRoomUseCase createGroupChatRoomUseCase;
@@ -67,6 +71,7 @@ public class ChatRoomController {
     private final ChatRoomManagementUseCase chatRoomManagementUseCase;
     private final GetChatRoomMembersUseCase getChatRoomMembersUseCase;
     private final KickChatRoomMemberUseCase kickChatRoomMemberUseCase;
+    private final ReinviteDirectChatMemberUseCase reinviteDirectChatMemberUseCase;
 
     /**
      * 1:1 채팅방을 생성합니다.
@@ -97,6 +102,22 @@ public class ChatRoomController {
                 .map(ChatRoomDto::from)
                 .toList();
         return ResponseEntity.ok(ChatRoomsResponse.of(roomDtos));
+    }
+
+    /**
+     * 특정 채팅방의 상세 정보를 조회합니다.
+     *
+     * @param principal 인증된 사용자 정보
+     * @param roomId    채팅방 ID
+     * @return 채팅방 상세 정보
+     */
+    @Operation(summary = "채팅방 상세 조회", description = "특정 채팅방의 상세 정보를 조회합니다.")
+    @GetMapping("/{roomId}")
+    public ResponseEntity<ChatRoomDto> getChatRoom(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long roomId) {
+        ChatRoomSummary chatRoom = getChatRoomUseCase.getChatRoom(roomId, principal.getUserId());
+        return ResponseEntity.ok(ChatRoomDto.from(chatRoom));
     }
 
     /**
@@ -283,6 +304,24 @@ public class ChatRoomController {
             @PathVariable Long targetUserId) {
         kickChatRoomMemberUseCase.kickMember(roomId, principal.getUserId(), targetUserId);
         return ResponseEntity.ok(MessageResponse.of("멤버가 강제 퇴장되었습니다."));
+    }
+
+    /**
+     * 1:1 채팅방에서 나간 상대방을 재초대합니다.
+     *
+     * @param principal 인증된 사용자 정보
+     * @param roomId    채팅방 ID
+     * @param request   재초대 요청 (재초대할 멤버 ID)
+     * @return 처리 결과 메시지
+     */
+    @Operation(summary = "1:1 채팅방 재초대", description = "1:1 채팅방에서 나간 상대방을 재초대합니다.")
+    @PostMapping("/{roomId}/reinvite")
+    public ResponseEntity<MessageResponse> reinviteMember(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long roomId,
+            @Valid @RequestBody ReinviteMemberRequest request) {
+        reinviteDirectChatMemberUseCase.reinviteMember(roomId, principal.getUserId(), request.inviteeId());
+        return ResponseEntity.ok(MessageResponse.of("상대방을 다시 초대했습니다."));
     }
 
 }

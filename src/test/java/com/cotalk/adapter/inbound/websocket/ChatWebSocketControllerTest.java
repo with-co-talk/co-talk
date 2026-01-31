@@ -13,9 +13,12 @@ import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase.FileMessageCommand;
+import com.cotalk.domain.entity.ChatRoomMember;
+import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -31,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,6 +71,9 @@ class ChatWebSocketControllerTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private ChatRoomPresenceTracker chatRoomPresenceTracker;
+
     @InjectMocks
     private ChatWebSocketController chatWebSocketController;
 
@@ -99,12 +106,21 @@ class ChatWebSocketControllerTest {
         // given
         ChatMessageRequest request = new ChatMessageRequest(1L, 100L, "테스트 메시지");
 
+        ChatRoomMember member1 = ChatRoomMember.builder()
+                .id(1L)
+                .chatRoomId(100L)
+                .userId(1L)
+                .build();
+        ChatRoomMember member2 = ChatRoomMember.builder()
+                .id(2L)
+                .chatRoomId(100L)
+                .userId(2L)
+                .build();
+
         given(sendMessageUseCase.sendMessage(anyLong(), anyLong(), anyString()))
                 .willReturn(mockMessage);
-        given(chatRoomMemberRepository.countUnreadMembers(anyLong(), any(), anyLong()))
-                .willReturn(1);
-        given(chatRoomMemberRepository.findByChatRoomId(anyLong()))
-                .willReturn(Collections.emptyList());
+        given(chatRoomMemberRepository.findByChatRoomId(100L))
+                .willReturn(List.of(member1, member2));
 
         // when
         chatWebSocketController.sendMessage(request);
@@ -122,6 +138,7 @@ class ChatWebSocketControllerTest {
         assertThat(messageCaptor.getValue().content()).isEqualTo("테스트 메시지");
         assertThat(messageCaptor.getValue().senderId()).isEqualTo(1L);
         assertThat(messageCaptor.getValue().messageId()).isEqualTo(1L);
+        // 카톡/라인 방식: unreadCount = 멤버 수 - 1 (발신자 제외)
         assertThat(messageCaptor.getValue().unreadCount()).isEqualTo(1);
     }
 
@@ -151,12 +168,21 @@ class ChatWebSocketControllerTest {
                 .build();
         setCreatedAt(fileMessage, LocalDateTime.now());
 
+        ChatRoomMember member1 = ChatRoomMember.builder()
+                .id(1L)
+                .chatRoomId(100L)
+                .userId(1L)
+                .build();
+        ChatRoomMember member2 = ChatRoomMember.builder()
+                .id(2L)
+                .chatRoomId(100L)
+                .userId(2L)
+                .build();
+
         given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any(FileMessageCommand.class)))
                 .willReturn(fileMessage);
-        given(chatRoomMemberRepository.countUnreadMembers(anyLong(), any(), anyLong()))
-                .willReturn(1);
-        given(chatRoomMemberRepository.findByChatRoomId(anyLong()))
-                .willReturn(Collections.emptyList());
+        given(chatRoomMemberRepository.findByChatRoomId(100L))
+                .willReturn(List.of(member1, member2));
 
         // when
         chatWebSocketController.sendFileMessage(request);
@@ -202,12 +228,21 @@ class ChatWebSocketControllerTest {
                 .build();
         setCreatedAt(imageMessage, LocalDateTime.now());
 
+        ChatRoomMember member1 = ChatRoomMember.builder()
+                .id(1L)
+                .chatRoomId(100L)
+                .userId(1L)
+                .build();
+        ChatRoomMember member2 = ChatRoomMember.builder()
+                .id(2L)
+                .chatRoomId(100L)
+                .userId(2L)
+                .build();
+
         given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any(FileMessageCommand.class)))
                 .willReturn(imageMessage);
-        given(chatRoomMemberRepository.countUnreadMembers(anyLong(), any(), anyLong()))
-                .willReturn(1);
-        given(chatRoomMemberRepository.findByChatRoomId(anyLong()))
-                .willReturn(Collections.emptyList());
+        given(chatRoomMemberRepository.findByChatRoomId(100L))
+                .willReturn(List.of(member1, member2));
 
         // when
         chatWebSocketController.sendFileMessage(request);

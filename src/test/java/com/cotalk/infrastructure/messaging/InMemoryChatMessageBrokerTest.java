@@ -49,6 +49,7 @@ class InMemoryChatMessageBrokerTest {
         ChatBroadcastMessage message = new ChatBroadcastMessage(
                 100L,           // messageId
                 1L,             // senderId
+                "테스트유저",   // senderNickname
                 roomId,         // roomId
                 "안녕하세요",   // content
                 "TEXT",         // type
@@ -58,7 +59,10 @@ class InMemoryChatMessageBrokerTest {
                 null,           // fileSize
                 null,           // contentType
                 null,           // thumbnailUrl
-                1               // unreadCount
+                1,              // unreadCount
+                null,           // eventType
+                null,           // relatedUserId
+                null            // relatedUserNickname
         );
 
         // when
@@ -84,6 +88,7 @@ class InMemoryChatMessageBrokerTest {
         ChatBroadcastMessage message = new ChatBroadcastMessage(
                 100L,
                 1L,
+                "테스트유저",   // senderNickname
                 roomId,
                 null,
                 "IMAGE",
@@ -93,7 +98,10 @@ class InMemoryChatMessageBrokerTest {
                 1024L,
                 "image/png",
                 "https://storage.example.com/thumb.png",
-                1  // unreadCount
+                1,   // unreadCount
+                null, // eventType
+                null, // relatedUserId
+                null  // relatedUserNickname
         );
 
         // when
@@ -139,8 +147,9 @@ class InMemoryChatMessageBrokerTest {
         // given
         Long roomId = 123L;
         ChatBroadcastMessage message = new ChatBroadcastMessage(
-                1L, 1L, roomId, "test", "TEXT",
-                System.currentTimeMillis(), null, null, null, null, null, 1
+                1L, 1L, "테스트유저", roomId, "test", "TEXT",
+                System.currentTimeMillis(), null, null, null, null, null, 1,
+                null, null, null
         );
 
         // when
