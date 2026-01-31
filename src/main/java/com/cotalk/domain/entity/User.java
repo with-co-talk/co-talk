@@ -58,6 +58,12 @@ public class User extends BaseEntity {
     @Column(name = "last_active_at")
     private LocalDateTime lastActiveAt;
 
+    @Column(name = "status_message", length = 60)
+    private String statusMessage;
+
+    @Column(name = "background_url", length = 500)
+    private String backgroundUrl;
+
     /**
      * 사용자 상태를 나타내는 열거형.
      *
@@ -227,5 +233,23 @@ public class User extends BaseEntity {
      */
     public boolean isOAuthUser() {
         return this.oauthProvider != null;
+    }
+
+    /**
+     * 상태메시지를 변경한다.
+     *
+     * @param statusMessage 새 상태메시지 (null 허용, 최대 60자)
+     */
+    public void updateStatusMessage(String statusMessage) {
+        this.statusMessage = statusMessage;
+    }
+
+    /**
+     * 배경화면 URL을 변경한다.
+     *
+     * @param backgroundUrl 새 배경화면 URL
+     */
+    public void updateBackgroundUrl(String backgroundUrl) {
+        this.backgroundUrl = backgroundUrl;
     }
 }

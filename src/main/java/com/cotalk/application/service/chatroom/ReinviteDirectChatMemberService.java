@@ -127,6 +127,7 @@ public class ReinviteDirectChatMemberService implements ReinviteDirectChatMember
                 savedMessage.getId(),
                 savedMessage.getSenderId(),
                 null, // senderNickname (시스템 메시지)
+                null, // senderAvatarUrl (시스템 메시지)
                 savedMessage.getChatRoomId(),
                 savedMessage.getContent(),
                 savedMessage.getType().name(),

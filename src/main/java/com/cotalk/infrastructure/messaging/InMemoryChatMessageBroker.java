@@ -67,6 +67,7 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
                 msg.messageId(),
                 msg.senderId(),
                 msg.senderNickname(),
+                msg.senderAvatarUrl(),
                 msg.roomId(),
                 // 과거 데이터 호환: 저장된 HTML 엔티티를 복원해 클라이언트에 원문으로 보여준다.
                 HtmlSanitizer.unescape(msg.content()),

@@ -130,9 +130,9 @@ public class ChatMessageController {
         int totalMembers = members.size();
         int unreadCount = Math.max(0, totalMembers - 1);
 
-        String senderNickname = userRepository.findById(message.getSenderId())
-                .map(User::getNickname)
-                .orElse("알 수 없음");
+        User sender = userRepository.findById(message.getSenderId()).orElse(null);
+        String senderNickname = sender != null ? sender.getNickname() : "알 수 없음";
+        String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
 
         log.info("[REST] publishToRedis roomId={}, messageId={}, senderId={}, type={}",
                 message.getChatRoomId(), message.getId(), message.getSenderId(), message.getType());
@@ -141,6 +141,7 @@ public class ChatMessageController {
                 message.getId(),
                 message.getSenderId(),
                 senderNickname,
+                senderAvatarUrl,
                 message.getChatRoomId(),
                 message.getContent(),
                 message.getType().name(),
@@ -215,16 +216,18 @@ public class ChatMessageController {
         List<Long> messageIds = messages.stream().map(Message::getId).toList();
         Map<Long, Integer> unreadCountMap = chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(roomId, messageIds);
 
-        // 배치 쿼리로 모든 발신자의 닉네임을 한 번에 조회 (N+1 쿼리 방지)
+        // 배치 쿼리로 모든 발신자의 정보를 한 번에 조회 (N+1 쿼리 방지)
         Set<Long> senderIds = messages.stream().map(Message::getSenderId).collect(Collectors.toSet());
-        Map<Long, String> senderNicknameMap = userRepository.findAllById(senderIds).stream()
-                .collect(Collectors.toMap(User::getId, User::getNickname));
+        Map<Long, User> senderMap = userRepository.findAllById(senderIds).stream()
+                .collect(Collectors.toMap(User::getId, user -> user));
 
         List<MessageDto> messageDtos = messages.stream()
                 .map(message -> {
                     int unreadCount = unreadCountMap.getOrDefault(message.getId(), 0);
-                    String senderNickname = senderNicknameMap.get(message.getSenderId());
-                    return MessageDto.from(message, unreadCount, senderNickname);
+                    User sender = senderMap.get(message.getSenderId());
+                    String senderNickname = sender != null ? sender.getNickname() : null;
+                    String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
+                    return MessageDto.from(message, unreadCount, senderNickname, senderAvatarUrl);
                 })
                 .toList();
 

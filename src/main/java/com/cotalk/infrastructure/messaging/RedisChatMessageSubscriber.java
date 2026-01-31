@@ -124,6 +124,7 @@ public class RedisChatMessageSubscriber implements MessageListener {
                 msg.messageId(),
                 msg.senderId(),
                 msg.senderNickname(),
+                msg.senderAvatarUrl(),
                 msg.roomId(),
                 // 과거 데이터 호환: 저장된 HTML 엔티티를 복원해 클라이언트에 원문으로 보여준다.
                 HtmlSanitizer.unescape(msg.content()),
@@ -144,21 +145,22 @@ public class RedisChatMessageSubscriber implements MessageListener {
     /**
      * WebSocket으로 전송할 채팅 메시지 DTO.
      *
-     * @param messageId      메시지 ID
-     * @param senderId       발신자 ID
-     * @param senderNickname 발신자 닉네임
-     * @param roomId         채팅방 ID
-     * @param content        메시지 내용
-     * @param type           메시지 타입
-     * @param createdAt      생성 일시
-     * @param fileUrl        파일 URL (파일 메시지인 경우)
-     * @param fileName       파일명 (파일 메시지인 경우)
-     * @param fileSize       파일 크기 (파일 메시지인 경우)
-     * @param contentType    컨텐츠 타입 (파일 메시지인 경우)
-     * @param thumbnailUrl   썸네일 URL (이미지 메시지인 경우)
-     * @param unreadCount    읽지 않은 멤버 수 (발신자 제외)
-     * @param eventType      이벤트 유형 (USER_LEFT, USER_JOINED 등, 시스템 메시지인 경우)
-     * @param relatedUserId  관련 사용자 ID (나간 사용자, 참여한 사용자 등)
+     * @param messageId        메시지 ID
+     * @param senderId         발신자 ID
+     * @param senderNickname   발신자 닉네임
+     * @param senderAvatarUrl  발신자 프로필 이미지 URL
+     * @param roomId           채팅방 ID
+     * @param content          메시지 내용
+     * @param type             메시지 타입
+     * @param createdAt        생성 일시
+     * @param fileUrl          파일 URL (파일 메시지인 경우)
+     * @param fileName         파일명 (파일 메시지인 경우)
+     * @param fileSize         파일 크기 (파일 메시지인 경우)
+     * @param contentType      컨텐츠 타입 (파일 메시지인 경우)
+     * @param thumbnailUrl     썸네일 URL (이미지 메시지인 경우)
+     * @param unreadCount      읽지 않은 멤버 수 (발신자 제외)
+     * @param eventType        이벤트 유형 (USER_LEFT, USER_JOINED 등, 시스템 메시지인 경우)
+     * @param relatedUserId    관련 사용자 ID (나간 사용자, 참여한 사용자 등)
      * @param relatedUserNickname 관련 사용자 닉네임
      */
     public record WebSocketChatMessage(
@@ -167,6 +169,7 @@ public class RedisChatMessageSubscriber implements MessageListener {
             Long messageId,
             Long senderId,
             String senderNickname,
+            String senderAvatarUrl,
             Long roomId,
             String content,
             String type,

@@ -1,5 +1,6 @@
 package com.cotalk.domain.entity;
 
+import com.cotalk.infrastructure.crypto.EncryptedStringConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -30,6 +31,7 @@ public class Message extends BaseEntity {
     private Long senderId;
 
     @Column(nullable = false, length = 4000)
+    @Convert(converter = EncryptedStringConverter.class)
     private String content;
 
     @Enumerated(EnumType.STRING)
