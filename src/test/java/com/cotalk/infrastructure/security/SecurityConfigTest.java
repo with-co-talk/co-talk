@@ -13,6 +13,9 @@ import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
 import com.cotalk.domain.port.inbound.friend.GetReceivedFriendRequestsUseCase;
 import com.cotalk.domain.port.inbound.friend.GetSentFriendRequestsUseCase;
+import com.cotalk.domain.port.inbound.friend.HideFriendUseCase;
+import com.cotalk.domain.port.inbound.friend.UnhideFriendUseCase;
+import com.cotalk.domain.port.inbound.friend.GetHiddenFriendsUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import org.junit.jupiter.api.DisplayName;
@@ -75,6 +78,15 @@ class SecurityConfigTest {
 
     @MockBean
     private GetSentFriendRequestsUseCase getSentFriendRequestsUseCase;
+
+    @MockBean
+    private HideFriendUseCase hideFriendUseCase;
+
+    @MockBean
+    private UnhideFriendUseCase unhideFriendUseCase;
+
+    @MockBean
+    private GetHiddenFriendsUseCase getHiddenFriendsUseCase;
 
     @MockBean
     private UserRepository userRepository;

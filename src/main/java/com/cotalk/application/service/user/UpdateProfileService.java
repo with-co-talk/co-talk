@@ -24,18 +24,22 @@ public class UpdateProfileService implements UpdateProfileUseCase {
     /**
      * 사용자 프로필을 수정한다.
      *
-     * @param userId 수정할 사용자 ID
-     * @param nickname 새로운 닉네임 (null이면 변경하지 않음)
-     * @param avatarUrl 새로운 프로필 이미지 URL (null이면 변경하지 않음)
+     * @param userId        수정할 사용자 ID
+     * @param nickname      새로운 닉네임 (null이면 변경하지 않음)
+     * @param statusMessage 새로운 상태메시지 (null이면 변경하지 않음)
+     * @param avatarUrl     새로운 프로필 이미지 URL (null이면 변경하지 않음)
      * @throws DomainException 사용자를 찾을 수 없는 경우
      */
     @Override
-    public void updateProfile(Long userId, String nickname, String avatarUrl) {
+    public void updateProfile(Long userId, String nickname, String statusMessage, String avatarUrl) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new DomainException("사용자를 찾을 수 없습니다."));
 
         if (nickname != null) {
             user.updateNickname(nickname);
+        }
+        if (statusMessage != null) {
+            user.updateStatusMessage(statusMessage);
         }
         if (avatarUrl != null) {
             user.updateAvatarUrl(avatarUrl);

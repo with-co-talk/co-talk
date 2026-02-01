@@ -222,15 +222,17 @@ public class MarkAsReadService implements MarkAsReadUseCase {
         List<Long> messageIds = recentMessages.stream().map(Message::getId).toList();
         Map<Long, Integer> unreadCountMap = chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(chatRoomId, messageIds);
 
-        // 배치 쿼리로 모든 발신자의 닉네임을 한 번에 조회 (N+1 쿼리 방지)
+        // 배치 쿼리로 모든 발신자의 정보를 한 번에 조회 (N+1 쿼리 방지)
         Set<Long> senderIds = recentMessages.stream().map(Message::getSenderId).collect(Collectors.toSet());
-        Map<Long, String> senderNicknameMap = userRepository.findAllById(senderIds).stream()
-                .collect(Collectors.toMap(User::getId, User::getNickname));
+        Map<Long, User> senderMap = userRepository.findAllById(senderIds).stream()
+                .collect(Collectors.toMap(User::getId, user -> user));
 
         // 각 메시지에 대해 업데이트된 unreadCount를 포함하여 브로드캐스트
         for (Message message : recentMessages) {
             int unreadCount = unreadCountMap.getOrDefault(message.getId(), 0);
-            String senderNickname = senderNicknameMap.get(message.getSenderId());
+            User sender = senderMap.get(message.getSenderId());
+            String senderNickname = sender != null ? sender.getNickname() : null;
+            String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
 
             log.debug("Calculated unreadCount for message {}: unreadCount={}", message.getId(), unreadCount);
 
@@ -239,6 +241,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
                     message.getId(),
                     message.getSenderId(),
                     senderNickname,
+                    senderAvatarUrl,
                     message.getChatRoomId(),
                     message.getContent(),
                     message.getType().name(),

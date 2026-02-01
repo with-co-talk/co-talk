@@ -73,6 +73,17 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
     }
 
     /**
+     * 사용자의 나와의 채팅방(SELF)을 조회한다.
+     *
+     * @param userId 사용자 ID
+     * @return 나와의 채팅방 (Optional)
+     */
+    @Override
+    public Optional<ChatRoom> findSelfChatRoomByUserId(Long userId) {
+        return chatRoomJpaRepository.findSelfChatRoomByUserId(userId);
+    }
+
+    /**
      * 채팅방을 삭제한다.
      * 삭제 시 해당 채팅방 캐시를 무효화한다.
      *

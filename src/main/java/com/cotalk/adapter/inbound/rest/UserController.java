@@ -93,21 +93,35 @@ public class UserController {
     }
 
     /**
+     * 특정 사용자의 프로필을 조회한다.
+     *
+     * @param userId 조회할 사용자 ID
+     * @return 사용자 프로필 정보
+     */
+    @Operation(summary = "사용자 프로필 조회", description = "특정 사용자의 프로필 정보를 조회합니다.")
+    @GetMapping("/{userId}/profile")
+    public ResponseEntity<UserDto> getUserProfile(@PathVariable Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+        return ResponseEntity.ok(UserDto.from(user));
+    }
+
+    /**
      * 사용자 프로필을 수정한다.
      *
      * @param principal 인증된 사용자 정보
      * @param userId    수정할 사용자 ID
-     * @param request   프로필 수정 요청 정보 (닉네임, 아바타 URL)
+     * @param request   프로필 수정 요청 정보 (닉네임, 상태메시지, 아바타 URL)
      * @return 수정 완료 메시지
      */
-    @Operation(summary = "프로필 수정", description = "사용자 프로필(닉네임, 아바타)을 수정합니다.")
+    @Operation(summary = "프로필 수정", description = "사용자 프로필(닉네임, 상태메시지, 아바타)을 수정합니다.")
     @PutMapping("/{userId}/profile")
     public ResponseEntity<MessageResponse> updateProfile(
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long userId,
             @Valid @RequestBody UpdateProfileRequest request) {
         validateUserAccess(principal.getUserId(), userId);
-        updateProfileUseCase.updateProfile(userId, request.nickname(), request.avatarUrl());
+        updateProfileUseCase.updateProfile(userId, request.nickname(), request.statusMessage(), request.avatarUrl());
         return ResponseEntity.ok(MessageResponse.of("프로필이 수정되었습니다."));
     }
 

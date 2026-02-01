@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
  * @param id                     메시지 ID
  * @param senderId               발신자 ID
  * @param senderNickname         발신자 닉네임
+ * @param senderAvatarUrl        발신자 프로필 이미지 URL
  * @param content                메시지 내용
  * @param type                   메시지 타입
  * @param createdAt              생성 일시
@@ -28,6 +29,7 @@ public record MessageDto(
         Long id,
         Long senderId,
         String senderNickname,
+        String senderAvatarUrl,
         String content,
         String type,
         LocalDateTime createdAt,
@@ -42,18 +44,20 @@ public record MessageDto(
 ) {
 
     /**
-     * Message 엔티티로부터 DTO를 생성합니다. (unreadCount, senderNickname 포함)
+     * Message 엔티티로부터 DTO를 생성합니다. (unreadCount, senderNickname, senderAvatarUrl 포함)
      *
-     * @param message        Message 엔티티
-     * @param unreadCount    읽지 않은 멤버 수
-     * @param senderNickname 발신자 닉네임
+     * @param message         Message 엔티티
+     * @param unreadCount     읽지 않은 멤버 수
+     * @param senderNickname  발신자 닉네임
+     * @param senderAvatarUrl 발신자 프로필 이미지 URL
      * @return MessageDto 인스턴스
      */
-    public static MessageDto from(Message message, Integer unreadCount, String senderNickname) {
+    public static MessageDto from(Message message, Integer unreadCount, String senderNickname, String senderAvatarUrl) {
         return new MessageDto(
                 message.getId(),
                 message.getSenderId(),
                 senderNickname,
+                senderAvatarUrl,
                 // 과거 데이터 호환: 저장된 HTML 엔티티를 복원해 클라이언트에 원문으로 보여준다.
                 HtmlSanitizer.unescape(message.getContent()),
                 message.getType().name(),
@@ -70,23 +74,35 @@ public record MessageDto(
     }
 
     /**
-     * Message 엔티티로부터 DTO를 생성합니다. (unreadCount 포함, senderNickname 미포함)
+     * Message 엔티티로부터 DTO를 생성합니다. (unreadCount, senderNickname 포함, senderAvatarUrl 미포함)
+     *
+     * @param message        Message 엔티티
+     * @param unreadCount    읽지 않은 멤버 수
+     * @param senderNickname 발신자 닉네임
+     * @return MessageDto 인스턴스
+     */
+    public static MessageDto from(Message message, Integer unreadCount, String senderNickname) {
+        return from(message, unreadCount, senderNickname, null);
+    }
+
+    /**
+     * Message 엔티티로부터 DTO를 생성합니다. (unreadCount 포함, senderNickname, senderAvatarUrl 미포함)
      *
      * @param message     Message 엔티티
      * @param unreadCount 읽지 않은 멤버 수
      * @return MessageDto 인스턴스
      */
     public static MessageDto from(Message message, Integer unreadCount) {
-        return from(message, unreadCount, null);
+        return from(message, unreadCount, null, null);
     }
 
     /**
-     * Message 엔티티로부터 DTO를 생성합니다. (unreadCount, senderNickname 미포함)
+     * Message 엔티티로부터 DTO를 생성합니다. (unreadCount, senderNickname, senderAvatarUrl 미포함)
      *
      * @param message Message 엔티티
      * @return MessageDto 인스턴스
      */
     public static MessageDto from(Message message) {
-        return from(message, 0, null);
+        return from(message, 0, null, null);
     }
 }

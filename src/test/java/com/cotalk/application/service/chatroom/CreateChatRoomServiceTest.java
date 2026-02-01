@@ -127,4 +127,60 @@ class CreateChatRoomServiceTest {
         // then
         verify(userEventBroker).publishChatListUpdate(eq(userId1), any());
     }
+
+    @Test
+    @DisplayName("나와의 채팅방(SELF) 생성 성공 - userId1 == userId2인 경우")
+    void should_createSelfChatRoom_when_sameUserId() {
+        // given
+        Long userId = 1L;
+        Long chatRoomId = 100L;
+        Long memberId = 101L;
+
+        given(chatRoomRepository.findSelfChatRoomByUserId(userId))
+                .willReturn(Optional.empty());
+        given(idGenerator.nextId())
+                .willReturn(chatRoomId)
+                .willReturn(memberId);
+        given(chatRoomRepository.save(any(ChatRoom.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+        given(chatRoomMemberRepository.save(any(ChatRoomMember.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        Long result = createChatRoomService.createChatRoom(userId, userId);
+
+        // then
+        assertThat(result).isEqualTo(chatRoomId);
+
+        ArgumentCaptor<ChatRoom> chatRoomCaptor = ArgumentCaptor.forClass(ChatRoom.class);
+        verify(chatRoomRepository).save(chatRoomCaptor.capture());
+        assertThat(chatRoomCaptor.getValue().getType()).isEqualTo(ChatRoom.ChatRoomType.SELF);
+
+        // 나와의 채팅은 멤버 1명만 생성
+        verify(chatRoomMemberRepository, times(1)).save(any(ChatRoomMember.class));
+    }
+
+    @Test
+    @DisplayName("이미 존재하는 나와의 채팅방이면 기존 채팅방 ID 반환")
+    void should_returnExistingSelfRoomId_when_selfChatRoomAlreadyExists() {
+        // given
+        Long userId = 1L;
+        Long existingRoomId = 50L;
+
+        ChatRoom existingRoom = ChatRoom.builder()
+                .id(existingRoomId)
+                .type(ChatRoom.ChatRoomType.SELF)
+                .build();
+
+        given(chatRoomRepository.findSelfChatRoomByUserId(userId))
+                .willReturn(Optional.of(existingRoom));
+
+        // when
+        Long result = createChatRoomService.createChatRoom(userId, userId);
+
+        // then
+        assertThat(result).isEqualTo(existingRoomId);
+        verify(chatRoomRepository, times(0)).save(any(ChatRoom.class));
+        verify(chatRoomMemberRepository, times(0)).save(any(ChatRoomMember.class));
+    }
 }

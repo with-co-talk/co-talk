@@ -27,6 +27,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -84,6 +85,18 @@ class ChatMessageControllerTest {
     @MockBean
     private UserRepository userRepository;
 
+    @MockBean
+    private com.cotalk.domain.port.outbound.ChatRoomPresenceTracker chatRoomPresenceTracker;
+
+    @MockBean
+    private com.cotalk.domain.port.outbound.ChatMessageBroker chatMessageBroker;
+
+    @MockBean
+    private com.cotalk.domain.port.outbound.MessageRepository messageRepository;
+
+    @MockBean
+    private com.cotalk.domain.port.outbound.UserEventBroker userEventBroker;
+
     @Nested
     @DisplayName("메시지 전송 API")
     class SendMessageApi {
@@ -119,6 +132,7 @@ class ChatMessageControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 이미지 메시지 전송 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_validImageMessage() throws Exception {
             // given
             SendFileMessageRequest request = new SendFileMessageRequest(
@@ -142,8 +156,14 @@ class ChatMessageControllerTest {
                     .thumbnailUrl("https://example.com/thumbnail.png")
                     .build();
 
+            // BaseEntity의 createdAt 필드 설정 (JPA Auditing이 동작하지 않는 단위 테스트용)
+            ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+
             given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any()))
                     .willReturn(message);
+            given(chatRoomMemberRepository.findByChatRoomId(anyLong())).willReturn(List.of());
+            given(messageRepository.countUnreadMessagesByLastReadMessageId(anyLong(), anyLong(), any()))
+                    .willReturn(0L);
 
             // when & then
             mockMvc.perform(post("/api/v1/chat/messages/file")
@@ -157,6 +177,7 @@ class ChatMessageControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 파일 메시지 전송 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_validFileMessage() throws Exception {
             // given
             SendFileMessageRequest request = new SendFileMessageRequest(
@@ -179,8 +200,14 @@ class ChatMessageControllerTest {
                     .fileContentType("application/pdf")
                     .build();
 
+            // BaseEntity의 createdAt 필드 설정 (JPA Auditing이 동작하지 않는 단위 테스트용)
+            ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+
             given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any()))
                     .willReturn(message);
+            given(chatRoomMemberRepository.findByChatRoomId(anyLong())).willReturn(List.of());
+            given(messageRepository.countUnreadMessagesByLastReadMessageId(anyLong(), anyLong(), any()))
+                    .willReturn(0L);
 
             // when & then
             mockMvc.perform(post("/api/v1/chat/messages/file")

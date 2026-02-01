@@ -39,27 +39,29 @@ public interface ChatMessageBroker {
      * 브로드캐스트할 채팅 메시지.
      * 실시간으로 채팅방 참여자들에게 전송되는 메시지 정보를 담는다.
      *
-     * @param messageId       메시지 ID
-     * @param senderId        발신자 ID
-     * @param senderNickname  발신자 닉네임
-     * @param roomId          채팅방 ID
-     * @param content         메시지 내용
-     * @param type            메시지 유형 (TEXT, IMAGE, FILE 등)
-     * @param createdAtMillis 생성 시간 (밀리초)
-     * @param fileUrl         파일 URL (파일 메시지인 경우)
-     * @param fileName        파일명 (파일 메시지인 경우)
-     * @param fileSize        파일 크기 (파일 메시지인 경우)
-     * @param contentType     파일 MIME 타입 (파일 메시지인 경우)
-     * @param thumbnailUrl    썸네일 URL (이미지/비디오 메시지인 경우)
-     * @param unreadCount     읽지 않은 멤버 수 (발신자 제외)
-     * @param eventType       이벤트 유형 (USER_LEFT, USER_JOINED 등, 시스템 메시지인 경우)
-     * @param relatedUserId   관련 사용자 ID (나간 사용자, 참여한 사용자 등)
+     * @param messageId         메시지 ID
+     * @param senderId          발신자 ID
+     * @param senderNickname    발신자 닉네임
+     * @param senderAvatarUrl   발신자 프로필 이미지 URL
+     * @param roomId            채팅방 ID
+     * @param content           메시지 내용
+     * @param type              메시지 유형 (TEXT, IMAGE, FILE 등)
+     * @param createdAtMillis   생성 시간 (밀리초)
+     * @param fileUrl           파일 URL (파일 메시지인 경우)
+     * @param fileName          파일명 (파일 메시지인 경우)
+     * @param fileSize          파일 크기 (파일 메시지인 경우)
+     * @param contentType       파일 MIME 타입 (파일 메시지인 경우)
+     * @param thumbnailUrl      썸네일 URL (이미지/비디오 메시지인 경우)
+     * @param unreadCount       읽지 않은 멤버 수 (발신자 제외)
+     * @param eventType         이벤트 유형 (USER_LEFT, USER_JOINED 등, 시스템 메시지인 경우)
+     * @param relatedUserId     관련 사용자 ID (나간 사용자, 참여한 사용자 등)
      * @param relatedUserNickname 관련 사용자 닉네임
      */
     record ChatBroadcastMessage(
             Long messageId,
             Long senderId,
             String senderNickname,
+            String senderAvatarUrl,
             Long roomId,
             String content,
             String type,

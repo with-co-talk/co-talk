@@ -141,12 +141,15 @@ class ChatRoomControllerTest {
                             ChatRoom.ChatRoomType.DIRECT,
                             now,
                             "마지막 메시지입니다",
+                            "TEXT",
                             now,
                             5L,
                             2L,
                             "상대방",
                             "https://example.com/avatar.png",
-                            false
+                            false,
+                            true,
+                            now
                     ),
                     new ChatRoomSummary(
                             101L,
@@ -154,12 +157,15 @@ class ChatRoomControllerTest {
                             ChatRoom.ChatRoomType.DIRECT,
                             now,
                             "안녕하세요",
+                            "TEXT",
                             now.minusMinutes(10),
                             0L,
                             3L,
                             "다른상대방",
                             null,
-                            false
+                            false,
+                            false,
+                            null
                     )
             );
 

@@ -58,6 +58,7 @@ class RedisChatMessageBrokerTest {
                     1L,           // messageId
                     10L,          // senderId
                     "테스트유저", // senderNickname
+                    "https://example.com/avatar.jpg", // senderAvatarUrl
                     roomId,       // roomId
                     "Hello!",     // content
                     "TEXT",       // type
@@ -90,6 +91,7 @@ class RedisChatMessageBrokerTest {
                     1L,
                     10L,
                     "테스트유저", // senderNickname
+                    "https://example.com/avatar.jpg", // senderAvatarUrl
                     roomId,
                     "photo.jpg",
                     "IMAGE",
@@ -125,7 +127,7 @@ class RedisChatMessageBrokerTest {
 
             Long roomId = 1L;
             ChatBroadcastMessage message = new ChatBroadcastMessage(
-                    100L, 1L, "테스트유저", roomId, "test", "TEXT",
+                    100L, 1L, "테스트유저", null, roomId, "test", "TEXT",
                     System.currentTimeMillis(), null, null, null, null, null, 1,
                     null, null, null
             );

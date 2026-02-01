@@ -6,6 +6,7 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -26,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -50,6 +52,9 @@ class SendMessageServiceTest {
     @Mock
     private SendPushNotificationUseCase sendPushNotificationUseCase;
 
+    @Mock
+    private ChatRoomPresenceTracker chatRoomPresenceTracker;
+
     private ChatRoomMemberValidator chatRoomMemberValidator;
 
     private SendMessageService sendMessageService;
@@ -58,7 +63,12 @@ class SendMessageServiceTest {
     void setUp() {
         chatRoomMemberValidator = new ChatRoomMemberValidator(chatRoomMemberRepository);
         sendMessageService = new SendMessageService(
-                messageRepository, chatRoomMemberRepository, userRepository, idGenerator, sendPushNotificationUseCase, chatRoomMemberValidator);
+                messageRepository, chatRoomMemberRepository, userRepository, idGenerator, sendPushNotificationUseCase, chatRoomMemberValidator, chatRoomPresenceTracker);
+
+        // Default mock behavior (lenient to avoid UnnecessaryStubbingException)
+        lenient().when(chatRoomMemberRepository.updateLastReadMessageIdIfNewer(anyLong(), anyLong(), any(), anyLong()))
+                .thenReturn(1);
+        lenient().when(chatRoomPresenceTracker.isActive(anyLong(), anyLong())).thenReturn(false);
     }
 
     @Nested

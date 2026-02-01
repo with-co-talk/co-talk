@@ -10,12 +10,14 @@ import java.time.LocalDateTime;
  * 사용자 정보 DTO.
  * User 엔티티의 정보를 클라이언트에 전달하기 위한 불변 객체이다.
  *
- * @param id           사용자 ID
- * @param email        이메일
- * @param nickname     닉네임
- * @param avatarUrl    아바타 URL
- * @param onlineStatus 온라인 상태
- * @param lastActiveAt 마지막 접속 시간
+ * @param id            사용자 ID
+ * @param email         이메일
+ * @param nickname      닉네임
+ * @param avatarUrl     아바타 URL
+ * @param statusMessage 상태메시지
+ * @param backgroundUrl 배경화면 URL
+ * @param onlineStatus  온라인 상태
+ * @param lastActiveAt  마지막 접속 시간
  * @author seunggu.lee
  */
 public record UserDto(
@@ -23,6 +25,8 @@ public record UserDto(
         String email,
         String nickname,
         String avatarUrl,
+        String statusMessage,
+        String backgroundUrl,
         OnlineStatus onlineStatus,
         @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         LocalDateTime lastActiveAt
@@ -41,6 +45,8 @@ public record UserDto(
                 user.getEmail(),
                 user.getNickname(),
                 user.getAvatarUrl(),
+                user.getStatusMessage(),
+                user.getBackgroundUrl(),
                 user.getOnlineStatus(),
                 user.getLastActiveAt()
         );

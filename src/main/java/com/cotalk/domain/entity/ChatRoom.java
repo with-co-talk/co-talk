@@ -40,7 +40,9 @@ public class ChatRoom extends BaseEntity {
         /** 1:1 채팅방 */
         DIRECT,
         /** 그룹 채팅방 */
-        GROUP
+        GROUP,
+        /** 나와의 채팅방 (자기 자신과의 메모용 채팅) */
+        SELF
     }
 
     /**
@@ -84,6 +86,15 @@ public class ChatRoom extends BaseEntity {
      */
     public boolean isGroupChat() {
         return type == ChatRoomType.GROUP;
+    }
+
+    /**
+     * 나와의 채팅방인지 확인한다.
+     *
+     * @return 나와의 채팅방이면 true, 그렇지 않으면 false
+     */
+    public boolean isSelfChat() {
+        return type == ChatRoomType.SELF;
     }
 
     /**

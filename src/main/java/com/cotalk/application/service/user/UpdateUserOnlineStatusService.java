@@ -111,14 +111,19 @@ public class UpdateUserOnlineStatusService implements UpdateUserOnlineStatusUseC
 
     /**
      * 사용자를 오프라인 상태로 설정한다.
+     * 사용자가 존재하지 않는 경우 (탈퇴, 삭제 등) 조용히 무시한다.
      *
      * @param userId 사용자 ID
-     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
      */
     @Override
     public void setOffline(Long userId) {
-        updateOnlineStatus(userId, OnlineStatus.OFFLINE);
-        log.info("User set offline: userId={}", userId);
+        try {
+            updateOnlineStatus(userId, OnlineStatus.OFFLINE);
+            log.info("User set offline: userId={}", userId);
+        } catch (UserNotFoundException e) {
+            // WebSocket disconnect 시 이미 삭제된 사용자일 수 있음 - 조용히 무시
+            log.debug("Ignoring setOffline for non-existent user: userId={}", userId);
+        }
     }
 
     /**

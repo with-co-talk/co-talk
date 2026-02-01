@@ -33,12 +33,15 @@ class ChatRoomSummaryTest {
                     ChatRoom.ChatRoomType.DIRECT,
                     now,
                     "마지막 메시지",
+                    "TEXT",
                     now,
                     5,
                     2L,
                     "상대방",
                     "https://example.com/avatar.jpg",
-                    false
+                    false,
+                    true,
+                    now
             );
 
             // then
@@ -47,12 +50,15 @@ class ChatRoomSummaryTest {
             assertThat(summary.type()).isEqualTo(ChatRoom.ChatRoomType.DIRECT);
             assertThat(summary.createdAt()).isEqualTo(now);
             assertThat(summary.lastMessage()).isEqualTo("마지막 메시지");
+            assertThat(summary.lastMessageType()).isEqualTo("TEXT");
             assertThat(summary.lastMessageAt()).isEqualTo(now);
             assertThat(summary.unreadCount()).isEqualTo(5);
             assertThat(summary.otherUserId()).isEqualTo(2L);
             assertThat(summary.otherUserNickname()).isEqualTo("상대방");
             assertThat(summary.otherUserAvatarUrl()).isEqualTo("https://example.com/avatar.jpg");
             assertThat(summary.isOtherUserLeft()).isFalse();
+            assertThat(summary.isOtherUserOnline()).isTrue();
+            assertThat(summary.otherUserLastActiveAt()).isEqualTo(now);
         }
 
         @Test
@@ -68,12 +74,15 @@ class ChatRoomSummaryTest {
                     ChatRoom.ChatRoomType.GROUP,
                     now,
                     "안녕하세요",
+                    "TEXT",
                     now,
                     10,
                     null,
                     null,
                     null,
-                    false
+                    false,
+                    false,
+                    null
             );
 
             // then
@@ -101,11 +110,14 @@ class ChatRoomSummaryTest {
                     now,
                     null,
                     null,
+                    null,
                     0,
                     4L,
                     "새친구",
                     null,
-                    false
+                    false,
+                    false,
+                    null
             );
 
             // then
@@ -127,12 +139,15 @@ class ChatRoomSummaryTest {
                     ChatRoom.ChatRoomType.DIRECT,
                     now,
                     "OOO님이 나갔습니다",
+                    "SYSTEM",
                     now,
                     0,
                     null,
                     null,
                     null,
-                    true
+                    true,
+                    false,
+                    null
             );
 
             // then
@@ -154,11 +169,11 @@ class ChatRoomSummaryTest {
 
             ChatRoomSummary summary1 = new ChatRoomSummary(
                     1L, "채팅방", ChatRoom.ChatRoomType.DIRECT, now,
-                    "메시지", now, 0, 2L, "닉네임", null, false
+                    "메시지", "TEXT", now, 0, 2L, "닉네임", null, false, false, null
             );
             ChatRoomSummary summary2 = new ChatRoomSummary(
                     1L, "채팅방", ChatRoom.ChatRoomType.DIRECT, now,
-                    "메시지", now, 0, 2L, "닉네임", null, false
+                    "메시지", "TEXT", now, 0, 2L, "닉네임", null, false, false, null
             );
 
             // then
@@ -174,11 +189,11 @@ class ChatRoomSummaryTest {
 
             ChatRoomSummary summary1 = new ChatRoomSummary(
                     1L, "채팅방1", ChatRoom.ChatRoomType.DIRECT, now,
-                    "메시지", now, 0, 2L, "닉네임", null, false
+                    "메시지", "TEXT", now, 0, 2L, "닉네임", null, false, false, null
             );
             ChatRoomSummary summary2 = new ChatRoomSummary(
                     2L, "채팅방2", ChatRoom.ChatRoomType.GROUP, now,
-                    "메시지", now, 5, null, null, null, false
+                    "메시지", "TEXT", now, 5, null, null, null, false, false, null
             );
 
             // then
@@ -191,7 +206,7 @@ class ChatRoomSummaryTest {
             // given
             ChatRoomSummary summary = new ChatRoomSummary(
                     1L, "테스트 채팅방", ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
-                    null, null, 0, 2L, "테스터", null, false
+                    null, null, null, 0, 2L, "테스터", null, false, false, null
             );
 
             // when
