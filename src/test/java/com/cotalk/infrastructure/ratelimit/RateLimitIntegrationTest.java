@@ -52,24 +52,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class RateLimitIntegrationTest {
 
     /**
-     * CI 환경 여부를 확인한다.
-     *
-     * @return CI 환경이면 true
-     */
-    static boolean isCI() {
-        return System.getenv("CI") != null;
-    }
-
-    /**
      * Docker 사용 가능 여부를 확인한다.
-     * CI 환경에서는 GitHub Actions services를 사용하므로 항상 true.
      *
-     * @return Docker가 사용 가능하거나 CI 환경이면 true
+     * @return Docker가 사용 가능하면 true
      */
     static boolean isDockerAvailable() {
-        if (isCI()) {
-            return true; // CI에서는 GitHub Actions services 사용
-        }
         try {
             DockerClientFactory.instance().client();
             return true;
@@ -81,26 +68,17 @@ class RateLimitIntegrationTest {
     private static final Logger log = LoggerFactory.getLogger(RateLimitIntegrationTest.class);
 
     @Container
-    static GenericContainer<?> redis = isCI() ? null :
-            new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-                    .withExposedPorts(6379);
+    static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+            .withExposedPorts(6379);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         // Rate Limit 활성화
         registry.add("app.rate-limit.enabled", () -> "true");
 
-        if (isCI()) {
-            // CI 환경: GitHub Actions services Redis 사용
-            String redisHost = System.getenv().getOrDefault("SPRING_DATA_REDIS_HOST", "localhost");
-            String redisPort = System.getenv().getOrDefault("SPRING_DATA_REDIS_PORT", "6379");
-            registry.add("spring.data.redis.host", () -> redisHost);
-            registry.add("spring.data.redis.port", () -> redisPort);
-        } else {
-            // 로컬 환경: Testcontainers Redis 사용
-            registry.add("spring.data.redis.host", redis::getHost);
-            registry.add("spring.data.redis.port", redis::getFirstMappedPort);
-        }
+        // Testcontainers Redis 설정
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
     }
 
     @Autowired

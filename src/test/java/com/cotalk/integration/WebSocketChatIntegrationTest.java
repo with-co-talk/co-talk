@@ -54,31 +54,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("WebSocket Chat Integration")
 class WebSocketChatIntegrationTest {
 
-    /**
-     * CI 환경 여부를 확인한다.
-     */
-    static boolean isCI() {
-        return System.getenv("CI") != null;
-    }
-
     @Container
-    static final GenericContainer<?> redis = isCI() ? null :
-            new GenericContainer<>(DockerImageName.parse("redis:7.2-alpine"))
-                    .withExposedPorts(6379);
+    static final GenericContainer<?> redis = new GenericContainer<>(
+            DockerImageName.parse("redis:7.2-alpine")
+    ).withExposedPorts(6379);
 
     @DynamicPropertySource
     static void redisProps(DynamicPropertyRegistry registry) {
-        if (isCI()) {
-            // CI 환경: GitHub Actions services Redis 사용
-            String redisHost = System.getenv().getOrDefault("SPRING_DATA_REDIS_HOST", "localhost");
-            String redisPort = System.getenv().getOrDefault("SPRING_DATA_REDIS_PORT", "6379");
-            registry.add("spring.data.redis.host", () -> redisHost);
-            registry.add("spring.data.redis.port", () -> redisPort);
-        } else {
-            // 로컬 환경: Testcontainers Redis 사용
-            registry.add("spring.data.redis.host", redis::getHost);
-            registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
-        }
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
     }
 
     @LocalServerPort
