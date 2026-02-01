@@ -32,6 +32,9 @@ jwt:
 firebase:
   enabled: false
 
+minio:
+  enabled: false
+
 # Snowflake ID 생성기 설정 (Redis 미사용)
 snowflake:
   use-redis-allocation: false
