@@ -76,9 +76,13 @@ class RateLimitIntegrationTest {
         // Rate Limit 활성화
         registry.add("app.rate-limit.enabled", () -> "true");
 
-        // Testcontainers Redis 설정
+        // Testcontainers Redis 설정 (Spring Data Redis)
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+
+        // Redisson 설정 (single server mode)
+        registry.add("spring.redis.host", redis::getHost);
+        registry.add("spring.redis.port", redis::getFirstMappedPort);
     }
 
     @Autowired

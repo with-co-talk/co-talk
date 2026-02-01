@@ -61,8 +61,13 @@ class WebSocketChatIntegrationTest {
 
     @DynamicPropertySource
     static void redisProps(DynamicPropertyRegistry registry) {
+        // Spring Data Redis 설정
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
+
+        // Redisson 설정 (single server mode)
+        registry.add("spring.redis.host", redis::getHost);
+        registry.add("spring.redis.port", () -> redis.getMappedPort(6379));
     }
 
     @LocalServerPort
