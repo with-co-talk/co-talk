@@ -20,6 +20,18 @@ jobs:
       contents: read
       packages: write
 
+    # 통합 테스트용 서비스 컨테이너
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,6 +46,12 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Run tests
+        env:
+          # Testcontainers 대신 GitHub Actions Redis 사용
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: 6379
+          # Testcontainers 비활성화 (CI에서는 services 사용)
+          TESTCONTAINERS_RYUK_DISABLED: true
         run: ./gradlew test
 
       - name: Set up Docker Buildx
