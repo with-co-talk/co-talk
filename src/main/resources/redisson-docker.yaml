@@ -1,4 +1,4 @@
 singleServerConfig:
-  address: "redis://${REDIS_HOST:redis}:${REDIS_PORT:6379}"
+  address: "redis://redis:6379"
   connectionMinimumIdleSize: 1
   connectionPoolSize: 10
