@@ -33,6 +33,14 @@ jwt:
 firebase:
   enabled: false
 
+minio:
+  enabled: false
+
+snowflake:
+  use-redis-allocation: false
+  datacenter-id: 0
+  worker-id: 0
+
 app:
   rate-limit:
     enabled: true
