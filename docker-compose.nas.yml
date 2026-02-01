@@ -134,6 +134,9 @@ services:
       - WATCHTOWER_INCLUDE_STOPPED=false
       - WATCHTOWER_LABEL_ENABLE=false
       - WATCHTOWER_SCOPE=cotalk
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr
+      - WATCHTOWER_NOTIFICATION_URL=${WATCHTOWER_NOTIFICATION_URL:-}
+      - WATCHTOWER_NOTIFICATION_REPORT=true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${HOME}/.docker/config.json:/config.json:ro
