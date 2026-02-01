@@ -111,11 +111,6 @@ services:
       - minio-data:/data
     networks:
       - cotalk-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
     deploy:
       resources:
         limits:
