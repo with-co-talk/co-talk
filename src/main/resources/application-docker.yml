@@ -2,6 +2,8 @@
 # 기본 설정(application.yml)을 상속받고, Docker 환경에 맞게 오버라이드
 
 spring:
+  redisson:
+    file: classpath:redisson-docker.yaml
   datasource:
     url: ${DB_URL:jdbc:postgresql://postgres:5432/cotalk}
     username: ${DB_USERNAME:cotalk}
@@ -11,6 +13,7 @@ spring:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
 
   jpa:
     hibernate:
