@@ -50,11 +50,11 @@
         </rollingPolicy>
     </appender>
 
-    <!-- Loki 직접 전송 (Docker 환경) -->
-    <springProfile name="docker">
+    <!-- Loki 직접 전송 (모니터링 스택 사용 시만 활성화) -->
+    <springProfile name="docker-monitoring">
         <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
             <http>
-                <url>http://loki:3100/loki/api/v1/push</url>
+                <url>${LOKI_URL:-http://loki:3100/loki/api/v1/push}</url>
             </http>
             <format>
                 <label>
@@ -79,6 +79,14 @@
     </springProfile>
 
     <springProfile name="docker">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+        <logger name="com.cotalk" level="INFO"/>
+    </springProfile>
+
+    <springProfile name="docker-monitoring">
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
             <appender-ref ref="FILE"/>

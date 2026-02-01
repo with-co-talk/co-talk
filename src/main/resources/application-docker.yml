@@ -27,14 +27,15 @@ minio:
   enabled: true
   endpoint: ${MINIO_ENDPOINT:http://minio:9000}
 
-# 분산 추적
+# 분산 추적 (모니터링 스택 미사용 시 비활성화)
 management:
   tracing:
+    enabled: ${TRACING_ENABLED:false}
     sampling:
       probability: 0.1
   zipkin:
     tracing:
-      endpoint: http://zipkin:9411/api/v2/spans
+      endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
 
 # 로깅 - 프로덕션 레벨
 logging:

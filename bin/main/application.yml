@@ -51,7 +51,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      password: ${REDIS_PASSWORD:#{null}}
       timeout: 2000ms
       lettuce:
         pool:
@@ -118,6 +118,9 @@ spring.mail:
 # 앱 설정
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  swagger:
+    server-url: ${SWAGGER_SERVER_URL:http://localhost:8080}
+    server-description: ${SWAGGER_SERVER_DESCRIPTION:Co-Talk API 서버}
   encryption:
     # AES-256 암호화 키 (32바이트, Base64 인코딩)
     # 프로덕션: 반드시 환경변수로 안전한 키 설정 필요

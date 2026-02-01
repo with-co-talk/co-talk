@@ -2,6 +2,10 @@
 # 기본 설정(application.yml)을 상속받고, Docker 환경에 맞게 오버라이드
 
 spring:
+  autoconfigure:
+    exclude:
+      # Redisson 자동 설정 제외 - DockerRedissonConfig에서 수동 설정
+      - org.redisson.spring.starter.RedissonAutoConfigurationV2
   datasource:
     url: ${DB_URL:jdbc:postgresql://postgres:5432/cotalk}
     username: ${DB_USERNAME:cotalk}
@@ -11,6 +15,7 @@ spring:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
+      password:
 
   jpa:
     hibernate:
@@ -22,14 +27,15 @@ minio:
   enabled: true
   endpoint: ${MINIO_ENDPOINT:http://minio:9000}
 
-# 분산 추적
+# 분산 추적 (모니터링 스택 미사용 시 비활성화)
 management:
   tracing:
+    enabled: ${TRACING_ENABLED:false}
     sampling:
       probability: 0.1
   zipkin:
     tracing:
-      endpoint: http://zipkin:9411/api/v2/spans
+      endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
 
 # 로깅 - 프로덕션 레벨
 logging:
