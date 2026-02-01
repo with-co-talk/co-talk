@@ -4,6 +4,7 @@ import com.cotalk.domain.entity.RefreshToken;
 import com.cotalk.domain.exception.InvalidRefreshTokenException;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.RefreshTokenRepository;
+import com.cotalk.infrastructure.config.properties.JwtProperties;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,11 +49,16 @@ class RefreshTokenServiceTest {
 
     @BeforeEach
     void setUp() {
+        JwtProperties jwtProperties = new JwtProperties(
+                "test-secret",
+                3600000L,
+                new JwtProperties.RefreshToken(REFRESH_TOKEN_EXPIRATION_DAYS)
+        );
         refreshTokenService = new RefreshTokenService(
                 refreshTokenRepository,
                 jwtTokenProvider,
                 idGenerator,
-                REFRESH_TOKEN_EXPIRATION_DAYS
+                jwtProperties
         );
     }
 

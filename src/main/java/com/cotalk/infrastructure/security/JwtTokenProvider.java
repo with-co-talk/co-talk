@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.security;
 
+import com.cotalk.infrastructure.config.properties.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -8,7 +9,6 @@ import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -42,16 +42,13 @@ public class JwtTokenProvider {
     /**
      * JwtTokenProvider 생성자.
      *
-     * @param secret JWT 서명에 사용할 비밀키 문자열 (최소 32자 필요)
-     * @param expiration 토큰 만료 시간 (밀리초)
+     * @param jwtProperties JWT 설정 프로퍼티
      * @throws IllegalArgumentException 시크릿 키가 누락되거나 길이가 부족한 경우
      */
-    public JwtTokenProvider(
-            @Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration}") long expiration) {
-        validateSecret(secret);
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.expiration = expiration;
+    public JwtTokenProvider(JwtProperties jwtProperties) {
+        validateSecret(jwtProperties.secret());
+        this.secretKey = Keys.hmacShaKeyFor(jwtProperties.secret().getBytes(StandardCharsets.UTF_8));
+        this.expiration = jwtProperties.expiration();
         log.info("JWT 토큰 제공자 초기화 완료 - 만료 시간: {}ms", expiration);
     }
 

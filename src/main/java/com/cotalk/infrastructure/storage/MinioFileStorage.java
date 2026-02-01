@@ -3,9 +3,9 @@ package com.cotalk.infrastructure.storage;
 import com.cotalk.domain.exception.FileStorageException;
 import com.cotalk.domain.exception.FileUploadException;
 import com.cotalk.domain.port.outbound.FileStorage;
+import com.cotalk.infrastructure.config.properties.MinioProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -45,20 +45,18 @@ public class MinioFileStorage implements FileStorage {
     /**
      * MinioFileStorage를 생성한다.
      *
-     * @param s3Client    S3 클라이언트
-     * @param s3Presigner S3 Pre-signed URL 생성기
-     * @param bucketName  사용할 버킷 이름
-     * @param publicUrl   공개 URL 기본 경로 (선택사항)
+     * @param s3Client        S3 클라이언트
+     * @param s3Presigner     S3 Pre-signed URL 생성기
+     * @param minioProperties MinIO 설정 프로퍼티
      */
     public MinioFileStorage(
             S3Client s3Client,
             S3Presigner s3Presigner,
-            @Value("${minio.bucket}") String bucketName,
-            @Value("${minio.public-url:}") String publicUrl) {
+            MinioProperties minioProperties) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
-        this.bucketName = bucketName;
-        this.publicUrl = publicUrl;
+        this.bucketName = minioProperties.bucket();
+        this.publicUrl = minioProperties.publicUrl();
 
         ensureBucketExists();
     }

@@ -5,9 +5,9 @@ import com.cotalk.domain.entity.TermsAgreement.TermsType;
 import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.port.inbound.auth.AgreeToTermsUseCase;
 import com.cotalk.domain.port.outbound.TermsAgreementRepository;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,12 +27,7 @@ import java.util.List;
 public class AgreeToTermsService implements AgreeToTermsUseCase {
 
     private final TermsAgreementRepository termsAgreementRepository;
-
-    @Value("${app.terms.service-version:1.0}")
-    private String serviceTermsVersion;
-
-    @Value("${app.terms.privacy-version:1.0}")
-    private String privacyTermsVersion;
+    private final AppProperties appProperties;
 
     /**
      * 약관에 동의한다.
@@ -133,8 +128,8 @@ public class AgreeToTermsService implements AgreeToTermsUseCase {
 
     private String getVersionForType(TermsType type) {
         return switch (type) {
-            case SERVICE -> serviceTermsVersion;
-            case PRIVACY -> privacyTermsVersion;
+            case SERVICE -> appProperties.terms().serviceVersion();
+            case PRIVACY -> appProperties.terms().privacyVersion();
             case MARKETING -> "1.0";
         };
     }

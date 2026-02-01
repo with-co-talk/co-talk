@@ -1,8 +1,9 @@
 package com.cotalk.infrastructure.config;
 
+import com.cotalk.infrastructure.config.properties.SnowflakeProperties;
 import com.cotalk.infrastructure.id.RedisWorkerIdAllocator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,23 +13,16 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * ID 생성기 설정 클래스.
  * Snowflake 알고리즘 기반의 분산 ID 생성기를 구성한다.
  *
- * <p>설정 프로퍼티:
- * <ul>
- *   <li>{@code snowflake.datacenter-id} - 데이터센터 ID (기본값: 0)</li>
- *   <li>{@code snowflake.use-redis-allocation} - Redis 기반 Worker ID 자동 할당 사용 여부 (기본값: false)</li>
- *   <li>{@code snowflake.worker-id} - 수동 워커 ID (Redis 미사용 시, 기본값: 0)</li>
- * </ul>
- *
  * <p>분산 환경에서는 {@code snowflake.use-redis-allocation=true}로 설정하여
  * Redis를 통한 자동 Worker ID 할당을 사용하는 것을 권장한다.
  *
  * @author seunggu.lee
  */
 @Configuration
+@RequiredArgsConstructor
 public class IdGeneratorConfig {
 
-    @Value("${snowflake.datacenter-id:0}")
-    private long datacenterId;
+    private final SnowflakeProperties snowflakeProperties;
 
     /**
      * Redis 기반 Worker ID 할당기를 생성한다.
@@ -40,7 +34,7 @@ public class IdGeneratorConfig {
     @Bean
     @ConditionalOnProperty(name = "snowflake.use-redis-allocation", havingValue = "true")
     public RedisWorkerIdAllocator redisWorkerIdAllocator(StringRedisTemplate redisTemplate) {
-        return new RedisWorkerIdAllocator(redisTemplate, datacenterId);
+        return new RedisWorkerIdAllocator(redisTemplate, snowflakeProperties.datacenterId());
     }
 
     /**
@@ -64,8 +58,7 @@ public class IdGeneratorConfig {
      */
     @Bean
     @ConditionalOnProperty(name = "snowflake.use-redis-allocation", havingValue = "false", matchIfMissing = true)
-    public SnowflakeIdGenerator snowflakeIdGeneratorManual(
-            @Value("${snowflake.worker-id:0}") long workerId) {
-        return new SnowflakeIdGenerator(datacenterId, workerId);
+    public SnowflakeIdGenerator snowflakeIdGeneratorManual() {
+        return new SnowflakeIdGenerator(snowflakeProperties.datacenterId(), snowflakeProperties.workerId());
     }
 }

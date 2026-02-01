@@ -1,11 +1,10 @@
 package com.cotalk.infrastructure.messaging;
 
 import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
@@ -22,15 +21,28 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = true)
 public class RedisUserEventSubscriber implements MessageListener {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+    private final String channelPrefix;
 
-    @Value("${app.redis.user-event-prefix:user:event:}")
-    private String channelPrefix;
+    /**
+     * RedisUserEventSubscriber 생성자.
+     *
+     * @param messagingTemplate WebSocket 메시지 전송용 템플릿
+     * @param objectMapper      JSON 역직렬화용 ObjectMapper
+     * @param appProperties     앱 설정 프로퍼티
+     */
+    public RedisUserEventSubscriber(
+            SimpMessagingTemplate messagingTemplate,
+            ObjectMapper objectMapper,
+            AppProperties appProperties) {
+        this.messagingTemplate = messagingTemplate;
+        this.objectMapper = objectMapper;
+        this.channelPrefix = appProperties.redis().userEventPrefix();
+    }
 
     /**
      * Redis로부터 사용자 이벤트를 수신하여 처리한다.

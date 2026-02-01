@@ -1,8 +1,10 @@
 package com.cotalk.infrastructure.storage;
 
+import com.cotalk.infrastructure.config.properties.MinioProperties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
@@ -19,11 +21,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(classes = MinioConfig.class)
 @ActiveProfiles("test")
+@EnableConfigurationProperties(MinioProperties.class)
 @TestPropertySource(properties = {
         "minio.enabled=true",
         "minio.endpoint=http://localhost:9000",
         "minio.access-key=minioadmin",
         "minio.secret-key=minioadmin",
+        "minio.bucket=test-bucket",
         "minio.region=us-east-1"
 })
 @DisplayName("MinioConfig")

@@ -1,6 +1,6 @@
 package com.cotalk.infrastructure.crypto;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
@@ -36,13 +36,11 @@ public class EncryptionService {
     /**
      * EncryptionService 생성자.
      *
-     * @param encryptionKey Base64로 인코딩된 32바이트 AES 키
-     * @param enabled 암호화 활성화 여부
+     * @param appProperties 앱 설정 프로퍼티
      */
-    public EncryptionService(
-            @Value("${app.encryption.key}") String encryptionKey,
-            @Value("${app.encryption.enabled:true}") boolean enabled) {
-        this.enabled = enabled;
+    public EncryptionService(AppProperties appProperties) {
+        this.enabled = appProperties.encryption().enabled();
+        String encryptionKey = appProperties.encryption().key();
         byte[] keyBytes = Base64.getDecoder().decode(encryptionKey);
         if (keyBytes.length != 32) {
             throw new IllegalArgumentException("암호화 키는 32바이트(256비트)여야 합니다.");

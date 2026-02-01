@@ -3,7 +3,7 @@ package com.cotalk.infrastructure.config;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -23,11 +23,16 @@ import org.springframework.context.annotation.Profile;
 @Profile("docker")
 public class DockerRedissonConfig {
 
-    @Value("${spring.data.redis.host:redis}")
-    private String redisHost;
+    private final RedisProperties redisProperties;
 
-    @Value("${spring.data.redis.port:6379}")
-    private int redisPort;
+    /**
+     * DockerRedissonConfig 생성자.
+     *
+     * @param redisProperties Spring Data Redis 설정 프로퍼티
+     */
+    public DockerRedissonConfig(RedisProperties redisProperties) {
+        this.redisProperties = redisProperties;
+    }
 
     /**
      * Docker 환경용 RedissonClient 빈을 생성한다.
@@ -37,9 +42,12 @@ public class DockerRedissonConfig {
      */
     @Bean(destroyMethod = "shutdown")
     public RedissonClient redissonClient() {
+        String host = redisProperties.getHost();
+        int port = redisProperties.getPort();
+
         Config config = new Config();
         config.useSingleServer()
-                .setAddress("redis://" + redisHost + ":" + redisPort)
+                .setAddress("redis://" + host + ":" + port)
                 .setConnectionMinimumIdleSize(1)
                 .setConnectionPoolSize(10)
                 .setConnectTimeout(10000)

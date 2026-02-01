@@ -1,6 +1,6 @@
 package com.cotalk.infrastructure.websocket;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -36,9 +36,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     public WebSocketConfig(
             WebSocketAuthInterceptor webSocketAuthInterceptor,
-            @Value("${app.cors.allowed-origins:http://localhost:3000}") String allowedOriginsConfig) {
+            AppProperties appProperties) {
         this.webSocketAuthInterceptor = webSocketAuthInterceptor;
-        this.allowedOrigins = allowedOriginsConfig.split(",");
+        this.allowedOrigins = appProperties.cors().allowedOrigins().split(",");
     }
 
     /**

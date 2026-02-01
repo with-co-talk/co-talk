@@ -3,7 +3,7 @@ package com.cotalk.domain.service;
 import com.cotalk.domain.exception.FileUploadException;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase;
 import com.cotalk.domain.port.outbound.FileStorage;
-import org.springframework.beans.factory.annotation.Value;
+import com.cotalk.infrastructure.config.properties.FileUploadProperties;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedInputStream;
@@ -68,14 +68,12 @@ public class UploadFileService implements UploadFileUseCase {
     /**
      * UploadFileService 생성자.
      *
-     * @param fileStorage 파일 저장소 인터페이스
-     * @param maxFileSize 최대 파일 크기 (바이트 단위, 기본값: 10MB)
+     * @param fileStorage          파일 저장소 인터페이스
+     * @param fileUploadProperties 파일 업로드 설정 프로퍼티
      */
-    public UploadFileService(
-            FileStorage fileStorage,
-            @Value("${file.upload.max-size:10485760}") long maxFileSize) {
+    public UploadFileService(FileStorage fileStorage, FileUploadProperties fileUploadProperties) {
         this.fileStorage = fileStorage;
-        this.maxFileSize = maxFileSize;
+        this.maxFileSize = fileUploadProperties.maxSize();
     }
 
     /**

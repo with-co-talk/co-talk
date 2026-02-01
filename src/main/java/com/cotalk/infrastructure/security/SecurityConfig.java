@@ -1,6 +1,6 @@
 package com.cotalk.infrastructure.security;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -50,9 +50,9 @@ public class SecurityConfig {
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
-            @Value("${app.cors.allowed-origins:http://localhost:3000}") String allowedOriginsConfig) {
+            AppProperties appProperties) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.allowedOrigins = allowedOriginsConfig.split(",");
+        this.allowedOrigins = appProperties.cors().allowedOrigins().split(",");
     }
 
     /**

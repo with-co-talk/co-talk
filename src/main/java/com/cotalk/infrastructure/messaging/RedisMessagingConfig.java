@@ -1,10 +1,11 @@
 package com.cotalk.infrastructure.messaging;
 
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,14 +25,11 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
  */
 @Slf4j
 @Configuration
+@RequiredArgsConstructor
 @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = true)
 public class RedisMessagingConfig {
 
-    @Value("${app.redis.channel-prefix:chat:room:}")
-    private String channelPrefix;
-
-    @Value("${app.redis.user-event-prefix:user:event:}")
-    private String userEventPrefix;
+    private final AppProperties appProperties;
 
     /**
      * Redis 문자열 직렬화를 위한 RedisTemplate을 생성한다.
@@ -69,12 +67,12 @@ public class RedisMessagingConfig {
         container.setConnectionFactory(connectionFactory);
         
         // 모든 채팅방 채널 패턴 구독 (예: chat:room:*)
-        String chatChannelPattern = channelPrefix + "*";
+        String chatChannelPattern = appProperties.redis().channelPrefix() + "*";
         container.addMessageListener(chatMessageSubscriber, new PatternTopic(chatChannelPattern));
         log.info("Redis Pub/Sub listener registered for pattern: {}", chatChannelPattern);
-        
+
         // 모든 사용자 이벤트 채널 패턴 구독 (예: user:event:*:*)
-        String userEventChannelPattern = userEventPrefix + "*:*";
+        String userEventChannelPattern = appProperties.redis().userEventPrefix() + "*:*";
         container.addMessageListener(userEventSubscriber, new PatternTopic(userEventChannelPattern));
         log.info("Redis Pub/Sub listener registered for pattern: {}", userEventChannelPattern);
         

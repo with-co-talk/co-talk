@@ -1,6 +1,7 @@
 package com.cotalk.infrastructure.storage;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.cotalk.infrastructure.config.properties.MinioProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,32 +19,15 @@ import java.net.URI;
  *
  * <p>MinIO가 활성화되었을 때({@code minio.enabled=true}) 자동으로 활성화된다.
  *
- * <p>필요한 설정 프로퍼티:
- * <ul>
- *   <li>{@code minio.endpoint} - MinIO 서버 엔드포인트 URL</li>
- *   <li>{@code minio.access-key} - 접근 키</li>
- *   <li>{@code minio.secret-key} - 비밀 키</li>
- *   <li>{@code minio.region} - 리전 (기본값: us-east-1)</li>
- * </ul>
- *
  * @author seunggu.lee
  * @see MinioFileStorage
  */
 @Configuration
+@RequiredArgsConstructor
 @ConditionalOnProperty(name = "minio.enabled", havingValue = "true", matchIfMissing = false)
 public class MinioConfig {
 
-    @Value("${minio.endpoint}")
-    private String endpoint;
-
-    @Value("${minio.access-key}")
-    private String accessKey;
-
-    @Value("${minio.secret-key}")
-    private String secretKey;
-
-    @Value("${minio.region:us-east-1}")
-    private String region;
+    private final MinioProperties minioProperties;
 
     /**
      * MinIO와 통신하기 위한 S3Client 빈을 생성한다.
@@ -55,10 +39,10 @@ public class MinioConfig {
     @Bean
     public S3Client s3Client() {
         return S3Client.builder()
-                .endpointOverride(URI.create(endpoint))
-                .region(Region.of(region))
+                .endpointOverride(URI.create(minioProperties.endpoint()))
+                .region(Region.of(minioProperties.region()))
                 .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(accessKey, secretKey)
+                        AwsBasicCredentials.create(minioProperties.accessKey(), minioProperties.secretKey())
                 ))
                 .forcePathStyle(true) // MinIO requires path-style access
                 .build();
@@ -72,10 +56,10 @@ public class MinioConfig {
     @Bean
     public S3Presigner s3Presigner() {
         return S3Presigner.builder()
-                .endpointOverride(URI.create(endpoint))
-                .region(Region.of(region))
+                .endpointOverride(URI.create(minioProperties.endpoint()))
+                .region(Region.of(minioProperties.region()))
                 .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(accessKey, secretKey)
+                        AwsBasicCredentials.create(minioProperties.accessKey(), minioProperties.secretKey())
                 ))
                 .build();
     }

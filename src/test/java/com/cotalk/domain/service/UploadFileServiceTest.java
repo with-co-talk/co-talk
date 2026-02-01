@@ -1,10 +1,10 @@
 package com.cotalk.domain.service;
 
 import com.cotalk.domain.exception.FileUploadException;
-import com.cotalk.domain.port.inbound.file.UploadFileUseCase;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadCommand;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase.FileUploadResult;
 import com.cotalk.domain.port.outbound.FileStorage;
+import com.cotalk.infrastructure.config.properties.FileUploadProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -33,7 +33,8 @@ class UploadFileServiceTest {
     @BeforeEach
     void setUp() {
         // 최대 파일 크기: 10MB, 허용 타입: 이미지, PDF
-        uploadFileService = new UploadFileService(fileStorage, 10 * 1024 * 1024L);
+        FileUploadProperties fileUploadProperties = new FileUploadProperties(10 * 1024 * 1024L);
+        uploadFileService = new UploadFileService(fileStorage, fileUploadProperties);
     }
 
     @Nested

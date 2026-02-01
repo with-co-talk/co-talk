@@ -2,6 +2,7 @@ package com.cotalk.infrastructure.messaging;
 
 import com.cotalk.domain.exception.MessageBrokerException;
 import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -14,7 +15,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 
@@ -33,13 +33,26 @@ class RedisUserEventBrokerTest {
 
     private ObjectMapper objectMapper;
     private RedisUserEventBroker broker;
+    private AppProperties appProperties;
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
-        broker = new RedisUserEventBroker(redisTemplate, objectMapper);
-        ReflectionTestUtils.setField(broker, "channelPrefix", "user:event:");
+        appProperties = createTestAppProperties();
+        broker = new RedisUserEventBroker(redisTemplate, objectMapper, appProperties);
+    }
+
+    private AppProperties createTestAppProperties() {
+        return new AppProperties(
+                "http://localhost:3000",
+                new AppProperties.Cors("http://localhost:3000"),
+                new AppProperties.Redis("chat:room:", "user:event:"),
+                new AppProperties.PasswordReset(30),
+                new AppProperties.Terms("1.0", "1.0"),
+                new AppProperties.Encryption("", true),
+                new AppProperties.Swagger("http://localhost:8080", "API 서버")
+        );
     }
 
     @Nested
@@ -97,8 +110,7 @@ class RedisUserEventBrokerTest {
             ObjectMapper failingMapper = mock(ObjectMapper.class);
             when(failingMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("Test") {});
 
-            RedisUserEventBroker failingBroker = new RedisUserEventBroker(redisTemplate, failingMapper);
-            ReflectionTestUtils.setField(failingBroker, "channelPrefix", "user:event:");
+            RedisUserEventBroker failingBroker = new RedisUserEventBroker(redisTemplate, failingMapper, appProperties);
 
             // when & then
             assertThatThrownBy(() -> failingBroker.publishChatListUpdate(userId, event))
@@ -154,8 +166,7 @@ class RedisUserEventBrokerTest {
             ObjectMapper failingMapper = mock(ObjectMapper.class);
             when(failingMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("Test") {});
 
-            RedisUserEventBroker failingBroker = new RedisUserEventBroker(redisTemplate, failingMapper);
-            ReflectionTestUtils.setField(failingBroker, "channelPrefix", "user:event:");
+            RedisUserEventBroker failingBroker = new RedisUserEventBroker(redisTemplate, failingMapper, appProperties);
 
             // when & then
             assertThatThrownBy(() -> failingBroker.publishReadReceipt(userId, event))

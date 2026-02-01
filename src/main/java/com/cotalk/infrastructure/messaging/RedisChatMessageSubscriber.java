@@ -3,11 +3,10 @@ package com.cotalk.infrastructure.messaging;
 import com.cotalk.adapter.inbound.websocket.dto.ReactionBroadcastMessage;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
 import com.cotalk.domain.util.HtmlSanitizer;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
@@ -28,21 +27,22 @@ import java.time.ZoneId;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = true)
 public class RedisChatMessageSubscriber implements MessageListener {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+    private final String channelPrefix;
     private static final String ROOM_TOPIC_PREFIX = "/topic/chat/room/";
 
-    /**
-     * Redis 채널 prefix.
-     * <p>
-     * 단위 테스트(스프링 컨텍스트 없음)에서도 안전하게 동작하도록 기본값을 코드 레벨로 보장한다.
-     */
-    @Value("${app.redis.channel-prefix:chat:room:}")
-    private String channelPrefix = "chat:room:";
+    public RedisChatMessageSubscriber(
+            SimpMessagingTemplate messagingTemplate,
+            ObjectMapper objectMapper,
+            AppProperties appProperties) {
+        this.messagingTemplate = messagingTemplate;
+        this.objectMapper = objectMapper;
+        this.channelPrefix = appProperties.redis().channelPrefix();
+    }
 
     /**
      * Redis로부터 메시지를 수신하여 처리한다.

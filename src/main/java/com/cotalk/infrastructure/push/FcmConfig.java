@@ -1,11 +1,12 @@
 package com.cotalk.infrastructure.push;
 
+import com.cotalk.infrastructure.config.properties.FirebaseProperties;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
@@ -21,24 +22,15 @@ import java.io.InputStream;
  * <p>사용하려면 서비스 계정 키 파일이 resources 디렉토리에 필요하다.
  * 기본 경로는 {@code firebase-service-account.json}이며 설정으로 변경 가능하다.
  *
- * <p>필요한 설정 프로퍼티:
- * <ul>
- *   <li>{@code firebase.enabled} - FCM 활성화 여부 (기본값: false)</li>
- *   <li>{@code firebase.credentials-path} - 서비스 계정 키 파일 경로 (기본값: firebase-service-account.json)</li>
- * </ul>
- *
  * @author seunggu.lee
  * @see FcmPushNotificationSender
  */
 @Slf4j
 @Configuration
+@RequiredArgsConstructor
 public class FcmConfig {
 
-    @Value("${firebase.enabled:false}")
-    private boolean firebaseEnabled;
-
-    @Value("${firebase.credentials-path:firebase-service-account.json}")
-    private String credentialsPath;
+    private final FirebaseProperties firebaseProperties;
 
     /**
      * Firebase 애플리케이션을 초기화한다.
@@ -48,17 +40,18 @@ public class FcmConfig {
      */
     @PostConstruct
     public void initialize() {
-        if (!firebaseEnabled) {
+        if (!firebaseProperties.enabled()) {
             log.info("Firebase is disabled. Push notifications will be mocked.");
             return;
         }
 
         try {
             if (FirebaseApp.getApps().isEmpty()) {
-                ClassPathResource resource = new ClassPathResource(credentialsPath);
+                ClassPathResource resource = new ClassPathResource(firebaseProperties.credentialsPath());
 
                 if (!resource.exists()) {
-                    log.warn("Firebase credentials file not found: {}. Push notifications will be disabled.", credentialsPath);
+                    log.warn("Firebase credentials file not found: {}. Push notifications will be disabled.",
+                            firebaseProperties.credentialsPath());
                     return;
                 }
 
@@ -85,7 +78,7 @@ public class FcmConfig {
      */
     @Bean
     public FirebaseMessaging firebaseMessaging() {
-        if (!firebaseEnabled || FirebaseApp.getApps().isEmpty()) {
+        if (!firebaseProperties.enabled() || FirebaseApp.getApps().isEmpty()) {
             return null;
         }
         return FirebaseMessaging.getInstance();

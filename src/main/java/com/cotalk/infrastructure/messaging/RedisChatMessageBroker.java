@@ -2,11 +2,10 @@ package com.cotalk.infrastructure.messaging;
 
 import com.cotalk.domain.exception.MessageBrokerException;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
@@ -24,15 +23,28 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = true)
 public class RedisChatMessageBroker implements ChatMessageBroker {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
-    
-    @Value("${app.redis.channel-prefix:chat:room:}")
-    private String channelPrefix;
+    private final String channelPrefix;
+
+    /**
+     * RedisChatMessageBroker 생성자.
+     *
+     * @param redisTemplate Redis 템플릿
+     * @param objectMapper  JSON 직렬화용 ObjectMapper
+     * @param appProperties 앱 설정 프로퍼티
+     */
+    public RedisChatMessageBroker(
+            RedisTemplate<String, String> redisTemplate,
+            ObjectMapper objectMapper,
+            AppProperties appProperties) {
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.channelPrefix = appProperties.redis().channelPrefix();
+    }
 
     /**
      * 지정된 채팅방에 메시지를 발행한다.

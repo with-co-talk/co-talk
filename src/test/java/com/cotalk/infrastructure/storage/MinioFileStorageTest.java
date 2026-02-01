@@ -2,6 +2,7 @@ package com.cotalk.infrastructure.storage;
 
 import com.cotalk.domain.exception.FileStorageException;
 import com.cotalk.domain.exception.FileUploadException;
+import com.cotalk.infrastructure.config.properties.MinioProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,7 +52,20 @@ class MinioFileStorageTest {
         given(s3Client.headBucket(any(HeadBucketRequest.class)))
                 .willReturn(HeadBucketResponse.builder().build());
 
-        fileStorage = new MinioFileStorage(s3Client, s3Presigner, BUCKET_NAME, PUBLIC_URL);
+        MinioProperties minioProperties = createMinioProperties(BUCKET_NAME, PUBLIC_URL);
+        fileStorage = new MinioFileStorage(s3Client, s3Presigner, minioProperties);
+    }
+
+    private MinioProperties createMinioProperties(String bucket, String publicUrl) {
+        return new MinioProperties(
+                true,
+                "http://localhost:9000",
+                "access-key",
+                "secret-key",
+                bucket,
+                publicUrl,
+                "us-east-1"
+        );
     }
 
     @Test
@@ -67,7 +81,8 @@ class MinioFileStorageTest {
                 .willReturn(CreateBucketResponse.builder().build());
 
         // when
-        new MinioFileStorage(newS3Client, newPresigner, BUCKET_NAME, PUBLIC_URL);
+        MinioProperties minioProperties = createMinioProperties(BUCKET_NAME, PUBLIC_URL);
+        new MinioFileStorage(newS3Client, newPresigner, minioProperties);
 
         // then
         verify(newS3Client).createBucket(any(CreateBucketRequest.class));
@@ -99,8 +114,9 @@ class MinioFileStorageTest {
         given(s3Client.headBucket(any(HeadBucketRequest.class)))
                 .willReturn(HeadBucketResponse.builder().build());
 
+        MinioProperties minioPropertiesNoPublicUrl = createMinioProperties(BUCKET_NAME, "");
         MinioFileStorage storageWithoutPublicUrl = new MinioFileStorage(
-                s3Client, s3Presigner, BUCKET_NAME, "");
+                s3Client, s3Presigner, minioPropertiesNoPublicUrl);
 
         String content = "test content";
         InputStream inputStream = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));

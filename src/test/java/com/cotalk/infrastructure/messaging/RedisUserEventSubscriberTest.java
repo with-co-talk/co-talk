@@ -1,6 +1,7 @@
 package com.cotalk.infrastructure.messaging;
 
 import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,7 +14,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -36,8 +36,20 @@ class RedisUserEventSubscriberTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
-        subscriber = new RedisUserEventSubscriber(messagingTemplate, objectMapper);
-        ReflectionTestUtils.setField(subscriber, "channelPrefix", "user:event:");
+        AppProperties appProperties = createTestAppProperties();
+        subscriber = new RedisUserEventSubscriber(messagingTemplate, objectMapper, appProperties);
+    }
+
+    private AppProperties createTestAppProperties() {
+        return new AppProperties(
+                "http://localhost:3000",
+                new AppProperties.Cors("http://localhost:3000"),
+                new AppProperties.Redis("chat:room:", "user:event:"),
+                new AppProperties.PasswordReset(30),
+                new AppProperties.Terms("1.0", "1.0"),
+                new AppProperties.Encryption("", true),
+                new AppProperties.Swagger("http://localhost:8080", "API 서버")
+        );
     }
 
     private Message createRedisMessage(String body, String channel) {

@@ -2,6 +2,7 @@ package com.cotalk.infrastructure.messaging;
 
 import com.cotalk.domain.exception.MessageBrokerException;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -14,7 +15,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,13 +36,26 @@ class RedisChatMessageBrokerTest {
 
     private ObjectMapper objectMapper;
     private RedisChatMessageBroker broker;
+    private AppProperties appProperties;
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
-        broker = new RedisChatMessageBroker(redisTemplate, objectMapper);
-        ReflectionTestUtils.setField(broker, "channelPrefix", "chat:room:");
+        appProperties = createTestAppProperties();
+        broker = new RedisChatMessageBroker(redisTemplate, objectMapper, appProperties);
+    }
+
+    private AppProperties createTestAppProperties() {
+        return new AppProperties(
+                "http://localhost:3000",
+                new AppProperties.Cors("http://localhost:3000"),
+                new AppProperties.Redis("chat:room:", "user:event:"),
+                new AppProperties.PasswordReset(30),
+                new AppProperties.Terms("1.0", "1.0"),
+                new AppProperties.Encryption("", true),
+                new AppProperties.Swagger("http://localhost:8080", "API 서버")
+        );
     }
 
     @Nested
@@ -122,8 +135,7 @@ class RedisChatMessageBrokerTest {
         void should_throwException_when_serializationFails() throws Exception {
             // given
             ObjectMapper mockMapper = mock(ObjectMapper.class);
-            RedisChatMessageBroker brokerWithMockMapper = new RedisChatMessageBroker(redisTemplate, mockMapper);
-            ReflectionTestUtils.setField(brokerWithMockMapper, "channelPrefix", "chat:room:");
+            RedisChatMessageBroker brokerWithMockMapper = new RedisChatMessageBroker(redisTemplate, mockMapper, appProperties);
 
             Long roomId = 1L;
             ChatBroadcastMessage message = new ChatBroadcastMessage(
@@ -170,8 +182,7 @@ class RedisChatMessageBrokerTest {
         void should_throwException_when_reactionSerializationFails() throws Exception {
             // given
             ObjectMapper mockMapper = mock(ObjectMapper.class);
-            RedisChatMessageBroker brokerWithMockMapper = new RedisChatMessageBroker(redisTemplate, mockMapper);
-            ReflectionTestUtils.setField(brokerWithMockMapper, "channelPrefix", "chat:room:");
+            RedisChatMessageBroker brokerWithMockMapper = new RedisChatMessageBroker(redisTemplate, mockMapper, appProperties);
 
             Long roomId = 1L;
             Object reactionEvent = new TestReactionEvent(100L, 1L, "LIKE");

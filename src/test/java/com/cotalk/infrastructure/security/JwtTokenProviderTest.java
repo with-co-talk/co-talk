@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.security;
 
+import com.cotalk.infrastructure.config.properties.JwtProperties;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,7 +24,12 @@ class JwtTokenProviderTest {
 
     @BeforeEach
     void setUp() {
-        jwtTokenProvider = new JwtTokenProvider(SECRET, EXPIRATION);
+        JwtProperties jwtProperties = new JwtProperties(SECRET, EXPIRATION, new JwtProperties.RefreshToken(7));
+        jwtTokenProvider = new JwtTokenProvider(jwtProperties);
+    }
+
+    private JwtProperties createJwtProperties(String secret, long expiration) {
+        return new JwtProperties(secret, expiration, new JwtProperties.RefreshToken(7));
     }
 
     @Nested
@@ -259,7 +265,7 @@ class JwtTokenProviderTest {
         @DisplayName("만료된 토큰은 false를 반환한다")
         void should_returnFalse_when_expiredToken() {
             // given - 이미 만료된 토큰 생성
-            JwtTokenProvider shortLivedProvider = new JwtTokenProvider(SECRET, 1); // 1ms 만료
+            JwtTokenProvider shortLivedProvider = new JwtTokenProvider(createJwtProperties(SECRET, 1)); // 1ms 만료
             String token = shortLivedProvider.generateToken(1L);
 
             // 만료되도록 대기
@@ -298,7 +304,7 @@ class JwtTokenProviderTest {
         @DisplayName("만료된 토큰은 만료됨으로 판단")
         void should_returnTrue_when_tokenExpired() {
             // given - 이미 만료된 토큰 생성
-            JwtTokenProvider shortLivedProvider = new JwtTokenProvider(SECRET, 1); // 1ms 만료
+            JwtTokenProvider shortLivedProvider = new JwtTokenProvider(createJwtProperties(SECRET, 1)); // 1ms 만료
             String token = shortLivedProvider.generateToken(1L);
 
             // 만료되도록 대기

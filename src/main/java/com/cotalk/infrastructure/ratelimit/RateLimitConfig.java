@@ -6,8 +6,8 @@ import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -26,17 +26,16 @@ import java.time.Duration;
 @ConditionalOnProperty(name = "app.rate-limit.enabled", havingValue = "true", matchIfMissing = true)
 public class RateLimitConfig {
 
-    /** Redis 호스트 주소 */
-    @Value("${spring.data.redis.host:localhost}")
-    private String redisHost;
+    private final RedisProperties redisProperties;
 
-    /** Redis 포트 번호 */
-    @Value("${spring.data.redis.port:6379}")
-    private int redisPort;
-
-    /** Redis 비밀번호 */
-    @Value("${spring.data.redis.password:}")
-    private String redisPassword;
+    /**
+     * RateLimitConfig 생성자.
+     *
+     * @param redisProperties Spring Data Redis 설정 프로퍼티
+     */
+    public RateLimitConfig(RedisProperties redisProperties) {
+        this.redisProperties = redisProperties;
+    }
 
     /**
      * Bucket4j Redis ProxyManager를 생성한다.
@@ -46,11 +45,15 @@ public class RateLimitConfig {
      */
     @Bean
     public ProxyManager<byte[]> bucket4jProxyManager() {
+        String host = redisProperties.getHost();
+        int port = redisProperties.getPort();
+        String password = redisProperties.getPassword();
+
         RedisURI redisURI = RedisURI.builder()
-                .withHost(redisHost)
-                .withPort(redisPort)
-                .withPassword(redisPassword != null && !redisPassword.isEmpty() 
-                        ? redisPassword.toCharArray() 
+                .withHost(host)
+                .withPort(port)
+                .withPassword(password != null && !password.isEmpty()
+                        ? password.toCharArray()
                         : null)
                 .build();
 
@@ -60,7 +63,7 @@ public class RateLimitConfig {
                 .withExpirationStrategy(ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(Duration.ofSeconds(10)))
                 .build();
 
-        log.info("Bucket4j ProxyManager initialized with Redis: {}:{}", redisHost, redisPort);
+        log.info("Bucket4j ProxyManager initialized with Redis: {}:{}", host, port);
         return proxyManager;
     }
 }

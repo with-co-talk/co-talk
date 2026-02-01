@@ -17,10 +17,13 @@ import com.cotalk.domain.port.inbound.friend.HideFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.UnhideFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.GetHiddenFriendsUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.infrastructure.config.properties.AppProperties;
+import com.cotalk.infrastructure.config.properties.JwtProperties;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -36,9 +39,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest({AuthController.class, FriendController.class})
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenProvider.class, RateLimitTestConfiguration.class})
+@EnableConfigurationProperties({JwtProperties.class, AppProperties.class})
 @TestPropertySource(properties = {
         "jwt.secret=test-secret-key-for-testing-purposes-only-minimum-32-chars",
-        "jwt.expiration=3600000"
+        "jwt.expiration=3600000",
+        "app.cors.allowed-origins=http://localhost:3000"
 })
 class SecurityConfigTest {
 

@@ -2,11 +2,10 @@ package com.cotalk.infrastructure.messaging;
 
 import com.cotalk.domain.exception.MessageBrokerException;
 import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
@@ -19,15 +18,28 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = true)
 public class RedisUserEventBroker implements UserEventBroker {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final String channelPrefix;
 
-    @Value("${app.redis.user-event-prefix:user:event:}")
-    private String channelPrefix;
+    /**
+     * RedisUserEventBroker 생성자.
+     *
+     * @param redisTemplate Redis 템플릿
+     * @param objectMapper  JSON 직렬화용 ObjectMapper
+     * @param appProperties 앱 설정 프로퍼티
+     */
+    public RedisUserEventBroker(
+            RedisTemplate<String, String> redisTemplate,
+            ObjectMapper objectMapper,
+            AppProperties appProperties) {
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.channelPrefix = appProperties.redis().userEventPrefix();
+    }
 
     /**
      * 특정 사용자에게 채팅 목록 업데이트 이벤트를 발행한다.

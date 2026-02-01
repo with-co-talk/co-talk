@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.messaging;
 
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.cotalk.infrastructure.messaging.RedisChatMessageSubscriber.WebSocketChatMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -38,12 +39,26 @@ class RedisChatMessageSubscriberTest {
 
     private ObjectMapper objectMapper;
     private RedisChatMessageSubscriber subscriber;
+    private AppProperties appProperties;
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
-        subscriber = new RedisChatMessageSubscriber(messagingTemplate, objectMapper);
+        appProperties = createTestAppProperties();
+        subscriber = new RedisChatMessageSubscriber(messagingTemplate, objectMapper, appProperties);
+    }
+
+    private AppProperties createTestAppProperties() {
+        return new AppProperties(
+                "http://localhost:3000",
+                new AppProperties.Cors("http://localhost:3000"),
+                new AppProperties.Redis("chat:room:", "user:event:"),
+                new AppProperties.PasswordReset(30),
+                new AppProperties.Terms("1.0", "1.0"),
+                new AppProperties.Encryption("", true),
+                new AppProperties.Swagger("http://localhost:8080", "API 서버")
+        );
     }
 
     @Nested

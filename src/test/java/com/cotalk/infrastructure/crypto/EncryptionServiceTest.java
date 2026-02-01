@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.crypto;
 
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,20 @@ class EncryptionServiceTest {
 
     @BeforeEach
     void setUp() {
-        encryptionService = new EncryptionService(TEST_KEY, true);
+        AppProperties appProperties = createTestAppProperties(TEST_KEY, true);
+        encryptionService = new EncryptionService(appProperties);
+    }
+
+    private AppProperties createTestAppProperties(String encryptionKey, boolean enabled) {
+        return new AppProperties(
+                "http://localhost:3000",
+                new AppProperties.Cors("http://localhost:3000"),
+                new AppProperties.Redis("chat:room:", "user:event:"),
+                new AppProperties.PasswordReset(30),
+                new AppProperties.Terms("1.0", "1.0"),
+                new AppProperties.Encryption(encryptionKey, enabled),
+                new AppProperties.Swagger("http://localhost:8080", "API 서버")
+        );
     }
 
     @Test
@@ -95,9 +109,10 @@ class EncryptionServiceTest {
     void should_throwException_when_invalidKeyLength() {
         // given
         String shortKey = Base64.getEncoder().encodeToString("short".getBytes());
+        AppProperties appProperties = createTestAppProperties(shortKey, true);
 
         // when & then
-        assertThatThrownBy(() -> new EncryptionService(shortKey, true))
+        assertThatThrownBy(() -> new EncryptionService(appProperties))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("32바이트");
     }

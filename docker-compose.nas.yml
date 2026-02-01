@@ -24,6 +24,10 @@ services:
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      - SWAGGER_SERVER_URL=${SWAGGER_SERVER_URL:-http://localhost:8080}
+      - SWAGGER_SERVER_DESCRIPTION=${SWAGGER_SERVER_DESCRIPTION:-Co-Talk API 서버}
     depends_on:
       postgres:
         condition: service_healthy

@@ -11,6 +11,8 @@ import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.tags.Tag;
+import com.cotalk.infrastructure.config.properties.AppProperties;
+import lombok.RequiredArgsConstructor;
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,9 +34,12 @@ import java.util.List;
  * @author seunggu.lee
  */
 @Configuration
+@RequiredArgsConstructor
 public class OpenApiConfig {
 
     private static final String SECURITY_SCHEME_NAME = "bearerAuth";
+
+    private final AppProperties appProperties;
 
     /**
      * OpenAPI 기본 설정을 생성한다.
@@ -83,8 +88,9 @@ public class OpenApiConfig {
 
     private List<Server> createServers() {
         return List.of(
-                new Server().url("http://localhost:8080").description("로컬 개발 서버"),
-                new Server().url("https://api.cotalk.com").description("운영 서버")
+                new Server()
+                        .url(appProperties.swagger().serverUrl())
+                        .description(appProperties.swagger().serverDescription())
         );
     }
 

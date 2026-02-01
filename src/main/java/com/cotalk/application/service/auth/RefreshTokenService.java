@@ -5,9 +5,9 @@ import com.cotalk.domain.exception.InvalidRefreshTokenException;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.RefreshTokenRepository;
+import com.cotalk.infrastructure.config.properties.JwtProperties;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,17 +36,17 @@ public class RefreshTokenService implements RefreshTokenUseCase {
      * @param refreshTokenRepository Refresh Token 저장소
      * @param jwtTokenProvider JWT 토큰 제공자
      * @param idGenerator ID 생성기
-     * @param refreshTokenExpirationDays Refresh Token 만료 일수
+     * @param jwtProperties JWT 설정 프로퍼티
      */
     public RefreshTokenService(
             RefreshTokenRepository refreshTokenRepository,
             JwtTokenProvider jwtTokenProvider,
             IdGenerator idGenerator,
-            @Value("${jwt.refresh-token.expiration-days:7}") long refreshTokenExpirationDays) {
+            JwtProperties jwtProperties) {
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.idGenerator = idGenerator;
-        this.refreshTokenExpirationDays = refreshTokenExpirationDays;
+        this.refreshTokenExpirationDays = jwtProperties.refreshToken().expirationDays();
     }
 
     /**
