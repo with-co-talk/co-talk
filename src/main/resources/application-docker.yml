@@ -2,8 +2,10 @@
 # 기본 설정(application.yml)을 상속받고, Docker 환경에 맞게 오버라이드
 
 spring:
-  redisson:
-    file: classpath:redisson-docker.yaml
+  autoconfigure:
+    exclude:
+      # Redisson 자동 설정 제외 - DockerRedissonConfig에서 수동 설정
+      - org.redisson.spring.starter.RedissonAutoConfigurationV2
   datasource:
     url: ${DB_URL:jdbc:postgresql://postgres:5432/cotalk}
     username: ${DB_USERNAME:cotalk}
