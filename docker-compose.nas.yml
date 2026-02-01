@@ -1,0 +1,151 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # 애플리케이션
+  # ===========================================
+  app:
+    image: ghcr.io/${GITHUB_REPO}:latest
+    container_name: cotalk-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-18080}:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_URL=jdbc:postgresql://postgres:5432/cotalk
+      - DB_USERNAME=${DB_USERNAME:-cotalk}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - cotalk-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ===========================================
+  # 데이터베이스
+  # ===========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: cotalk-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-15432}:5432"
+    environment:
+      POSTGRES_DB: cotalk
+      POSTGRES_USER: ${DB_USERNAME:-cotalk}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - cotalk-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-cotalk} -d cotalk"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ===========================================
+  # 캐시 / 세션 스토어
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    container_name: cotalk-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-16379}:6379"
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - cotalk-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  # ===========================================
+  # 파일 저장소 (S3 호환)
+  # ===========================================
+  minio:
+    image: minio/minio:latest
+    container_name: cotalk-minio
+    restart: unless-stopped
+    ports:
+      - "${MINIO_API_PORT:-19000}:9000"
+      - "${MINIO_CONSOLE_PORT:-19001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - cotalk-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ===========================================
+  # 자동 업데이트 (Watchtower)
+  # ===========================================
+  watchtower:
+    image: containrrr/watchtower
+    container_name: cotalk-watchtower
+    restart: unless-stopped
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=300
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      - WATCHTOWER_LABEL_ENABLE=false
+      - WATCHTOWER_SCOPE=cotalk
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/.docker/config.json:/config.json:ro
+    command: --scope cotalk cotalk-app
+    networks:
+      - cotalk-network
+    labels:
+      - "com.centurylinklabs.watchtower.scope=cotalk"
+
+networks:
+  cotalk-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
