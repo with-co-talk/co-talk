@@ -47,6 +47,14 @@ public interface ChatRoomRepository {
     Optional<ChatRoom> findDirectChatRoomByUserIds(Long userId1, Long userId2);
 
     /**
+     * 사용자의 나와의 채팅방(SELF)을 조회한다.
+     *
+     * @param userId 사용자 ID
+     * @return 나와의 채팅방 (Optional)
+     */
+    Optional<ChatRoom> findSelfChatRoomByUserId(Long userId);
+
+    /**
      * 채팅방을 삭제한다.
      *
      * @param chatRoom 삭제할 채팅방

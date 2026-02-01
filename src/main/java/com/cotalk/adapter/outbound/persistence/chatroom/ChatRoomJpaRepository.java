@@ -36,4 +36,14 @@ public interface ChatRoomJpaRepository extends JpaRepository<ChatRoom, Long> {
            "(SELECT m1.chatRoomId FROM ChatRoomMember m1 WHERE m1.userId = :userId1) AND cr.id IN " +
            "(SELECT m2.chatRoomId FROM ChatRoomMember m2 WHERE m2.userId = :userId2)")
     Optional<ChatRoom> findDirectChatRoomByUserIds(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
+
+    /**
+     * 사용자의 나와의 채팅방(SELF)을 조회한다.
+     *
+     * @param userId 사용자 ID
+     * @return 나와의 채팅방 (Optional)
+     */
+    @Query("SELECT cr FROM ChatRoom cr WHERE cr.type = 'SELF' AND cr.id IN " +
+           "(SELECT m.chatRoomId FROM ChatRoomMember m WHERE m.userId = :userId)")
+    Optional<ChatRoom> findSelfChatRoomByUserId(@Param("userId") Long userId);
 }

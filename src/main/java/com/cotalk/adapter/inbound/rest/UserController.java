@@ -111,17 +111,17 @@ public class UserController {
      *
      * @param principal 인증된 사용자 정보
      * @param userId    수정할 사용자 ID
-     * @param request   프로필 수정 요청 정보 (닉네임, 아바타 URL)
+     * @param request   프로필 수정 요청 정보 (닉네임, 상태메시지, 아바타 URL)
      * @return 수정 완료 메시지
      */
-    @Operation(summary = "프로필 수정", description = "사용자 프로필(닉네임, 아바타)을 수정합니다.")
+    @Operation(summary = "프로필 수정", description = "사용자 프로필(닉네임, 상태메시지, 아바타)을 수정합니다.")
     @PutMapping("/{userId}/profile")
     public ResponseEntity<MessageResponse> updateProfile(
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long userId,
             @Valid @RequestBody UpdateProfileRequest request) {
         validateUserAccess(principal.getUserId(), userId);
-        updateProfileUseCase.updateProfile(userId, request.nickname(), request.avatarUrl());
+        updateProfileUseCase.updateProfile(userId, request.nickname(), request.statusMessage(), request.avatarUrl());
         return ResponseEntity.ok(MessageResponse.of("프로필이 수정되었습니다."));
     }
 

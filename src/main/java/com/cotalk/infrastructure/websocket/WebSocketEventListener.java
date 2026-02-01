@@ -44,6 +44,7 @@ public class WebSocketEventListener {
     /**
      * WebSocket 연결 이벤트를 처리한다.
      * 사용자를 온라인 상태로 변경한다.
+     * 사용자가 DB에 존재하지 않는 경우(삭제됨 등) 예외를 무시하고 로깅만 수행한다.
      *
      * @param event WebSocket 연결 이벤트
      */
@@ -59,6 +60,10 @@ public class WebSocketEventListener {
                 log.info("User connected via WebSocket: userId={}", userId);
             } catch (NumberFormatException e) {
                 log.warn("Invalid user ID in WebSocket connection: {}", userIdStr);
+            } catch (Exception e) {
+                // UserNotFoundException 등 - 토큰은 유효하지만 사용자가 DB에 없는 경우
+                // 클라이언트는 REST API 호출 시 401/404를 받아 로그아웃 처리됨
+                log.warn("Failed to set user online status: userId={}, error={}", userIdStr, e.getMessage());
             }
         }
     }
