@@ -272,9 +272,9 @@ class UserControllerTest {
             // given
             Long userId = 1L;
             UpdateProfileRequest request = new UpdateProfileRequest(
-                    "새닉네임", "https://example.com/avatar.png");
+                    "새닉네임", "새상태메시지", "https://example.com/avatar.png");
 
-            willDoNothing().given(updateProfileUseCase).updateProfile(anyLong(), anyString(), anyString());
+            willDoNothing().given(updateProfileUseCase).updateProfile(anyLong(), anyString(), anyString(), anyString());
 
             // when & then
             mockMvc.perform(put("/api/v1/users/{userId}/profile", userId)
@@ -291,9 +291,9 @@ class UserControllerTest {
             // given
             Long userId = 1L;
             UpdateProfileRequest request = new UpdateProfileRequest(
-                    "새닉네임", null);
+                    "새닉네임", null, null);
 
-            willDoNothing().given(updateProfileUseCase).updateProfile(anyLong(), anyString(), isNull());
+            willDoNothing().given(updateProfileUseCase).updateProfile(anyLong(), anyString(), isNull(), isNull());
 
             // when & then
             mockMvc.perform(put("/api/v1/users/{userId}/profile", userId)
@@ -308,10 +308,9 @@ class UserControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_returnForbidden_when_updateOtherUserProfile() throws Exception {
             // given
-            Long currentUserId = 1L;
             Long targetUserId = 2L;
             UpdateProfileRequest request = new UpdateProfileRequest(
-                    "새닉네임", "https://example.com/avatar.png");
+                    "새닉네임", "새상태메시지", "https://example.com/avatar.png");
 
             // when & then
             mockMvc.perform(put("/api/v1/users/{userId}/profile", targetUserId)
