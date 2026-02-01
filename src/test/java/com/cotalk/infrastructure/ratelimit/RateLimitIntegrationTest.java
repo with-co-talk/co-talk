@@ -76,16 +76,10 @@ class RateLimitIntegrationTest {
         // Rate Limit 활성화
         registry.add("app.rate-limit.enabled", () -> "true");
 
-        // Testcontainers Redis 설정 (Spring Data Redis)
+        // Testcontainers Redis 설정 (Spring Data Redis - Lettuce)
+        // Redisson은 application-ratelimit-test.yml에서 제외됨
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", redis::getFirstMappedPort);
-
-        // Redisson 설정 (single server mode) - YAML 직접 전달
-        registry.add("spring.redisson.config", () ->
-                "singleServerConfig:\n" +
-                "  address: \"redis://" + redis.getHost() + ":" + redis.getFirstMappedPort() + "\"\n" +
-                "  connectionMinimumIdleSize: 1\n" +
-                "  connectionPoolSize: 2");
     }
 
     @Autowired
