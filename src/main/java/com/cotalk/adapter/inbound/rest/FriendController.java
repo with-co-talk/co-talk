@@ -5,6 +5,8 @@ import com.cotalk.adapter.inbound.rest.dto.friend.FriendDto;
 import com.cotalk.adapter.inbound.rest.dto.friend.FriendListResponse;
 import com.cotalk.adapter.inbound.rest.dto.friend.FriendRequestDto;
 import com.cotalk.adapter.inbound.rest.dto.friend.FriendRequestListResponse;
+import com.cotalk.adapter.inbound.rest.dto.friend.HiddenFriendDto;
+import com.cotalk.adapter.inbound.rest.dto.friend.HiddenFriendsResponse;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestResponse;
 import com.cotalk.adapter.inbound.rest.dto.user.UserDto;
@@ -13,11 +15,14 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
+import com.cotalk.domain.port.inbound.friend.GetHiddenFriendsUseCase;
 import com.cotalk.domain.port.inbound.friend.GetReceivedFriendRequestsUseCase;
 import com.cotalk.domain.port.inbound.friend.GetSentFriendRequestsUseCase;
+import com.cotalk.domain.port.inbound.friend.HideFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
+import com.cotalk.domain.port.inbound.friend.UnhideFriendUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,6 +65,9 @@ public class FriendController {
     private final GetFriendListUseCase getFriendListUseCase;
     private final GetReceivedFriendRequestsUseCase getReceivedFriendRequestsUseCase;
     private final GetSentFriendRequestsUseCase getSentFriendRequestsUseCase;
+    private final HideFriendUseCase hideFriendUseCase;
+    private final UnhideFriendUseCase unhideFriendUseCase;
+    private final GetHiddenFriendsUseCase getHiddenFriendsUseCase;
     private final UserRepository userRepository;
 
     /**
@@ -260,6 +268,52 @@ public class FriendController {
                 .toList();
         
         return ResponseEntity.ok(FriendRequestListResponse.of(requestDtos));
+    }
+
+    /**
+     * 친구를 숨김 처리합니다.
+     *
+     * @param principal 인증된 사용자 정보
+     * @param friendId 숨길 친구의 사용자 ID
+     * @return 처리 결과
+     */
+    @Operation(summary = "친구 숨기기", description = "친구를 숨김 처리합니다. 숨긴 친구는 친구 목록에서 보이지 않습니다.")
+    @PostMapping("/{friendId}/hide")
+    public ResponseEntity<Void> hideFriend(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long friendId) {
+        hideFriendUseCase.hideFriend(principal.getUserId(), friendId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 숨긴 친구를 다시 표시합니다.
+     *
+     * @param principal 인증된 사용자 정보
+     * @param friendId 숨김 해제할 친구의 사용자 ID
+     * @return 처리 결과
+     */
+    @Operation(summary = "친구 숨김 해제", description = "숨긴 친구를 다시 표시합니다.")
+    @DeleteMapping("/{friendId}/hide")
+    public ResponseEntity<Void> unhideFriend(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long friendId) {
+        unhideFriendUseCase.unhideFriend(principal.getUserId(), friendId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 숨긴 친구 목록을 조회합니다.
+     *
+     * @param principal 인증된 사용자 정보
+     * @return 숨긴 친구 목록
+     */
+    @Operation(summary = "숨긴 친구 목록 조회", description = "사용자가 숨긴 친구 목록을 조회합니다.")
+    @GetMapping("/hidden")
+    public ResponseEntity<HiddenFriendsResponse> getHiddenFriends(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        List<HiddenFriendDto> hiddenFriends = getHiddenFriendsUseCase.getHiddenFriends(principal.getUserId());
+        return ResponseEntity.ok(HiddenFriendsResponse.of(hiddenFriends));
     }
 
 }
