@@ -28,6 +28,11 @@ services:
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       - SWAGGER_SERVER_URL=${SWAGGER_SERVER_URL:-http://localhost:8080}
       - SWAGGER_SERVER_DESCRIPTION=${SWAGGER_SERVER_DESCRIPTION:-Co-Talk API 서버}
+      # Mail 설정 (비밀번호 재설정용, 선택)
+      - MAIL_HOST=${MAIL_HOST:-}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy
