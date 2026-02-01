@@ -80,9 +80,12 @@ class RateLimitIntegrationTest {
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", redis::getFirstMappedPort);
 
-        // Redisson 설정 (single server mode)
-        registry.add("spring.redis.host", redis::getHost);
-        registry.add("spring.redis.port", redis::getFirstMappedPort);
+        // Redisson 설정 (single server mode) - YAML 직접 전달
+        registry.add("spring.redisson.config", () ->
+                "singleServerConfig:\n" +
+                "  address: \"redis://" + redis.getHost() + ":" + redis.getFirstMappedPort() + "\"\n" +
+                "  connectionMinimumIdleSize: 1\n" +
+                "  connectionPoolSize: 2");
     }
 
     @Autowired
