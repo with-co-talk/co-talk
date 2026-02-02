@@ -6,6 +6,13 @@ build/
 # Local tooling (oh-my-claudecode 등)
 .omc/
 
+# Build/IDE output (Gradle은 build/, IDE별 출력은 bin/ 등)
+bin/
+
+# 로컬 설정 (API 키·경로 등 포함 가능)
+.claude/settings.local.json
+**/settings.local.json
+
 # IDE
 .idea/
 *.iml
