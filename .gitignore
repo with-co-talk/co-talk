@@ -3,6 +3,9 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+# Local tooling (oh-my-claudecode 등)
+.omc/
+
 # IDE
 .idea/
 *.iml
