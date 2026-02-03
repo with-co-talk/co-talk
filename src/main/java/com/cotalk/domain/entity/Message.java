@@ -64,6 +64,19 @@ public class Message extends BaseEntity {
     @Column(name = "forwarded_from_message_id")
     private Long forwardedFromMessageId;
 
+    // 링크 미리보기 (텍스트 메시지에 URL 포함 시 비동기 수집)
+    @Column(name = "link_preview_url", length = 2048)
+    private String linkPreviewUrl;
+
+    @Column(name = "link_preview_title", length = 512)
+    private String linkPreviewTitle;
+
+    @Column(name = "link_preview_description", length = 1000)
+    private String linkPreviewDescription;
+
+    @Column(name = "link_preview_image_url", length = 2048)
+    private String linkPreviewImageUrl;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -185,6 +198,22 @@ public class Message extends BaseEntity {
      */
     public boolean isSystem() {
         return type == MessageType.SYSTEM;
+    }
+
+    /**
+     * 링크 미리보기 정보를 적용한다.
+     * 텍스트 메시지에 URL이 포함된 경우 비동기로 수집된 메타데이터를 저장할 때 사용한다.
+     *
+     * @param url         미리보기 대상 URL
+     * @param title       페이지 제목
+     * @param description 페이지 설명
+     * @param imageUrl    대표 이미지 URL
+     */
+    public void applyLinkPreview(String url, String title, String description, String imageUrl) {
+        this.linkPreviewUrl = url;
+        this.linkPreviewTitle = title;
+        this.linkPreviewDescription = description;
+        this.linkPreviewImageUrl = imageUrl;
     }
 
     /**
