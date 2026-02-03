@@ -35,10 +35,10 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD:-}
       # Firebase 설정 (푸시 알림)
       - FIREBASE_ENABLED=true
-      - FIREBASE_CREDENTIALS_PATH=/app/resources/firebase-service-account.json
+      - FIREBASE_CREDENTIALS_PATH=/tmp/firebase-service-account.json
     volumes:
-      # Firebase 서비스 계정 키 마운트
-      - ${HOME}/firebase-service-account.json:/app/resources/firebase-service-account.json:ro
+      # Firebase 서비스 계정 키 마운트 (컨테이너 /tmp에 마운트)
+      - ${HOME}/firebase-service-account.json:/tmp/firebase-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy
