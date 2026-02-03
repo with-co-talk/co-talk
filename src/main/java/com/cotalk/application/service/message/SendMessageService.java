@@ -40,6 +40,7 @@ public class SendMessageService implements SendMessageUseCase {
     private final SendPushNotificationUseCase sendPushNotificationUseCase;
     private final ChatRoomMemberValidator chatRoomMemberValidator;
     private final ChatRoomPresenceTracker chatRoomPresenceTracker;
+    private final MessageLinkPreviewService messageLinkPreviewService;
 
     /**
      * 텍스트 메시지를 전송한다.
@@ -86,6 +87,10 @@ public class SendMessageService implements SendMessageUseCase {
 
         // 푸시 알림 전송 (비동기)
         sendPushNotificationsToOtherMembers(chatRoomId, senderId, content);
+
+        // 링크 미리보기 수집 (비동기): 텍스트에 URL이 있으면 OG 메타 수집 후 메시지에 저장
+        messageLinkPreviewService.extractFirstUrl(sanitizedContent)
+                .ifPresent(url -> messageLinkPreviewService.fetchAndSaveLinkPreview(savedMessage.getId(), url));
 
         return savedMessage;
     }
