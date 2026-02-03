@@ -59,4 +59,17 @@ public class InMemoryUserEventBroker implements UserEventBroker {
         log.debug("Publishing online status to user {}: {}", userId, event);
         messagingTemplate.convertAndSend(destination, event);
     }
+
+    /**
+     * 특정 사용자에게 프로필 업데이트 이벤트를 발행한다.
+     *
+     * @param userId 대상 사용자 ID (프로필 변경을 알릴 사용자)
+     * @param event  프로필 업데이트 이벤트
+     */
+    @Override
+    public void publishProfileUpdate(Long userId, ProfileUpdateEvent event) {
+        String destination = "/topic/user/" + userId + "/profile-update";
+        log.debug("Publishing profile update to user {}: {}", userId, event);
+        messagingTemplate.convertAndSend(destination, event);
+    }
 }

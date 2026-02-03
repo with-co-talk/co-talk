@@ -82,6 +82,20 @@ public class RedisUserEventBroker implements UserEventBroker {
                 channel, event.userId(), event.isOnline());
     }
 
+    /**
+     * 특정 사용자에게 프로필 업데이트 이벤트를 발행한다.
+     *
+     * @param userId 대상 사용자 ID (프로필 변경을 알릴 사용자)
+     * @param event  프로필 업데이트 이벤트
+     */
+    @Override
+    public void publishProfileUpdate(Long userId, ProfileUpdateEvent event) {
+        String channel = channelPrefix + userId + ":profile-update";
+        publish(channel, event);
+        log.info("Published profile update to Redis channel {}: targetUserId={}, changedUserId={}",
+                channel, userId, event.userId());
+    }
+
     private void publish(String channel, Object event) {
         try {
             String json = objectMapper.writeValueAsString(event);
