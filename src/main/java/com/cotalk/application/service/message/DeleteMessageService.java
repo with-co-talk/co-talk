@@ -4,6 +4,7 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.exception.MessageAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.port.inbound.message.DeleteMessageUseCase;
+import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 메시지 삭제 유스케이스 구현체.
- * 메시지를 소프트 삭제한다.
+ * 메시지를 소프트 삭제하고 실시간으로 채팅방 참여자들에게 알린다.
  *
  * @author seunggu.lee
  */
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DeleteMessageService implements DeleteMessageUseCase {
 
     private final MessageRepository messageRepository;
+    private final ChatMessageBroker chatMessageBroker;
 
     /**
      * 메시지를 삭제한다.
@@ -58,5 +60,56 @@ public class DeleteMessageService implements DeleteMessageUseCase {
         messageRepository.save(message);
 
         log.info("Message deleted: messageId={}, userId={}", messageId, userId);
+
+        // 채팅방 참여자들에게 메시지 삭제 이벤트 브로드캐스트
+        publishMessageDeletedEvent(message.getChatRoomId(), messageId, userId);
     }
+
+    /**
+     * 메시지 삭제 이벤트를 채팅방에 브로드캐스트한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param messageId  삭제된 메시지 ID
+     * @param deletedBy  삭제한 사용자 ID
+     */
+    private void publishMessageDeletedEvent(Long chatRoomId, Long messageId, Long deletedBy) {
+        String eventId = "message-deleted:" + chatRoomId + ":" + messageId;
+
+        chatMessageBroker.publishRoomEvent(
+                chatRoomId,
+                new MessageDeletedEvent(
+                        1,
+                        eventId,
+                        "MESSAGE_DELETED",
+                        chatRoomId,
+                        messageId,
+                        deletedBy,
+                        System.currentTimeMillis()
+                )
+        );
+
+        log.debug("Message deleted event published: roomId={}, messageId={}", chatRoomId, messageId);
+    }
+
+    /**
+     * 메시지 삭제 이벤트 DTO.
+     * Redis Pub/Sub -> WebSocket 방 토픽(/topic/chat/room/{roomId})으로 전달되는 이벤트다.
+     *
+     * @param schemaVersion 스키마 버전
+     * @param eventId       이벤트 고유 ID (중복 체크용)
+     * @param eventType     이벤트 유형 (MESSAGE_DELETED)
+     * @param chatRoomId    채팅방 ID
+     * @param messageId     삭제된 메시지 ID
+     * @param deletedBy     삭제한 사용자 ID
+     * @param deletedAtMillis 삭제 시간 (밀리초)
+     */
+    private record MessageDeletedEvent(
+            Integer schemaVersion,
+            String eventId,
+            String eventType,
+            Long chatRoomId,
+            Long messageId,
+            Long deletedBy,
+            Long deletedAtMillis
+    ) {}
 }

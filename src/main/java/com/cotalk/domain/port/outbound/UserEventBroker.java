@@ -94,4 +94,34 @@ public interface UserEventBroker {
             boolean isOnline,
             LocalDateTime lastActiveAt
     ) {}
+
+    /**
+     * 특정 사용자에게 프로필 업데이트 이벤트를 발행한다.
+     *
+     * @param userId 대상 사용자 ID (프로필 변경을 알릴 사용자)
+     * @param event  프로필 업데이트 이벤트
+     */
+    void publishProfileUpdate(Long userId, ProfileUpdateEvent event);
+
+    /**
+     * 프로필 업데이트 이벤트.
+     * 사용자의 프로필(아바타, 배경, 상태메시지)이 변경되었을 때 발행된다.
+     *
+     * @param schemaVersion  스키마 버전
+     * @param eventId        이벤트 고유 ID (중복 체크용)
+     * @param userId         프로필이 변경된 사용자 ID
+     * @param avatarUrl      변경된 아바타 URL (null이면 삭제됨)
+     * @param backgroundUrl  변경된 배경 URL (null이면 삭제됨)
+     * @param statusMessage  변경된 상태 메시지 (null이면 삭제됨)
+     * @param updatedAt      업데이트 시간
+     */
+    record ProfileUpdateEvent(
+            Integer schemaVersion,
+            String eventId,
+            Long userId,
+            String avatarUrl,
+            String backgroundUrl,
+            String statusMessage,
+            LocalDateTime updatedAt
+    ) {}
 }

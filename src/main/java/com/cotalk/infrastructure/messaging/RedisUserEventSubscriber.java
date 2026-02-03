@@ -75,6 +75,8 @@ public class RedisUserEventSubscriber implements MessageListener {
                 handleChatListUpdate(userId, jsonMessage);
             } else if ("online-status".equals(eventType)) {
                 handleOnlineStatus(userId, jsonMessage);
+            } else if ("profile-update".equals(eventType)) {
+                handleProfileUpdate(userId, jsonMessage);
             } else {
                 log.warn("Unknown event type: {} from channel: {}", eventType, channel);
             }
@@ -150,6 +152,29 @@ public class RedisUserEventSubscriber implements MessageListener {
 
         } catch (JsonProcessingException e) {
             log.error("Failed to deserialize online status event", e);
+        }
+    }
+
+    /**
+     * 프로필 업데이트 이벤트를 처리한다.
+     *
+     * @param userId      대상 사용자 ID (프로필 변경을 알릴 사용자)
+     * @param jsonMessage JSON 메시지
+     */
+    private void handleProfileUpdate(Long userId, String jsonMessage) {
+        try {
+            UserEventBroker.ProfileUpdateEvent event = objectMapper.readValue(
+                    jsonMessage,
+                    UserEventBroker.ProfileUpdateEvent.class
+            );
+
+            String destination = "/topic/user/" + userId + "/profile-update";
+            messagingTemplate.convertAndSend(destination, event);
+            log.info("Broadcasted profile update to WebSocket: destination={}, changedUserId={}",
+                    destination, event.userId());
+
+        } catch (JsonProcessingException e) {
+            log.error("Failed to deserialize profile update event", e);
         }
     }
 }
