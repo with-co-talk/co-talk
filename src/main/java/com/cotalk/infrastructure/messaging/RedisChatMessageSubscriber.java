@@ -5,6 +5,7 @@ import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
 import com.cotalk.domain.util.HtmlSanitizer;
 import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -99,11 +100,22 @@ public class RedisChatMessageSubscriber implements MessageListener {
     }
 
     private void handleRoomEvent(Long roomId, String jsonMessage) throws JsonProcessingException {
-        ChatRoomEventMessage event = objectMapper.readValue(jsonMessage, ChatRoomEventMessage.class);
+        JsonNode root = objectMapper.readTree(jsonMessage);
+        String eventType = root.has("eventType") ? root.get("eventType").asText() : null;
+
         String destination = ROOM_TOPIC_PREFIX + roomId;
-        messagingTemplate.convertAndSend(destination, event);
-        log.debug("Broadcasted room event to WebSocket: destination={}, eventType={}",
-                destination, event.eventType());
+        if ("MESSAGE_DELETED".equals(eventType)) {
+            MessageDeletedEventMessage event =
+                    objectMapper.treeToValue(root, MessageDeletedEventMessage.class);
+            messagingTemplate.convertAndSend(destination, event);
+            log.debug("Broadcasted message deleted event to WebSocket: destination={}, messageId={}",
+                    destination, event.messageId());
+        } else {
+            ChatRoomEventMessage event = objectMapper.treeToValue(root, ChatRoomEventMessage.class);
+            messagingTemplate.convertAndSend(destination, event);
+            log.debug("Broadcasted room event to WebSocket: destination={}, eventType={}",
+                    destination, event.eventType());
+        }
     }
 
     /**
@@ -202,6 +214,27 @@ public class RedisChatMessageSubscriber implements MessageListener {
             Long userId,
             Long lastReadMessageId,
             LocalDateTime lastReadAt
+    ) {}
+
+    /**
+     * 메시지 삭제 이벤트 DTO.
+     * DeleteMessageService에서 발행하는 MESSAGE_DELETED 이벤트와 동일한 형식이다.
+     * 클라이언트가 실시간으로 삭제된 메시지를 반영할 수 있도록 messageId를 포함해 전달한다.
+     *
+     * @param eventType     이벤트 타입 (MESSAGE_DELETED)
+     * @param chatRoomId    채팅방 ID
+     * @param messageId     삭제된 메시지 ID
+     * @param deletedBy     삭제한 사용자 ID
+     * @param deletedAtMillis 삭제 시간 (밀리초)
+     */
+    public record MessageDeletedEventMessage(
+            Integer schemaVersion,
+            String eventId,
+            String eventType,
+            Long chatRoomId,
+            Long messageId,
+            Long deletedBy,
+            Long deletedAtMillis
     ) {}
 
     /**

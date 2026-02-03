@@ -59,6 +59,9 @@ dependencies {
     implementation(platform("software.amazon.awssdk:bom:2.25.16"))
     implementation("software.amazon.awssdk:s3")
 
+    // HTML Parsing (URL Preview)
+    implementation("org.jsoup:jsoup:1.17.2")
+
     // Rate Limiting (Bucket4j)
     implementation("com.bucket4j:bucket4j-redis:8.10.1")
     implementation("com.bucket4j:bucket4j-core:8.10.1")
