@@ -18,6 +18,10 @@ import java.time.LocalDateTime;
  * @param thumbnailUrl           썸네일 URL
  * @param replyToMessageId       답장 대상 메시지 ID
  * @param forwardedFromMessageId 전달 원본 메시지 ID
+ * @param linkPreviewUrl         링크 미리보기 URL (텍스트 메시지에 URL 포함 시 비동기 수집)
+ * @param linkPreviewTitle       링크 미리보기 제목
+ * @param linkPreviewDescription 링크 미리보기 설명
+ * @param linkPreviewImageUrl    링크 미리보기 이미지 URL
  * @author seunggu.lee
  */
 public record SendMessageResponse(
@@ -31,7 +35,11 @@ public record SendMessageResponse(
         String contentType,
         String thumbnailUrl,
         Long replyToMessageId,
-        Long forwardedFromMessageId
+        Long forwardedFromMessageId,
+        String linkPreviewUrl,
+        String linkPreviewTitle,
+        String linkPreviewDescription,
+        String linkPreviewImageUrl
 ) {
 
     /**
@@ -52,7 +60,11 @@ public record SendMessageResponse(
                 message.getFileContentType(),
                 message.getThumbnailUrl(),
                 message.getReplyToMessageId(),
-                message.getForwardedFromMessageId()
+                message.getForwardedFromMessageId(),
+                message.getLinkPreviewUrl(),
+                message.getLinkPreviewTitle(),
+                message.getLinkPreviewDescription(),
+                message.getLinkPreviewImageUrl()
         );
     }
 }

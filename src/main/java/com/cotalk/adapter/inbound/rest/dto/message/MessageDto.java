@@ -23,6 +23,10 @@ import java.time.LocalDateTime;
  * @param replyToMessageId       답장 대상 메시지 ID
  * @param forwardedFromMessageId 전달 원본 메시지 ID
  * @param unreadCount            읽지 않은 멤버 수
+ * @param linkPreviewUrl         링크 미리보기 URL
+ * @param linkPreviewTitle       링크 미리보기 제목
+ * @param linkPreviewDescription 링크 미리보기 설명
+ * @param linkPreviewImageUrl    링크 미리보기 이미지 URL
  * @author seunggu.lee
  */
 public record MessageDto(
@@ -40,7 +44,11 @@ public record MessageDto(
         String thumbnailUrl,
         Long replyToMessageId,
         Long forwardedFromMessageId,
-        Integer unreadCount
+        Integer unreadCount,
+        String linkPreviewUrl,
+        String linkPreviewTitle,
+        String linkPreviewDescription,
+        String linkPreviewImageUrl
 ) {
 
     /**
@@ -69,7 +77,11 @@ public record MessageDto(
                 message.getThumbnailUrl(),
                 message.getReplyToMessageId(),
                 message.getForwardedFromMessageId(),
-                unreadCount
+                unreadCount,
+                message.getLinkPreviewUrl(),
+                message.getLinkPreviewTitle(),
+                message.getLinkPreviewDescription(),
+                message.getLinkPreviewImageUrl()
         );
     }
 
