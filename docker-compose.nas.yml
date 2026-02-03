@@ -33,6 +33,12 @@ services:
       - MAIL_PORT=${MAIL_PORT:-587}
       - MAIL_USERNAME=${MAIL_USERNAME:-}
       - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      # Firebase 설정 (푸시 알림)
+      - FIREBASE_ENABLED=true
+      - FIREBASE_CREDENTIALS_PATH=/app/resources/firebase-service-account.json
+    volumes:
+      # Firebase 서비스 계정 키 마운트
+      - ${HOME}/firebase-service-account.json:/app/resources/firebase-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy

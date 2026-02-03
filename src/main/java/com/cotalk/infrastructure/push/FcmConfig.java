@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
@@ -47,9 +49,9 @@ public class FcmConfig {
 
         try {
             if (FirebaseApp.getApps().isEmpty()) {
-                ClassPathResource resource = new ClassPathResource(firebaseProperties.credentialsPath());
+                Resource resource = loadCredentialsResource();
 
-                if (!resource.exists()) {
+                if (resource == null || !resource.exists()) {
                     log.warn("Firebase credentials file not found: {}. Push notifications will be disabled.",
                             firebaseProperties.credentialsPath());
                     return;
@@ -62,11 +64,27 @@ public class FcmConfig {
                         .build();
 
                 FirebaseApp.initializeApp(options);
-                log.info("Firebase initialized successfully");
+                log.info("Firebase initialized successfully from: {}", firebaseProperties.credentialsPath());
             }
         } catch (IOException e) {
             log.error("Failed to initialize Firebase", e);
         }
+    }
+
+    /**
+     * Firebase 인증 파일을 로드한다.
+     * 절대 경로(/)로 시작하면 파일 시스템에서, 그렇지 않으면 classpath에서 로드한다.
+     *
+     * @return Resource 객체
+     */
+    private Resource loadCredentialsResource() {
+        String path = firebaseProperties.credentialsPath();
+        if (path.startsWith("/")) {
+            log.debug("Loading Firebase credentials from file system: {}", path);
+            return new FileSystemResource(path);
+        }
+        log.debug("Loading Firebase credentials from classpath: {}", path);
+        return new ClassPathResource(path);
     }
 
     /**
