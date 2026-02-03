@@ -4,7 +4,9 @@ import com.cotalk.domain.entity.ProfileHistory;
 import com.cotalk.domain.entity.ProfileHistoryType;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DomainException;
+import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.ProfileHistoryRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -40,6 +42,12 @@ class DeleteProfileHistoryServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private FriendRepository friendRepository;
+
+    @Mock
+    private UserEventBroker userEventBroker;
 
     @InjectMocks
     private DeleteProfileHistoryService deleteProfileHistoryService;
