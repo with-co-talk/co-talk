@@ -34,6 +34,10 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("com.h2database:h2") // 개발/테스트용
 
+    // Database Migration
+    implementation("org.flywaydb:flyway-core")
+    implementation("org.flywaydb:flyway-database-postgresql")
+
     // QueryDSL
     implementation("com.querydsl:querydsl-jpa:5.1.0:jakarta")
     annotationProcessor("com.querydsl:querydsl-apt:5.1.0:jakarta")

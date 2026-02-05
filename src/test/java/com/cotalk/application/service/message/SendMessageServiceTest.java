@@ -55,6 +55,9 @@ class SendMessageServiceTest {
     @Mock
     private ChatRoomPresenceTracker chatRoomPresenceTracker;
 
+    @Mock
+    private MessageLinkPreviewService messageLinkPreviewService;
+
     private ChatRoomMemberValidator chatRoomMemberValidator;
 
     private SendMessageService sendMessageService;
@@ -63,7 +66,7 @@ class SendMessageServiceTest {
     void setUp() {
         chatRoomMemberValidator = new ChatRoomMemberValidator(chatRoomMemberRepository);
         sendMessageService = new SendMessageService(
-                messageRepository, chatRoomMemberRepository, userRepository, idGenerator, sendPushNotificationUseCase, chatRoomMemberValidator, chatRoomPresenceTracker);
+                messageRepository, chatRoomMemberRepository, userRepository, idGenerator, sendPushNotificationUseCase, chatRoomMemberValidator, chatRoomPresenceTracker, messageLinkPreviewService);
 
         // Default mock behavior (lenient to avoid UnnecessaryStubbingException)
         lenient().when(chatRoomMemberRepository.updateLastReadMessageIdIfNewer(anyLong(), anyLong(), any(), anyLong()))

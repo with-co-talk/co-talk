@@ -414,8 +414,8 @@ class MessageDtoTest {
         void should_createResponse_when_usingFactoryMethod() {
             // given
             List<MessageDto> messages = List.of(
-                    new MessageDto(1L, 10L, "테스트유저", null, "Message 1", "TEXT", LocalDateTime.now(), null, null, null, null, null, null, null, 0),
-                    new MessageDto(2L, 10L, "테스트유저", null, "Message 2", "TEXT", LocalDateTime.now(), null, null, null, null, null, null, null, 0)
+                    new MessageDto(1L, 10L, "테스트유저", null, "Message 1", "TEXT", LocalDateTime.now(), null, null, null, null, null, null, null, 0, null, null, null, null),
+                    new MessageDto(2L, 10L, "테스트유저", null, "Message 2", "TEXT", LocalDateTime.now(), null, null, null, null, null, null, null, 0, null, null, null, null)
             );
 
             // when

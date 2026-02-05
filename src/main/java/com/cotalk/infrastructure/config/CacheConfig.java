@@ -6,16 +6,29 @@ import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 캐시 설정 클래스.
  * 애플리케이션의 캐시 매니저를 구성한다.
  *
+ * <p>운영 환경에서는 Redis 캐시를 사용하여 멀티 인스턴스 환경에서
+ * 캐시를 공유한다. 테스트 환경에서는 인메모리 캐시를 사용한다.</p>
+ *
  * <p>지원하는 캐시:
  * <ul>
- *   <li>{@link #USER_CACHE} - 사용자 정보 캐시</li>
- *   <li>{@link #CHAT_ROOM_CACHE} - 채팅방 정보 캐시</li>
- *   <li>{@link #STATISTICS_CACHE} - 통계 정보 캐시</li>
+ *   <li>{@link #USER_CACHE} - 사용자 정보 캐시 (TTL: 1시간)</li>
+ *   <li>{@link #CHAT_ROOM_CACHE} - 채팅방 정보 캐시 (TTL: 30분)</li>
+ *   <li>{@link #STATISTICS_CACHE} - 통계 정보 캐시 (TTL: 5분)</li>
  * </ul>
  *
  * @author seunggu.lee
@@ -40,27 +53,39 @@ public class CacheConfig {
     public static final String STATISTICS_CACHE = "statistics";
 
     /**
-     * 운영 환경용 캐시 매니저를 생성한다.
-     * ConcurrentMapCacheManager를 사용하여 인메모리 캐시를 제공한다.
+     * 운영 환경용 Redis 캐시 매니저를 생성한다.
+     * 멀티 인스턴스 환경에서 캐시를 공유하기 위해 Redis를 사용한다.
      *
-     * @return 캐시 매니저
+     * @param connectionFactory Redis 연결 팩토리
+     * @return Redis 기반 캐시 매니저
      */
     @Bean
     @Profile("!test")
-    public CacheManager cacheManager() {
-        ConcurrentMapCacheManager cacheManager = new ConcurrentMapCacheManager(
-                USER_CACHE,
-                CHAT_ROOM_CACHE,
-                STATISTICS_CACHE
-        );
-        return cacheManager;
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofHours(1))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair
+                        .fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair
+                        .fromSerializer(new GenericJackson2JsonRedisSerializer()))
+                .disableCachingNullValues();
+
+        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+        cacheConfigurations.put(USER_CACHE, defaultConfig.entryTtl(Duration.ofHours(1)));
+        cacheConfigurations.put(CHAT_ROOM_CACHE, defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put(STATISTICS_CACHE, defaultConfig.entryTtl(Duration.ofMinutes(5)));
+
+        return RedisCacheManager.builder(connectionFactory)
+                .cacheDefaults(defaultConfig)
+                .withInitialCacheConfigurations(cacheConfigurations)
+                .build();
     }
 
     /**
      * 테스트 환경용 캐시 매니저를 생성한다.
-     * 테스트 격리를 위해 별도의 캐시 매니저 인스턴스를 제공한다.
+     * 테스트 격리를 위해 인메모리 캐시를 사용한다.
      *
-     * @return 테스트용 캐시 매니저
+     * @return 테스트용 인메모리 캐시 매니저
      */
     @Bean
     @Profile("test")
