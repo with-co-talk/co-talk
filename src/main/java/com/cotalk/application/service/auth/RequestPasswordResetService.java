@@ -6,6 +6,7 @@ import com.cotalk.domain.port.outbound.EmailSender;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.config.properties.AppProperties;
+import com.cotalk.infrastructure.util.LogMaskingUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,7 +65,7 @@ public class RequestPasswordResetService implements RequestPasswordResetUseCase 
             String resetLink = frontendUrl + "/reset-password?token=" + token.getToken();
             emailSender.sendPasswordResetEmail(email, resetLink);
 
-            log.info("Password reset email sent to: {}", email);
+            log.info("Password reset email sent to: {}", LogMaskingUtil.maskEmail(email));
         });
     }
 }
