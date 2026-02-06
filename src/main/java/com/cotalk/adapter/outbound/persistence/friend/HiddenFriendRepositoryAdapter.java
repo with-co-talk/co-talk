@@ -86,4 +86,14 @@ public class HiddenFriendRepositoryAdapter implements HiddenFriendRepository {
     public void delete(HiddenFriend hiddenFriend) {
         hiddenFriendJpaRepository.delete(hiddenFriend);
     }
+
+    /**
+     * 사용자 ID로 모든 친구 숨김 정보를 삭제한다.
+     *
+     * @param userId 사용자 ID
+     */
+    @Override
+    public void deleteByUserId(Long userId) {
+        hiddenFriendJpaRepository.deleteByUserId(userId);
+    }
 }

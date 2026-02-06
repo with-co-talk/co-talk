@@ -62,4 +62,11 @@ public interface ReportJpaRepository extends JpaRepository<Report, Long> {
      * @return 신고 수
      */
     long countByStatus(Report.ReportStatus status);
+
+    /**
+     * 신고자 ID로 모든 신고를 삭제한다.
+     *
+     * @param reporterId 신고자 ID
+     */
+    void deleteByReporterId(Long reporterId);
 }

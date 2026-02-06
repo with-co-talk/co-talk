@@ -31,6 +31,8 @@ import static com.cotalk.infrastructure.config.CacheConfig.USER_CACHE;
 @Transactional
 public class AdminService implements AdminUseCase {
 
+    private static final int MAX_ADMIN_LIST_SIZE = 100;
+
     private final UserRepository userRepository;
     private final ReportRepository reportRepository;
     private final ChatRoomRepository chatRoomRepository;
@@ -50,6 +52,7 @@ public class AdminService implements AdminUseCase {
     /**
      * 전체 신고 목록을 조회한다.
      * 상태 필터가 제공되면 해당 상태의 신고만 조회한다.
+     * 메모리 보호를 위해 최대 {@value MAX_ADMIN_LIST_SIZE}건으로 제한한다.
      *
      * @param status 필터링할 신고 상태 (null이면 전체 조회)
      * @return 신고 목록
@@ -57,10 +60,13 @@ public class AdminService implements AdminUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<Report> getAllReports(Report.ReportStatus status) {
+        List<Report> reports;
         if (status == null) {
-            return reportRepository.findAll();
+            reports = reportRepository.findAll();
+        } else {
+            reports = reportRepository.findByStatus(status);
         }
-        return reportRepository.findByStatus(status);
+        return reports.stream().limit(MAX_ADMIN_LIST_SIZE).toList();
     }
 
     /**
@@ -85,13 +91,16 @@ public class AdminService implements AdminUseCase {
 
     /**
      * 전체 사용자 목록을 조회한다.
+     * 메모리 보호를 위해 최대 {@value MAX_ADMIN_LIST_SIZE}건으로 제한한다.
      *
      * @return 전체 사용자 목록
      */
     @Override
     @Transactional(readOnly = true)
     public List<User> getAllUsers() {
-        return userRepository.findAll();
+        return userRepository.findAll().stream()
+                .limit(MAX_ADMIN_LIST_SIZE)
+                .toList();
     }
 
     /**

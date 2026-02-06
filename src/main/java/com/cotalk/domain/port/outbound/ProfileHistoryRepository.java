@@ -73,4 +73,11 @@ public interface ProfileHistoryRepository {
      * @return 프로필 이력 수
      */
     long countByUserIdAndType(Long userId, ProfileHistoryType type);
+
+    /**
+     * 특정 사용자의 모든 프로필 이력을 삭제한다.
+     *
+     * @param userId 사용자 ID
+     */
+    void deleteByUserId(Long userId);
 }

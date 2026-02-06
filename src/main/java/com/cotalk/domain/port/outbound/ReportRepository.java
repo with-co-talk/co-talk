@@ -92,4 +92,11 @@ public interface ReportRepository {
      * @return 해당 상태의 신고 수
      */
     long countByStatus(Report.ReportStatus status);
+
+    /**
+     * 특정 신고자가 제출한 모든 신고를 삭제한다.
+     *
+     * @param reporterId 신고자 ID
+     */
+    void deleteByReporterId(Long reporterId);
 }

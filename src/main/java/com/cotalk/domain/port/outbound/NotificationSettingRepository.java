@@ -27,4 +27,11 @@ public interface NotificationSettingRepository {
      * @return 조회된 알림 설정 (Optional)
      */
     Optional<NotificationSetting> findByUserId(Long userId);
+
+    /**
+     * 특정 사용자의 알림 설정을 삭제한다.
+     *
+     * @param userId 사용자 ID
+     */
+    void deleteByUserId(Long userId);
 }

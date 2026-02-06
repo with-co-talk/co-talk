@@ -28,8 +28,13 @@ public class SearchUserService implements SearchUserUseCase {
      * @param nickname 검색할 닉네임 (부분 일치)
      * @return 검색된 사용자 목록
      */
+    private static final int MAX_SEARCH_RESULTS = 50;
+
     @Override
     public List<User> searchByNickname(String nickname) {
-        return userRepository.findByNicknameContaining(nickname);
+        return userRepository.findByNicknameContaining(nickname)
+                .stream()
+                .limit(MAX_SEARCH_RESULTS)
+                .toList();
     }
 }

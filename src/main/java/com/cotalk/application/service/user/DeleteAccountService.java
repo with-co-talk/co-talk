@@ -5,6 +5,7 @@ import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.user.DeleteAccountUseCase;
 import com.cotalk.domain.port.outbound.*;
+import com.cotalk.infrastructure.util.LogMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,6 +30,13 @@ public class DeleteAccountService implements DeleteAccountUseCase {
     private final FriendRequestRepository friendRequestRepository;
     private final DeviceTokenRepository deviceTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final BlockRepository blockRepository;
+    private final ReportRepository reportRepository;
+    private final HiddenFriendRepository hiddenFriendRepository;
+    private final NotificationSettingRepository notificationSettingRepository;
+    private final TermsAgreementRepository termsAgreementRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final ProfileHistoryRepository profileHistoryRepository;
     private final PasswordEncoder passwordEncoder;
 
     /**
@@ -51,7 +59,7 @@ public class DeleteAccountService implements DeleteAccountUseCase {
         }
 
         deleteUserData(userId, user);
-        log.info("Account deleted: userId={}, email={}", userId, user.getEmail());
+        log.info("Account deleted: userId={}, email={}", userId, LogMaskingUtil.maskEmail(user.getEmail()));
     }
 
     /**
@@ -67,7 +75,7 @@ public class DeleteAccountService implements DeleteAccountUseCase {
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
         deleteUserData(userId, user);
-        log.info("Account deleted by admin: userId={}, email={}", userId, user.getEmail());
+        log.info("Account deleted by admin: userId={}, email={}", userId, LogMaskingUtil.maskEmail(user.getEmail()));
     }
 
     private void deleteUserData(Long userId, User user) {
@@ -77,6 +85,13 @@ public class DeleteAccountService implements DeleteAccountUseCase {
         friendRequestRepository.deleteByUserId(userId);
         deviceTokenRepository.deleteByUserId(userId);
         passwordResetTokenRepository.deleteByUserId(userId);
+        blockRepository.deleteByBlockerId(userId);
+        reportRepository.deleteByReporterId(userId);
+        hiddenFriendRepository.deleteByUserId(userId);
+        notificationSettingRepository.deleteByUserId(userId);
+        termsAgreementRepository.deleteByUserId(userId);
+        refreshTokenRepository.revokeAllByUserId(userId);
+        profileHistoryRepository.deleteByUserId(userId);
 
         // 사용자 삭제
         userRepository.delete(user);

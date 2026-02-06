@@ -21,4 +21,11 @@ public interface ProfileHistoryJpaRepository extends JpaRepository<ProfileHistor
     Optional<ProfileHistory> findByUserIdAndTypeAndIsCurrentTrue(Long userId, ProfileHistoryType type);
 
     long countByUserIdAndType(Long userId, ProfileHistoryType type);
+
+    /**
+     * 사용자 ID로 모든 프로필 이력을 삭제한다.
+     *
+     * @param userId 사용자 ID
+     */
+    void deleteByUserId(Long userId);
 }

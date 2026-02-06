@@ -39,4 +39,11 @@ public interface HiddenFriendJpaRepository extends JpaRepository<HiddenFriend, L
      * @return 친구 숨김 관계 존재 여부
      */
     boolean existsByUserIdAndFriendId(Long userId, Long friendId);
+
+    /**
+     * 사용자 ID로 모든 친구 숨김 정보를 삭제한다.
+     *
+     * @param userId 사용자 ID
+     */
+    void deleteByUserId(Long userId);
 }

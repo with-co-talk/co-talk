@@ -61,4 +61,11 @@ public interface BlockRepository {
      * @param block 삭제할 차단 정보
      */
     void delete(Block block);
+
+    /**
+     * 특정 사용자가 차단한 모든 차단 정보를 삭제한다.
+     *
+     * @param userId 차단한 사용자 ID
+     */
+    void deleteByBlockerId(Long userId);
 }

@@ -39,4 +39,11 @@ public interface BlockJpaRepository extends JpaRepository<Block, Long> {
      * @return 차단 관계 존재 여부
      */
     boolean existsByBlockerIdAndBlockedId(Long blockerId, Long blockedId);
+
+    /**
+     * 차단자 ID로 모든 차단 정보를 삭제한다.
+     *
+     * @param blockerId 차단자 ID
+     */
+    void deleteByBlockerId(Long blockerId);
 }

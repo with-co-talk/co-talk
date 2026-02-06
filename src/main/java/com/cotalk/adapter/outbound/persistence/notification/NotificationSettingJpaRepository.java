@@ -20,4 +20,11 @@ public interface NotificationSettingJpaRepository extends JpaRepository<Notifica
      * @return 알림 설정 (Optional)
      */
     Optional<NotificationSetting> findByUserId(Long userId);
+
+    /**
+     * 사용자 ID로 알림 설정을 삭제한다.
+     *
+     * @param userId 사용자 ID
+     */
+    void deleteByUserId(Long userId);
 }

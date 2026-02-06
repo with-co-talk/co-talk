@@ -129,4 +129,14 @@ public class ReportRepositoryAdapter implements ReportRepository {
     public long countByStatus(Report.ReportStatus status) {
         return reportJpaRepository.countByStatus(status);
     }
+
+    /**
+     * 신고자 ID로 모든 신고를 삭제한다.
+     *
+     * @param reporterId 신고자 ID
+     */
+    @Override
+    public void deleteByReporterId(Long reporterId) {
+        reportJpaRepository.deleteByReporterId(reporterId);
+    }
 }

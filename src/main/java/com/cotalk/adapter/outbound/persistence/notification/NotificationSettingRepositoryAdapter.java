@@ -40,4 +40,14 @@ public class NotificationSettingRepositoryAdapter implements NotificationSetting
     public Optional<NotificationSetting> findByUserId(Long userId) {
         return notificationSettingJpaRepository.findByUserId(userId);
     }
+
+    /**
+     * 사용자 ID로 알림 설정을 삭제한다.
+     *
+     * @param userId 사용자 ID
+     */
+    @Override
+    public void deleteByUserId(Long userId) {
+        notificationSettingJpaRepository.deleteByUserId(userId);
+    }
 }

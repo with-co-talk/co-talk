@@ -55,4 +55,14 @@ public class ProfileHistoryRepositoryAdapter implements ProfileHistoryRepository
     public long countByUserIdAndType(Long userId, ProfileHistoryType type) {
         return jpaRepository.countByUserIdAndType(userId, type);
     }
+
+    /**
+     * 사용자 ID로 모든 프로필 이력을 삭제한다.
+     *
+     * @param userId 사용자 ID
+     */
+    @Override
+    public void deleteByUserId(Long userId) {
+        jpaRepository.deleteByUserId(userId);
+    }
 }

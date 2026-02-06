@@ -61,4 +61,11 @@ public interface HiddenFriendRepository {
      * @param hiddenFriend 삭제할 친구 숨김 정보
      */
     void delete(HiddenFriend hiddenFriend);
+
+    /**
+     * 특정 사용자의 모든 친구 숨김 정보를 삭제한다.
+     *
+     * @param userId 사용자 ID
+     */
+    void deleteByUserId(Long userId);
 }
