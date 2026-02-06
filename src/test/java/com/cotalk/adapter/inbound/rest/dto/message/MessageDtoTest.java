@@ -40,10 +40,9 @@ class MessageDtoTest {
         @DisplayName("유효한 요청을 생성할 수 있다")
         void should_createRequest_when_validArguments() {
             // when
-            SendMessageRequest request = new SendMessageRequest(1L, 100L, "Hello");
+            SendMessageRequest request = new SendMessageRequest(100L, "Hello");
 
             // then
-            assertThat(request.senderId()).isEqualTo(1L);
             assertThat(request.chatRoomId()).isEqualTo(100L);
             assertThat(request.content()).isEqualTo("Hello");
         }
@@ -52,33 +51,18 @@ class MessageDtoTest {
         @DisplayName("팩토리 메서드로 요청을 생성할 수 있다")
         void should_createRequest_when_usingFactoryMethod() {
             // when
-            SendMessageRequest request = SendMessageRequest.of(1L, 100L, "Hello");
+            SendMessageRequest request = SendMessageRequest.of(100L, "Hello");
 
             // then
-            assertThat(request.senderId()).isEqualTo(1L);
             assertThat(request.chatRoomId()).isEqualTo(100L);
             assertThat(request.content()).isEqualTo("Hello");
-        }
-
-        @Test
-        @DisplayName("senderId가 null이면 유효성 검사 실패")
-        void should_failValidation_when_senderIdIsNull() {
-            // given
-            SendMessageRequest request = new SendMessageRequest(null, 100L, "Hello");
-
-            // when
-            Set<ConstraintViolation<SendMessageRequest>> violations = validator.validate(request);
-
-            // then
-            assertThat(violations).hasSize(1);
-            assertThat(violations.iterator().next().getMessage()).contains("발신자 ID는 필수");
         }
 
         @Test
         @DisplayName("chatRoomId가 null이면 유효성 검사 실패")
         void should_failValidation_when_chatRoomIdIsNull() {
             // given
-            SendMessageRequest request = new SendMessageRequest(1L, null, "Hello");
+            SendMessageRequest request = new SendMessageRequest(null, "Hello");
 
             // when
             Set<ConstraintViolation<SendMessageRequest>> violations = validator.validate(request);
@@ -92,7 +76,7 @@ class MessageDtoTest {
         @DisplayName("content가 빈 문자열이면 유효성 검사 실패")
         void should_failValidation_when_contentIsBlank() {
             // given
-            SendMessageRequest request = new SendMessageRequest(1L, 100L, "   ");
+            SendMessageRequest request = new SendMessageRequest(100L, "   ");
 
             // when
             Set<ConstraintViolation<SendMessageRequest>> violations = validator.validate(request);
@@ -111,10 +95,9 @@ class MessageDtoTest {
         @DisplayName("유효한 요청을 생성할 수 있다")
         void should_createRequest_when_validArguments() {
             // when
-            UpdateMessageRequest request = new UpdateMessageRequest(1L, "Updated content");
+            UpdateMessageRequest request = new UpdateMessageRequest("Updated content");
 
             // then
-            assertThat(request.userId()).isEqualTo(1L);
             assertThat(request.content()).isEqualTo("Updated content");
         }
 
@@ -122,25 +105,24 @@ class MessageDtoTest {
         @DisplayName("팩토리 메서드로 요청을 생성할 수 있다")
         void should_createRequest_when_usingFactoryMethod() {
             // when
-            UpdateMessageRequest request = UpdateMessageRequest.of(1L, "Updated");
+            UpdateMessageRequest request = UpdateMessageRequest.of("Updated");
 
             // then
-            assertThat(request.userId()).isEqualTo(1L);
             assertThat(request.content()).isEqualTo("Updated");
         }
 
         @Test
-        @DisplayName("userId가 null이면 유효성 검사 실패")
-        void should_failValidation_when_userIdIsNull() {
+        @DisplayName("content가 null이면 유효성 검사 실패")
+        void should_failValidation_when_contentIsNull() {
             // given
-            UpdateMessageRequest request = new UpdateMessageRequest(null, "content");
+            UpdateMessageRequest request = new UpdateMessageRequest(null);
 
             // when
             Set<ConstraintViolation<UpdateMessageRequest>> violations = validator.validate(request);
 
             // then
             assertThat(violations).hasSize(1);
-            assertThat(violations.iterator().next().getMessage()).contains("사용자 ID는 필수");
+            assertThat(violations.iterator().next().getMessage()).contains("메시지 내용은 필수");
         }
     }
 
@@ -152,10 +134,9 @@ class MessageDtoTest {
         @DisplayName("유효한 요청을 생성할 수 있다")
         void should_createRequest_when_validArguments() {
             // when
-            ReplyMessageRequest request = new ReplyMessageRequest(1L, "Reply content");
+            ReplyMessageRequest request = new ReplyMessageRequest("Reply content");
 
             // then
-            assertThat(request.senderId()).isEqualTo(1L);
             assertThat(request.content()).isEqualTo("Reply content");
         }
 
@@ -163,23 +144,24 @@ class MessageDtoTest {
         @DisplayName("팩토리 메서드로 요청을 생성할 수 있다")
         void should_createRequest_when_usingFactoryMethod() {
             // when
-            ReplyMessageRequest request = ReplyMessageRequest.of(1L, "Reply");
+            ReplyMessageRequest request = ReplyMessageRequest.of("Reply");
 
             // then
-            assertThat(request.senderId()).isEqualTo(1L);
+            assertThat(request.content()).isEqualTo("Reply");
         }
 
         @Test
-        @DisplayName("senderId가 null이면 유효성 검사 실패")
-        void should_failValidation_when_senderIdIsNull() {
+        @DisplayName("content가 null이면 유효성 검사 실패")
+        void should_failValidation_when_contentIsNull() {
             // given
-            ReplyMessageRequest request = new ReplyMessageRequest(null, "Reply");
+            ReplyMessageRequest request = new ReplyMessageRequest(null);
 
             // when
             Set<ConstraintViolation<ReplyMessageRequest>> violations = validator.validate(request);
 
             // then
             assertThat(violations).hasSize(1);
+            assertThat(violations.iterator().next().getMessage()).contains("메시지 내용은 필수");
         }
     }
 
@@ -191,10 +173,9 @@ class MessageDtoTest {
         @DisplayName("유효한 요청을 생성할 수 있다")
         void should_createRequest_when_validArguments() {
             // when
-            ForwardMessageRequest request = new ForwardMessageRequest(1L, 200L);
+            ForwardMessageRequest request = new ForwardMessageRequest(200L);
 
             // then
-            assertThat(request.senderId()).isEqualTo(1L);
             assertThat(request.targetChatRoomId()).isEqualTo(200L);
         }
 
@@ -202,10 +183,9 @@ class MessageDtoTest {
         @DisplayName("팩토리 메서드로 요청을 생성할 수 있다")
         void should_createRequest_when_usingFactoryMethod() {
             // when
-            ForwardMessageRequest request = ForwardMessageRequest.of(1L, 200L);
+            ForwardMessageRequest request = ForwardMessageRequest.of(200L);
 
             // then
-            assertThat(request.senderId()).isEqualTo(1L);
             assertThat(request.targetChatRoomId()).isEqualTo(200L);
         }
 
@@ -213,7 +193,7 @@ class MessageDtoTest {
         @DisplayName("targetChatRoomId가 null이면 유효성 검사 실패")
         void should_failValidation_when_targetChatRoomIdIsNull() {
             // given
-            ForwardMessageRequest request = new ForwardMessageRequest(1L, null);
+            ForwardMessageRequest request = new ForwardMessageRequest(null);
 
             // when
             Set<ConstraintViolation<ForwardMessageRequest>> violations = validator.validate(request);

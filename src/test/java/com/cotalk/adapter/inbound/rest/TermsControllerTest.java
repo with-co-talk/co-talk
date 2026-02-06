@@ -10,6 +10,7 @@ import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -60,6 +61,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("약관 동의 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_agreeToTermsSuccess() throws Exception {
             // given
             willDoNothing().given(agreeToTermsUseCase).agreeToTerms(any(TermsAgreementCommand.class));
@@ -92,6 +94,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("마케팅 동의 포함 약관 동의 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_agreeToTermsWithMarketing() throws Exception {
             // given
             willDoNothing().given(agreeToTermsUseCase).agreeToTerms(any(TermsAgreementCommand.class));
@@ -129,6 +132,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("필수 약관 미동의 시 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_requiredTermsNotAgreed() throws Exception {
             // given
             willThrow(TermsAgreementException.serviceTermsRequired())
@@ -161,6 +165,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("개인정보처리방침 미동의 시 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_privacyPolicyNotAgreed() throws Exception {
             // given
             willThrow(TermsAgreementException.privacyPolicyRequired())
@@ -179,29 +184,6 @@ class TermsControllerTest {
                                 "termsType": "PRIVACY",
                                 "version": "1.0",
                                 "agreed": false
-                            }
-                        ]
-                    }
-                    """;
-
-            // when & then
-            mockMvc.perform(post("/api/v1/terms/agree")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(requestBody))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("userId 누락 시 400 에러")
-        void should_returnBadRequest_when_userIdMissing() throws Exception {
-            // given
-            String requestBody = """
-                    {
-                        "agreements": [
-                            {
-                                "termsType": "SERVICE",
-                                "version": "1.0",
-                                "agreed": true
                             }
                         ]
                     }
@@ -251,6 +233,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("termsType 누락 시 - AgreementItem의 nested validation은 적용되지 않아 요청이 처리됨")
+        @WithMockCustomUser(userId = 1L)
         void should_processRequest_when_termsTypeMissing() throws Exception {
             // given - nested object의 @NotNull 검증은 @Valid가 없으면 적용 안됨
             willDoNothing().given(agreeToTermsUseCase).agreeToTerms(any(TermsAgreementCommand.class));
@@ -276,6 +259,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("version 누락 시 - AgreementItem의 nested validation은 적용되지 않아 요청이 처리됨")
+        @WithMockCustomUser(userId = 1L)
         void should_processRequest_when_versionMissing() throws Exception {
             // given - nested object의 @NotNull 검증은 @Valid가 없으면 적용 안됨
             willDoNothing().given(agreeToTermsUseCase).agreeToTerms(any(TermsAgreementCommand.class));
@@ -325,6 +309,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("X-Forwarded-For 헤더에서 IP 추출")
+        @WithMockCustomUser(userId = 1L)
         void should_extractIpFromXForwardedFor() throws Exception {
             // given
             ArgumentCaptor<TermsAgreementCommand> commandCaptor = ArgumentCaptor.forClass(TermsAgreementCommand.class);
@@ -357,6 +342,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("존재하지 않는 사용자 시 404 에러")
+        @WithMockCustomUser(userId = 999L)
         void should_returnNotFound_when_userNotFound() throws Exception {
             // given
             willThrow(new UserNotFoundException("사용자를 찾을 수 없습니다."))
@@ -389,6 +375,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("마케팅 수신 동의 철회 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_withdrawMarketingSuccess() throws Exception {
             // given
             Long userId = 1L;
@@ -396,13 +383,14 @@ class TermsControllerTest {
             willDoNothing().given(agreeToTermsUseCase).withdrawMarketingAgreement(eq(userId));
 
             // when & then
-            mockMvc.perform(delete("/api/v1/terms/marketing/{userId}", userId))
+            mockMvc.perform(delete("/api/v1/terms/marketing"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("마케팅 수신 동의가 철회되었습니다."));
         }
 
         @Test
         @DisplayName("존재하지 않는 사용자 철회 시 404 에러")
+        @WithMockCustomUser(userId = 999L)
         void should_returnNotFound_when_userNotFoundForWithdraw() throws Exception {
             // given
             Long userId = 999L;
@@ -411,16 +399,8 @@ class TermsControllerTest {
                     .given(agreeToTermsUseCase).withdrawMarketingAgreement(eq(userId));
 
             // when & then
-            mockMvc.perform(delete("/api/v1/terms/marketing/{userId}", userId))
+            mockMvc.perform(delete("/api/v1/terms/marketing"))
                     .andExpect(status().isNotFound());
-        }
-
-        @Test
-        @DisplayName("잘못된 userId 타입 시 500 에러 (타입 변환 실패)")
-        void should_returnInternalError_when_invalidUserIdType() throws Exception {
-            // when & then - Spring이 Long 변환 실패 시 내부 오류 발생
-            mockMvc.perform(delete("/api/v1/terms/marketing/not-a-number"))
-                    .andExpect(status().isInternalServerError());
         }
     }
 
@@ -430,6 +410,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("약관 동의 상태 조회 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnAgreementStatus_when_getStatusSuccess() throws Exception {
             // given
             Long userId = 1L;
@@ -443,7 +424,7 @@ class TermsControllerTest {
             given(agreeToTermsUseCase.getAgreementStatus(eq(userId))).willReturn(statusList);
 
             // when & then
-            mockMvc.perform(get("/api/v1/terms/status/{userId}", userId))
+            mockMvc.perform(get("/api/v1/terms/status"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.agreements").isArray())
                     .andExpect(jsonPath("$.agreements.length()").value(3))
@@ -460,6 +441,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("빈 동의 상태 조회")
+        @WithMockCustomUser(userId = 1L)
         void should_returnEmptyList_when_noAgreements() throws Exception {
             // given
             Long userId = 1L;
@@ -467,7 +449,7 @@ class TermsControllerTest {
             given(agreeToTermsUseCase.getAgreementStatus(eq(userId))).willReturn(Collections.emptyList());
 
             // when & then
-            mockMvc.perform(get("/api/v1/terms/status/{userId}", userId))
+            mockMvc.perform(get("/api/v1/terms/status"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.agreements").isArray())
                     .andExpect(jsonPath("$.agreements.length()").value(0));
@@ -475,6 +457,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("존재하지 않는 사용자 조회 시 404 에러")
+        @WithMockCustomUser(userId = 999L)
         void should_returnNotFound_when_userNotFoundForStatus() throws Exception {
             // given
             Long userId = 999L;
@@ -483,16 +466,8 @@ class TermsControllerTest {
                     .willThrow(new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
             // when & then
-            mockMvc.perform(get("/api/v1/terms/status/{userId}", userId))
+            mockMvc.perform(get("/api/v1/terms/status"))
                     .andExpect(status().isNotFound());
-        }
-
-        @Test
-        @DisplayName("잘못된 userId 타입 시 500 에러 (타입 변환 실패)")
-        void should_returnInternalError_when_invalidUserIdTypeForStatus() throws Exception {
-            // when & then - Spring이 Long 변환 실패 시 내부 오류 발생
-            mockMvc.perform(get("/api/v1/terms/status/invalid"))
-                    .andExpect(status().isInternalServerError());
         }
     }
 
@@ -502,6 +477,7 @@ class TermsControllerTest {
 
         @Test
         @DisplayName("필수 약관 동의 완료 시 true 반환")
+        @WithMockCustomUser(userId = 1L)
         void should_returnTrue_when_agreedToRequiredTerms() throws Exception {
             // given
             Long userId = 1L;
@@ -509,13 +485,14 @@ class TermsControllerTest {
             given(agreeToTermsUseCase.hasAgreedToRequiredTerms(eq(userId))).willReturn(true);
 
             // when & then
-            mockMvc.perform(get("/api/v1/terms/check/{userId}", userId))
+            mockMvc.perform(get("/api/v1/terms/check"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.agreedToRequiredTerms").value(true));
         }
 
         @Test
         @DisplayName("필수 약관 미동의 시 false 반환")
+        @WithMockCustomUser(userId = 1L)
         void should_returnFalse_when_notAgreedToRequiredTerms() throws Exception {
             // given
             Long userId = 1L;
@@ -523,13 +500,14 @@ class TermsControllerTest {
             given(agreeToTermsUseCase.hasAgreedToRequiredTerms(eq(userId))).willReturn(false);
 
             // when & then
-            mockMvc.perform(get("/api/v1/terms/check/{userId}", userId))
+            mockMvc.perform(get("/api/v1/terms/check"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.agreedToRequiredTerms").value(false));
         }
 
         @Test
         @DisplayName("존재하지 않는 사용자 확인 시 404 에러")
+        @WithMockCustomUser(userId = 999L)
         void should_returnNotFound_when_userNotFoundForCheck() throws Exception {
             // given
             Long userId = 999L;
@@ -538,20 +516,13 @@ class TermsControllerTest {
                     .willThrow(new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
             // when & then
-            mockMvc.perform(get("/api/v1/terms/check/{userId}", userId))
+            mockMvc.perform(get("/api/v1/terms/check"))
                     .andExpect(status().isNotFound());
         }
 
         @Test
-        @DisplayName("잘못된 userId 타입 시 500 에러 (타입 변환 실패)")
-        void should_returnInternalError_when_invalidUserIdTypeForCheck() throws Exception {
-            // when & then - Spring이 Long 변환 실패 시 내부 오류 발생
-            mockMvc.perform(get("/api/v1/terms/check/abc"))
-                    .andExpect(status().isInternalServerError());
-        }
-
-        @Test
         @DisplayName("음수 userId 시에도 정상 처리")
+        @WithMockCustomUser(userId = -1L)
         void should_handleNegativeUserId() throws Exception {
             // given
             Long userId = -1L;
@@ -560,7 +531,7 @@ class TermsControllerTest {
                     .willThrow(new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
             // when & then
-            mockMvc.perform(get("/api/v1/terms/check/{userId}", userId))
+            mockMvc.perform(get("/api/v1/terms/check"))
                     .andExpect(status().isNotFound());
         }
     }

@@ -30,8 +30,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 
 import java.lang.reflect.Field;
+import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -100,11 +102,22 @@ class ChatWebSocketControllerTest {
         }
     }
 
+    private StompHeaderAccessor createMockHeaderAccessor(Long userId) {
+        StompHeaderAccessor headerAccessor = StompHeaderAccessor.create(org.springframework.messaging.simp.stomp.StompCommand.SEND);
+        headerAccessor.setUser(new Principal() {
+            @Override
+            public String getName() {
+                return userId.toString();
+            }
+        });
+        return headerAccessor;
+    }
+
     @Test
     @DisplayName("메시지 전송 시 저장 후 Redis로 발행")
     void should_saveAndPublishToRedis_when_sendMessage() {
         // given
-        ChatMessageRequest request = new ChatMessageRequest(1L, 100L, "테스트 메시지");
+        ChatMessageRequest request = new ChatMessageRequest(100L, "테스트 메시지");
 
         ChatRoomMember member1 = ChatRoomMember.builder()
                 .id(1L)
@@ -123,7 +136,7 @@ class ChatWebSocketControllerTest {
                 .willReturn(List.of(member1, member2));
 
         // when
-        chatWebSocketController.sendMessage(request);
+        chatWebSocketController.sendMessage(request, createMockHeaderAccessor(1L));
 
         // then
         verify(sendMessageUseCase).sendMessage(100L, 1L, "테스트 메시지");
@@ -147,7 +160,6 @@ class ChatWebSocketControllerTest {
     void should_sendFileMessage_when_validRequest() {
         // given
         FileMessageRequest request = new FileMessageRequest(
-                1L,
                 100L,
                 "https://storage.example.com/file.pdf",
                 "document.pdf",
@@ -185,7 +197,7 @@ class ChatWebSocketControllerTest {
                 .willReturn(List.of(member1, member2));
 
         // when
-        chatWebSocketController.sendFileMessage(request);
+        chatWebSocketController.sendFileMessage(request, createMockHeaderAccessor(1L));
 
         // then
         verify(sendMessageUseCase).sendFileMessage(eq(100L), eq(1L), any(FileMessageCommand.class));
@@ -206,7 +218,6 @@ class ChatWebSocketControllerTest {
     void should_sendImageMessage_when_thumbnailProvided() {
         // given
         FileMessageRequest request = new FileMessageRequest(
-                1L,
                 100L,
                 "https://storage.example.com/image.jpg",
                 "photo.jpg",
@@ -245,7 +256,7 @@ class ChatWebSocketControllerTest {
                 .willReturn(List.of(member1, member2));
 
         // when
-        chatWebSocketController.sendFileMessage(request);
+        chatWebSocketController.sendFileMessage(request, createMockHeaderAccessor(1L));
 
         // then
         ArgumentCaptor<ChatBroadcastMessage> messageCaptor =
@@ -259,7 +270,7 @@ class ChatWebSocketControllerTest {
     @DisplayName("리액션 추가 성공")
     void should_addReaction_when_validRequest() {
         // given
-        AddReactionRequest request = new AddReactionRequest(1L, 2L, "THUMBS_UP");
+        AddReactionRequest request = new AddReactionRequest(1L, "THUMBS_UP");
 
         MessageReaction reaction = MessageReaction.builder()
                 .id(10L)
@@ -275,7 +286,7 @@ class ChatWebSocketControllerTest {
                 .willReturn(Optional.of(mockMessage));
 
         // when
-        chatWebSocketController.addReaction(request);
+        chatWebSocketController.addReaction(request, createMockHeaderAccessor(2L));
 
         // then
         verify(addMessageReactionUseCase).addReaction(1L, 2L, "THUMBS_UP");
@@ -295,13 +306,13 @@ class ChatWebSocketControllerTest {
     @DisplayName("리액션 제거 성공")
     void should_removeReaction_when_validRequest() {
         // given
-        RemoveReactionRequest request = new RemoveReactionRequest(1L, 2L, "THUMBS_UP");
+        RemoveReactionRequest request = new RemoveReactionRequest(1L, "THUMBS_UP");
 
         given(messageRepository.findById(1L))
                 .willReturn(Optional.of(mockMessage));
 
         // when
-        chatWebSocketController.removeReaction(request);
+        chatWebSocketController.removeReaction(request, createMockHeaderAccessor(2L));
 
         // then
         verify(removeMessageReactionUseCase).removeReaction(1L, 2L, "THUMBS_UP");
@@ -318,7 +329,7 @@ class ChatWebSocketControllerTest {
     @DisplayName("리액션 추가 시 메시지를 찾을 수 없으면 브로드캐스트 안 함")
     void should_notBroadcast_when_messageNotFound() {
         // given
-        AddReactionRequest request = new AddReactionRequest(999L, 2L, "THUMBS_UP");
+        AddReactionRequest request = new AddReactionRequest(999L, "THUMBS_UP");
 
         MessageReaction reaction = MessageReaction.builder()
                 .id(10L)
@@ -333,7 +344,7 @@ class ChatWebSocketControllerTest {
                 .willReturn(Optional.empty());
 
         // when
-        chatWebSocketController.addReaction(request);
+        chatWebSocketController.addReaction(request, createMockHeaderAccessor(2L));
 
         // then
         verify(chatMessageBroker, never()).publishReaction(anyLong(), any());

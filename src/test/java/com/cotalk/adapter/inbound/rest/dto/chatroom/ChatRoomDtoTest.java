@@ -43,39 +43,24 @@ class ChatRoomDtoTest {
         @DisplayName("of 메서드로 인스턴스를 생성한다")
         void should_createInstance_when_ofMethodCalled() {
             // when
-            CreateChatRoomRequest request = CreateChatRoomRequest.of(1L, 2L);
+            CreateChatRoomRequest request = CreateChatRoomRequest.of(2L);
 
             // then
-            assertThat(request.userId1()).isEqualTo(1L);
             assertThat(request.userId2()).isEqualTo(2L);
-        }
-
-        @Test
-        @DisplayName("userId1이 null이면 유효성 검사 실패")
-        void should_failValidation_when_userId1IsNull() {
-            // given
-            CreateChatRoomRequest request = new CreateChatRoomRequest(null, 2L);
-
-            // when
-            Set<ConstraintViolation<CreateChatRoomRequest>> violations = validator.validate(request);
-
-            // then
-            assertThat(violations).hasSize(1);
-            assertThat(violations.iterator().next().getMessage()).contains("첫 번째 사용자 ID");
         }
 
         @Test
         @DisplayName("userId2가 null이면 유효성 검사 실패")
         void should_failValidation_when_userId2IsNull() {
             // given
-            CreateChatRoomRequest request = new CreateChatRoomRequest(1L, null);
+            CreateChatRoomRequest request = new CreateChatRoomRequest(null);
 
             // when
             Set<ConstraintViolation<CreateChatRoomRequest>> violations = validator.validate(request);
 
             // then
             assertThat(violations).hasSize(1);
-            assertThat(violations.iterator().next().getMessage()).contains("두 번째 사용자 ID");
+            assertThat(violations.iterator().next().getMessage()).contains("상대방 사용자 ID");
         }
     }
 
@@ -88,32 +73,18 @@ class ChatRoomDtoTest {
         void should_createInstance_when_ofMethodCalled() {
             // when
             CreateGroupChatRoomRequest request = CreateGroupChatRoomRequest.of(
-                    1L, "테스트 그룹", List.of(2L, 3L));
+                    "테스트 그룹", List.of(2L, 3L));
 
             // then
-            assertThat(request.creatorId()).isEqualTo(1L);
             assertThat(request.roomName()).isEqualTo("테스트 그룹");
             assertThat(request.memberIds()).containsExactly(2L, 3L);
-        }
-
-        @Test
-        @DisplayName("creatorId가 null이면 유효성 검사 실패")
-        void should_failValidation_when_creatorIdIsNull() {
-            // given
-            CreateGroupChatRoomRequest request = new CreateGroupChatRoomRequest(null, "그룹", List.of(1L));
-
-            // when
-            Set<ConstraintViolation<CreateGroupChatRoomRequest>> violations = validator.validate(request);
-
-            // then
-            assertThat(violations).hasSize(1);
         }
 
         @Test
         @DisplayName("roomName이 비어있으면 유효성 검사 실패")
         void should_failValidation_when_roomNameIsBlank() {
             // given
-            CreateGroupChatRoomRequest request = new CreateGroupChatRoomRequest(1L, "", List.of(1L));
+            CreateGroupChatRoomRequest request = new CreateGroupChatRoomRequest("", List.of(1L));
 
             // when
             Set<ConstraintViolation<CreateGroupChatRoomRequest>> violations = validator.validate(request);
@@ -127,7 +98,7 @@ class ChatRoomDtoTest {
         void should_failValidation_when_roomNameExceeds50Chars() {
             // given
             String longName = "a".repeat(51);
-            CreateGroupChatRoomRequest request = new CreateGroupChatRoomRequest(1L, longName, List.of(1L));
+            CreateGroupChatRoomRequest request = new CreateGroupChatRoomRequest(longName, List.of(1L));
 
             // when
             Set<ConstraintViolation<CreateGroupChatRoomRequest>> violations = validator.validate(request);
@@ -140,7 +111,7 @@ class ChatRoomDtoTest {
         @DisplayName("memberIds가 null이면 유효성 검사 실패")
         void should_failValidation_when_memberIdsIsNull() {
             // given
-            CreateGroupChatRoomRequest request = new CreateGroupChatRoomRequest(1L, "그룹", null);
+            CreateGroupChatRoomRequest request = new CreateGroupChatRoomRequest("그룹", null);
 
             // when
             Set<ConstraintViolation<CreateGroupChatRoomRequest>> violations = validator.validate(request);
@@ -158,31 +129,17 @@ class ChatRoomDtoTest {
         @DisplayName("of 메서드로 인스턴스를 생성한다")
         void should_createInstance_when_ofMethodCalled() {
             // when
-            InviteMembersRequest request = InviteMembersRequest.of(1L, List.of(2L, 3L));
+            InviteMembersRequest request = InviteMembersRequest.of(List.of(2L, 3L));
 
             // then
-            assertThat(request.inviterId()).isEqualTo(1L);
             assertThat(request.inviteeIds()).containsExactly(2L, 3L);
-        }
-
-        @Test
-        @DisplayName("inviterId가 null이면 유효성 검사 실패")
-        void should_failValidation_when_inviterIdIsNull() {
-            // given
-            InviteMembersRequest request = new InviteMembersRequest(null, List.of(1L));
-
-            // when
-            Set<ConstraintViolation<InviteMembersRequest>> violations = validator.validate(request);
-
-            // then
-            assertThat(violations).hasSize(1);
         }
 
         @Test
         @DisplayName("inviteeIds가 null이면 유효성 검사 실패")
         void should_failValidation_when_inviteeIdsIsNull() {
             // given
-            InviteMembersRequest request = new InviteMembersRequest(1L, null);
+            InviteMembersRequest request = new InviteMembersRequest(null);
 
             // when
             Set<ConstraintViolation<InviteMembersRequest>> violations = validator.validate(request);
@@ -200,31 +157,17 @@ class ChatRoomDtoTest {
         @DisplayName("of 메서드로 인스턴스를 생성한다")
         void should_createInstance_when_ofMethodCalled() {
             // when
-            UpdateChatRoomNameRequest request = UpdateChatRoomNameRequest.of(1L, "새 이름");
+            UpdateChatRoomNameRequest request = UpdateChatRoomNameRequest.of("새 이름");
 
             // then
-            assertThat(request.userId()).isEqualTo(1L);
             assertThat(request.newName()).isEqualTo("새 이름");
-        }
-
-        @Test
-        @DisplayName("userId가 null이면 유효성 검사 실패")
-        void should_failValidation_when_userIdIsNull() {
-            // given
-            UpdateChatRoomNameRequest request = new UpdateChatRoomNameRequest(null, "이름");
-
-            // when
-            Set<ConstraintViolation<UpdateChatRoomNameRequest>> violations = validator.validate(request);
-
-            // then
-            assertThat(violations).hasSize(1);
         }
 
         @Test
         @DisplayName("newName이 비어있으면 유효성 검사 실패")
         void should_failValidation_when_newNameIsBlank() {
             // given
-            UpdateChatRoomNameRequest request = new UpdateChatRoomNameRequest(1L, "");
+            UpdateChatRoomNameRequest request = new UpdateChatRoomNameRequest("");
 
             // when
             Set<ConstraintViolation<UpdateChatRoomNameRequest>> violations = validator.validate(request);
@@ -238,7 +181,7 @@ class ChatRoomDtoTest {
         void should_failValidation_when_newNameExceeds50Chars() {
             // given
             String longName = "a".repeat(51);
-            UpdateChatRoomNameRequest request = new UpdateChatRoomNameRequest(1L, longName);
+            UpdateChatRoomNameRequest request = new UpdateChatRoomNameRequest(longName);
 
             // when
             Set<ConstraintViolation<UpdateChatRoomNameRequest>> violations = validator.validate(request);
@@ -256,31 +199,17 @@ class ChatRoomDtoTest {
         @DisplayName("of 메서드로 인스턴스를 생성한다")
         void should_createInstance_when_ofMethodCalled() {
             // when
-            SetAnnouncementRequest request = SetAnnouncementRequest.of(1L, "공지사항 내용");
+            SetAnnouncementRequest request = SetAnnouncementRequest.of("공지사항 내용");
 
             // then
-            assertThat(request.userId()).isEqualTo(1L);
             assertThat(request.announcement()).isEqualTo("공지사항 내용");
-        }
-
-        @Test
-        @DisplayName("userId가 null이면 유효성 검사 실패")
-        void should_failValidation_when_userIdIsNull() {
-            // given
-            SetAnnouncementRequest request = new SetAnnouncementRequest(null, "공지");
-
-            // when
-            Set<ConstraintViolation<SetAnnouncementRequest>> violations = validator.validate(request);
-
-            // then
-            assertThat(violations).hasSize(1);
         }
 
         @Test
         @DisplayName("announcement가 비어있으면 유효성 검사 실패")
         void should_failValidation_when_announcementIsBlank() {
             // given
-            SetAnnouncementRequest request = new SetAnnouncementRequest(1L, "");
+            SetAnnouncementRequest request = new SetAnnouncementRequest("");
 
             // when
             Set<ConstraintViolation<SetAnnouncementRequest>> violations = validator.validate(request);
@@ -294,7 +223,7 @@ class ChatRoomDtoTest {
         void should_failValidation_when_announcementExceeds500Chars() {
             // given
             String longAnnouncement = "a".repeat(501);
-            SetAnnouncementRequest request = new SetAnnouncementRequest(1L, longAnnouncement);
+            SetAnnouncementRequest request = new SetAnnouncementRequest(longAnnouncement);
 
             // when
             Set<ConstraintViolation<SetAnnouncementRequest>> violations = validator.validate(request);

@@ -453,14 +453,14 @@ class PasswordControllerTest {
         @DisplayName("정확히 8자 비밀번호 성공")
         void should_returnOk_when_password8Chars() throws Exception {
             // given
-            String newPassword = "12345678";
+            String newPassword = "Abcd123!";
 
             willDoNothing().given(resetPasswordUseCase).resetPassword(anyString(), eq(newPassword));
 
             String requestBody = """
                     {
                         "token": "valid-token",
-                        "newPassword": "12345678"
+                        "newPassword": "Abcd123!"
                     }
                     """;
 
@@ -474,8 +474,8 @@ class PasswordControllerTest {
         @Test
         @DisplayName("정확히 100자 비밀번호 성공")
         void should_returnOk_when_password100Chars() throws Exception {
-            // given
-            String newPassword = "a".repeat(100);
+            // given: 100자 비밀번호 (대문자, 소문자, 숫자, 특수문자 포함)
+            String newPassword = "Aa1!" + "a".repeat(96);
 
             willDoNothing().given(resetPasswordUseCase).resetPassword(anyString(), eq(newPassword));
 
