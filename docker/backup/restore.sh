@@ -8,6 +8,7 @@
 #   - POSTGRES_DB: 데이터베이스 이름 (기본값: cotalk)
 #   - POSTGRES_USER: 사용자명 (기본값: cotalk)
 #   - PGPASSWORD: 비밀번호 (필수)
+#   - FORCE_RESTORE: 비대화형 모드 (true 설정 시 확인 프롬프트 생략)
 # ===========================================
 
 set -e
@@ -55,14 +56,17 @@ echo "데이터베이스: ${POSTGRES_DB}"
 echo "백업 파일: ${BACKUP_FILE}"
 echo ""
 
-# 경고
+# 경고 및 확인
 echo "경고: 이 작업은 현재 데이터베이스를 덮어씁니다!"
-echo "계속하시겠습니까? (yes/no)"
-read -r CONFIRM
-
-if [ "$CONFIRM" != "yes" ]; then
-    echo "복원이 취소되었습니다."
-    exit 0
+if [ "${FORCE_RESTORE}" = "true" ]; then
+    echo "FORCE_RESTORE=true 설정으로 확인 절차를 건너뜁니다."
+else
+    echo "계속하시겠습니까? (yes/no)"
+    read -r CONFIRM
+    if [ "$CONFIRM" != "yes" ]; then
+        echo "복원이 취소되었습니다."
+        exit 0
+    fi
 fi
 
 # 복원 실행
