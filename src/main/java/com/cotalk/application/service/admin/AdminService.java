@@ -40,13 +40,17 @@ public class AdminService implements AdminUseCase {
 
     /**
      * 처리 대기 중인 신고 목록을 조회한다.
+     * 메모리 보호를 위해 최대 {@value MAX_ADMIN_LIST_SIZE}건으로 제한한다.
      *
      * @return 대기 중인 신고 목록
      */
     @Override
     @Transactional(readOnly = true)
     public List<Report> getPendingReports() {
-        return reportRepository.findByStatus(Report.ReportStatus.PENDING);
+        return reportRepository.findByStatus(Report.ReportStatus.PENDING)
+                .stream()
+                .limit(MAX_ADMIN_LIST_SIZE)
+                .toList();
     }
 
     /**
@@ -105,6 +109,7 @@ public class AdminService implements AdminUseCase {
 
     /**
      * 특정 상태의 사용자 목록을 조회한다.
+     * 메모리 보호를 위해 최대 {@value MAX_ADMIN_LIST_SIZE}건으로 제한한다.
      *
      * @param status 필터링할 사용자 상태
      * @return 해당 상태의 사용자 목록
@@ -112,7 +117,10 @@ public class AdminService implements AdminUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<User> getUsersByStatus(User.UserStatus status) {
-        return userRepository.findByStatus(status);
+        return userRepository.findByStatus(status)
+                .stream()
+                .limit(MAX_ADMIN_LIST_SIZE)
+                .toList();
     }
 
     /**

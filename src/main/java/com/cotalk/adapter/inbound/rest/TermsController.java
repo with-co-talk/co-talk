@@ -9,12 +9,14 @@ import com.cotalk.domain.port.inbound.auth.AgreeToTermsUseCase;
 import com.cotalk.domain.port.inbound.auth.AgreeToTermsUseCase.TermsAgreementCommand;
 import com.cotalk.domain.port.inbound.auth.AgreeToTermsUseCase.TermsAgreementItem;
 import com.cotalk.domain.port.inbound.auth.AgreeToTermsUseCase.TermsAgreementStatus;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,6 +44,7 @@ public class TermsController {
     /**
      * 이용약관 및 개인정보처리방침에 동의한다.
      *
+     * @param principal   인증된 사용자 정보
      * @param request     약관 동의 요청 정보
      * @param httpRequest HTTP 요청 (IP 주소 추출용)
      * @return 동의 완료 메시지
@@ -49,6 +52,7 @@ public class TermsController {
     @Operation(summary = "약관 동의", description = "이용약관 및 개인정보처리방침에 동의합니다.")
     @PostMapping("/agree")
     public ResponseEntity<MessageResponse> agreeToTerms(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @Valid @RequestBody TermsAgreementRequest request,
             HttpServletRequest httpRequest) {
 
@@ -59,7 +63,7 @@ public class TermsController {
                 .toList();
 
         TermsAgreementCommand command = new TermsAgreementCommand(
-                request.userId(),
+                principal.getUserId(),
                 items,
                 ipAddress
         );
@@ -71,26 +75,28 @@ public class TermsController {
     /**
      * 마케팅 정보 수신 동의를 철회한다.
      *
-     * @param userId 동의를 철회할 사용자 ID
+     * @param principal 인증된 사용자 정보
      * @return 철회 완료 메시지
      */
     @Operation(summary = "마케팅 수신 동의 철회", description = "마케팅 정보 수신 동의를 철회합니다.")
-    @DeleteMapping("/marketing/{userId}")
-    public ResponseEntity<MessageResponse> withdrawMarketingAgreement(@PathVariable Long userId) {
-        agreeToTermsUseCase.withdrawMarketingAgreement(userId);
+    @DeleteMapping("/marketing")
+    public ResponseEntity<MessageResponse> withdrawMarketingAgreement(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        agreeToTermsUseCase.withdrawMarketingAgreement(principal.getUserId());
         return ResponseEntity.ok(MessageResponse.of("마케팅 수신 동의가 철회되었습니다."));
     }
 
     /**
      * 사용자의 약관 동의 상태를 조회한다.
      *
-     * @param userId 조회할 사용자 ID
+     * @param principal 인증된 사용자 정보
      * @return 약관별 동의 상태 목록
      */
     @Operation(summary = "약관 동의 상태 조회", description = "사용자의 약관 동의 상태를 조회합니다.")
-    @GetMapping("/status/{userId}")
-    public ResponseEntity<TermsStatusResponse> getAgreementStatus(@PathVariable Long userId) {
-        List<TermsAgreementStatus> statusList = agreeToTermsUseCase.getAgreementStatus(userId);
+    @GetMapping("/status")
+    public ResponseEntity<TermsStatusResponse> getAgreementStatus(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        List<TermsAgreementStatus> statusList = agreeToTermsUseCase.getAgreementStatus(principal.getUserId());
         List<TermsStatusItem> items = statusList.stream()
                 .map(s -> TermsStatusItem.of(s.termsType(), s.termsVersion(), s.agreed(), s.required()))
                 .toList();
@@ -100,13 +106,14 @@ public class TermsController {
     /**
      * 필수 약관에 동의했는지 확인한다.
      *
-     * @param userId 확인할 사용자 ID
+     * @param principal 인증된 사용자 정보
      * @return 필수 약관 동의 여부
      */
     @Operation(summary = "필수 약관 동의 확인", description = "필수 약관에 동의했는지 확인합니다.")
-    @GetMapping("/check/{userId}")
-    public ResponseEntity<RequiredTermsCheckResponse> checkRequiredTerms(@PathVariable Long userId) {
-        boolean agreed = agreeToTermsUseCase.hasAgreedToRequiredTerms(userId);
+    @GetMapping("/check")
+    public ResponseEntity<RequiredTermsCheckResponse> checkRequiredTerms(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        boolean agreed = agreeToTermsUseCase.hasAgreedToRequiredTerms(principal.getUserId());
         return ResponseEntity.ok(RequiredTermsCheckResponse.of(agreed));
     }
 

@@ -55,6 +55,15 @@ public interface UserRepository {
     List<User> findByNicknameContaining(String nickname);
 
     /**
+     * 닉네임에 특정 문자열이 포함된 사용자 목록을 조회한다. (DB-레벨 limit 적용)
+     *
+     * @param nickname 검색할 닉네임 문자열
+     * @param limit 최대 조회 건수
+     * @return 닉네임이 일치하는 사용자 목록 (최대 limit 건)
+     */
+    List<User> findByNicknameContaining(String nickname, int limit);
+
+    /**
      * 이메일 존재 여부를 확인한다.
      *
      * @param email 확인할 이메일 주소

@@ -74,15 +74,17 @@ public class ChatWebSocketController {
      * Redis Pub/Sub을 통해 해당 채팅방의 모든 참여자에게 브로드캐스트합니다.</p>
      *
      * @param request 채팅 메시지 요청 정보 (발신자 ID, 채팅방 ID, 메시지 내용)
+     * @param headerAccessor WebSocket 헤더 접근자 (인증된 사용자 정보 포함)
      */
     @MessageMapping("/chat/message")
-    public void sendMessage(@Payload ChatMessageRequest request) {
-        log.debug("Received message from user {} to room {}", request.senderId(), request.roomId());
+    public void sendMessage(@Payload ChatMessageRequest request, StompHeaderAccessor headerAccessor) {
+        Long authenticatedUserId = extractUserId(headerAccessor);
+        log.debug("Received message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
 
-        // 메시지 저장
+        // 메시지 저장 - 인증된 사용자 ID 사용
         Message savedMessage = sendMessageUseCase.sendMessage(
                 request.roomId(),
-                request.senderId(),
+                authenticatedUserId,
                 request.content()
         );
 
@@ -99,12 +101,14 @@ public class ChatWebSocketController {
      * <p>파일 정보에는 URL, 파일명, 크기, 컨텐츠 타입, 썸네일 URL이 포함됩니다.</p>
      *
      * @param request 파일 메시지 요청 정보
+     * @param headerAccessor WebSocket 헤더 접근자 (인증된 사용자 정보 포함)
      */
     @MessageMapping("/chat/message/file")
-    public void sendFileMessage(@Payload FileMessageRequest request) {
-        log.debug("Received file message from user {} to room {}", request.senderId(), request.roomId());
+    public void sendFileMessage(@Payload FileMessageRequest request, StompHeaderAccessor headerAccessor) {
+        Long authenticatedUserId = extractUserId(headerAccessor);
+        log.debug("Received file message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
 
-        // 파일 메시지 저장
+        // 파일 메시지 저장 - 인증된 사용자 ID 사용
         FileMessageCommand command = new FileMessageCommand(
                 request.fileUrl(),
                 request.fileName(),
@@ -115,12 +119,31 @@ public class ChatWebSocketController {
 
         Message savedMessage = sendMessageUseCase.sendFileMessage(
                 request.roomId(),
-                request.senderId(),
+                authenticatedUserId,
                 command
         );
 
         // Redis Pub/Sub을 통해 모든 서버로 브로드캐스트
         publishToRedis(savedMessage);
+    }
+
+    /**
+     * StompHeaderAccessor에서 인증된 사용자 ID를 추출합니다.
+     *
+     * @param headerAccessor WebSocket 헤더 접근자
+     * @return 인증된 사용자 ID
+     * @throws IllegalArgumentException 사용자 인증 정보가 없는 경우
+     */
+    private Long extractUserId(StompHeaderAccessor headerAccessor) {
+        if (headerAccessor == null || headerAccessor.getUser() == null) {
+            throw new IllegalArgumentException("User authentication information is missing");
+        }
+        String userIdStr = headerAccessor.getUser().getName();
+        try {
+            return Long.parseLong(userIdStr);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid user ID format: " + userIdStr, e);
+        }
     }
 
     /**
@@ -247,14 +270,16 @@ public class ChatWebSocketController {
      * Redis Pub/Sub을 통해 해당 채팅방의 모든 참여자에게 반응 추가 이벤트를 브로드캐스트합니다.</p>
      *
      * @param request 반응 추가 요청 정보 (메시지 ID, 사용자 ID, 이모지)
+     * @param headerAccessor WebSocket 헤더 접근자 (인증된 사용자 정보 포함)
      */
     @MessageMapping("/chat/reaction/add")
-    public void addReaction(@Payload AddReactionRequest request) {
-        log.debug("Received reaction add from user {} to message {}", request.userId(), request.messageId());
+    public void addReaction(@Payload AddReactionRequest request, StompHeaderAccessor headerAccessor) {
+        Long authenticatedUserId = extractUserId(headerAccessor);
+        log.debug("Received reaction add from authenticated user {} to message {}", authenticatedUserId, request.messageId());
 
         MessageReaction reaction = addMessageReactionUseCase.addReaction(
                 request.messageId(),
-                request.userId(),
+                authenticatedUserId,
                 request.emoji()
         );
 
@@ -269,21 +294,23 @@ public class ChatWebSocketController {
      * Redis Pub/Sub을 통해 해당 채팅방의 모든 참여자에게 반응 제거 이벤트를 브로드캐스트합니다.</p>
      *
      * @param request 반응 제거 요청 정보 (메시지 ID, 사용자 ID, 이모지)
+     * @param headerAccessor WebSocket 헤더 접근자 (인증된 사용자 정보 포함)
      */
     @MessageMapping("/chat/reaction/remove")
-    public void removeReaction(@Payload RemoveReactionRequest request) {
-        log.debug("Received reaction remove from user {} to message {}", request.userId(), request.messageId());
+    public void removeReaction(@Payload RemoveReactionRequest request, StompHeaderAccessor headerAccessor) {
+        Long authenticatedUserId = extractUserId(headerAccessor);
+        log.debug("Received reaction remove from authenticated user {} to message {}", authenticatedUserId, request.messageId());
 
         removeMessageReactionUseCase.removeReaction(
                 request.messageId(),
-                request.userId(),
+                authenticatedUserId,
                 request.emoji()
         );
 
         // 반응 제거 이벤트를 Redis Pub/Sub으로 브로드캐스트
         MessageReaction removedReaction = MessageReaction.builder()
                 .messageId(request.messageId())
-                .userId(request.userId())
+                .userId(authenticatedUserId)
                 .emoji(Emoji.valueOf(request.emoji()))
                 .build();
         publishReactionEvent(removedReaction, "REMOVED");
@@ -295,12 +322,13 @@ public class ChatWebSocketController {
      */
     @MessageMapping("/chat/presence")
     public void presencePing(@Payload PresencePingRequest request, StompHeaderAccessor headerAccessor) {
-        if (request == null || request.roomId() == null || request.userId() == null) {
+        if (request == null || request.roomId() == null) {
             return;
         }
+        Long authenticatedUserId = extractUserId(headerAccessor);
         String sessionId = headerAccessor != null ? headerAccessor.getSessionId() : null;
-        chatRoomPresenceTracker.markActive(request.roomId(), request.userId(), sessionId);
-        log.debug("[WS] presencePing roomId={}, userId={}, sessionId={}", request.roomId(), request.userId(), sessionId);
+        chatRoomPresenceTracker.markActive(request.roomId(), authenticatedUserId, sessionId);
+        log.debug("[WS] presencePing roomId={}, userId={}, sessionId={}", request.roomId(), authenticatedUserId, sessionId);
     }
 
     /**
@@ -309,12 +337,13 @@ public class ChatWebSocketController {
      */
     @MessageMapping("/chat/presence/inactive")
     public void presenceInactive(@Payload PresenceInactiveRequest request, StompHeaderAccessor headerAccessor) {
-        if (request == null || request.roomId() == null || request.userId() == null) {
+        if (request == null || request.roomId() == null) {
             return;
         }
+        Long authenticatedUserId = extractUserId(headerAccessor);
         String sessionId = headerAccessor != null ? headerAccessor.getSessionId() : null;
-        chatRoomPresenceTracker.markInactive(request.roomId(), request.userId(), sessionId);
-        log.debug("[WS] presenceInactive roomId={}, userId={}, sessionId={}", request.roomId(), request.userId(), sessionId);
+        chatRoomPresenceTracker.markInactive(request.roomId(), authenticatedUserId, sessionId);
+        log.debug("[WS] presenceInactive roomId={}, userId={}, sessionId={}", request.roomId(), authenticatedUserId, sessionId);
     }
 
     /**
