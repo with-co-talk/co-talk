@@ -7,11 +7,14 @@ import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.auth.ResetPasswordUseCase;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.infrastructure.util.LogMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.regex.Pattern;
 
 /**
  * 비밀번호 재설정 유스케이스 구현체.
@@ -25,6 +28,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class ResetPasswordService implements ResetPasswordUseCase {
 
+    /**
+     * 비밀번호 정규식 패턴.
+     * 최소 8자, 대문자 1개, 소문자 1개, 숫자 1개, 특수문자 1개 이상 필요.
+     */
+    private static final Pattern PASSWORD_PATTERN = Pattern.compile(
+            "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()\\-_=+])[A-Za-z\\d@$!%*?&#^()\\-_=+]{8,128}$"
+    );
+
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -36,6 +47,7 @@ public class ResetPasswordService implements ResetPasswordUseCase {
      * @param newPassword 새로운 비밀번호
      * @throws InvalidPasswordResetTokenException 토큰이 유효하지 않거나 만료된 경우
      * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
+     * @throws IllegalArgumentException 비밀번호가 보안 요구사항을 충족하지 않는 경우
      */
     @Override
     public void resetPassword(String token, String newPassword) {
@@ -43,6 +55,7 @@ public class ResetPasswordService implements ResetPasswordUseCase {
                 .orElseThrow(InvalidPasswordResetTokenException::notFound);
 
         validateToken(resetToken);
+        validatePasswordStrength(newPassword);
 
         User user = userRepository.findById(resetToken.getUserId())
                 .orElseThrow(() -> new UserNotFoundException(resetToken.getUserId()));
@@ -56,7 +69,7 @@ public class ResetPasswordService implements ResetPasswordUseCase {
         resetToken.markAsUsed();
         tokenRepository.save(resetToken);
 
-        log.info("Password reset completed for user: {}", resetToken.getEmail());
+        log.info("Password reset completed for user: {}", LogMaskingUtil.maskEmail(resetToken.getEmail()));
     }
 
     /**
@@ -79,6 +92,20 @@ public class ResetPasswordService implements ResetPasswordUseCase {
         }
         if (token.isUsed()) {
             throw InvalidPasswordResetTokenException.alreadyUsed();
+        }
+    }
+
+    /**
+     * 비밀번호 강도를 검증한다.
+     * 회원가입 시와 동일한 비밀번호 정책을 적용한다.
+     *
+     * @param password 검증할 비밀번호
+     * @throws IllegalArgumentException 비밀번호가 보안 요구사항을 충족하지 않는 경우
+     */
+    private void validatePasswordStrength(String password) {
+        if (password == null || !PASSWORD_PATTERN.matcher(password).matches()) {
+            throw new IllegalArgumentException(
+                    "비밀번호는 8-128자이며, 대문자, 소문자, 숫자, 특수문자를 각각 1개 이상 포함해야 합니다.");
         }
     }
 }

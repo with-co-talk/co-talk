@@ -1,13 +1,13 @@
 package com.cotalk.adapter.inbound.rest.dto.auth;
 
+import com.cotalk.infrastructure.security.PasswordValidator;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
 /**
  * 비밀번호 재설정 DTO.
  *
  * @param token       비밀번호 재설정 토큰
- * @param newPassword 새 비밀번호
+ * @param newPassword 새 비밀번호 (8-128자, 대문자/소문자/숫자/특수문자 각 1개 이상)
  * @author seunggu.lee
  */
 public record ResetPasswordRequest(
@@ -15,6 +15,6 @@ public record ResetPasswordRequest(
         String token,
 
         @NotBlank(message = "새 비밀번호는 필수입니다.")
-        @Size(min = 8, max = 100, message = "비밀번호는 8자 이상 100자 이하여야 합니다.")
+        @PasswordValidator
         String newPassword
 ) {}
