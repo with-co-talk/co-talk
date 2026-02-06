@@ -292,6 +292,28 @@ docker compose -f docker-compose.backup.yml up -d backup-cron
 docker compose -f docker-compose.backup.yml run --rm restore cotalk_20260205_030000.sql.gz
 ```
 
+#### 사전 준비 (네트워크/볼륨)
+
+`docker-compose.backup.yml`은 메인 `docker-compose.yml`에서 생성한 네트워크와 볼륨을 참조합니다.
+백업 서비스 실행 전에 다음 리소스가 존재해야 합니다:
+
+```bash
+# 메인 서비스가 실행 중이면 자동으로 생성되어 있음
+# 메인 서비스 없이 백업만 실행할 경우 수동 생성 필요:
+docker network create cotalk-network
+docker volume create co-talk_postgres-data
+```
+
+> **참고**: `docker compose up -d`로 메인 서비스를 먼저 시작하면 네트워크와 볼륨이 자동 생성됩니다.
+
+#### 비대화형 복원 (CI/자동화)
+
+자동화 환경에서 복원 시 확인 프롬프트를 건너뛰려면 `FORCE_RESTORE=true`를 설정합니다:
+
+```bash
+FORCE_RESTORE=true docker compose -f docker-compose.backup.yml run --rm restore <파일명>
+```
+
 #### 백업 스크립트 (`docker/backup/backup.sh`)
 
 ```bash
@@ -364,6 +386,29 @@ src/main/resources/db/migration/
 ├── V4__add_last_read_message_id.sql
 └── V5__add_link_preview_to_messages.sql
 ```
+
+#### 기존 DB에 Flyway 적용 절차
+
+이미 운영 중인 데이터베이스에 Flyway를 처음 도입할 때는 다음 절차를 따릅니다:
+
+1. **현재 스키마 확인**: 운영 DB의 현재 스키마가 마이그레이션 파일과 일치하는지 확인
+2. **베이스라인 설정**: `baseline-on-migrate: true`와 `baseline-version: '0'` 설정으로 기존 스키마를 V0으로 간주
+3. **검증**: `validate-on-migrate: true`로 마이그레이션 파일의 체크섬 검증 활성화
+4. **순서 보장**: `out-of-order: false`로 마이그레이션 순서 보장
+
+```yaml
+# application.yml Flyway 설정
+spring:
+  flyway:
+    enabled: true
+    baseline-on-migrate: true    # 기존 DB에 flyway_schema_history 테이블 자동 생성
+    baseline-version: '0'        # 기존 스키마를 V0으로 간주
+    locations: classpath:db/migration
+    validate-on-migrate: true    # 체크섬 검증
+    out-of-order: false          # 순서 보장
+```
+
+> **주의**: 최초 적용 시 `baseline-on-migrate`가 `flyway_schema_history` 테이블을 생성하고 V0을 베이스라인으로 등록합니다. 이후 V2 이상의 마이그레이션만 실행됩니다.
 
 ### 3. Alertmanager 알림 설정
 
