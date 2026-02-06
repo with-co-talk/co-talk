@@ -11,6 +11,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  flyway:
+    enabled: false  # 테스트에서는 ddl-auto: create-drop 사용
   h2:
     console:
       enabled: false
