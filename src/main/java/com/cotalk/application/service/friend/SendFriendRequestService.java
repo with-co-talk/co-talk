@@ -57,6 +57,7 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
      * @throws com.cotalk.domain.exception.UserNotFoundException 수신자를 찾을 수 없는 경우
      */
     @Override
+    @Transactional
     public Long sendFriendRequest(Long requesterId, Long receiverId) {
         userValidator.validateNotSelfAction(requesterId, receiverId, "친구 요청");
         userValidator.validateUserExists(receiverId);
@@ -76,7 +77,6 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
      * @param receiverId  수신자 ID
      * @return 생성된 친구 요청 ID
      */
-    @Transactional
     protected Long createFriendRequest(Long requesterId, Long receiverId) {
         // 이미 친구인지 확인
         if (friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)) {

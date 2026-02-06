@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
@@ -91,24 +90,27 @@ public class UploadFileService implements UploadFileUseCase {
         validateFileSize(command.fileSize());
         validateContentType(command.contentType());
 
-        // BufferedInputStream으로 감싸서 mark/reset 지원
-        BufferedInputStream bufferedStream = new BufferedInputStream(command.inputStream());
-        validateMagicNumber(bufferedStream, command.contentType());
+        // BufferedInputStream으로 감싸서 mark/reset 지원 (try-with-resources로 스트림 누수 방지)
+        try (BufferedInputStream bufferedStream = new BufferedInputStream(command.inputStream())) {
+            validateMagicNumber(bufferedStream, command.contentType());
 
-        String storagePath = generateStoragePath(command.userId(), command.originalFileName());
-        String fileUrl = fileStorage.upload(
-                bufferedStream,
-                storagePath,
-                command.contentType(),
-                command.fileSize()
-        );
+            String storagePath = generateStoragePath(command.userId(), command.originalFileName());
+            String fileUrl = fileStorage.upload(
+                    bufferedStream,
+                    storagePath,
+                    command.contentType(),
+                    command.fileSize()
+            );
 
-        return new FileUploadResult(
-                fileUrl,
-                extractFileName(storagePath),
-                command.contentType(),
-                command.fileSize()
-        );
+            return new FileUploadResult(
+                    fileUrl,
+                    extractFileName(storagePath),
+                    command.contentType(),
+                    command.fileSize()
+            );
+        } catch (IOException e) {
+            throw FileUploadException.uploadFailed("파일 업로드 중 스트림 처리 오류가 발생했습니다.");
+        }
     }
 
     private void validateFileSize(long fileSize) {

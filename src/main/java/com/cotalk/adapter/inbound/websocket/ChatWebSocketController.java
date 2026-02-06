@@ -135,6 +135,7 @@ public class ChatWebSocketController {
      * </ul>
      */
     private void publishToRedis(Message message) {
+        // 채팅방 멤버와 발신자 정보를 한 번만 조회 (중복 쿼리 방지)
         var members = chatRoomMemberRepository.findByChatRoomId(message.getChatRoomId());
         int totalMembers = members.size();
 
@@ -180,25 +181,28 @@ public class ChatWebSocketController {
         chatMessageBroker.publish(message.getChatRoomId(), broadcastMessage);
 
         // 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
-        publishChatListUpdate(message);
+        // 이미 조회한 members와 senderNickname을 전달하여 중복 쿼리 방지
+        publishChatListUpdate(message, members, senderNickname);
     }
 
     /**
      * 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
+     *
+     * @param message 전송된 메시지
+     * @param members 채팅방 멤버 목록 (중복 쿼리 방지용)
+     * @param senderNickname 발신자 닉네임 (중복 쿼리 방지용)
      */
-    private void publishChatListUpdate(Message message) {
-        log.debug("Publishing chat list update for message: chatRoomId={}, messageId={}", 
+    private void publishChatListUpdate(Message message, java.util.List<ChatRoomMember> members, String senderNickname) {
+        log.debug("Publishing chat list update for message: chatRoomId={}, messageId={}",
                 message.getChatRoomId(), message.getId());
 
-        // 발신자 닉네임 조회
-        String senderNickname = userRepository.findById(message.getSenderId())
-                .map(User::getNickname)
-                .orElse("알 수 없음");
-
-        // 채팅방 참여자 목록 조회
-        var members = chatRoomMemberRepository.findByChatRoomId(message.getChatRoomId());
         log.debug("Found {} members in chat room {}", members.size(), message.getChatRoomId());
 
+        // TODO: N+1 쿼리 최적화 필요
+        // 현재는 각 멤버마다 countUnreadMessagesByLastReadMessageId를 호출하여 N+1 문제 발생
+        // batchCountUnreadMessages는 한 유저의 여러 채팅방용이므로 직접 사용 불가
+        // 해결책: 같은 채팅방의 여러 유저에 대한 배치 조회 메서드 추가 필요
+        // 예: Map<Long, Long> batchCountUnreadMessagesForMembers(Long chatRoomId, List<MemberInfo>)
         for (ChatRoomMember member : members) {
             // 카톡/라인 방식: lastReadMessageId 기준으로 안 읽은 메시지 수 계산
             // 채팅방을 보고 있어도 markAsRead를 호출해야 lastReadMessageId가 업데이트됨
@@ -230,7 +234,7 @@ public class ChatWebSocketController {
                     memberUnreadCount
             );
 
-            log.debug("Publishing chat list update to user {}: roomId={}, unreadCount={}", 
+            log.debug("Publishing chat list update to user {}: roomId={}, unreadCount={}",
                     member.getUserId(), message.getChatRoomId(), memberUnreadCount);
             userEventBroker.publishChatListUpdate(member.getUserId(), event);
         }
