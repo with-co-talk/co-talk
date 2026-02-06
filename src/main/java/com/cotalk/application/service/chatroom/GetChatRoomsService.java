@@ -133,6 +133,9 @@ public class GetChatRoomsService implements GetChatRoomsUseCase, GetChatRoomUseC
                 .sorted((a, b) -> {
                     LocalDateTime aTime = a.lastMessageAt() != null ? a.lastMessageAt() : a.createdAt();
                     LocalDateTime bTime = b.lastMessageAt() != null ? b.lastMessageAt() : b.createdAt();
+                    if (aTime == null && bTime == null) return 0;
+                    if (aTime == null) return 1;
+                    if (bTime == null) return -1;
                     return bTime.compareTo(aTime); // 내림차순 (최신이 위)
                 })
                 .toList();
