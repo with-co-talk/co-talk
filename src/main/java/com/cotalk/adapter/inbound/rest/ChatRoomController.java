@@ -81,8 +81,11 @@ public class ChatRoomController {
      */
     @Operation(summary = "채팅방 생성", description = "1:1 채팅방을 생성합니다.")
     @PostMapping
-    public ResponseEntity<CreateChatRoomResponse> createChatRoom(@Valid @RequestBody CreateChatRoomRequest request) {
-        Long roomId = createChatRoomUseCase.createChatRoom(request.userId1(), request.userId2());
+    public ResponseEntity<CreateChatRoomResponse> createChatRoom(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @Valid @RequestBody CreateChatRoomRequest request) {
+        // userId1은 인증된 사용자에서 추출 (요청의 userId1은 무시)
+        Long roomId = createChatRoomUseCase.createChatRoom(principal.getUserId(), request.userId2());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CreateChatRoomResponse.of(roomId, "채팅방이 생성되었습니다."));
     }
@@ -181,9 +184,10 @@ public class ChatRoomController {
     @Operation(summary = "그룹 채팅방 생성", description = "그룹 채팅방을 생성합니다.")
     @PostMapping("/group")
     public ResponseEntity<CreateChatRoomResponse> createGroupChatRoom(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @Valid @RequestBody CreateGroupChatRoomRequest request) {
         Long roomId = createGroupChatRoomUseCase.createGroupChatRoom(
-                request.creatorId(), request.roomName(), request.memberIds());
+                principal.getUserId(), request.roomName(), request.memberIds());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CreateChatRoomResponse.of(roomId, "그룹 채팅방이 생성되었습니다."));
     }
@@ -198,9 +202,10 @@ public class ChatRoomController {
     @Operation(summary = "그룹 채팅방 멤버 초대", description = "그룹 채팅방에 멤버를 초대합니다.")
     @PostMapping("/{roomId}/invite")
     public ResponseEntity<MessageResponse> inviteMembers(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long roomId,
             @Valid @RequestBody InviteMembersRequest request) {
-        inviteGroupChatMemberUseCase.inviteMembers(roomId, request.inviterId(), request.inviteeIds());
+        inviteGroupChatMemberUseCase.inviteMembers(roomId, principal.getUserId(), request.inviteeIds());
         return ResponseEntity.ok(MessageResponse.of("멤버를 초대했습니다."));
     }
 
@@ -214,9 +219,10 @@ public class ChatRoomController {
     @Operation(summary = "채팅방 이름 변경", description = "그룹 채팅방의 이름을 변경합니다. (관리자 권한 필요)")
     @PutMapping("/{roomId}/name")
     public ResponseEntity<UpdateChatRoomNameResponse> updateChatRoomName(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long roomId,
             @Valid @RequestBody UpdateChatRoomNameRequest request) {
-        ChatRoom chatRoom = chatRoomManagementUseCase.updateChatRoomName(roomId, request.userId(), request.newName());
+        ChatRoom chatRoom = chatRoomManagementUseCase.updateChatRoomName(roomId, principal.getUserId(), request.newName());
         return ResponseEntity.ok(UpdateChatRoomNameResponse.of(chatRoom.getName(), "채팅방 이름이 변경되었습니다."));
     }
 
@@ -230,9 +236,10 @@ public class ChatRoomController {
     @Operation(summary = "공지사항 설정", description = "채팅방 공지사항을 설정합니다. (관리자 권한 필요)")
     @PostMapping("/{roomId}/announcement")
     public ResponseEntity<AnnouncementResponse> setAnnouncement(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long roomId,
             @Valid @RequestBody SetAnnouncementRequest request) {
-        ChatRoom chatRoom = chatRoomManagementUseCase.setAnnouncement(roomId, request.userId(), request.announcement());
+        ChatRoom chatRoom = chatRoomManagementUseCase.setAnnouncement(roomId, principal.getUserId(), request.announcement());
         return ResponseEntity.ok(AnnouncementResponse.of(chatRoom.getAnnouncement(), "공지사항이 설정되었습니다."));
     }
 

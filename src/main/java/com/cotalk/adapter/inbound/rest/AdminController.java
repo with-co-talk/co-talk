@@ -9,12 +9,14 @@ import com.cotalk.adapter.inbound.rest.dto.admin.SuspendUserRequest;
 import com.cotalk.domain.entity.Report;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.admin.AdminUseCase;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -78,17 +80,19 @@ public class AdminController {
     /**
      * 신고를 처리합니다.
      *
-     * @param reportId 신고 ID
-     * @param request  신고 처리 요청 (관리자 ID, 처리 상태, 관리자 메모)
+     * @param principal 인증된 관리자 정보
+     * @param reportId  신고 ID
+     * @param request   신고 처리 요청 (처리 상태, 관리자 메모)
      * @return 처리된 신고 정보
      */
     @Operation(summary = "신고 처리", description = "신고를 처리합니다.")
     @PostMapping("/reports/{reportId}/process")
     public ResponseEntity<AdminReportDto> processReport(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long reportId,
             @Valid @RequestBody ProcessReportRequest request) {
         Report report = adminUseCase.processReport(
-                reportId, request.adminId(), request.status(), request.adminNote());
+                reportId, principal.getUserId(), request.status(), request.adminNote());
         return ResponseEntity.ok(AdminReportDto.from(report));
     }
 
@@ -116,32 +120,34 @@ public class AdminController {
     /**
      * 사용자를 정지 처리합니다.
      *
-     * @param userId  정지할 사용자 ID
-     * @param request 정지 요청 (관리자 ID, 정지 사유)
+     * @param principal 인증된 관리자 정보
+     * @param userId    정지할 사용자 ID
+     * @param request   정지 요청 (정지 사유)
      * @return 정지된 사용자 정보
      */
     @Operation(summary = "사용자 정지", description = "사용자를 정지 처리합니다.")
     @PostMapping("/users/{userId}/suspend")
     public ResponseEntity<AdminUserDto> suspendUser(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long userId,
             @Valid @RequestBody SuspendUserRequest request) {
-        User user = adminUseCase.suspendUser(request.adminId(), userId, request.reason());
+        User user = adminUseCase.suspendUser(principal.getUserId(), userId, request.reason());
         return ResponseEntity.ok(AdminUserDto.from(user));
     }
 
     /**
      * 정지된 사용자를 활성화합니다.
      *
-     * @param userId  활성화할 사용자 ID
-     * @param adminId 관리자 ID
+     * @param principal 인증된 관리자 정보
+     * @param userId    활성화할 사용자 ID
      * @return 활성화된 사용자 정보
      */
     @Operation(summary = "사용자 활성화", description = "정지된 사용자를 활성화합니다.")
     @PostMapping("/users/{userId}/activate")
     public ResponseEntity<AdminUserDto> activateUser(
-            @PathVariable Long userId,
-            @RequestParam Long adminId) {
-        User user = adminUseCase.activateUser(adminId, userId);
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long userId) {
+        User user = adminUseCase.activateUser(principal.getUserId(), userId);
         return ResponseEntity.ok(AdminUserDto.from(user));
     }
 
