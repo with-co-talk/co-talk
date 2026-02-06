@@ -7,8 +7,10 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 
 /**
  * URL에서 링크 미리보기 정보를 추출하는 서비스.
@@ -76,11 +78,50 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
             if (scheme == null || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
                 throw new IllegalArgumentException("유효하지 않은 URL 형식입니다: " + url);
             }
-            if (uri.getHost() == null) {
+            String host = uri.getHost();
+            if (host == null) {
                 throw new IllegalArgumentException("유효하지 않은 URL 형식입니다: " + url);
             }
+
+            // Block private/internal hostnames and IPs
+            validateNotInternalHost(host);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException("유효하지 않은 URL 형식입니다: " + url, e);
+        }
+    }
+
+    /**
+     * 내부/사설 네트워크 호스트를 차단한다.
+     * DNS 확인을 수행하여 실제 IP가 사설 범위에 속하는지 검증한다.
+     *
+     * @param host 검증할 호스트명
+     * @throws IllegalArgumentException 내부 네트워크 주소인 경우
+     */
+    private void validateNotInternalHost(String host) {
+        // Block obvious internal hostnames
+        String lowerHost = host.toLowerCase();
+        if (lowerHost.equals("localhost") || lowerHost.endsWith(".local") || lowerHost.endsWith(".internal")) {
+            throw new IllegalArgumentException("내부 네트워크 주소는 허용되지 않습니다.");
+        }
+
+        try {
+            InetAddress[] addresses = InetAddress.getAllByName(host);
+            for (InetAddress address : addresses) {
+                if (address.isLoopbackAddress() ||
+                    address.isSiteLocalAddress() ||
+                    address.isLinkLocalAddress() ||
+                    address.isAnyLocalAddress()) {
+                    throw new IllegalArgumentException("내부 네트워크 주소는 허용되지 않습니다.");
+                }
+
+                // Block specific ranges (169.254.x.x cloud metadata)
+                byte[] addr = address.getAddress();
+                if (addr.length == 4 && (addr[0] & 0xFF) == 169 && (addr[1] & 0xFF) == 254) {
+                    throw new IllegalArgumentException("내부 네트워크 주소는 허용되지 않습니다.");
+                }
+            }
+        } catch (UnknownHostException e) {
+            throw new IllegalArgumentException("호스트를 확인할 수 없습니다: " + host, e);
         }
     }
 

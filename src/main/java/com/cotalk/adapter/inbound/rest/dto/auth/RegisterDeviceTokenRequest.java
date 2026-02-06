@@ -6,15 +6,11 @@ import jakarta.validation.constraints.NotNull;
 /**
  * 디바이스 토큰 등록 요청 DTO.
  *
- * @param userId     사용자 ID
  * @param token      디바이스 토큰 (FCM/APNs)
  * @param deviceType 디바이스 타입 (ANDROID, IOS, WEB)
  * @author seunggu.lee
  */
 public record RegisterDeviceTokenRequest(
-        @NotNull(message = "사용자 ID는 필수입니다.")
-        Long userId,
-
         @NotBlank(message = "디바이스 토큰은 필수입니다.")
         String token,
 

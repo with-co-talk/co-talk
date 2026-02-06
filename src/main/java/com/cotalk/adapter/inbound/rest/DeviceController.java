@@ -5,12 +5,14 @@ import com.cotalk.adapter.inbound.rest.dto.auth.RegisterDeviceTokenResponse;
 import com.cotalk.adapter.inbound.rest.dto.common.MessageResponse;
 import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.port.inbound.notification.RegisterDeviceTokenUseCase;
+import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,17 +37,19 @@ public class DeviceController {
     /**
      * 푸시 알림을 위한 FCM/APNs 토큰을 등록한다.
      *
-     * @param request 디바이스 토큰 등록 요청 정보 (사용자 ID, 토큰, 디바이스 타입)
+     * @param principal 인증된 사용자 정보
+     * @param request   디바이스 토큰 등록 요청 정보 (토큰, 디바이스 타입)
      * @return 등록된 토큰 ID와 성공 메시지
      */
     @Operation(summary = "디바이스 토큰 등록", description = "푸시 알림을 위한 FCM/APNs 토큰을 등록합니다.")
     @PostMapping("/token")
     public ResponseEntity<RegisterDeviceTokenResponse> registerDeviceToken(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @Valid @RequestBody RegisterDeviceTokenRequest request) {
 
         DeviceToken.DeviceType deviceType = DeviceToken.DeviceType.valueOf(request.deviceType().toUpperCase());
         DeviceToken savedToken = registerDeviceTokenUseCase.register(
-                request.userId(),
+                principal.getUserId(),
                 request.token(),
                 deviceType
         );

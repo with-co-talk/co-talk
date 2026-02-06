@@ -91,8 +91,9 @@ class MessageIntegrationTest {
     }
 
     private Long createChatRoom(Long userId1, Long userId2) throws Exception {
-        CreateChatRoomRequest request = new CreateChatRoomRequest(userId1, userId2);
+        CreateChatRoomRequest request = new CreateChatRoomRequest(userId2);
 
+        setSecurityContext(userId1);
         MvcResult result = mockMvc.perform(post("/api/v1/chat/rooms")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -120,8 +121,9 @@ class MessageIntegrationTest {
     @DisplayName("메시지 전송 및 조회")
     void should_sendAndGetMessages() throws Exception {
         // 1. 메시지 전송
-        SendMessageRequest sendRequest = new SendMessageRequest(user1Id, chatRoomId, "안녕하세요!");
+        SendMessageRequest sendRequest = new SendMessageRequest(chatRoomId, "안녕하세요!");
 
+        setSecurityContext(user1Id);
         mockMvc.perform(post("/api/v1/chat/messages")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sendRequest)))
@@ -130,8 +132,9 @@ class MessageIntegrationTest {
                 .andExpect(jsonPath("$.content").value("안녕하세요!"));
 
         // 2. 두 번째 메시지 전송
-        SendMessageRequest sendRequest2 = new SendMessageRequest(user2Id, chatRoomId, "반갑습니다!");
+        SendMessageRequest sendRequest2 = new SendMessageRequest(chatRoomId, "반갑습니다!");
 
+        setSecurityContext(user2Id);
         mockMvc.perform(post("/api/v1/chat/messages")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sendRequest2)))
@@ -150,8 +153,9 @@ class MessageIntegrationTest {
     @DisplayName("메시지 수정")
     void should_updateMessage() throws Exception {
         // 1. 메시지 전송
-        SendMessageRequest sendRequest = new SendMessageRequest(user1Id, chatRoomId, "원본 메시지");
+        SendMessageRequest sendRequest = new SendMessageRequest(chatRoomId, "원본 메시지");
 
+        setSecurityContext(user1Id);
         MvcResult sendResult = mockMvc.perform(post("/api/v1/chat/messages")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sendRequest)))
@@ -162,8 +166,9 @@ class MessageIntegrationTest {
         Long messageId = response.get("messageId").asLong();
 
         // 2. 메시지 수정
-        UpdateMessageRequest updateRequest = new UpdateMessageRequest(user1Id, "수정된 메시지");
+        UpdateMessageRequest updateRequest = new UpdateMessageRequest("수정된 메시지");
 
+        setSecurityContext(user1Id);
         mockMvc.perform(put("/api/v1/chat/messages/{messageId}", messageId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
@@ -175,8 +180,9 @@ class MessageIntegrationTest {
     @DisplayName("메시지 삭제")
     void should_deleteMessage() throws Exception {
         // 1. 메시지 전송
-        SendMessageRequest sendRequest = new SendMessageRequest(user1Id, chatRoomId, "삭제될 메시지");
+        SendMessageRequest sendRequest = new SendMessageRequest(chatRoomId, "삭제될 메시지");
 
+        setSecurityContext(user1Id);
         MvcResult sendResult = mockMvc.perform(post("/api/v1/chat/messages")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sendRequest)))
@@ -204,8 +210,9 @@ class MessageIntegrationTest {
     void should_searchMessages() throws Exception {
         // 1. 여러 메시지 전송
         String[] messages = {"안녕하세요", "반갑습니다", "오늘 날씨가 좋네요", "안녕히 가세요"};
+        setSecurityContext(user1Id);
         for (String msg : messages) {
-            SendMessageRequest request = new SendMessageRequest(user1Id, chatRoomId, msg);
+            SendMessageRequest request = new SendMessageRequest(chatRoomId, msg);
             mockMvc.perform(post("/api/v1/chat/messages")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -228,8 +235,9 @@ class MessageIntegrationTest {
     @DisplayName("타인의 메시지 수정 실패")
     void should_failUpdateMessage_when_notOwner() throws Exception {
         // 1. user1이 메시지 전송
-        SendMessageRequest sendRequest = new SendMessageRequest(user1Id, chatRoomId, "user1의 메시지");
+        SendMessageRequest sendRequest = new SendMessageRequest(chatRoomId, "user1의 메시지");
 
+        setSecurityContext(user1Id);
         MvcResult sendResult = mockMvc.perform(post("/api/v1/chat/messages")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sendRequest)))
@@ -240,8 +248,9 @@ class MessageIntegrationTest {
         Long messageId = response.get("messageId").asLong();
 
         // 2. user2가 수정 시도
-        UpdateMessageRequest updateRequest = new UpdateMessageRequest(user2Id, "해킹 시도!");
+        UpdateMessageRequest updateRequest = new UpdateMessageRequest("해킹 시도!");
 
+        setSecurityContext(user2Id);
         mockMvc.perform(put("/api/v1/chat/messages/{messageId}", messageId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))

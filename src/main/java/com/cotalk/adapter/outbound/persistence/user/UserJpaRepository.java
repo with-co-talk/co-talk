@@ -1,6 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.user;
 
 import com.cotalk.domain.entity.User;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -38,6 +39,15 @@ public interface UserJpaRepository extends JpaRepository<User, Long> {
      * @return 사용자 목록
      */
     List<User> findByNicknameContaining(String nickname);
+
+    /**
+     * 닉네임에 특정 문자열이 포함된 사용자 목록을 조회한다. (DB-레벨 페이징)
+     *
+     * @param nickname 검색할 닉네임
+     * @param pageable 페이징 정보 (limit, offset)
+     * @return 사용자 목록
+     */
+    List<User> findByNicknameContaining(String nickname, Pageable pageable);
 
     /**
      * 해당 이메일을 가진 사용자가 존재하는지 확인한다.

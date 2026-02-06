@@ -28,8 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -112,8 +110,9 @@ class ChatRoomIntegrationTest {
     @DisplayName("1:1 채팅방 생성 및 조회")
     void should_createAndGetDirectChatRoom() throws Exception {
         // 1. 1:1 채팅방 생성
-        CreateChatRoomRequest createRequest = new CreateChatRoomRequest(user1Id, user2Id);
+        CreateChatRoomRequest createRequest = new CreateChatRoomRequest(user2Id);
 
+        setSecurityContext(user1Id);
         MvcResult createResult = mockMvc.perform(post("/api/v1/chat/rooms")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
@@ -151,11 +150,11 @@ class ChatRoomIntegrationTest {
 
         // 1. 그룹 채팅방 생성 (최소 3명 이상 필요)
         CreateGroupChatRoomRequest createRequest = new CreateGroupChatRoomRequest(
-                user1Id,
                 "테스트 그룹",
                 List.of(user2Id, user3Id)
         );
 
+        setSecurityContext(user1Id);
         MvcResult createResult = mockMvc.perform(post("/api/v1/chat/rooms/group")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
@@ -167,8 +166,9 @@ class ChatRoomIntegrationTest {
         Long chatRoomId = response.get("roomId").asLong();
 
         // 2. user4 초대
-        InviteMembersRequest inviteRequest = new InviteMembersRequest(user1Id, List.of(user4Id));
+        InviteMembersRequest inviteRequest = new InviteMembersRequest(List.of(user4Id));
 
+        setSecurityContext(user1Id);
         mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/invite", chatRoomId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(inviteRequest)))
@@ -176,6 +176,7 @@ class ChatRoomIntegrationTest {
                 .andExpect(jsonPath("$.message").value("멤버를 초대했습니다."));
 
         // 3. user4의 채팅방 목록에서 확인
+        setSecurityContext(user4Id);
         mockMvc.perform(get("/api/v1/chat/rooms")
                         .param("userId", user4Id.toString()))
                 .andExpect(status().isOk())
@@ -189,11 +190,11 @@ class ChatRoomIntegrationTest {
     void should_leaveChatRoom() throws Exception {
         // 1. 그룹 채팅방 생성
         CreateGroupChatRoomRequest createRequest = new CreateGroupChatRoomRequest(
-                user1Id,
                 "나가기 테스트 그룹",
                 List.of(user2Id, user3Id)
         );
 
+        setSecurityContext(user1Id);
         MvcResult createResult = mockMvc.perform(post("/api/v1/chat/rooms/group")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
@@ -219,8 +220,9 @@ class ChatRoomIntegrationTest {
     @DisplayName("같은 1:1 채팅방 중복 생성 시 기존 채팅방 반환")
     void should_returnExistingChatRoom_when_duplicateDirectChat() throws Exception {
         // 1. 첫 번째 1:1 채팅방 생성
-        CreateChatRoomRequest createRequest1 = new CreateChatRoomRequest(user1Id, user2Id);
+        CreateChatRoomRequest createRequest1 = new CreateChatRoomRequest(user2Id);
 
+        setSecurityContext(user1Id);
         MvcResult result1 = mockMvc.perform(post("/api/v1/chat/rooms")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest1)))
@@ -231,8 +233,9 @@ class ChatRoomIntegrationTest {
         Long chatRoomId1 = response1.get("roomId").asLong();
 
         // 2. 같은 사용자로 다시 채팅방 생성 시도
-        CreateChatRoomRequest createRequest2 = new CreateChatRoomRequest(user2Id, user1Id);
+        CreateChatRoomRequest createRequest2 = new CreateChatRoomRequest(user1Id);
 
+        setSecurityContext(user2Id);
         MvcResult result2 = mockMvc.perform(post("/api/v1/chat/rooms")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest2)))

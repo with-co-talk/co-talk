@@ -7,6 +7,7 @@ import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,7 @@ class AccountControllerTest {
 
         @Test
         @DisplayName("회원 탈퇴 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_deleteAccountSuccess() throws Exception {
             // given
             Long userId = 1L;
@@ -62,7 +64,7 @@ class AccountControllerTest {
                     """;
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isOk())
@@ -71,6 +73,7 @@ class AccountControllerTest {
 
         @Test
         @DisplayName("잘못된 비밀번호로 탈퇴 시 401 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnUnauthorized_when_wrongPassword() throws Exception {
             // given
             Long userId = 1L;
@@ -86,7 +89,7 @@ class AccountControllerTest {
                     """;
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isUnauthorized());
@@ -94,6 +97,7 @@ class AccountControllerTest {
 
         @Test
         @DisplayName("존재하지 않는 사용자 탈퇴 시 404 에러")
+        @WithMockCustomUser(userId = 999L)
         void should_returnNotFound_when_userNotFound() throws Exception {
             // given
             Long userId = 999L;
@@ -109,7 +113,7 @@ class AccountControllerTest {
                     """;
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isNotFound());
@@ -117,14 +121,13 @@ class AccountControllerTest {
 
         @Test
         @DisplayName("비밀번호 누락 시 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_passwordMissing() throws Exception {
             // given
-            Long userId = 1L;
-
             String requestBody = "{}";
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isBadRequest());
@@ -132,10 +135,9 @@ class AccountControllerTest {
 
         @Test
         @DisplayName("빈 비밀번호 시 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_passwordEmpty() throws Exception {
             // given
-            Long userId = 1L;
-
             String requestBody = """
                     {
                         "password": ""
@@ -143,7 +145,7 @@ class AccountControllerTest {
                     """;
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isBadRequest());
@@ -151,10 +153,9 @@ class AccountControllerTest {
 
         @Test
         @DisplayName("공백 비밀번호 시 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_passwordBlank() throws Exception {
             // given
-            Long userId = 1L;
-
             String requestBody = """
                     {
                         "password": "   "
@@ -162,47 +163,29 @@ class AccountControllerTest {
                     """;
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isBadRequest());
         }
 
-        @Test
-        @DisplayName("잘못된 userId 타입 시 500 에러 (타입 변환 실패)")
-        void should_returnInternalError_when_invalidUserIdType() throws Exception {
-            // given
-            String requestBody = """
-                    {
-                        "password": "validPassword"
-                    }
-                    """;
-
-            // when & then - Spring이 Long 변환 실패 시 내부 오류 발생
-            mockMvc.perform(delete("/api/v1/account/not-a-number")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(requestBody))
-                    .andExpect(status().isInternalServerError());
-        }
 
         @Test
         @DisplayName("request body 없이 요청 시 500 에러 (HttpMessageNotReadable)")
+        @WithMockCustomUser(userId = 1L)
         void should_returnInternalError_when_noRequestBody() throws Exception {
             // given
-            Long userId = 1L;
-
             // when & then - body 없이 요청 시 HttpMessageNotReadableException 발생
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isInternalServerError());
         }
 
         @Test
         @DisplayName("null password 시 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_passwordNull() throws Exception {
             // given
-            Long userId = 1L;
-
             String requestBody = """
                     {
                         "password": null
@@ -210,7 +193,7 @@ class AccountControllerTest {
                     """;
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isBadRequest());
@@ -218,6 +201,7 @@ class AccountControllerTest {
 
         @Test
         @DisplayName("특수문자 포함 비밀번호로 탈퇴 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_passwordWithSpecialChars() throws Exception {
             // given
             Long userId = 1L;
@@ -232,7 +216,7 @@ class AccountControllerTest {
                     """;
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isOk())
@@ -241,6 +225,7 @@ class AccountControllerTest {
 
         @Test
         @DisplayName("한글 비밀번호로 탈퇴 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_koreanPassword() throws Exception {
             // given
             Long userId = 1L;
@@ -255,7 +240,7 @@ class AccountControllerTest {
                     """;
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isOk())
@@ -264,6 +249,7 @@ class AccountControllerTest {
 
         @Test
         @DisplayName("매우 긴 비밀번호로 탈퇴")
+        @WithMockCustomUser(userId = 1L)
         void should_handleLongPassword() throws Exception {
             // given
             Long userId = 1L;
@@ -278,7 +264,7 @@ class AccountControllerTest {
                     """, longPassword);
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isOk());
@@ -286,6 +272,7 @@ class AccountControllerTest {
 
         @Test
         @DisplayName("음수 userId 시에도 정상 요청 처리")
+        @WithMockCustomUser(userId = -1L)
         void should_processRequest_when_negativeUserId() throws Exception {
             // given
             Long userId = -1L;
@@ -301,7 +288,7 @@ class AccountControllerTest {
                     """;
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isNotFound());
@@ -309,6 +296,7 @@ class AccountControllerTest {
 
         @Test
         @DisplayName("0 userId 시에도 정상 요청 처리")
+        @WithMockCustomUser(userId = 0L)
         void should_processRequest_when_zeroUserId() throws Exception {
             // given
             Long userId = 0L;
@@ -324,7 +312,7 @@ class AccountControllerTest {
                     """;
 
             // when & then
-            mockMvc.perform(delete("/api/v1/account/{userId}", userId)
+            mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
                     .andExpect(status().isNotFound());

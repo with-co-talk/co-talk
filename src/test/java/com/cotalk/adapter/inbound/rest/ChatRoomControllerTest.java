@@ -107,9 +107,10 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 1:1 채팅방 생성 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_validRequest() throws Exception {
             // given
-            CreateChatRoomRequest request = new CreateChatRoomRequest(1L, 2L);
+            CreateChatRoomRequest request = new CreateChatRoomRequest(2L);
 
             given(createChatRoomUseCase.createChatRoom(anyLong(), anyLong())).willReturn(100L);
 
@@ -300,10 +301,11 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 그룹 채팅방 생성 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_validRequest() throws Exception {
             // given
             CreateGroupChatRoomRequest request =
-                    new CreateGroupChatRoomRequest(1L, "개발팀 채팅방", List.of(2L, 3L, 4L));
+                    new CreateGroupChatRoomRequest("개발팀 채팅방", List.of(2L, 3L, 4L));
 
             given(createGroupChatRoomUseCase.createGroupChatRoom(eq(1L), eq("개발팀 채팅방"), any()))
                     .willReturn(100L);
@@ -319,10 +321,11 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("채팅방 이름이 없으면 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_roomNameMissing() throws Exception {
             // given
             CreateGroupChatRoomRequest request =
-                    new CreateGroupChatRoomRequest(1L, null, List.of(2L, 3L));
+                    new CreateGroupChatRoomRequest(null, List.of(2L, 3L));
 
             // when & then
             mockMvc.perform(post("/api/v1/chat/rooms/group")
@@ -338,10 +341,11 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 멤버 초대 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long roomId = 100L;
-            InviteMembersRequest request = new InviteMembersRequest(1L, List.of(5L, 6L));
+            InviteMembersRequest request = new InviteMembersRequest(List.of(5L, 6L));
 
             willDoNothing().given(inviteGroupChatMemberUseCase).inviteMembers(eq(roomId), eq(1L), any());
 
@@ -360,10 +364,11 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 채팅방 이름 변경 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long roomId = 100L;
-            UpdateChatRoomNameRequest request = UpdateChatRoomNameRequest.of(1L, "새로운 채팅방 이름");
+            UpdateChatRoomNameRequest request = UpdateChatRoomNameRequest.of("새로운 채팅방 이름");
 
             ChatRoom chatRoom = ChatRoom.builder()
                     .id(roomId)
@@ -385,10 +390,11 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("이름이 비어있으면 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_nameEmpty() throws Exception {
             // given
             Long roomId = 100L;
-            UpdateChatRoomNameRequest request = UpdateChatRoomNameRequest.of(1L, "");
+            UpdateChatRoomNameRequest request = UpdateChatRoomNameRequest.of("");
 
             // when & then
             mockMvc.perform(put("/api/v1/chat/rooms/{roomId}/name", roomId)
@@ -404,10 +410,11 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 공지사항 설정 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long roomId = 100L;
-            SetAnnouncementRequest request = SetAnnouncementRequest.of(1L, "중요 공지사항입니다.");
+            SetAnnouncementRequest request = SetAnnouncementRequest.of("중요 공지사항입니다.");
 
             ChatRoom chatRoom = ChatRoom.builder()
                     .id(roomId)
@@ -430,10 +437,11 @@ class ChatRoomControllerTest {
 
         @Test
         @DisplayName("공지사항이 비어있으면 400 에러")
+        @WithMockCustomUser(userId = 1L)
         void should_returnBadRequest_when_announcementEmpty() throws Exception {
             // given
             Long roomId = 100L;
-            SetAnnouncementRequest request = SetAnnouncementRequest.of(1L, "");
+            SetAnnouncementRequest request = SetAnnouncementRequest.of("");
 
             // when & then
             mockMvc.perform(post("/api/v1/chat/rooms/{roomId}/announcement", roomId)

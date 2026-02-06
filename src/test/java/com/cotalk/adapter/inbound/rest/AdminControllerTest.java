@@ -8,6 +8,7 @@ import com.cotalk.domain.port.inbound.admin.AdminUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -81,11 +82,12 @@ class AdminControllerTest {
 
         @Test
         @DisplayName("신고 처리")
+        @WithMockCustomUser(userId = 999L)
         void should_processReport() throws Exception {
             // given
             Long reportId = 1L;
             ProcessReportRequest request =
-                    new ProcessReportRequest(999L, Report.ReportStatus.RESOLVED, "처리 완료");
+                    new ProcessReportRequest(Report.ReportStatus.RESOLVED, "처리 완료");
 
             Report processedReport = Report.builder()
                     .id(reportId)
@@ -146,11 +148,12 @@ class AdminControllerTest {
 
         @Test
         @DisplayName("사용자 정지")
+        @WithMockCustomUser(userId = 999L)
         void should_suspendUser() throws Exception {
             // given
             Long userId = 1L;
             SuspendUserRequest request =
-                    new SuspendUserRequest(999L, "부적절한 행동");
+                    new SuspendUserRequest("부적절한 행동");
 
             User suspendedUser = User.builder()
                     .id(userId)
@@ -172,6 +175,7 @@ class AdminControllerTest {
 
         @Test
         @DisplayName("사용자 활성화")
+        @WithMockCustomUser(userId = 999L)
         void should_activateUser() throws Exception {
             // given
             Long userId = 1L;
@@ -184,11 +188,10 @@ class AdminControllerTest {
                     .status(User.UserStatus.ACTIVE)
                     .build();
 
-            given(adminUseCase.activateUser(adminId, userId)).willReturn(activatedUser);
+            given(adminUseCase.activateUser(eq(999L), eq(userId))).willReturn(activatedUser);
 
             // when & then
-            mockMvc.perform(post("/api/v1/admin/users/{userId}/activate", userId)
-                            .param("adminId", adminId.toString()))
+            mockMvc.perform(post("/api/v1/admin/users/{userId}/activate", userId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("ACTIVE"));
         }

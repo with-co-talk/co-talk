@@ -103,9 +103,10 @@ class ChatMessageControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 메시지 전송 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_validMessage() throws Exception {
             // given
-            SendMessageRequest request = new SendMessageRequest(1L, 100L, "안녕하세요!");
+            SendMessageRequest request = new SendMessageRequest(100L, "안녕하세요!");
 
             Message message = Message.builder()
                     .id(500L)
@@ -136,7 +137,7 @@ class ChatMessageControllerTest {
         void should_returnCreated_when_validImageMessage() throws Exception {
             // given
             SendFileMessageRequest request = new SendFileMessageRequest(
-                    1L, 100L,
+                    100L,
                     "https://example.com/image.png",
                     "image.png",
                     1024L,
@@ -181,7 +182,7 @@ class ChatMessageControllerTest {
         void should_returnCreated_when_validFileMessage() throws Exception {
             // given
             SendFileMessageRequest request = new SendFileMessageRequest(
-                    1L, 100L,
+                    100L,
                     "https://example.com/file.pdf",
                     "document.pdf",
                     2048L,
@@ -366,10 +367,11 @@ class ChatMessageControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 메시지 수정 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validUpdate() throws Exception {
             // given
             Long messageId = 500L;
-            UpdateMessageRequest request = new UpdateMessageRequest(1L, "수정된 메시지");
+            UpdateMessageRequest request = new UpdateMessageRequest("수정된 메시지");
 
             Message updatedMessage = Message.builder()
                     .id(messageId)
@@ -418,13 +420,14 @@ class ChatMessageControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 메시지 답장 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_validReply() throws Exception {
             // given
             Long originalMessageId = 500L;
             Long senderId = 1L;
             String content = "답장 메시지입니다.";
 
-            ReplyMessageRequest request = new ReplyMessageRequest(senderId, content);
+            ReplyMessageRequest request = new ReplyMessageRequest(content);
 
             Message replyMessage = Message.builder()
                     .id(501L)
@@ -454,13 +457,14 @@ class ChatMessageControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 메시지 전달 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_validForward() throws Exception {
             // given
             Long originalMessageId = 500L;
             Long senderId = 1L;
             Long targetChatRoomId = 200L;
 
-            ForwardMessageRequest request = new ForwardMessageRequest(senderId, targetChatRoomId);
+            ForwardMessageRequest request = new ForwardMessageRequest(targetChatRoomId);
 
             Message forwardedMessage = Message.builder()
                     .id(502L)

@@ -110,4 +110,31 @@ class GetLinkPreviewServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.url()).isEqualTo(url);
     }
+
+    @Test
+    @DisplayName("should_예외발생_when_localhostURL")
+    void should_ThrowException_when_LocalhostUrl() {
+        // when & then
+        assertThatThrownBy(() -> getLinkPreviewUseCase.getLinkPreview("http://localhost/test"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("내부 네트워크 주소");
+    }
+
+    @Test
+    @DisplayName("should_예외발생_when_사설IP_URL")
+    void should_ThrowException_when_PrivateIpUrl() {
+        // when & then
+        assertThatThrownBy(() -> getLinkPreviewUseCase.getLinkPreview("http://10.0.0.1/test"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("내부 네트워크 주소");
+    }
+
+    @Test
+    @DisplayName("should_예외발생_when_메타데이터URL")
+    void should_ThrowException_when_MetadataUrl() {
+        // when & then
+        assertThatThrownBy(() -> getLinkPreviewUseCase.getLinkPreview("http://169.254.169.254/latest/meta-data/"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("내부 네트워크 주소");
+    }
 }

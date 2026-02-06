@@ -79,13 +79,16 @@ public class ChatMessageController {
     /**
      * 채팅방에 텍스트 메시지를 전송합니다.
      *
-     * @param request 메시지 전송 요청 (발신자 ID, 채팅방 ID, 내용)
+     * @param principal 인증된 사용자 정보
+     * @param request 메시지 전송 요청 (채팅방 ID, 내용)
      * @return 전송된 메시지 정보
      */
     @Operation(summary = "메시지 전송", description = "채팅방에 메시지를 전송합니다.")
     @PostMapping
-    public ResponseEntity<SendMessageResponse> sendMessage(@Valid @RequestBody SendMessageRequest request) {
-        Message message = sendMessageUseCase.sendMessage(request.chatRoomId(), request.senderId(), request.content());
+    public ResponseEntity<SendMessageResponse> sendMessage(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @Valid @RequestBody SendMessageRequest request) {
+        Message message = sendMessageUseCase.sendMessage(request.chatRoomId(), principal.getUserId(), request.content());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(SendMessageResponse.from(message));
     }
@@ -241,16 +244,18 @@ public class ChatMessageController {
     /**
      * 본인이 보낸 메시지를 수정합니다.
      *
+     * @param principal 인증된 사용자 정보
      * @param messageId 수정할 메시지 ID
-     * @param request   메시지 수정 요청 (사용자 ID, 새 내용)
+     * @param request   메시지 수정 요청 (새 내용)
      * @return 수정된 메시지 정보
      */
     @Operation(summary = "메시지 수정", description = "본인이 보낸 메시지를 수정합니다.")
     @PutMapping("/{messageId}")
     public ResponseEntity<UpdateMessageResponse> updateMessage(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long messageId,
             @Valid @RequestBody UpdateMessageRequest request) {
-        Message message = updateMessageUseCase.updateMessage(messageId, request.userId(), request.content());
+        Message message = updateMessageUseCase.updateMessage(messageId, principal.getUserId(), request.content());
         return ResponseEntity.ok(UpdateMessageResponse.from(message));
     }
 
@@ -273,17 +278,19 @@ public class ChatMessageController {
     /**
      * 특정 메시지에 답장합니다.
      *
+     * @param principal 인증된 사용자 정보
      * @param messageId 답장할 원본 메시지 ID
-     * @param request   답장 요청 (발신자 ID, 답장 내용)
+     * @param request   답장 요청 (답장 내용)
      * @return 전송된 답장 메시지 정보
      */
     @Operation(summary = "메시지 답장", description = "특정 메시지에 답장합니다.")
     @PostMapping("/{messageId}/reply")
     public ResponseEntity<SendMessageResponse> replyToMessage(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long messageId,
             @Valid @RequestBody ReplyMessageRequest request) {
         Message message = messageReplyForwardUseCase.replyToMessage(
-                request.senderId(), messageId, request.content());
+                principal.getUserId(), messageId, request.content());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(SendMessageResponse.from(message));
     }
@@ -291,17 +298,19 @@ public class ChatMessageController {
     /**
      * 메시지를 다른 채팅방으로 전달합니다.
      *
+     * @param principal 인증된 사용자 정보
      * @param messageId 전달할 메시지 ID
-     * @param request   전달 요청 (발신자 ID, 대상 채팅방 ID)
+     * @param request   전달 요청 (대상 채팅방 ID)
      * @return 전달된 메시지 정보
      */
     @Operation(summary = "메시지 전달", description = "메시지를 다른 채팅방으로 전달합니다.")
     @PostMapping("/{messageId}/forward")
     public ResponseEntity<SendMessageResponse> forwardMessage(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable Long messageId,
             @Valid @RequestBody ForwardMessageRequest request) {
         Message message = messageReplyForwardUseCase.forwardMessage(
-                request.senderId(), messageId, request.targetChatRoomId());
+                principal.getUserId(), messageId, request.targetChatRoomId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(SendMessageResponse.from(message));
     }

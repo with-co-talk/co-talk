@@ -5,6 +5,7 @@ import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.port.inbound.notification.RegisterDeviceTokenUseCase;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import com.cotalk.infrastructure.security.WithMockCustomUser;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -52,10 +53,11 @@ class DeviceControllerTest {
 
         @Test
         @DisplayName("유효한 요청으로 디바이스 토큰 등록 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_registerToken_when_validRequest() throws Exception {
             // given
             RegisterDeviceTokenRequest request =
-                    new RegisterDeviceTokenRequest(1L, "fcm-token-123", "ANDROID");
+                    new RegisterDeviceTokenRequest("fcm-token-123", "ANDROID");
 
             DeviceToken savedToken = DeviceToken.builder()
                     .id(100L)
@@ -78,10 +80,11 @@ class DeviceControllerTest {
 
         @Test
         @DisplayName("iOS 디바이스 토큰 등록 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_registerIosToken_when_iosDevice() throws Exception {
             // given
             RegisterDeviceTokenRequest request =
-                    new RegisterDeviceTokenRequest(1L, "apns-token-123", "IOS");
+                    new RegisterDeviceTokenRequest("apns-token-123", "IOS");
 
             DeviceToken savedToken = DeviceToken.builder()
                     .id(100L)

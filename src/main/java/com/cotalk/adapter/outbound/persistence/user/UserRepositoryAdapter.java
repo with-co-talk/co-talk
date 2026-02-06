@@ -6,6 +6,8 @@ import com.cotalk.infrastructure.config.CacheConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -81,6 +83,19 @@ public class UserRepositoryAdapter implements UserRepository {
     @Override
     public List<User> findByNicknameContaining(String nickname) {
         return userJpaRepository.findByNicknameContaining(nickname);
+    }
+
+    /**
+     * 닉네임에 특정 문자열이 포함된 사용자 목록을 조회한다. (DB-레벨 limit 적용)
+     *
+     * @param nickname 검색할 닉네임
+     * @param limit 최대 조회 건수
+     * @return 사용자 목록 (최대 limit 건)
+     */
+    @Override
+    public List<User> findByNicknameContaining(String nickname, int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        return userJpaRepository.findByNicknameContaining(nickname, pageable);
     }
 
     /**

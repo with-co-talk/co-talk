@@ -7,14 +7,10 @@ import jakarta.validation.constraints.Size;
 /**
  * 공지사항 설정 요청 DTO.
  *
- * @param userId       요청자 ID
  * @param announcement 공지사항 내용
  * @author seunggu.lee
  */
 public record SetAnnouncementRequest(
-        @NotNull(message = "사용자 ID는 필수입니다.")
-        Long userId,
-
         @NotBlank(message = "공지사항 내용은 필수입니다.")
         @Size(max = 500, message = "공지사항은 500자를 초과할 수 없습니다.")
         String announcement
@@ -23,11 +19,10 @@ public record SetAnnouncementRequest(
     /**
      * 공지사항 설정 요청을 생성합니다.
      *
-     * @param userId       요청자 ID
      * @param announcement 공지사항 내용
      * @return SetAnnouncementRequest 인스턴스
      */
-    public static SetAnnouncementRequest of(Long userId, String announcement) {
-        return new SetAnnouncementRequest(userId, announcement);
+    public static SetAnnouncementRequest of(String announcement) {
+        return new SetAnnouncementRequest(announcement);
     }
 }
