@@ -56,3 +56,6 @@ app:
       - path: "/api/v1/chat"
         requests-per-minute: 100
         per-user: false
+  encryption:
+    key: dGhpc2lzYXRlc3RrZXlmb3JkZXZlbG9wbWVudG9ubHk=
+    enabled: false
