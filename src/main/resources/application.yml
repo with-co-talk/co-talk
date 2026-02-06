@@ -45,6 +45,15 @@ spring:
         format_sql: true
         use_sql_comments: true
     open-in-view: false
+
+  # Flyway 설정 (데이터베이스 마이그레이션)
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: '0'
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    out-of-order: false
   
   # Redis 설정
   data:
@@ -91,8 +100,8 @@ firebase:
 minio:
   enabled: ${MINIO_ENABLED:true}
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
-  access-key: ${MINIO_ACCESS_KEY:minioadmin}
-  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  access-key: ${MINIO_ACCESS_KEY}  # 필수 환경변수 - 기본값 없음
+  secret-key: ${MINIO_SECRET_KEY}  # 필수 환경변수 - 기본값 없음
   bucket: ${MINIO_BUCKET:cotalk}
   public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
   region: ${MINIO_REGION:us-east-1}
@@ -125,7 +134,7 @@ app:
     # AES-256 암호화 키 (32바이트, Base64 인코딩)
     # 프로덕션: 반드시 환경변수로 안전한 키 설정 필요
     # 키 생성: openssl rand -base64 32
-    key: ${ENCRYPTION_KEY:dGhpc2lzYXRlc3RrZXlmb3JkZXZlbG9wbWVudG9ubHk=}
+    key: ${ENCRYPTION_KEY}  # 필수 환경변수 - 기본값 없음 (보안)
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   redis:
@@ -184,11 +193,12 @@ logging:
     max-history: 30
 
 # Actuator 설정
+# 보안: env, loggers는 민감 정보 노출 가능성이 있어 프로덕션에서 비활성화
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,env,loggers,caches
+        include: health,info,metrics,prometheus,caches
   endpoint:
     health:
       show-details: when-authorized

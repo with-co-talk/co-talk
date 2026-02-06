@@ -10,17 +10,19 @@ services:
       dockerfile: Dockerfile
     container_name: cotalk-app
     ports:
-      - "8080:8080"
+      - "${APP_PORT:-8080}:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
-      - DB_USERNAME=cotalk
-      - DB_PASSWORD=cotalk
+      - DB_USERNAME=${DB_USERNAME:-cotalk}
+      - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,11 +44,11 @@ services:
     image: postgres:16-alpine
     container_name: cotalk-postgres
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: cotalk
-      POSTGRES_USER: cotalk
-      POSTGRES_PASSWORD: cotalk
+      POSTGRES_USER: ${DB_USERNAME:-cotalk}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -54,7 +56,7 @@ services:
     networks:
       - cotalk-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cotalk -d cotalk"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-cotalk} -d cotalk"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -85,11 +87,11 @@ services:
     image: minio/minio:latest
     container_name: cotalk-minio
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     command: server /data --console-address ":9001"
     volumes:
       - minio-data:/data

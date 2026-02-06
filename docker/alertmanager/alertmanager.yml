@@ -1,39 +1,111 @@
+# ===========================================
+# Co-Talk Alertmanager 설정
+# ===========================================
+# 환경변수:
+#   - SLACK_WEBHOOK_URL: Slack 알림 웹훅 URL
+#   - ALERT_EMAIL_TO: 알림 수신 이메일
+#   - SMTP_SMARTHOST: SMTP 서버 (예: smtp.gmail.com:587)
+#   - SMTP_FROM: 발신자 이메일
+#   - SMTP_AUTH_USERNAME: SMTP 인증 사용자명
+#   - SMTP_AUTH_PASSWORD: SMTP 인증 비밀번호
+# ===========================================
+
 global:
   resolve_timeout: 5m
+  # SMTP 글로벌 설정 (이메일 알림 사용 시)
+  smtp_smarthost: '${SMTP_SMARTHOST:-smtp.gmail.com:587}'
+  smtp_from: '${SMTP_FROM:-alertmanager@cotalk.com}'
+  smtp_auth_username: '${SMTP_AUTH_USERNAME:-}'
+  smtp_auth_password: '${SMTP_AUTH_PASSWORD:-}'
+  smtp_require_tls: true
 
 route:
   group_by: ['alertname', 'severity']
-  group_wait: 10s
-  group_interval: 10s
-  repeat_interval: 1h
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
   receiver: 'default-receiver'
   routes:
+    # Critical 알림: Slack + 이메일
     - match:
         severity: critical
       receiver: 'critical-receiver'
+      continue: true
+    # Warning 알림: Slack만
     - match:
         severity: warning
       receiver: 'warning-receiver'
 
 receivers:
+  # 기본 수신자 (Slack)
   - name: 'default-receiver'
-    # Slack 웹훅 (실제 운영 시 설정)
-    # slack_configs:
-    #   - api_url: 'YOUR_SLACK_WEBHOOK_URL'
-    #     channel: '#cotalk-alerts'
-    #     title: '{{ .GroupLabels.alertname }}'
-    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL:-}'
+        channel: '#cotalk-alerts'
+        send_resolved: true
+        title: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Labels.alertname }}
+          *Severity:* {{ .Labels.severity }}
+          *Description:* {{ .Annotations.description }}
+          *Details:*
+          {{ range .Labels.SortedPairs }} - *{{ .Name }}:* {{ .Value }}
+          {{ end }}
+          {{ end }}
+        actions:
+          - type: button
+            text: 'Grafana :chart_with_upwards_trend:'
+            url: '${GRAFANA_URL:-http://localhost:3001}'
 
+  # Critical 알림 (Slack + 이메일)
   - name: 'critical-receiver'
-    # 중요 알림용 (이메일, PagerDuty 등)
-    # email_configs:
-    #   - to: 'team@example.com'
-    #     from: 'alertmanager@cotalk.com'
-    #     smarthost: 'smtp.example.com:587'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL:-}'
+        channel: '#cotalk-critical'
+        send_resolved: true
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+        title: ':rotating_light: [CRITICAL] {{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Labels.alertname }}
+          *Instance:* {{ .Labels.instance }}
+          *Description:* {{ .Annotations.description }}
+          *Summary:* {{ .Annotations.summary }}
+          {{ end }}
+    email_configs:
+      - to: '${ALERT_EMAIL_TO:-}'
+        send_resolved: true
+        headers:
+          Subject: '[Co-Talk CRITICAL] {{ .GroupLabels.alertname }}'
+        html: |
+          <h2>🚨 Critical Alert: {{ .GroupLabels.alertname }}</h2>
+          <table border="1" cellpadding="5">
+            <tr><th>Status</th><td>{{ .Status | toUpper }}</td></tr>
+            {{ range .Alerts }}
+            <tr><th>Alert</th><td>{{ .Labels.alertname }}</td></tr>
+            <tr><th>Severity</th><td>{{ .Labels.severity }}</td></tr>
+            <tr><th>Description</th><td>{{ .Annotations.description }}</td></tr>
+            <tr><th>Started</th><td>{{ .StartsAt }}</td></tr>
+            {{ end }}
+          </table>
 
+  # Warning 알림 (Slack만)
   - name: 'warning-receiver'
-    # 경고 알림용
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL:-}'
+        channel: '#cotalk-alerts'
+        send_resolved: true
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+        title: ':warning: [WARNING] {{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Labels.alertname }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
 
+# 알림 억제 규칙
+# Critical 알림이 발생하면 동일한 alertname의 Warning 알림을 억제
 inhibit_rules:
   - source_match:
       severity: 'critical'

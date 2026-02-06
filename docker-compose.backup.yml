@@ -1,0 +1,101 @@
+# ===========================================
+# Co-Talk 데이터베이스 백업 서비스
+# ===========================================
+# 사용법:
+#   - 수동 백업: docker compose -f docker-compose.backup.yml run --rm backup
+#   - 수동 복원: docker compose -f docker-compose.backup.yml run --rm restore <파일명>
+#   - 자동 백업: docker compose -f docker-compose.backup.yml up -d backup-cron
+#
+# 환경변수 (.env 파일 또는 환경에서 설정):
+#   - DB_PASSWORD: PostgreSQL 비밀번호 (필수)
+#   - DB_USERNAME: PostgreSQL 사용자명 (기본값: cotalk)
+#   - BACKUP_RETENTION_DAYS: 백업 보관 기간 (기본값: 7)
+# ===========================================
+
+version: '3.8'
+
+services:
+  # ===========================================
+  # 수동 백업 서비스
+  # ===========================================
+  backup:
+    image: postgres:16-alpine
+    container_name: cotalk-backup
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: cotalk
+      POSTGRES_USER: ${DB_USERNAME:-cotalk}
+      PGPASSWORD: ${DB_PASSWORD}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - ./docker/backup:/scripts:ro
+      - backup-data:/backups
+    networks:
+      - cotalk-network
+    entrypoint: ["/scripts/backup.sh"]
+    depends_on:
+      - postgres
+
+  # ===========================================
+  # 수동 복원 서비스
+  # ===========================================
+  restore:
+    image: postgres:16-alpine
+    container_name: cotalk-restore
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: cotalk
+      POSTGRES_USER: ${DB_USERNAME:-cotalk}
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./docker/backup:/scripts:ro
+      - backup-data:/backups
+    networks:
+      - cotalk-network
+    entrypoint: ["/scripts/restore.sh"]
+    depends_on:
+      - postgres
+
+  # ===========================================
+  # 자동 백업 서비스 (Cron)
+  # 매일 새벽 3시에 자동 백업
+  # ===========================================
+  backup-cron:
+    image: postgres:16-alpine
+    container_name: cotalk-backup-cron
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: cotalk
+      POSTGRES_USER: ${DB_USERNAME:-cotalk}
+      PGPASSWORD: ${DB_PASSWORD}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - ./docker/backup:/scripts:ro
+      - backup-data:/backups
+    networks:
+      - cotalk-network
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "0 3 * * * /scripts/backup.sh >> /var/log/backup.log 2>&1" > /etc/crontabs/root
+        crond -f -l 2
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+  # postgres 서비스는 메인 docker-compose.yml에서 가져옴
+  postgres:
+    extends:
+      file: docker-compose.yml
+      service: postgres
+
+networks:
+  cotalk-network:
+    external: true
+
+volumes:
+  backup-data:
+    name: cotalk-backup-data
+  postgres-data:
+    external: true
+    name: co-talk_postgres-data

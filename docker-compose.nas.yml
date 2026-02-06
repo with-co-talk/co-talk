@@ -56,6 +56,8 @@ services:
       resources:
         limits:
           memory: 1G
+    labels:
+      - "com.centurylinklabs.watchtower.scope=cotalk"
 
   # ===========================================
   # 데이터베이스
