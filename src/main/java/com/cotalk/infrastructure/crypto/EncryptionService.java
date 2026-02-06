@@ -40,12 +40,16 @@ public class EncryptionService {
      */
     public EncryptionService(AppProperties appProperties) {
         this.enabled = appProperties.encryption().enabled();
-        String encryptionKey = appProperties.encryption().key();
-        byte[] keyBytes = Base64.getDecoder().decode(encryptionKey);
-        if (keyBytes.length != 32) {
-            throw new IllegalArgumentException("암호화 키는 32바이트(256비트)여야 합니다.");
+        if (this.enabled) {
+            String encryptionKey = appProperties.encryption().key();
+            byte[] keyBytes = Base64.getDecoder().decode(encryptionKey);
+            if (keyBytes.length != 32) {
+                throw new IllegalArgumentException("암호화 키는 32바이트(256비트)여야 합니다.");
+            }
+            this.secretKey = new SecretKeySpec(keyBytes, "AES");
+        } else {
+            this.secretKey = null;
         }
-        this.secretKey = new SecretKeySpec(keyBytes, "AES");
     }
 
     /**
