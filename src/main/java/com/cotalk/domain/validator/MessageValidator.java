@@ -2,7 +2,6 @@ package com.cotalk.domain.validator;
 
 import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.exception.InvalidEmojiException;
-import org.springframework.stereotype.Component;
 
 /**
  * 메시지 유효성 검증기.
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Component;
  *
  * @author seunggu.lee
  */
-@Component
 public class MessageValidator {
 
     /**

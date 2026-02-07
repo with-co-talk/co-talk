@@ -251,12 +251,17 @@ public class FcmPushNotificationSender implements PushNotificationSender {
     /**
      * Android 플랫폼용 설정을 생성한다.
      *
+     * <p>채널 ID는 Flutter 앱의 NotificationService에서 생성한 채널과 일치해야 한다.
+     * Android 8.0(API 26) 이상에서는 채널 ID가 필수이며, 지정하지 않으면
+     * 백그라운드 알림이 제대로 표시되지 않을 수 있다.
+     *
      * @return AndroidConfig 객체
      */
     private AndroidConfig createAndroidConfig() {
         return AndroidConfig.builder()
                 .setPriority(AndroidConfig.Priority.HIGH)
                 .setNotification(AndroidNotification.builder()
+                        .setChannelId("chat_messages")
                         .setSound("default")
                         .build())
                 .build();

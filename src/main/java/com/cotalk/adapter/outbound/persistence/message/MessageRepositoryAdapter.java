@@ -197,4 +197,25 @@ public class MessageRepositoryAdapter implements MessageRepository {
     public List<Long> findDistinctSenderIdsByChatRoomIdExcludingUser(Long chatRoomId, Long excludeUserId) {
         return messageJpaRepository.findDistinctSenderIdsByChatRoomIdExcludingUser(chatRoomId, excludeUserId);
     }
+
+    /**
+     * 채팅방의 모든 멤버에 대해 읽지 않은 메시지 수를 한 번에 조회한다.
+     * (N+1 쿼리 방지용 배치 조회)
+     *
+     * @param chatRoomId 채팅방 ID
+     * @return 사용자 ID를 키로, 읽지 않은 메시지 수를 값으로 하는 Map
+     */
+    @Override
+    public Map<Long, Long> batchCountUnreadMessagesForAllMembers(Long chatRoomId) {
+        List<Object[]> results = messageJpaRepository.batchCountUnreadMessagesForAllMembers(chatRoomId);
+        Map<Long, Long> unreadCountMap = new HashMap<>();
+
+        for (Object[] row : results) {
+            Long userId = ((Number) row[0]).longValue();
+            Long unreadCount = ((Number) row[1]).longValue();
+            unreadCountMap.put(userId, unreadCount);
+        }
+
+        return unreadCountMap;
+    }
 }

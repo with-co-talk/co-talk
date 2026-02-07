@@ -81,15 +81,12 @@ public class ChatWebSocketController {
         Long authenticatedUserId = extractUserId(headerAccessor);
         log.debug("Received message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
 
-        // 메시지 저장 - 인증된 사용자 ID 사용
-        Message savedMessage = sendMessageUseCase.sendMessage(
-                request.roomId(),
-                authenticatedUserId,
-                request.content()
-        );
+        // 메시지 저장 + 컨텍스트 조회 (sender, members 한 번만 조회)
+        SendMessageUseCase.SendResult result = sendMessageUseCase.sendMessageWithContext(
+                request.roomId(), authenticatedUserId, request.content());
 
-        // Redis Pub/Sub을 통해 모든 서버로 브로드캐스트
-        publishToRedis(savedMessage);
+        // Redis Pub/Sub 브로드캐스트 (추가 DB 쿼리 없음)
+        publishToRedis(result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
     }
 
     /**
@@ -108,7 +105,6 @@ public class ChatWebSocketController {
         Long authenticatedUserId = extractUserId(headerAccessor);
         log.debug("Received file message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
 
-        // 파일 메시지 저장 - 인증된 사용자 ID 사용
         FileMessageCommand command = new FileMessageCommand(
                 request.fileUrl(),
                 request.fileName(),
@@ -117,14 +113,12 @@ public class ChatWebSocketController {
                 request.thumbnailUrl()
         );
 
-        Message savedMessage = sendMessageUseCase.sendFileMessage(
-                request.roomId(),
-                authenticatedUserId,
-                command
-        );
+        // 메시지 저장 + 컨텍스트 조회 (sender, members 한 번만 조회)
+        SendMessageUseCase.SendResult result = sendMessageUseCase.sendFileMessageWithContext(
+                request.roomId(), authenticatedUserId, command);
 
-        // Redis Pub/Sub을 통해 모든 서버로 브로드캐스트
-        publishToRedis(savedMessage);
+        // Redis Pub/Sub 브로드캐스트 (추가 DB 쿼리 없음)
+        publishToRedis(result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
     }
 
     /**
@@ -147,8 +141,8 @@ public class ChatWebSocketController {
     }
 
     /**
-     * 메시지를 Redis Pub/Sub으로 발행
-     * Redis Subscriber가 이를 수신하여 WebSocket으로 전달
+     * 메시지를 Redis Pub/Sub으로 발행한다.
+     * 사전 조회된 sender와 members 정보를 사용하여 추가 DB 쿼리를 방지한다.
      *
      * <p>카톡/라인 방식:</p>
      * <ul>
@@ -156,30 +150,21 @@ public class ChatWebSocketController {
      *   <li>상대방이 markAsRead 호출 시 unreadCount 감소</li>
      *   <li>클라이언트가 ReadReceiptEvent를 받아서 UI 업데이트</li>
      * </ul>
+     *
+     * @param message 발행할 메시지
+     * @param senderNickname 발신자 닉네임 (사전 조회됨)
+     * @param senderAvatarUrl 발신자 프로필 이미지 URL (사전 조회됨)
+     * @param members 채팅방 멤버 목록 (사전 조회됨)
      */
-    private void publishToRedis(Message message) {
-        // 채팅방 멤버와 발신자 정보를 한 번만 조회 (중복 쿼리 방지)
-        var members = chatRoomMemberRepository.findByChatRoomId(message.getChatRoomId());
-        int totalMembers = members.size();
-
+    private void publishToRedis(Message message, String senderNickname, String senderAvatarUrl,
+                                 java.util.List<ChatRoomMember> members) {
         // 카톡/라인 방식: 발신자를 제외한 모든 멤버가 읽지 않은 상태로 시작
-        // 상대방이 채팅방에 들어가서 markAsRead를 호출하면 unreadCount가 감소함
-        int unreadCount = Math.max(0, totalMembers - 1);
-
-        // 발신자 정보 조회
-        User sender = userRepository.findById(message.getSenderId()).orElse(null);
-        String senderNickname = sender != null ? sender.getNickname() : "알 수 없음";
-        String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
+        int unreadCount = Math.max(0, members.size() - 1);
 
         log.info(
                 "[WS] publishToRedis roomId={}, messageId={}, senderId={}, senderNickname={}, totalMembers={}, unreadCount={}",
-                message.getChatRoomId(),
-                message.getId(),
-                message.getSenderId(),
-                senderNickname,
-                totalMembers,
-                unreadCount
-        );
+                message.getChatRoomId(), message.getId(), message.getSenderId(),
+                senderNickname, members.size(), unreadCount);
 
         ChatBroadcastMessage broadcastMessage = new ChatBroadcastMessage(
                 message.getId(),
@@ -204,12 +189,14 @@ public class ChatWebSocketController {
         chatMessageBroker.publish(message.getChatRoomId(), broadcastMessage);
 
         // 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
-        // 이미 조회한 members와 senderNickname을 전달하여 중복 쿼리 방지
         publishChatListUpdate(message, members, senderNickname);
     }
 
     /**
      * 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
+     *
+     * <p>성능 최적화: 배치 쿼리를 사용하여 모든 멤버의 unreadCount를 한 번에 조회한다.
+     * (기존 N+1 쿼리 문제 해결)</p>
      *
      * @param message 전송된 메시지
      * @param members 채팅방 멤버 목록 (중복 쿼리 방지용)
@@ -221,26 +208,18 @@ public class ChatWebSocketController {
 
         log.debug("Found {} members in chat room {}", members.size(), message.getChatRoomId());
 
-        // TODO: N+1 쿼리 최적화 필요
-        // 현재는 각 멤버마다 countUnreadMessagesByLastReadMessageId를 호출하여 N+1 문제 발생
-        // batchCountUnreadMessages는 한 유저의 여러 채팅방용이므로 직접 사용 불가
-        // 해결책: 같은 채팅방의 여러 유저에 대한 배치 조회 메서드 추가 필요
-        // 예: Map<Long, Long> batchCountUnreadMessagesForMembers(Long chatRoomId, List<MemberInfo>)
+        // 배치 쿼리로 모든 멤버의 unreadCount를 한 번에 조회 (N+1 쿼리 방지)
+        java.util.Map<Long, Long> unreadCountMap = messageRepository.batchCountUnreadMessagesForAllMembers(
+                message.getChatRoomId());
+
         for (ChatRoomMember member : members) {
-            // 카톡/라인 방식: lastReadMessageId 기준으로 안 읽은 메시지 수 계산
-            // 채팅방을 보고 있어도 markAsRead를 호출해야 lastReadMessageId가 업데이트됨
-            Long lastReadMessageId = member.getLastReadMessageId();
-            int memberUnreadCount = (int) messageRepository.countUnreadMessagesByLastReadMessageId(
-                    message.getChatRoomId(),
-                    member.getUserId(),
-                    lastReadMessageId
-            );
+            int memberUnreadCount = unreadCountMap.getOrDefault(member.getUserId(), 0L).intValue();
 
             log.info(
                     "[WS] chatListUpdate roomId={}, targetUserId={}, lastReadMessageId={}, memberUnreadCount={}",
                     message.getChatRoomId(),
                     member.getUserId(),
-                    lastReadMessageId,
+                    member.getLastReadMessageId(),
                     memberUnreadCount
             );
 

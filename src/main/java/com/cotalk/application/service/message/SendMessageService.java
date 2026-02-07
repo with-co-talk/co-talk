@@ -54,45 +54,7 @@ public class SendMessageService implements SendMessageUseCase {
      */
     @Override
     public Message sendMessage(Long chatRoomId, Long senderId, String content) {
-        // 채팅방 멤버인지 확인
-        chatRoomMemberValidator.validateMembership(chatRoomId, senderId);
-
-        // XSS 방지(텍스트 채팅): HTML 태그만 제거하고, 유니코드/특수문자는 그대로 유지한다.
-        // (HTML 엔티티로 저장하면 클라이언트에 &hellip; 같은 문자열이 그대로 노출될 수 있다)
-        String sanitizedContent = HtmlSanitizer.stripAllTags(content);
-
-        // 메시지 생성
-        Message message = Message.builder()
-                .id(idGenerator.nextId())
-                .chatRoomId(chatRoomId)
-                .senderId(senderId)
-                .content(sanitizedContent)
-                .type(MessageType.TEXT)
-                .build();
-
-        // 내용 검증
-        message.validateContent();
-
-        Message savedMessage = messageRepository.save(message);
-
-        // 발신자는 자신이 보낸 메시지를 읽은 것으로 간주하여 lastReadMessageId 업데이트
-        // 메시지 전송 시점에 자동으로 읽음 처리하여 unreadCount 계산이 정확하게 이루어지도록 함
-        LocalDateTime now = LocalDateTime.now();
-        int updated = chatRoomMemberRepository.updateLastReadMessageIdIfNewer(
-                chatRoomId, senderId, now, savedMessage.getId());
-        if (updated > 0) {
-            log.debug("Auto-updated sender's lastReadMessageId: userId={}, chatRoomId={}, messageId={}", 
-                    senderId, chatRoomId, savedMessage.getId());
-        }
-
-        // 푸시 알림 전송 (비동기)
-        sendPushNotificationsToOtherMembers(chatRoomId, senderId, content);
-
-        // 링크 미리보기 수집 (비동기): 텍스트에 URL이 있으면 OG 메타 수집 후 메시지에 저장
-        messageLinkPreviewService.extractFirstUrl(sanitizedContent)
-                .ifPresent(url -> messageLinkPreviewService.fetchAndSaveLinkPreview(savedMessage.getId(), url));
-
-        return savedMessage;
+        return sendMessageWithContext(chatRoomId, senderId, content).message();
     }
 
     /**
@@ -107,15 +69,39 @@ public class SendMessageService implements SendMessageUseCase {
      */
     @Override
     public Message sendFileMessage(Long chatRoomId, Long senderId, FileMessageCommand command) {
-        // 채팅방 멤버인지 확인
-        chatRoomMemberValidator.validateMembership(chatRoomId, senderId);
+        return sendFileMessageWithContext(chatRoomId, senderId, command).message();
+    }
 
-        // 파일 메시지 생성
+    @Override
+    public SendResult sendMessageWithContext(Long chatRoomId, Long senderId, String content) {
+        // XSS 방지(텍스트 채팅): HTML 태그만 제거하고, 유니코드/특수문자는 그대로 유지한다.
+        // (HTML 엔티티로 저장하면 클라이언트에 &hellip; 같은 문자열이 그대로 노출될 수 있다)
+        String sanitizedContent = HtmlSanitizer.stripAllTags(content);
+
         Message message = Message.builder()
                 .id(idGenerator.nextId())
                 .chatRoomId(chatRoomId)
                 .senderId(senderId)
-                .content(command.fileName()) // 파일명을 content로 저장
+                .content(sanitizedContent)
+                .type(MessageType.TEXT)
+                .build();
+
+        SendResult result = doSendMessage(chatRoomId, senderId, message, content);
+
+        // 링크 미리보기 수집 (비동기): 텍스트에 URL이 있으면 OG 메타 수집 후 메시지에 저장
+        messageLinkPreviewService.extractFirstUrl(sanitizedContent)
+                .ifPresent(url -> messageLinkPreviewService.fetchAndSaveLinkPreview(result.message().getId(), url));
+
+        return result;
+    }
+
+    @Override
+    public SendResult sendFileMessageWithContext(Long chatRoomId, Long senderId, FileMessageCommand command) {
+        Message message = Message.builder()
+                .id(idGenerator.nextId())
+                .chatRoomId(chatRoomId)
+                .senderId(senderId)
+                .content(command.fileName())
                 .type(command.getMessageType())
                 .fileUrl(command.fileUrl())
                 .fileName(command.fileName())
@@ -124,39 +110,71 @@ public class SendMessageService implements SendMessageUseCase {
                 .thumbnailUrl(command.thumbnailUrl())
                 .build();
 
+        String notificationContent = command.getMessageType() == MessageType.IMAGE
+                ? "📷 사진을 보냈습니다."
+                : "📎 파일을 보냈습니다: " + command.fileName();
+
+        return doSendMessage(chatRoomId, senderId, message, notificationContent);
+    }
+
+    /**
+     * 메시지 저장을 위한 공통 로직을 실행하고, 사전 조회한 컨텍스트를 함께 반환한다.
+     * sender와 members를 한 번만 조회하여 중복 DB 쿼리를 제거한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param senderId 발신자 ID
+     * @param message 저장할 메시지
+     * @param notificationContent 푸시 알림 내용
+     * @return 저장된 메시지와 브로드캐스트 컨텍스트
+     */
+    private SendResult doSendMessage(Long chatRoomId, Long senderId, Message message, String notificationContent) {
+        // Pre-fetch ONCE: 중복 쿼리 방지
+        List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(chatRoomId);
+        User sender = userRepository.findById(senderId).orElse(null);
+        String senderNickname = sender != null ? sender.getNickname() : "알 수 없음";
+        String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
+
+        // Validate membership using pre-fetched members (별도 쿼리 없음)
+        boolean isMember = members.stream().anyMatch(m -> m.getUserId().equals(senderId));
+        if (!isMember) {
+            throw new com.cotalk.domain.exception.ChatRoomAccessDeniedException(chatRoomId, senderId);
+        }
+
         // 내용 검증
         message.validateContent();
 
+        // 메시지 저장
         Message savedMessage = messageRepository.save(message);
 
         // 발신자는 자신이 보낸 메시지를 읽은 것으로 간주하여 lastReadMessageId 업데이트
-        // 메시지 전송 시점에 자동으로 읽음 처리하여 unreadCount 계산이 정확하게 이루어지도록 함
         LocalDateTime now = LocalDateTime.now();
         int updated = chatRoomMemberRepository.updateLastReadMessageIdIfNewer(
                 chatRoomId, senderId, now, savedMessage.getId());
         if (updated > 0) {
-            log.debug("Auto-updated sender's lastReadMessageId: userId={}, chatRoomId={}, messageId={}", 
+            log.debug("Auto-updated sender's lastReadMessageId: userId={}, chatRoomId={}, messageId={}",
                     senderId, chatRoomId, savedMessage.getId());
         }
 
-        // 푸시 알림 전송 (비동기)
-        String notificationContent = command.getMessageType() == MessageType.IMAGE 
-                ? "📷 사진을 보냈습니다." 
-                : "📎 파일을 보냈습니다: " + command.fileName();
-        sendPushNotificationsToOtherMembers(chatRoomId, senderId, notificationContent);
+        // 푸시 알림 전송 (사전 조회된 데이터 사용, 추가 DB 쿼리 없음)
+        sendPushNotificationsToOtherMembers(chatRoomId, senderId, notificationContent, senderNickname, members);
 
-        return savedMessage;
+        return new SendResult(savedMessage, senderNickname, senderAvatarUrl, members);
     }
 
-    private void sendPushNotificationsToOtherMembers(Long chatRoomId, Long senderId, String content) {
-        // 발신자 정보 조회
-        String senderNickname = userRepository.findById(senderId)
-                .map(User::getNickname)
-                .orElse("알 수 없음");
-
+    /**
+     * 채팅방의 다른 멤버들에게 푸시 알림을 전송한다.
+     * 사전 조회된 sender와 members 정보를 사용하여 추가 DB 쿼리를 방지한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param senderId 발신자 ID
+     * @param content 알림 내용
+     * @param senderNickname 발신자 닉네임 (사전 조회됨)
+     * @param members 채팅방 멤버 목록 (사전 조회됨)
+     */
+    private void sendPushNotificationsToOtherMembers(Long chatRoomId, Long senderId, String content,
+                                                      String senderNickname, List<ChatRoomMember> members) {
         // 채팅방의 다른 멤버들 중 현재 채팅방을 보고 있지 않은 사용자만 필터링
         // (채팅방에 있는 사용자는 WebSocket으로 실시간 메시지를 받으므로 푸시 불필요)
-        List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(chatRoomId);
         List<Long> receiverUserIds = members.stream()
                 .map(ChatRoomMember::getUserId)
                 .filter(userId -> !userId.equals(senderId))

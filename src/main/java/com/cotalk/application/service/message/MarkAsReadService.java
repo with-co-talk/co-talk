@@ -266,9 +266,13 @@ public class MarkAsReadService implements MarkAsReadUseCase {
      * 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트한다.
      * 읽음 처리 후 각 멤버의 unreadCount를 재계산하여 전송한다.
      *
+     * <p>성능 최적화: 배치 쿼리를 사용하여 모든 멤버의 unreadCount를 한 번에 조회한다.
+     * (기존 N+1 쿼리 문제 해결)</p>
+     *
      * @param chatRoomId 채팅방 ID
      * @param readerId   읽은 사용자 ID (업데이트된 lastReadAt 사용)
      * @param lastReadAt 읽은 사용자의 업데이트된 마지막 읽은 시간
+     * @param readerLastReadMessageId 읽은 사용자의 마지막 읽은 메시지 ID
      */
     private void publishChatListUpdate(Long chatRoomId, Long readerId, LocalDateTime lastReadAt, Long readerLastReadMessageId) {
         // 마지막 메시지 조회
@@ -281,7 +285,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
             return;
         }
 
-        log.info("Found last message in chat room {}: messageId={}, content={}", 
+        log.info("Found last message in chat room {}: messageId={}, content={}",
                 chatRoomId, lastMessage.getId(), lastMessage.getContent());
 
         // 발신자 닉네임 조회
@@ -298,25 +302,14 @@ public class MarkAsReadService implements MarkAsReadUseCase {
             return;
         }
 
+        // 배치 쿼리로 모든 멤버의 unreadCount를 한 번에 조회 (N+1 쿼리 방지)
+        Map<Long, Long> unreadCountMap = messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId);
+
         for (ChatRoomMember member : members) {
-            // 해당 멤버의 읽지 않은 메시지 수 계산
-            // readerId의 경우 방금 업데이트한(또는 조회한) readerLastReadMessageId를 사용
-            // 다른 멤버의 경우 DB에 저장된 member.getLastReadMessageId()를 사용
-            Long memberLastReadMessageId = member.getUserId().equals(readerId)
-                    ? readerLastReadMessageId
-                    : member.getLastReadMessageId();
-            
-            log.info("Calculating unreadCount for member {}: lastReadMessageId={}, readerId={}, readerLastReadMessageId={}", 
-                    member.getUserId(), memberLastReadMessageId, readerId, readerLastReadMessageId);
-            
-            int memberUnreadCount = (int) messageRepository.countUnreadMessagesByLastReadMessageId(
-                    chatRoomId,
-                    member.getUserId(),
-                    memberLastReadMessageId
-            );
-            
-            log.info("Calculated unreadCount for member {}: unreadCount={}, lastReadMessageId={}", 
-                    member.getUserId(), memberUnreadCount, memberLastReadMessageId);
+            int memberUnreadCount = unreadCountMap.getOrDefault(member.getUserId(), 0L).intValue();
+
+            log.info("Calculated unreadCount for member {}: unreadCount={}, lastReadMessageId={}",
+                    member.getUserId(), memberUnreadCount, member.getLastReadMessageId());
 
             ChatListUpdateEvent event = new ChatListUpdateEvent(
                     1,
@@ -332,7 +325,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
             );
 
             userEventBroker.publishChatListUpdate(member.getUserId(), event);
-            log.info("Published chat list update to user {}: eventType={}, roomId={}, unreadCount={}", 
+            log.info("Published chat list update to user {}: eventType={}, roomId={}, unreadCount={}",
                     member.getUserId(), event.eventType(), event.roomId(), event.unreadCount());
         }
     }

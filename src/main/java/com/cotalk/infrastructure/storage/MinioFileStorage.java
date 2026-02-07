@@ -58,7 +58,14 @@ public class MinioFileStorage implements FileStorage {
         this.bucketName = minioProperties.bucket();
         this.publicUrl = minioProperties.publicUrl();
 
-        ensureBucketExists();
+        try {
+            ensureBucketExists();
+        } catch (S3Exception e) {
+            log.warn("MinIO bucket check failed (status {}). App will start but file upload may fail. Check MINIO_ACCESS_KEY/MINIO_SECRET_KEY and MinIO availability: {}",
+                    e.statusCode(), e.getMessage());
+        } catch (Exception e) {
+            log.warn("MinIO bucket check failed. App will start but file upload may fail: {}", e.getMessage());
+        }
     }
 
     /**

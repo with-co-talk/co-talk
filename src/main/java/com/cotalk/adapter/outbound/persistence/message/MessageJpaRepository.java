@@ -185,4 +185,27 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
     List<Long> findDistinctSenderIdsByChatRoomIdExcludingUser(
             @Param("chatRoomId") Long chatRoomId,
             @Param("excludeUserId") Long excludeUserId);
+
+    /**
+     * 채팅방의 모든 멤버에 대해 읽지 않은 메시지 수를 한 번에 조회한다.
+     * (N+1 쿼리 방지용 배치 조회)
+     *
+     * <p>각 멤버의 lastReadMessageId를 기준으로 해당 멤버가 읽지 않은 메시지 수를 계산한다.
+     * 본인이 보낸 메시지는 제외한다.</p>
+     *
+     * @param chatRoomId 채팅방 ID
+     * @return 사용자 ID와 읽지 않은 메시지 수 배열의 목록 (Object[0]=userId, Object[1]=unreadCount)
+     */
+    @Query(value = """
+        SELECT cm.user_id as userId,
+               COUNT(m.id) as unreadCount
+        FROM chat_room_members cm
+        LEFT JOIN messages m ON m.chat_room_id = cm.chat_room_id
+          AND m.is_deleted = false
+          AND m.sender_id <> cm.user_id
+          AND (cm.last_read_message_id IS NULL OR m.id > cm.last_read_message_id)
+        WHERE cm.chat_room_id = :chatRoomId
+        GROUP BY cm.user_id
+        """, nativeQuery = true)
+    List<Object[]> batchCountUnreadMessagesForAllMembers(@Param("chatRoomId") Long chatRoomId);
 }
