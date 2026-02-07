@@ -6,10 +6,10 @@ import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
+import com.cotalk.domain.port.outbound.AuthTokenPort;
+import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,8 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class LoginService implements LoginUseCase {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final PasswordEncoderPort passwordEncoder;
+    private final AuthTokenPort authTokenPort;
     private final UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
 
     /**
@@ -50,7 +50,7 @@ public class LoginService implements LoginUseCase {
         // 로그인 시 온라인 상태로 변경 및 마지막 접속 시간 업데이트
         updateUserOnlineStatusUseCase.setOnline(user.getId());
 
-        String accessToken = jwtTokenProvider.generateToken(user.getId());
+        String accessToken = authTokenPort.generateAccessToken(user.getId());
         return new LoginResult(accessToken, user.getId());
     }
 
