@@ -130,16 +130,24 @@ class ChatWebSocketControllerTest {
                 .userId(2L)
                 .build();
 
-        given(sendMessageUseCase.sendMessage(anyLong(), anyLong(), anyString()))
-                .willReturn(mockMessage);
-        given(chatRoomMemberRepository.findByChatRoomId(100L))
-                .willReturn(List.of(member1, member2));
+        User sender = User.builder()
+                .id(1L)
+                .email("sender@test.com")
+                .nickname("발신자")
+                .passwordHash("hash")
+                .build();
+
+        SendMessageUseCase.SendResult sendResult = new SendMessageUseCase.SendResult(
+                mockMessage, "발신자", null, List.of(member1, member2));
+
+        given(sendMessageUseCase.sendMessageWithContext(anyLong(), anyLong(), anyString()))
+                .willReturn(sendResult);
 
         // when
         chatWebSocketController.sendMessage(request, createMockHeaderAccessor(1L));
 
         // then
-        verify(sendMessageUseCase).sendMessage(100L, 1L, "테스트 메시지");
+        verify(sendMessageUseCase).sendMessageWithContext(100L, 1L, "테스트 메시지");
 
         ArgumentCaptor<Long> roomIdCaptor = ArgumentCaptor.forClass(Long.class);
         ArgumentCaptor<ChatBroadcastMessage> messageCaptor =
@@ -191,16 +199,24 @@ class ChatWebSocketControllerTest {
                 .userId(2L)
                 .build();
 
-        given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any(FileMessageCommand.class)))
-                .willReturn(fileMessage);
-        given(chatRoomMemberRepository.findByChatRoomId(100L))
-                .willReturn(List.of(member1, member2));
+        User sender = User.builder()
+                .id(1L)
+                .email("sender@test.com")
+                .nickname("발신자")
+                .passwordHash("hash")
+                .build();
+
+        SendMessageUseCase.SendResult sendResult = new SendMessageUseCase.SendResult(
+                fileMessage, "발신자", null, List.of(member1, member2));
+
+        given(sendMessageUseCase.sendFileMessageWithContext(anyLong(), anyLong(), any(FileMessageCommand.class)))
+                .willReturn(sendResult);
 
         // when
         chatWebSocketController.sendFileMessage(request, createMockHeaderAccessor(1L));
 
         // then
-        verify(sendMessageUseCase).sendFileMessage(eq(100L), eq(1L), any(FileMessageCommand.class));
+        verify(sendMessageUseCase).sendFileMessageWithContext(eq(100L), eq(1L), any(FileMessageCommand.class));
 
         ArgumentCaptor<ChatBroadcastMessage> messageCaptor =
                 ArgumentCaptor.forClass(ChatBroadcastMessage.class);
@@ -250,10 +266,18 @@ class ChatWebSocketControllerTest {
                 .userId(2L)
                 .build();
 
-        given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any(FileMessageCommand.class)))
-                .willReturn(imageMessage);
-        given(chatRoomMemberRepository.findByChatRoomId(100L))
-                .willReturn(List.of(member1, member2));
+        User sender = User.builder()
+                .id(1L)
+                .email("sender@test.com")
+                .nickname("발신자")
+                .passwordHash("hash")
+                .build();
+
+        SendMessageUseCase.SendResult sendResult = new SendMessageUseCase.SendResult(
+                imageMessage, "발신자", null, List.of(member1, member2));
+
+        given(sendMessageUseCase.sendFileMessageWithContext(anyLong(), anyLong(), any(FileMessageCommand.class)))
+                .willReturn(sendResult);
 
         // when
         chatWebSocketController.sendFileMessage(request, createMockHeaderAccessor(1L));

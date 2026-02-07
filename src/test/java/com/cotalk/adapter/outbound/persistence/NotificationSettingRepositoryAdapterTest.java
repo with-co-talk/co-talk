@@ -1,6 +1,7 @@
 package com.cotalk.adapter.outbound.persistence;
 
 import com.cotalk.adapter.outbound.persistence.notification.NotificationSettingRepositoryAdapter;
+import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.NotificationSetting;
 import com.cotalk.domain.entity.User;
@@ -25,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import({NotificationSettingRepositoryAdapter.class, UserRepositoryAdapter.class, JpaAuditingConfig.class})
+@Import({NotificationSettingRepositoryAdapter.class, UserRepositoryAdapter.class, UserMapper.class, JpaAuditingConfig.class})
 @DisplayName("NotificationSettingRepositoryAdapter")
 class NotificationSettingRepositoryAdapterTest {
 

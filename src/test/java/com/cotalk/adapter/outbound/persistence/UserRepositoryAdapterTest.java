@@ -1,5 +1,6 @@
 package com.cotalk.adapter.outbound.persistence;
 
+import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.entity.User.OAuthProvider;
@@ -26,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import({UserRepositoryAdapter.class, JpaAuditingConfig.class})
+@Import({UserRepositoryAdapter.class, UserMapper.class, JpaAuditingConfig.class})
 @DisplayName("UserRepositoryAdapter")
 class UserRepositoryAdapterTest {
 

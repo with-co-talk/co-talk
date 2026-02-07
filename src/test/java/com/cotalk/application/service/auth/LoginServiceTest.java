@@ -5,8 +5,9 @@ import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
+import com.cotalk.domain.port.outbound.AuthTokenPort;
+import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -14,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 
@@ -30,10 +30,10 @@ class LoginServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private PasswordEncoder passwordEncoder;
+    private PasswordEncoderPort passwordEncoder;
 
     @Mock
-    private JwtTokenProvider jwtTokenProvider;
+    private AuthTokenPort authTokenPort;
 
     @Mock
     private UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
@@ -42,7 +42,7 @@ class LoginServiceTest {
 
     @BeforeEach
     void setUp() {
-        loginService = new LoginService(userRepository, passwordEncoder, jwtTokenProvider, updateUserOnlineStatusUseCase);
+        loginService = new LoginService(userRepository, passwordEncoder, authTokenPort, updateUserOnlineStatusUseCase);
     }
 
     @Nested
@@ -67,7 +67,7 @@ class LoginServiceTest {
 
             given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
             given(passwordEncoder.matches(password, "hashedPassword")).willReturn(true);
-            given(jwtTokenProvider.generateToken(userId)).willReturn(expectedToken);
+            given(authTokenPort.generateAccessToken(userId)).willReturn(expectedToken);
 
             // when
             LoginResult result = loginService.login(email, password);

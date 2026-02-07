@@ -189,8 +189,8 @@ class MarkAsReadServiceTest {
         given(chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(eq(chatRoomId), any()))
                 .willReturn(java.util.Map.of(messageId, 0));
         given(userRepository.findById(otherUserId)).willReturn(Optional.of(sender));
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(eq(chatRoomId), any(), any()))
-                .willReturn(0L);
+        given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
+                .willReturn(java.util.Map.of(readerId, 0L, otherUserId, 0L));
 
         // when
         markAsReadUseCase.markAsRead(readerId, chatRoomId);
@@ -250,8 +250,8 @@ class MarkAsReadServiceTest {
         given(chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(eq(chatRoomId), any()))
                 .willReturn(java.util.Map.of(messageId, 0));
         given(userRepository.findById(2L)).willReturn(Optional.of(sender));
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(eq(chatRoomId), any(), any()))
-                .willReturn(0L);
+        given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
+                .willReturn(java.util.Map.of(userId, 0L));
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -312,9 +312,8 @@ class MarkAsReadServiceTest {
         given(chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(eq(chatRoomId), any()))
                 .willReturn(java.util.Map.of(messageId, 0));
         given(userRepository.findById(2L)).willReturn(Optional.of(sender));
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(
-                chatRoomId, userId, existingLastReadMessageId))
-                .willReturn(5L);
+        given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
+                .willReturn(java.util.Map.of(userId, 5L));
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -406,18 +405,14 @@ class MarkAsReadServiceTest {
                 .willReturn(List.of(member));
         given(userRepository.findById(2L))
                 .willReturn(Optional.of(sender));
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(
-                chatRoomId, userId, existingLastReadMessageId))
-                .willReturn(5L);
+        given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
+                .willReturn(java.util.Map.of(userId, 5L));
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
 
-        // then - DB에서 조회한 lastReadMessageId를 사용하여 unreadCount 계산
-        // findByChatRoomIdAndUserId는 validator에서 한 번, updated == 0일 때 한 번 더 호출됨
-        verify(chatRoomMemberRepository, times(2)).findByChatRoomIdAndUserId(chatRoomId, userId);
-        verify(messageRepository).countUnreadMessagesByLastReadMessageId(
-                chatRoomId, userId, existingLastReadMessageId);
+        // then - 배치 쿼리를 사용하여 unreadCount 계산
+        verify(messageRepository).batchCountUnreadMessagesForAllMembers(chatRoomId);
         verify(userEventBroker).publishChatListUpdate(eq(userId), any());
     }
 
@@ -462,9 +457,8 @@ class MarkAsReadServiceTest {
                 .willReturn(List.of(member));
         given(userRepository.findById(2L))
                 .willReturn(Optional.of(sender));
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(
-                chatRoomId, userId, messageId))
-                .willReturn(0L);
+        given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
+                .willReturn(java.util.Map.of(userId, 0L));
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -507,9 +501,8 @@ class MarkAsReadServiceTest {
                 .willReturn(List.of(member));
         given(userRepository.findById(999L))
                 .willReturn(Optional.empty()); // 사용자 없음
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(
-                chatRoomId, userId, messageId))
-                .willReturn(0L);
+        given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
+                .willReturn(java.util.Map.of(userId, 0L));
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -653,15 +646,13 @@ class MarkAsReadServiceTest {
                 .willReturn(List.of(readerMember, otherMember1, otherMember2)); // 읽음 이벤트 발행용
         given(userRepository.findById(4L))
                 .willReturn(Optional.of(sender));
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(
-                chatRoomId, readerId, readerLastReadMessageId))
-                .willReturn(0L);
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(
-                chatRoomId, otherUserId1, otherUser1LastReadMessageId))
-                .willReturn(5L);
-        given(messageRepository.countUnreadMessagesByLastReadMessageId(
-                chatRoomId, otherUserId2, otherUser2LastReadMessageId))
-                .willReturn(10L);
+        // 배치 쿼리로 모든 멤버의 unreadCount를 한 번에 반환
+        given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
+                .willReturn(java.util.Map.of(
+                        readerId, 0L,
+                        otherUserId1, 5L,
+                        otherUserId2, 10L
+                ));
 
         // when
         markAsReadUseCase.markAsRead(readerId, chatRoomId);
@@ -673,7 +664,7 @@ class MarkAsReadServiceTest {
 
         List<UserEventBroker.ChatListUpdateEvent> capturedEvents = eventCaptor.getAllValues();
         assertThat(capturedEvents).hasSize(3);
-        
+
         // reader의 unreadCount는 0
         UserEventBroker.ChatListUpdateEvent readerEvent = capturedEvents.stream()
                 .filter(e -> e.roomId().equals(chatRoomId))

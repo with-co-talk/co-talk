@@ -1,6 +1,7 @@
 package com.cotalk.adapter.outbound.persistence;
 
 import com.cotalk.adapter.outbound.persistence.friend.FriendRequestRepositoryAdapter;
+import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.FriendRequest;
 import com.cotalk.domain.entity.FriendRequest.RequestStatus;
@@ -27,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import({FriendRequestRepositoryAdapter.class, UserRepositoryAdapter.class, JpaAuditingConfig.class})
+@Import({FriendRequestRepositoryAdapter.class, UserRepositoryAdapter.class, UserMapper.class, JpaAuditingConfig.class})
 @DisplayName("FriendRequestRepositoryAdapter")
 class FriendRequestRepositoryAdapterTest {
 

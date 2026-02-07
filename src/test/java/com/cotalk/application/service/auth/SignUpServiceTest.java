@@ -2,9 +2,10 @@ package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DomainException;
+import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.UserValidator;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -13,7 +14,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,10 +32,10 @@ class SignUpServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private PasswordEncoder passwordEncoder;
+    private PasswordEncoderPort passwordEncoder;
 
     @Mock
-    private SnowflakeIdGenerator idGenerator;
+    private IdGenerator idGenerator;
 
     @Mock
     private UserValidator userValidator;

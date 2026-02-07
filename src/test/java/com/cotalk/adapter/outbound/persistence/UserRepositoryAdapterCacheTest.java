@@ -1,6 +1,5 @@
 package com.cotalk.adapter.outbound.persistence;
 
-import com.cotalk.adapter.outbound.persistence.user.UserJpaRepository;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.User;
 import com.cotalk.infrastructure.config.CacheConfig;
@@ -33,9 +32,6 @@ class UserRepositoryAdapterCacheTest {
     private UserRepositoryAdapter userRepository;
 
     @Autowired
-    private UserJpaRepository userJpaRepository;
-
-    @Autowired
     private CacheManager cacheManager;
 
     private User savedUser;
@@ -45,8 +41,8 @@ class UserRepositoryAdapterCacheTest {
         // 캐시 초기화
         cacheManager.getCache(CacheConfig.USER_CACHE).clear();
 
-        // 테스트 사용자 생성 (User는 ID 자동 생성이 없으므로 명시적으로 설정)
-        savedUser = userJpaRepository.save(User.builder()
+        // 테스트 사용자 생성 (어댑터를 통해 도메인 User 저장)
+        savedUser = userRepository.save(User.builder()
                 .id(1000L)
                 .email("cache-test@example.com")
                 .passwordHash("hash")

@@ -103,10 +103,11 @@ class RedisCacheSerializationTest {
 
     private void setBaseEntityAuditFields(User user, LocalDateTime createdAt, LocalDateTime updatedAt)
             throws Exception {
-        Field createdAtField = com.cotalk.domain.entity.BaseEntity.class.getDeclaredField("createdAt");
+        // User는 DomainBaseEntity를 상속하며 감사 필드는 부모에 있음
+        Field createdAtField = com.cotalk.domain.entity.DomainBaseEntity.class.getDeclaredField("createdAt");
         createdAtField.setAccessible(true);
         createdAtField.set(user, createdAt);
-        Field updatedAtField = com.cotalk.domain.entity.BaseEntity.class.getDeclaredField("updatedAt");
+        Field updatedAtField = com.cotalk.domain.entity.DomainBaseEntity.class.getDeclaredField("updatedAt");
         updatedAtField.setAccessible(true);
         updatedAtField.set(user, updatedAt);
     }
