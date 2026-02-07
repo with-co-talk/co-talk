@@ -1,7 +1,12 @@
 # Docker Compose 환경 설정
 # 기본 설정(application.yml)을 상속받고, Docker 환경에 맞게 오버라이드
 
+server:
+  shutdown: graceful
+
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   autoconfigure:
     exclude:
       # Redisson 자동 설정 제외 - DockerRedissonConfig에서 수동 설정
@@ -19,7 +24,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
 
 # MinIO 설정

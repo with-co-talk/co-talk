@@ -2,14 +2,34 @@ version: '3.8'
 
 services:
   # ===========================================
-  # 애플리케이션
+  # Nginx 리버스 프록시
   # ===========================================
-  app:
-    image: ghcr.io/${GITHUB_REPO}:latest
-    container_name: cotalk-app
+  nginx:
+    image: nginx:alpine
+    container_name: cotalk-nginx
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-18080}:8080"
+      - "${APP_PORT:-18080}:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/upstream.conf:/etc/nginx/upstream.conf:ro
+    depends_on:
+      - app-blue
+    networks:
+      - cotalk-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/nginx-health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+
+  # ===========================================
+  # 애플리케이션 (Blue)
+  # ===========================================
+  app-blue:
+    image: ghcr.io/${GITHUB_REPO}:latest
+    restart: unless-stopped
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
@@ -56,8 +76,63 @@ services:
       resources:
         limits:
           memory: 1G
-    labels:
-      - "com.centurylinklabs.watchtower.scope=cotalk"
+
+
+  # ===========================================
+  # 애플리케이션 (Green)
+  # ===========================================
+  app-green:
+    image: ghcr.io/${GITHUB_REPO}:latest
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_URL=jdbc:postgresql://postgres:5432/cotalk
+      - DB_USERNAME=${DB_USERNAME:-cotalk}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # REDIS_PASSWORD 제거 - Redis에 비밀번호가 없으므로 설정하지 않음
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      - SWAGGER_SERVER_URL=${SWAGGER_SERVER_URL:-http://localhost:8080}
+      - SWAGGER_SERVER_DESCRIPTION=${SWAGGER_SERVER_DESCRIPTION:-Co-Talk API 서버}
+      # Mail 설정 (비밀번호 재설정용, 선택)
+      - MAIL_HOST=${MAIL_HOST:-}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      # Firebase 설정 (푸시 알림)
+      - FIREBASE_ENABLED=true
+      - FIREBASE_CREDENTIALS_PATH=/tmp/firebase-service-account.json
+    volumes:
+      # Firebase 서비스 계정 키 마운트 (컨테이너 /tmp에 마운트)
+      - ${HOME}/firebase-service-account.json:/tmp/firebase-service-account.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - cotalk-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+    profiles:
+      - green
 
   # ===========================================
   # 데이터베이스
@@ -133,31 +208,6 @@ services:
       resources:
         limits:
           memory: 512M
-
-  # ===========================================
-  # 자동 업데이트 (Watchtower)
-  # ===========================================
-  watchtower:
-    image: containrrr/watchtower
-    container_name: cotalk-watchtower
-    restart: unless-stopped
-    environment:
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_POLL_INTERVAL=300
-      - WATCHTOWER_INCLUDE_STOPPED=false
-      - WATCHTOWER_LABEL_ENABLE=false
-      - WATCHTOWER_SCOPE=cotalk
-      - WATCHTOWER_NOTIFICATIONS=shoutrrr
-      - WATCHTOWER_NOTIFICATION_URL=${WATCHTOWER_NOTIFICATION_URL:-}
-      - WATCHTOWER_NOTIFICATION_REPORT=true
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${HOME}/.docker/config.json:/config.json:ro
-    command: --scope cotalk cotalk-app
-    networks:
-      - cotalk-network
-    labels:
-      - "com.centurylinklabs.watchtower.scope=cotalk"
 
 networks:
   cotalk-network:
