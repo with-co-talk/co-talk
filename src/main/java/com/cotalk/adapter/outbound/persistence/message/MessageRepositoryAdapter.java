@@ -218,4 +218,29 @@ public class MessageRepositoryAdapter implements MessageRepository {
 
         return unreadCountMap;
     }
+
+    /**
+     * 채팅방에서 특정 타입의 메시지를 조회한다. (미디어 갤러리용)
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param types 메시지 타입 목록 (IMAGE, FILE 등)
+     * @param pageable 페이징 정보
+     * @return 해당 타입의 메시지 목록 (최신순)
+     */
+    @Override
+    public List<Message> findByTypeInChatRoom(Long chatRoomId, List<Message.MessageType> types, org.springframework.data.domain.Pageable pageable) {
+        return messageJpaRepository.findByTypeInChatRoom(chatRoomId, types, pageable);
+    }
+
+    /**
+     * 채팅방에서 링크 미리보기가 있는 메시지를 조회한다. (미디어 갤러리용)
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param pageable 페이징 정보
+     * @return 링크 미리보기가 있는 메시지 목록 (최신순)
+     */
+    @Override
+    public List<Message> findMessagesWithLinkPreview(Long chatRoomId, org.springframework.data.domain.Pageable pageable) {
+        return messageJpaRepository.findMessagesWithLinkPreview(chatRoomId, pageable);
+    }
 }

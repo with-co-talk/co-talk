@@ -208,4 +208,32 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
         GROUP BY cm.user_id
         """, nativeQuery = true)
     List<Object[]> batchCountUnreadMessagesForAllMembers(@Param("chatRoomId") Long chatRoomId);
+
+    /**
+     * 채팅방에서 특정 유형의 메시지를 페이징하여 조회한다.
+     * 미디어 갤러리 기능에서 사진/파일 목록을 불러올 때 사용한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param types 메시지 유형 목록 (IMAGE, FILE)
+     * @param pageable 페이지 정보
+     * @return 해당 유형의 메시지 목록
+     */
+    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.type IN :types AND m.deleted = false ORDER BY m.createdAt DESC")
+    List<Message> findByTypeInChatRoom(
+            @Param("chatRoomId") Long chatRoomId,
+            @Param("types") List<Message.MessageType> types,
+            Pageable pageable);
+
+    /**
+     * 채팅방에서 링크 프리뷰가 있는 텍스트 메시지를 조회한다.
+     * 미디어 갤러리의 링크 탭에서 사용한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param pageable 페이지 정보
+     * @return 링크 프리뷰가 있는 메시지 목록
+     */
+    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.linkPreviewUrl IS NOT NULL AND m.deleted = false ORDER BY m.createdAt DESC")
+    List<Message> findMessagesWithLinkPreview(
+            @Param("chatRoomId") Long chatRoomId,
+            Pageable pageable);
 }
