@@ -270,10 +270,18 @@ public class FcmPushNotificationSender implements PushNotificationSender {
     /**
      * iOS 플랫폼용 APNs 설정을 생성한다.
      *
+     * <p>APNs 헤더 설명:
+     * <ul>
+     *   <li>apns-push-type: alert - 사용자에게 표시되는 알림임을 명시</li>
+     *   <li>apns-priority: 10 - 즉시 전송 (5는 절전 모드로 지연될 수 있음)</li>
+     * </ul>
+     *
      * @return ApnsConfig 객체
      */
     private ApnsConfig createApnsConfig() {
         return ApnsConfig.builder()
+                .putHeader("apns-push-type", "alert")
+                .putHeader("apns-priority", "10")
                 .setAps(Aps.builder()
                         .setSound("default")
                         .setBadge(1)
