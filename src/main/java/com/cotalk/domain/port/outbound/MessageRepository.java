@@ -150,4 +150,23 @@ public interface MessageRepository {
      * @return 사용자 ID를 키로, 읽지 않은 메시지 수를 값으로 하는 Map
      */
     Map<Long, Long> batchCountUnreadMessagesForAllMembers(Long chatRoomId);
+
+    /**
+     * 채팅방에서 특정 타입의 메시지를 조회한다. (미디어 갤러리용)
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param types 메시지 타입 목록 (IMAGE, FILE 등)
+     * @param pageable 페이징 정보
+     * @return 해당 타입의 메시지 목록 (최신순)
+     */
+    List<Message> findByTypeInChatRoom(Long chatRoomId, List<Message.MessageType> types, org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * 채팅방에서 링크 미리보기가 있는 메시지를 조회한다. (미디어 갤러리용)
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param pageable 페이징 정보
+     * @return 링크 미리보기가 있는 메시지 목록 (최신순)
+     */
+    List<Message> findMessagesWithLinkPreview(Long chatRoomId, org.springframework.data.domain.Pageable pageable);
 }
