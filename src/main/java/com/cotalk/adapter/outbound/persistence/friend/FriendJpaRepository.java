@@ -1,7 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.friend;
 
+import com.cotalk.adapter.outbound.persistence.entity.UserJpaEntity;
 import com.cotalk.domain.entity.Friend;
-import com.cotalk.domain.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -59,10 +59,10 @@ public interface FriendJpaRepository extends JpaRepository<Friend, Long> {
      * @param userId 사용자 ID
      * @return 친구 User 목록
      */
-    @Query("SELECT u FROM User u " +
+    @Query("SELECT u FROM UserJpaEntity u " +
            "WHERE u.id IN (" +
            "  SELECT f.friendId FROM Friend f " +
            "  WHERE f.userId = :userId AND f.status = 'ACCEPTED'" +
            ")")
-    List<User> findAcceptedFriendsWithUserData(@Param("userId") Long userId);
+    List<UserJpaEntity> findAcceptedFriendsWithUserData(@Param("userId") Long userId);
 }

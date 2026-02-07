@@ -5,12 +5,12 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.auth.ResetPasswordUseCase;
+import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.util.LogMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,7 +38,7 @@ public class ResetPasswordService implements ResetPasswordUseCase {
 
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordEncoderPort passwordEncoder;
 
     /**
      * 토큰을 사용하여 비밀번호를 재설정한다.

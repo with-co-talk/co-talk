@@ -3,8 +3,10 @@ package com.cotalk.application.service.auth;
 import com.cotalk.domain.entity.PasswordResetToken;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
+import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.infrastructure.security.SpringPasswordEncoderAdapter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,7 +15,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -33,12 +34,12 @@ class ResetPasswordServiceTest {
     @Mock
     private UserRepository userRepository;
 
-    private PasswordEncoder passwordEncoder;
+    private PasswordEncoderPort passwordEncoder;
     private ResetPasswordService service;
 
     @BeforeEach
     void setUp() {
-        passwordEncoder = new BCryptPasswordEncoder();
+        passwordEncoder = new SpringPasswordEncoderAdapter(new BCryptPasswordEncoder());
         service = new ResetPasswordService(tokenRepository, userRepository, passwordEncoder);
     }
 

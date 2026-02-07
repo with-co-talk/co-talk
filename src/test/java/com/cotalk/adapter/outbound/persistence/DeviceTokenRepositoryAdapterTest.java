@@ -1,6 +1,7 @@
 package com.cotalk.adapter.outbound.persistence;
 
 import com.cotalk.adapter.outbound.persistence.notification.DeviceTokenRepositoryAdapter;
+import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.entity.DeviceToken.DeviceType;
@@ -27,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import({DeviceTokenRepositoryAdapter.class, UserRepositoryAdapter.class, JpaAuditingConfig.class})
+@Import({DeviceTokenRepositoryAdapter.class, UserRepositoryAdapter.class, UserMapper.class, JpaAuditingConfig.class})
 @DisplayName("DeviceTokenRepositoryAdapter")
 class DeviceTokenRepositoryAdapterTest {
 

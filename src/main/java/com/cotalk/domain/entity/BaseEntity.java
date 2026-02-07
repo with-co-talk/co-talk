@@ -11,8 +11,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 /**
- * 모든 엔티티의 공통 필드를 정의하는 기본 엔티티.
- * createdAt과 updatedAt 필드를 JPA Auditing을 통해 자동 관리한다.
+ * JPA 매핑이 필요한 엔티티용 공통 베이스.
+ * 아직 persistence 계층으로 분리되지 않은 엔티티(Message, ChatRoom 등)가 사용한다.
+ * 분리 완료 후 제거하고, 순수 도메인용 BaseEntity만 유지할 예정이다.
  *
  * @author seunggu.lee
  */

@@ -2,10 +2,9 @@ package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.RefreshToken;
 import com.cotalk.domain.exception.InvalidRefreshTokenException;
+import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.RefreshTokenRepository;
-import com.cotalk.infrastructure.config.properties.JwtProperties;
-import com.cotalk.infrastructure.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,7 +37,7 @@ class RefreshTokenServiceTest {
     private RefreshTokenRepository refreshTokenRepository;
 
     @Mock
-    private JwtTokenProvider jwtTokenProvider;
+    private AuthTokenPort authTokenPort;
 
     @Mock
     private IdGenerator idGenerator;
@@ -49,16 +48,11 @@ class RefreshTokenServiceTest {
 
     @BeforeEach
     void setUp() {
-        JwtProperties jwtProperties = new JwtProperties(
-                "test-secret",
-                3600000L,
-                new JwtProperties.RefreshToken(REFRESH_TOKEN_EXPIRATION_DAYS)
-        );
         refreshTokenService = new RefreshTokenService(
                 refreshTokenRepository,
-                jwtTokenProvider,
+                authTokenPort,
                 idGenerator,
-                jwtProperties
+                REFRESH_TOKEN_EXPIRATION_DAYS
         );
     }
 
@@ -138,7 +132,7 @@ class RefreshTokenServiceTest {
 
             given(refreshTokenRepository.findByToken(refreshToken))
                     .willReturn(Optional.of(storedToken));
-            given(jwtTokenProvider.generateToken(userId)).willReturn(newAccessToken);
+            given(authTokenPort.generateAccessToken(userId)).willReturn(newAccessToken);
 
             // when
             String result = refreshTokenService.refreshAccessToken(refreshToken);

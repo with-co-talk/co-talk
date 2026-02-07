@@ -1,5 +1,6 @@
 package com.cotalk.adapter.outbound.persistence.friend;
 
+import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.domain.entity.Friend;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.outbound.FriendRepository;
@@ -20,6 +21,7 @@ import java.util.Optional;
 public class FriendRepositoryAdapter implements FriendRepository {
 
     private final FriendJpaRepository friendJpaRepository;
+    private final UserMapper userMapper;
 
     /**
      * 친구 관계를 저장한다.
@@ -97,7 +99,9 @@ public class FriendRepositoryAdapter implements FriendRepository {
      */
     @Override
     public List<User> findAcceptedFriendsWithUserData(Long userId) {
-        return friendJpaRepository.findAcceptedFriendsWithUserData(userId);
+        return friendJpaRepository.findAcceptedFriendsWithUserData(userId).stream()
+                .map(userMapper::toDomain)
+                .toList();
     }
 
     /**

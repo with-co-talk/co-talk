@@ -138,4 +138,16 @@ public interface MessageRepository {
      * @return 다른 발신자 ID 목록
      */
     List<Long> findDistinctSenderIdsByChatRoomIdExcludingUser(Long chatRoomId, Long excludeUserId);
+
+    /**
+     * 채팅방의 모든 멤버에 대해 읽지 않은 메시지 수를 한 번에 조회한다.
+     * (N+1 쿼리 방지용 배치 조회)
+     *
+     * <p>각 멤버의 lastReadMessageId를 기준으로 해당 멤버가 읽지 않은 메시지 수를 계산한다.
+     * 본인이 보낸 메시지는 제외한다.</p>
+     *
+     * @param chatRoomId 채팅방 ID
+     * @return 사용자 ID를 키로, 읽지 않은 메시지 수를 값으로 하는 Map
+     */
+    Map<Long, Long> batchCountUnreadMessagesForAllMembers(Long chatRoomId);
 }

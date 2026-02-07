@@ -72,6 +72,7 @@ class SendMessageServiceTest {
         lenient().when(chatRoomMemberRepository.updateLastReadMessageIdIfNewer(anyLong(), anyLong(), any(), anyLong()))
                 .thenReturn(1);
         lenient().when(chatRoomPresenceTracker.isActive(anyLong(), anyLong())).thenReturn(false);
+        lenient().when(messageLinkPreviewService.extractFirstUrl(anyString())).thenReturn(Optional.empty());
     }
 
     @Nested
@@ -107,8 +108,6 @@ class SendMessageServiceTest {
                     .passwordHash("hash")
                     .build();
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.of(senderMember));
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                     .willReturn(List.of(senderMember, receiverMember));
             given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
@@ -150,8 +149,6 @@ class SendMessageServiceTest {
                     .passwordHash("hash")
                     .build();
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.of(member));
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                     .willReturn(List.of(member));
             given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
@@ -179,8 +176,9 @@ class SendMessageServiceTest {
             Long chatRoomId = 1L;
             Long senderId = 2L;
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.empty());
+            // 채팅방에 멤버가 없거나 senderId가 포함되지 않은 경우
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
+                    .willReturn(List.of()); // 빈 리스트 or 다른 사용자만 있음
 
             // when & then
             assertThatThrownBy(() -> sendMessageService.sendMessage(chatRoomId, senderId, "메시지"))
@@ -200,8 +198,16 @@ class SendMessageServiceTest {
                     .userId(senderId)
                     .build();
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.of(member));
+            User sender = User.builder()
+                    .id(senderId)
+                    .email("sender@test.com")
+                    .nickname("발신자")
+                    .passwordHash("hash")
+                    .build();
+
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
+                    .willReturn(List.of(member));
+            given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
 
             // when & then
             assertThatThrownBy(() -> sendMessageService.sendMessage(chatRoomId, senderId, ""))
@@ -242,8 +248,6 @@ class SendMessageServiceTest {
                     "https://storage.example.com/thumb.jpg"
             );
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.of(member));
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                     .willReturn(List.of(member));
             given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
@@ -289,8 +293,6 @@ class SendMessageServiceTest {
                     null
             );
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.of(member));
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                     .willReturn(List.of(member));
             given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
@@ -335,8 +337,6 @@ class SendMessageServiceTest {
                     null
             );
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.of(member));
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                     .willReturn(List.of(member));
             given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
@@ -375,8 +375,6 @@ class SendMessageServiceTest {
                     null
             );
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.of(senderMember));
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                     .willReturn(List.of(senderMember, receiverMember));
             given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
@@ -406,8 +404,9 @@ class SendMessageServiceTest {
                     null
             );
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.empty());
+            // 채팅방에 멤버가 없거나 senderId가 포함되지 않은 경우
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
+                    .willReturn(List.of()); // 빈 리스트
 
             // when & then
             assertThatThrownBy(() -> sendMessageService.sendFileMessage(chatRoomId, senderId, command))
@@ -439,8 +438,6 @@ class SendMessageServiceTest {
             User sender = User.builder()
                     .id(senderId).email("sender@test.com").nickname("발신자").passwordHash("hash").build();
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.of(senderMember));
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                     .willReturn(List.of(senderMember, receiver1Member, receiver2Member));
             given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
@@ -475,8 +472,6 @@ class SendMessageServiceTest {
             ChatRoomMember receiverMember = ChatRoomMember.builder()
                     .id(11L).chatRoomId(chatRoomId).userId(receiverId).build();
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.of(senderMember));
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                     .willReturn(List.of(senderMember, receiverMember));
             given(userRepository.findById(senderId)).willReturn(Optional.empty());
@@ -508,8 +503,6 @@ class SendMessageServiceTest {
             User sender = User.builder()
                     .id(senderId).email("sender@test.com").nickname("발신자").passwordHash("hash").build();
 
-            given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, senderId))
-                    .willReturn(Optional.of(senderMember));
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                     .willReturn(List.of(senderMember)); // 발신자만 있음
             given(userRepository.findById(senderId)).willReturn(Optional.of(sender));

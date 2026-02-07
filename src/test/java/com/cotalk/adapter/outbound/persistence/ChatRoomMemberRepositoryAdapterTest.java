@@ -2,6 +2,7 @@ package com.cotalk.adapter.outbound.persistence;
 
 import com.cotalk.adapter.outbound.persistence.chatroom.ChatRoomMemberRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.chatroom.ChatRoomRepositoryAdapter;
+import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoom.ChatRoomType;
@@ -33,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @ActiveProfiles("test")
 @Import({ChatRoomMemberRepositoryAdapter.class, ChatRoomRepositoryAdapter.class,
-        UserRepositoryAdapter.class, JpaAuditingConfig.class})
+        UserRepositoryAdapter.class, UserMapper.class, JpaAuditingConfig.class})
 @DisplayName("ChatRoomMemberRepositoryAdapter")
 class ChatRoomMemberRepositoryAdapterTest {
 

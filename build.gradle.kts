@@ -18,6 +18,11 @@ repositories {
     mavenCentral()
 }
 
+// Spring Boot는 spring-jcl을 사용. commons-logging.jar가 있으면 충돌하므로 제외
+configurations.all {
+    exclude(group = "commons-logging", module = "commons-logging")
+}
+
 dependencies {
     // Spring Boot Starters
     implementation("org.springframework.boot:spring-boot-starter-web")

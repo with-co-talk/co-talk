@@ -5,7 +5,6 @@ import com.cotalk.domain.exception.SelfActionNotAllowedException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Set;
@@ -23,7 +22,6 @@ import java.util.stream.StreamSupport;
  *
  * @author seunggu.lee
  */
-@Component
 @RequiredArgsConstructor
 public class UserValidator {
 

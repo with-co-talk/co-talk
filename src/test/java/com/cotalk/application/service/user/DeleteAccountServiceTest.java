@@ -15,15 +15,16 @@ import com.cotalk.domain.port.outbound.ProfileHistoryRepository;
 import com.cotalk.domain.port.outbound.RefreshTokenRepository;
 import com.cotalk.domain.port.outbound.ReportRepository;
 import com.cotalk.domain.port.outbound.TermsAgreementRepository;
+import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.infrastructure.security.SpringPasswordEncoderAdapter;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 
@@ -73,12 +74,13 @@ class DeleteAccountServiceTest {
     @Mock
     private ProfileHistoryRepository profileHistoryRepository;
 
-    private PasswordEncoder passwordEncoder;
+    private PasswordEncoderPort passwordEncoder;
+
     private DeleteAccountService service;
 
     @BeforeEach
     void setUp() {
-        passwordEncoder = new BCryptPasswordEncoder();
+        passwordEncoder = new SpringPasswordEncoderAdapter(new BCryptPasswordEncoder());
         service = new DeleteAccountService(
                 userRepository,
                 chatRoomMemberRepository,

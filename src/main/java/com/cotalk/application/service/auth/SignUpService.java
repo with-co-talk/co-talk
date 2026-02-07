@@ -5,10 +5,10 @@ import com.cotalk.domain.exception.DuplicateEmailException;
 import com.cotalk.domain.exception.DuplicateNicknameException;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
 import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.UserValidator;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SignUpService implements SignUpUseCase {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordEncoderPort passwordEncoder;
     private final IdGenerator idGenerator;
     private final UserValidator userValidator;
 

@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build, Push and Deploy
 
 on:
   push:
@@ -14,6 +14,9 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # ===========================================
+  # 1단계: 테스트 + 이미지 빌드 + 푸시
+  # ===========================================
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
@@ -65,3 +68,31 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # ===========================================
+  # 2단계: NAS에 무중단 배포
+  # ===========================================
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Deploy to NAS via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.NAS_HOST }}
+          port: ${{ secrets.NAS_SSH_PORT }}
+          username: ${{ secrets.NAS_USER }}
+          key: ${{ secrets.NAS_SSH_KEY }}
+          script_stop: true
+          command_timeout: 5m
+          script: |
+            cd ${{ secrets.NAS_DEPLOY_PATH }}
+
+            # GHCR 로그인 (이미지 풀을 위해)
+            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.GHCR_USER }} --password-stdin
+
+            # Blue-Green 무중단 배포 실행
+            ./scripts/deploy.sh -f docker-compose.nas.yml --pull

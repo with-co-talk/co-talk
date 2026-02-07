@@ -1,9 +1,9 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class OAuthLoginService {
 
     private final UserRepository userRepository;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthTokenPort authTokenPort;
     private final IdGenerator idGenerator;
 
     /**
@@ -47,7 +47,7 @@ public class OAuthLoginService {
     }
 
     private OAuthLoginResult loginExistingUser(User user) {
-        String token = jwtTokenProvider.generateToken(user.getId());
+        String token = authTokenPort.generateAccessToken(user.getId());
         return new OAuthLoginResult(token, false, user.getId());
     }
 
@@ -68,7 +68,7 @@ public class OAuthLoginService {
                 .build();
 
         User savedUser = userRepository.save(newUser);
-        String token = jwtTokenProvider.generateToken(savedUser.getId());
+        String token = authTokenPort.generateAccessToken(savedUser.getId());
 
         return new OAuthLoginResult(token, true, savedUser.getId());
     }

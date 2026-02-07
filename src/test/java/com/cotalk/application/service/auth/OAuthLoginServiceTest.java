@@ -1,9 +1,9 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.port.outbound.AuthTokenPort;
+import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
-import com.cotalk.infrastructure.security.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,10 +28,10 @@ class OAuthLoginServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private JwtTokenProvider jwtTokenProvider;
+    private AuthTokenPort authTokenPort;
 
     @Mock
-    private SnowflakeIdGenerator idGenerator;
+    private IdGenerator idGenerator;
 
     @InjectMocks
     private OAuthLoginService oAuthLoginService;
@@ -51,7 +51,7 @@ class OAuthLoginServiceTest {
         given(idGenerator.nextId()).willReturn(100L);
         given(userRepository.save(any(User.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
-        given(jwtTokenProvider.generateToken(any())).willReturn("jwt_token");
+        given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
 
         // when
         OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
@@ -88,7 +88,7 @@ class OAuthLoginServiceTest {
 
         given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
                 .willReturn(Optional.of(existingUser));
-        given(jwtTokenProvider.generateToken(any())).willReturn("jwt_token");
+        given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
 
         // when
         OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
@@ -116,7 +116,7 @@ class OAuthLoginServiceTest {
         given(idGenerator.nextId()).willReturn(101L);
         given(userRepository.save(any(User.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
-        given(jwtTokenProvider.generateToken(any())).willReturn("google_jwt_token");
+        given(authTokenPort.generateAccessToken(any())).willReturn("google_jwt_token");
 
         // when
         OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
@@ -141,7 +141,7 @@ class OAuthLoginServiceTest {
         given(idGenerator.nextId()).willReturn(102L);
         given(userRepository.save(any(User.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
-        given(jwtTokenProvider.generateToken(any())).willReturn("apple_jwt_token");
+        given(authTokenPort.generateAccessToken(any())).willReturn("apple_jwt_token");
 
         // when
         OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
@@ -166,7 +166,7 @@ class OAuthLoginServiceTest {
         given(idGenerator.nextId()).willReturn(100L);
         given(userRepository.save(any(User.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
-        given(jwtTokenProvider.generateToken(any())).willReturn("jwt_token");
+        given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
 
         // when
         OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
@@ -200,7 +200,7 @@ class OAuthLoginServiceTest {
 
         given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
                 .willReturn(Optional.of(existingUser));
-        given(jwtTokenProvider.generateToken(any())).willReturn("jwt_token");
+        given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
 
         // when
         OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(

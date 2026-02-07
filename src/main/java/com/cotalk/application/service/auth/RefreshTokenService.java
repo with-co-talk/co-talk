@@ -3,10 +3,9 @@ package com.cotalk.application.service.auth;
 import com.cotalk.domain.entity.RefreshToken;
 import com.cotalk.domain.exception.InvalidRefreshTokenException;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
+import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.RefreshTokenRepository;
-import com.cotalk.infrastructure.config.properties.JwtProperties;
-import com.cotalk.infrastructure.security.JwtTokenProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,12 +20,11 @@ import java.util.UUID;
  * @author seunggu.lee
  */
 @Slf4j
-@Service
 @Transactional
 public class RefreshTokenService implements RefreshTokenUseCase {
 
     private final RefreshTokenRepository refreshTokenRepository;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthTokenPort authTokenPort;
     private final IdGenerator idGenerator;
     private final long refreshTokenExpirationDays;
 
@@ -34,19 +32,19 @@ public class RefreshTokenService implements RefreshTokenUseCase {
      * RefreshTokenService 생성자.
      *
      * @param refreshTokenRepository Refresh Token 저장소
-     * @param jwtTokenProvider JWT 토큰 제공자
+     * @param authTokenPort Access 토큰 발급 포트
      * @param idGenerator ID 생성기
-     * @param jwtProperties JWT 설정 프로퍼티
+     * @param refreshTokenExpirationDays 리프레시 토큰 만료 일수
      */
     public RefreshTokenService(
             RefreshTokenRepository refreshTokenRepository,
-            JwtTokenProvider jwtTokenProvider,
+            AuthTokenPort authTokenPort,
             IdGenerator idGenerator,
-            JwtProperties jwtProperties) {
+            long refreshTokenExpirationDays) {
         this.refreshTokenRepository = refreshTokenRepository;
-        this.jwtTokenProvider = jwtTokenProvider;
+        this.authTokenPort = authTokenPort;
         this.idGenerator = idGenerator;
-        this.refreshTokenExpirationDays = jwtProperties.refreshToken().expirationDays();
+        this.refreshTokenExpirationDays = refreshTokenExpirationDays;
     }
 
     /**
@@ -96,7 +94,7 @@ public class RefreshTokenService implements RefreshTokenUseCase {
             throw new InvalidRefreshTokenException();
         }
 
-        String newAccessToken = jwtTokenProvider.generateToken(storedToken.getUserId());
+        String newAccessToken = authTokenPort.generateAccessToken(storedToken.getUserId());
         log.debug("Access Token 갱신 완료");
 
         return newAccessToken;

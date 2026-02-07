@@ -4,7 +4,6 @@ import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 
 /**
  * 채팅방 멤버 유효성 검증기.
@@ -17,7 +16,6 @@ import org.springframework.stereotype.Component;
  * @see ChatRoomMember
  * @see ChatRoomMemberRepository
  */
-@Component
 @RequiredArgsConstructor
 public class ChatRoomMemberValidator {
 

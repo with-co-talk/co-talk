@@ -22,11 +22,10 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     scrape_interval: 5s
     static_configs:
-      - targets: ['app:8080']
+      - targets: ['app-blue:8080', 'app-green:8080']
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
-        replacement: 'cotalk-backend'
 
   # PostgreSQL 메트릭 (postgres_exporter 사용 시)
   - job_name: 'postgres'
