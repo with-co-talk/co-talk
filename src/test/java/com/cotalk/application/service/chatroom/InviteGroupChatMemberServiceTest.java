@@ -113,7 +113,7 @@ class InviteGroupChatMemberServiceTest {
         // when & then
         assertThatThrownBy(() -> inviteGroupChatMemberService.inviteMembers(roomId, inviterId, inviteeIds))
                 .isInstanceOf(InvalidGroupChatException.class)
-                .hasMessageContaining("1:1 채팅방에는 멤버를 초대할 수 없습니다");
+                .hasMessageContaining("멤버를 초대할 수 없습니다");
     }
 
     @Test

@@ -226,7 +226,7 @@ class ChatWebSocketControllerTest {
         assertThat(captured.fileUrl()).isEqualTo("https://storage.example.com/file.pdf");
         assertThat(captured.fileName()).isEqualTo("document.pdf");
         assertThat(captured.fileSize()).isEqualTo(1024L);
-        assertThat(captured.contentType()).isEqualTo("application/pdf");
+        assertThat(captured.fileContentType()).isEqualTo("application/pdf");
     }
 
     @Test
@@ -322,7 +322,7 @@ class ChatWebSocketControllerTest {
         ReactionBroadcastMessage captured = reactionCaptor.getValue();
         assertThat(captured.messageId()).isEqualTo(1L);
         assertThat(captured.userId()).isEqualTo(2L);
-        assertThat(captured.emoji()).isEqualTo("THUMBS_UP");
+        assertThat(captured.emoji()).isEqualTo("👍");
         assertThat(captured.eventType()).isEqualTo("ADDED");
     }
 

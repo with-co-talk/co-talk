@@ -172,7 +172,7 @@ class FriendControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.friends").isArray())
                     .andExpect(jsonPath("$.friends.length()").value(2))
-                    .andExpect(jsonPath("$.friends[0].nickname").value("친구1"));
+                    .andExpect(jsonPath("$.friends[0].user.nickname").value("친구1"));
         }
     }
 

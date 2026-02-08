@@ -80,7 +80,7 @@ class RedisChatMessageSubscriberTest {
                     "fileUrl": null,
                     "fileName": null,
                     "fileSize": null,
-                    "contentType": null,
+                    "fileContentType": null,
                     "thumbnailUrl": null
                 }
                 """;
@@ -114,7 +114,7 @@ class RedisChatMessageSubscriberTest {
                     "fileUrl": "https://storage.example.com/image.png",
                     "fileName": "image.png",
                     "fileSize": 1024,
-                    "contentType": "image/png",
+                    "fileContentType": "image/png",
                     "thumbnailUrl": "https://storage.example.com/thumb.png"
                 }
                 """;
@@ -130,7 +130,7 @@ class RedisChatMessageSubscriberTest {
             assertThat(captured.fileUrl()).isEqualTo("https://storage.example.com/image.png");
             assertThat(captured.fileName()).isEqualTo("image.png");
             assertThat(captured.fileSize()).isEqualTo(1024L);
-            assertThat(captured.contentType()).isEqualTo("image/png");
+            assertThat(captured.fileContentType()).isEqualTo("image/png");
             assertThat(captured.thumbnailUrl()).isEqualTo("https://storage.example.com/thumb.png");
         }
 
@@ -226,7 +226,7 @@ class RedisChatMessageSubscriberTest {
             assertThat(message.fileUrl()).isEqualTo("fileUrl");
             assertThat(message.fileName()).isEqualTo("fileName");
             assertThat(message.fileSize()).isEqualTo(100L);
-            assertThat(message.contentType()).isEqualTo("text/plain");
+            assertThat(message.fileContentType()).isEqualTo("text/plain");
             assertThat(message.thumbnailUrl()).isEqualTo("thumbUrl");
             assertThat(message.unreadCount()).isEqualTo(1);
         }

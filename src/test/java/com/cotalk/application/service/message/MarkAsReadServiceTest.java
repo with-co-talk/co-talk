@@ -184,10 +184,6 @@ class MarkAsReadServiceTest {
                 .willReturn(1);
         given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                 .willReturn(List.of(readerMember, otherMember));
-        given(messageRepository.findByChatRoomIdOrderByCreatedAtDesc(eq(chatRoomId), eq(0), eq(20)))
-                .willReturn(List.of(message));
-        given(chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(eq(chatRoomId), any()))
-                .willReturn(java.util.Map.of(messageId, 0));
         given(userRepository.findById(otherUserId)).willReturn(Optional.of(sender));
         given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
                 .willReturn(java.util.Map.of(readerId, 0L, otherUserId, 0L));
@@ -245,10 +241,6 @@ class MarkAsReadServiceTest {
                 .willReturn(1);
         given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                 .willReturn(List.of(member));
-        given(messageRepository.findByChatRoomIdOrderByCreatedAtDesc(eq(chatRoomId), eq(0), eq(20)))
-                .willReturn(List.of(message));
-        given(chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(eq(chatRoomId), any()))
-                .willReturn(java.util.Map.of(messageId, 0));
         given(userRepository.findById(2L)).willReturn(Optional.of(sender));
         given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
                 .willReturn(java.util.Map.of(userId, 0L));
@@ -307,10 +299,6 @@ class MarkAsReadServiceTest {
                 .willReturn(0); // 업데이트 발생하지 않음
         given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                 .willReturn(List.of(member));
-        given(messageRepository.findByChatRoomIdOrderByCreatedAtDesc(eq(chatRoomId), eq(0), eq(20)))
-                .willReturn(List.of(message));
-        given(chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(eq(chatRoomId), any()))
-                .willReturn(java.util.Map.of(messageId, 0));
         given(userRepository.findById(2L)).willReturn(Optional.of(sender));
         given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
                 .willReturn(java.util.Map.of(userId, 5L));

@@ -14,6 +14,7 @@ import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.lock.DistributedLockExecutor;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,12 +25,14 @@ import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -59,9 +62,13 @@ class LeaveChatRoomServiceTest {
     @Mock
     private UserEventBroker userEventBroker;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     private LeaveChatRoomService service;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         service = new LeaveChatRoomService(
                 chatRoomMemberRepository,
@@ -71,7 +78,8 @@ class LeaveChatRoomServiceTest {
                 messageRepository,
                 userRepository,
                 chatMessageBroker,
-                userEventBroker
+                userEventBroker,
+                transactionTemplate
         );
 
         // 분산락 모킹: 락 획득 후 바로 실행
@@ -80,6 +88,13 @@ class LeaveChatRoomServiceTest {
             runnable.run();
             return null;
         }).when(lockExecutor).executeWithLock(anyString(), any(Runnable.class));
+
+        // TransactionTemplate 모킹: 트랜잭션 콜백 바로 실행
+        doAnswer(invocation -> {
+            Consumer<Object> action = invocation.getArgument(0);
+            action.accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
     }
 
     @Test
@@ -88,6 +103,11 @@ class LeaveChatRoomServiceTest {
         // given
         Long chatRoomId = 100L;
         Long userId = 1L;
+
+        ChatRoom chatRoom = ChatRoom.builder()
+                .id(chatRoomId)
+                .type(ChatRoom.ChatRoomType.GROUP)
+                .build();
 
         ChatRoomMember member = ChatRoomMember.builder()
                 .id(500L)
@@ -100,6 +120,8 @@ class LeaveChatRoomServiceTest {
                 .nickname("테스트유저")
                 .build();
 
+        given(chatRoomRepository.findById(chatRoomId))
+                .willReturn(Optional.of(chatRoom));
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.of(member));
         given(userRepository.findById(userId))
@@ -144,6 +166,13 @@ class LeaveChatRoomServiceTest {
         Long chatRoomId = 100L;
         Long userId = 1L;
 
+        ChatRoom chatRoom = ChatRoom.builder()
+                .id(chatRoomId)
+                .type(ChatRoom.ChatRoomType.GROUP)
+                .build();
+
+        given(chatRoomRepository.findById(chatRoomId))
+                .willReturn(Optional.of(chatRoom));
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.empty());
 
@@ -153,65 +182,39 @@ class LeaveChatRoomServiceTest {
     }
 
     @Test
-    @DisplayName("마지막 멤버가 나가면 채팅방도 삭제")
-    void should_deleteChatRoom_when_lastMemberLeaves() {
+    @DisplayName("마지막 멤버가 나가면 채팅방은 유지되고 시스템 메시지 없이 처리")
+    void should_keepChatRoom_when_lastMemberLeaves() {
         // given
         Long chatRoomId = 100L;
         Long userId = 1L;
-
-        ChatRoomMember member = ChatRoomMember.builder()
-                .id(500L)
-                .chatRoomId(chatRoomId)
-                .userId(userId)
-                .build();
 
         ChatRoom chatRoom = ChatRoom.builder()
                 .id(chatRoomId)
                 .type(ChatRoom.ChatRoomType.DIRECT)
                 .build();
 
-        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
-                .willReturn(Optional.of(member));
-        // delete 후에는 빈 리스트 반환 (이미 삭제되었으므로)
-        given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
-                .willReturn(List.of()); // 삭제 후 빈 리스트
-        given(chatRoomRepository.findById(chatRoomId))
-                .willReturn(Optional.of(chatRoom));
-
-        // when
-        service.leaveChatRoom(chatRoomId, userId);
-
-        // then
-        verify(chatRoomMemberRepository).delete(member);
-        verify(chatRoomRepository).delete(chatRoom);
-    }
-
-    @Test
-    @DisplayName("마지막 멤버가 나갔지만 채팅방이 이미 삭제된 경우 처리")
-    void should_handleGracefully_when_chatRoomAlreadyDeleted() {
-        // given
-        Long chatRoomId = 100L;
-        Long userId = 1L;
-
         ChatRoomMember member = ChatRoomMember.builder()
                 .id(500L)
                 .chatRoomId(chatRoomId)
                 .userId(userId)
                 .build();
 
+        given(chatRoomRepository.findById(chatRoomId))
+                .willReturn(Optional.of(chatRoom));
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.of(member));
+        given(userRepository.findById(userId))
+                .willReturn(Optional.of(User.builder().id(userId).nickname("테스트유저").build()));
         given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
-                .willReturn(List.of()); // 삭제 후 빈 리스트
-        given(chatRoomRepository.findById(chatRoomId))
-                .willReturn(Optional.empty()); // 채팅방이 이미 삭제됨
+                .willReturn(List.of());
 
         // when
         service.leaveChatRoom(chatRoomId, userId);
 
         // then
         verify(chatRoomMemberRepository).delete(member);
-        // 채팅방이 없으므로 delete 호출되지 않음
+        verify(chatRoomRepository, never()).delete(any(ChatRoom.class));
+        verify(messageRepository, never()).save(any(Message.class));
     }
 
     /**

@@ -96,7 +96,7 @@ class GetMessageReactionsServiceTest {
             assertThat(result).hasSize(2);
 
             GroupedReactionResponse heartResponse = result.stream()
-                    .filter(r -> r.emoji().equals("HEART"))
+                    .filter(r -> r.emoji().equals("❤️"))
                     .findFirst()
                     .orElseThrow();
             assertThat(heartResponse.count()).isEqualTo(2);
@@ -104,7 +104,7 @@ class GetMessageReactionsServiceTest {
             assertThat(heartResponse.currentUserReacted()).isTrue();
 
             GroupedReactionResponse thumbsUpResponse = result.stream()
-                    .filter(r -> r.emoji().equals("THUMBS_UP"))
+                    .filter(r -> r.emoji().equals("👍"))
                     .findFirst()
                     .orElseThrow();
             assertThat(thumbsUpResponse.count()).isEqualTo(1);
@@ -132,11 +132,11 @@ class GetMessageReactionsServiceTest {
 
             // then
             assertThat(result).hasSize(3);
-            assertThat(result.get(0).emoji()).isEqualTo("HEART");
+            assertThat(result.get(0).emoji()).isEqualTo("❤️");
             assertThat(result.get(0).count()).isEqualTo(3);
-            assertThat(result.get(1).emoji()).isEqualTo("FIRE");
+            assertThat(result.get(1).emoji()).isEqualTo("🔥");
             assertThat(result.get(1).count()).isEqualTo(2);
-            assertThat(result.get(2).emoji()).isEqualTo("THUMBS_UP");
+            assertThat(result.get(2).emoji()).isEqualTo("👍");
             assertThat(result.get(2).count()).isEqualTo(1);
         }
 
@@ -190,7 +190,7 @@ class GetMessageReactionsServiceTest {
             // then
             assertThat(result).hasSize(1);
             GroupedReactionResponse response = result.get(0);
-            assertThat(response.emoji()).isEqualTo("PARTY");
+            assertThat(response.emoji()).isEqualTo("🎉");
             assertThat(response.emojiCharacter()).isEqualTo("🎉");
             assertThat(response.emojiName()).isEqualTo("party");
         }

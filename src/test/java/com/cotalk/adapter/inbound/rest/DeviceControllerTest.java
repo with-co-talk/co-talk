@@ -111,10 +111,11 @@ class DeviceControllerTest {
 
         @Test
         @DisplayName("디바이스 토큰 삭제 성공")
+        @WithMockCustomUser(userId = 1L)
         void should_deleteToken_when_validRequest() throws Exception {
             // given
             String token = "fcm-token-to-delete";
-            willDoNothing().given(registerDeviceTokenUseCase).unregister(token);
+            willDoNothing().given(registerDeviceTokenUseCase).unregister(eq(1L), eq(token));
 
             // when & then
             mockMvc.perform(delete("/api/v1/devices/token")

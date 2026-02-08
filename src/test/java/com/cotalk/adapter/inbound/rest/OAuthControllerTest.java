@@ -1,8 +1,8 @@
 package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.adapter.inbound.rest.dto.auth.OAuthLoginRequest;
-import com.cotalk.application.service.auth.OAuthLoginService;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
@@ -35,7 +35,7 @@ class OAuthControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private OAuthLoginService oAuthLoginService;
+    private OAuthLoginUseCase oAuthLoginService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
@@ -61,7 +61,7 @@ class OAuthControllerTest {
                 eq("user@kakao.com"),
                 eq("카카오유저"),
                 eq("https://kakao.com/avatar.png")))
-                .willReturn(new OAuthLoginService.OAuthLoginResult("jwt_token", true, 100L));
+                .willReturn(new OAuthLoginUseCase.OAuthLoginResult("jwt_token", true, 100L));
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/oauth/login")
@@ -92,7 +92,7 @@ class OAuthControllerTest {
                 eq("user@gmail.com"),
                 eq("구글유저"),
                 eq(null)))
-                .willReturn(new OAuthLoginService.OAuthLoginResult("google_jwt_token", false, 200L));
+                .willReturn(new OAuthLoginUseCase.OAuthLoginResult("google_jwt_token", false, 200L));
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/oauth/login")
@@ -122,7 +122,7 @@ class OAuthControllerTest {
                 eq("user@icloud.com"),
                 eq("애플유저"),
                 eq(null)))
-                .willReturn(new OAuthLoginService.OAuthLoginResult("apple_jwt_token", true, 300L));
+                .willReturn(new OAuthLoginUseCase.OAuthLoginResult("apple_jwt_token", true, 300L));
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/oauth/login")

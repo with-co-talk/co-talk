@@ -69,6 +69,7 @@ class JwtAuthenticationFilterTest {
             request.addHeader("Authorization", "Bearer " + token);
 
             given(jwtTokenProvider.validateToken(token)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(token)).willReturn(true);
             given(jwtTokenProvider.getUserIdFromToken(token)).willReturn(userId);
             given(jwtTokenProvider.getRoleFromToken(token)).willReturn(role);
 
@@ -97,6 +98,7 @@ class JwtAuthenticationFilterTest {
             request.addHeader("Authorization", "Bearer " + token);
 
             given(jwtTokenProvider.validateToken(token)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(token)).willReturn(true);
             given(jwtTokenProvider.getUserIdFromToken(token)).willReturn(userId);
             given(jwtTokenProvider.getRoleFromToken(token)).willReturn(role);
 
@@ -207,6 +209,7 @@ class JwtAuthenticationFilterTest {
             request.addHeader("Authorization", "Bearer " + token);
 
             given(jwtTokenProvider.validateToken(token)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(token)).willReturn(true);
             given(jwtTokenProvider.getUserIdFromToken(token)).willReturn(1L);
             given(jwtTokenProvider.getRoleFromToken(token)).willReturn("USER");
 

@@ -126,7 +126,7 @@ class FriendIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.friends").isArray())
                 .andExpect(jsonPath("$.friends.length()").value(1))
-                .andExpect(jsonPath("$.friends[0].nickname").value("사용자2"));
+                .andExpect(jsonPath("$.friends[0].user.nickname").value("사용자2"));
 
         // 4. 친구 목록 조회 - user2
         setSecurityContext(user2Id);
@@ -134,7 +134,7 @@ class FriendIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.friends").isArray())
                 .andExpect(jsonPath("$.friends.length()").value(1))
-                .andExpect(jsonPath("$.friends[0].nickname").value("사용자1"));
+                .andExpect(jsonPath("$.friends[0].user.nickname").value("사용자1"));
     }
 
     @Test

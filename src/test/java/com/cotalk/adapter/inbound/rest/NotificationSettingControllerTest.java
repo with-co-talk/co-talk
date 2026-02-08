@@ -99,7 +99,7 @@ class NotificationSettingControllerTest {
                 .build();
 
         given(updateNotificationSettingUseCase.updateNotificationSetting(
-                eq(userId), any(), any(), any(), any(), any(), any(), any(), any()))
+                eq(userId), any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .willReturn(updatedSetting);
 
         String requestBody = """

@@ -117,7 +117,7 @@ class InMemoryChatMessageBrokerTest {
         assertEquals("https://storage.example.com/image.png", capturedMessage.fileUrl());
         assertEquals("image.png", capturedMessage.fileName());
         assertEquals(1024L, capturedMessage.fileSize());
-        assertEquals("image/png", capturedMessage.contentType());
+        assertEquals("image/png", capturedMessage.fileContentType());
         assertEquals("https://storage.example.com/thumb.png", capturedMessage.thumbnailUrl());
     }
 
@@ -132,7 +132,7 @@ class InMemoryChatMessageBrokerTest {
         messageBroker.publishReaction(roomId, reactionEvent);
 
         // then
-        String expectedDestination = "/topic/chat/room/" + roomId + "/reaction";
+        String expectedDestination = "/topic/chat/room/" + roomId;
         verify(messagingTemplate).convertAndSend(eq(expectedDestination), reactionCaptor.capture());
 
         Object capturedReaction = reactionCaptor.getValue();
@@ -172,7 +172,7 @@ class InMemoryChatMessageBrokerTest {
         messageBroker.publishReaction(roomId, reactionEvent);
 
         // then
-        verify(messagingTemplate).convertAndSend(eq("/topic/chat/room/456/reaction"), reactionCaptor.capture());
+        verify(messagingTemplate).convertAndSend(eq("/topic/chat/room/456"), reactionCaptor.capture());
     }
 
     /**
