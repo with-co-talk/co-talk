@@ -46,4 +46,11 @@ public interface BlockJpaRepository extends JpaRepository<Block, Long> {
      * @param blockerId 차단자 ID
      */
     void deleteByBlockerId(Long blockerId);
+
+    /**
+     * 피차단자 ID로 모든 차단 정보를 삭제한다.
+     *
+     * @param blockedId 피차단자 ID
+     */
+    void deleteByBlockedId(Long blockedId);
 }

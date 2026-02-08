@@ -47,7 +47,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -150,7 +150,7 @@ public class ChatMessageController {
                 message.getChatRoomId(),
                 message.getContent(),
                 message.getType().name(),
-                message.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                message.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
                 message.getFileUrl(),
                 message.getFileName(),
                 message.getFileSize(),
@@ -299,7 +299,7 @@ public class ChatMessageController {
                             message.getLinkPreviewTitle(),
                             message.getLinkPreviewDescription(),
                             message.getLinkPreviewImageUrl(),
-                            message.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                            message.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
                             message.getSenderId(),
                             sender != null ? sender.getNickname() : null
                     );

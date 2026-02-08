@@ -73,8 +73,13 @@ public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
      * @param token 해제할 디바이스 토큰
      */
     @Override
-    public void unregister(String token) {
+    public void unregister(Long userId, String token) {
+        Optional<DeviceToken> existingToken = deviceTokenRepository.findByToken(token);
+        if (existingToken.isPresent() && !existingToken.get().getUserId().equals(userId)) {
+            log.warn("User {} attempted to unregister token owned by user {}", userId, existingToken.get().getUserId());
+            return;
+        }
         deviceTokenRepository.deleteByToken(token);
-        log.info("Device token unregistered: {}", token);
+        log.info("Device token unregistered by user {}: {}", userId, token);
     }
 }

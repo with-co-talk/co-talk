@@ -4,7 +4,9 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.exception.MessageAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
+import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.util.HtmlSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UpdateMessageService implements UpdateMessageUseCase {
 
     private final MessageRepository messageRepository;
+    private final ChatMessageBroker chatMessageBroker;
 
     /**
      * 메시지 내용을 수정한다.
@@ -55,11 +58,41 @@ public class UpdateMessageService implements UpdateMessageUseCase {
             throw MessageAccessDeniedException.timeExpired();
         }
 
-        // 메시지 수정
-        message.updateContent(newContent);
+        // XSS 방지 + 메시지 수정
+        message.updateContent(HtmlSanitizer.stripAllTags(newContent));
         Message updated = messageRepository.save(message);
 
         log.info("Message updated: messageId={}, userId={}", messageId, userId);
+
+        // 채팅방 참여자들에게 메시지 수정 이벤트 브로드캐스트
+        chatMessageBroker.publishRoomEvent(
+                updated.getChatRoomId(),
+                new MessageUpdatedEvent(
+                        1,
+                        "message-updated:" + updated.getChatRoomId() + ":" + updated.getId(),
+                        "MESSAGE_UPDATED",
+                        updated.getChatRoomId(),
+                        updated.getId(),
+                        userId,
+                        updated.getContent(),
+                        System.currentTimeMillis()
+                )
+        );
+
         return updated;
     }
+
+    /**
+     * 메시지 수정 이벤트 DTO.
+     */
+    private record MessageUpdatedEvent(
+            Integer schemaVersion,
+            String eventId,
+            String eventType,
+            Long chatRoomId,
+            Long messageId,
+            Long updatedBy,
+            String newContent,
+            Long updatedAtMillis
+    ) {}
 }

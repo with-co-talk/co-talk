@@ -47,7 +47,9 @@ public class SearchMessageService implements SearchMessageUseCase {
             return Collections.emptyList();
         }
 
-        return messageRepository.searchByKeywordInChatRoom(chatRoomId, keyword.trim(), page, size);
+        int clampedSize = Math.min(Math.max(size, 1), 100);
+        return messageRepository.searchByKeywordInChatRoom(chatRoomId, keyword.trim(), page, clampedSize)
+                .stream().filter(m -> !m.isDeleted()).toList();
     }
 
     /**
@@ -65,6 +67,8 @@ public class SearchMessageService implements SearchMessageUseCase {
             return Collections.emptyList();
         }
 
-        return messageRepository.searchByKeywordInUserChatRooms(userId, keyword.trim(), page, size);
+        int clampedSize = Math.min(Math.max(size, 1), 100);
+        return messageRepository.searchByKeywordInUserChatRooms(userId, keyword.trim(), page, clampedSize)
+                .stream().filter(m -> !m.isDeleted()).toList();
     }
 }

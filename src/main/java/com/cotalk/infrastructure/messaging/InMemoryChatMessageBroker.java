@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 /**
  * 인메모리 기반 채팅 메시지 브로커 구현체.
@@ -58,7 +58,7 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
     private WebSocketMessage toWebSocketMessage(ChatBroadcastMessage msg) {
         LocalDateTime createdAt = LocalDateTime.ofInstant(
                 Instant.ofEpochMilli(msg.createdAtMillis()),
-                ZoneId.systemDefault()
+                ZoneOffset.UTC
         );
 
         return new WebSocketMessage(
@@ -76,7 +76,7 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
                 msg.fileUrl(),
                 msg.fileName(),
                 msg.fileSize(),
-                msg.contentType(),
+                msg.fileContentType(),
                 msg.thumbnailUrl(),
                 msg.unreadCount(),
                 msg.eventType(),
@@ -97,7 +97,7 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
         log.debug("InMemory broadcast reaction to room {}: {}", roomId, reactionEvent);
         
         // 직접 WebSocket으로 브로드캐스트 (단일 서버 환경)
-        String destination = ROOM_TOPIC_PREFIX + roomId + "/reaction";
+        String destination = ROOM_TOPIC_PREFIX + roomId;
         messagingTemplate.convertAndSend(destination, reactionEvent);
     }
 

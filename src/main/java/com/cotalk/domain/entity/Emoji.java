@@ -70,7 +70,7 @@ public enum Emoji {
         }
 
         for (Emoji emoji : values()) {
-            if (emoji.character.equals(value) || emoji.name.equals(value)) {
+            if (emoji.character.equals(value) || emoji.name.equals(value) || emoji.name().equals(value)) {
                 return Optional.of(emoji);
             }
         }

@@ -2,9 +2,9 @@ package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.adapter.inbound.rest.dto.auth.OAuthLoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.OAuthLoginResponse;
-import com.cotalk.application.service.auth.OAuthLoginService;
-import com.cotalk.application.service.auth.OAuthLoginService.OAuthLoginResult;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase;
+import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase.OAuthLoginResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "OAuth 인증", description = "소셜 로그인 API")
 public class OAuthController {
 
-    private final OAuthLoginService oAuthLoginService;
+    private final OAuthLoginUseCase oAuthLoginService;
 
     /**
      * OAuth 제공자를 통해 로그인한다.

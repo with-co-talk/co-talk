@@ -25,7 +25,8 @@ public interface RegisterDeviceTokenUseCase {
      * 디바이스 토큰을 삭제한다.
      * 로그아웃 시 호출된다.
      *
+     * @param userId 요청 사용자 ID (소유자 검증용)
      * @param token 삭제할 토큰
      */
-    void unregister(String token);
+    void unregister(Long userId, String token);
 }

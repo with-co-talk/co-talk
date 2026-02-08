@@ -16,7 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -66,18 +68,33 @@ public class CreateGroupChatRoomService implements CreateGroupChatRoomUseCase {
 
         chatRoomRepository.save(chatRoom);
 
+        // 중복 제거 및 creatorId 제외
+        Set<Long> uniqueMemberIds = new LinkedHashSet<>(memberIds);
+        uniqueMemberIds.remove(creatorId);
+
+        List<ChatRoomMember> members = new ArrayList<>();
+
+        // 생성자는 ADMIN 역할
+        members.add(ChatRoomMember.builder()
+                .id(idGenerator.nextId())
+                .chatRoomId(chatRoom.getId())
+                .userId(creatorId)
+                .role(ChatRoomMember.MemberRole.ADMIN)
+                .build());
+
+        // 나머지는 MEMBER 역할
+        for (Long memberId : uniqueMemberIds) {
+            members.add(ChatRoomMember.builder()
+                    .id(idGenerator.nextId())
+                    .chatRoomId(chatRoom.getId())
+                    .userId(memberId)
+                    .build());
+        }
+        chatRoomMemberRepository.saveAll(members);
+
         List<Long> allMemberIds = new ArrayList<>();
         allMemberIds.add(creatorId);
-        allMemberIds.addAll(memberIds);
-
-        List<ChatRoomMember> members = allMemberIds.stream()
-                .map(memberId -> ChatRoomMember.builder()
-                        .id(idGenerator.nextId())
-                        .chatRoomId(chatRoom.getId())
-                        .userId(memberId)
-                        .build())
-                .toList();
-        chatRoomMemberRepository.saveAll(members);
+        allMemberIds.addAll(uniqueMemberIds);
 
         publishRoomCreatedEvent(chatRoom.getId(), creatorId, allMemberIds);
 

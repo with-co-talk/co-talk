@@ -96,4 +96,14 @@ public class BlockRepositoryAdapter implements BlockRepository {
     public void deleteByBlockerId(Long userId) {
         blockJpaRepository.deleteByBlockerId(userId);
     }
+
+    /**
+     * 피차단자 ID로 모든 차단 정보를 삭제한다.
+     *
+     * @param userId 차단당한 사용자 ID
+     */
+    @Override
+    public void deleteByBlockedId(Long userId) {
+        blockJpaRepository.deleteByBlockedId(userId);
+    }
 }

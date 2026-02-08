@@ -7,6 +7,7 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 /**
  * WebSocket 메시지 브로커 설정 클래스.
@@ -85,5 +86,25 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureClientInboundChannel(ChannelRegistration registration) {
         // WebSocket 인증 인터셉터 등록
         registration.interceptors(webSocketAuthInterceptor);
+    }
+
+    /**
+     * WebSocket 전송 설정을 구성한다.
+     * 메시지 크기 제한과 전송 버퍼/시간 제한을 설정하여
+     * 느린 클라이언트로 인한 메시지 유실을 방지한다.
+     *
+     * @param registration WebSocket 전송 등록 객체
+     */
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+        registration
+                // 수신 메시지 최대 크기: 128KB (텍스트 + 파일 메타데이터)
+                .setMessageSizeLimit(128 * 1024)
+                // 클라이언트로 보내는 버퍼 크기: 1MB
+                // 기본값(512KB)보다 넉넉하게 설정하여 일시적 폭주 시 메시지 유실 방지
+                .setSendBufferSizeLimit(1024 * 1024)
+                // 전송 시간 제한: 20초
+                // 이 시간 내에 클라이언트로 전송 못하면 연결 종료 (좀비 연결 방지)
+                .setSendTimeLimit(20 * 1000);
     }
 }

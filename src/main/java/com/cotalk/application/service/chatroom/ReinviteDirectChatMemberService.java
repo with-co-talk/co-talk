@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -131,7 +131,7 @@ public class ReinviteDirectChatMemberService implements ReinviteDirectChatMember
                 savedMessage.getChatRoomId(),
                 savedMessage.getContent(),
                 savedMessage.getType().name(),
-                savedMessage.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                savedMessage.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
                 null, // fileUrl
                 null, // fileName
                 null, // fileSize
