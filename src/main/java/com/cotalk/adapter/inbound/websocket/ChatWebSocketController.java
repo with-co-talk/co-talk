@@ -7,6 +7,7 @@ import com.cotalk.adapter.inbound.websocket.dto.PresencePingRequest;
 import com.cotalk.adapter.inbound.websocket.dto.PresenceInactiveRequest;
 import com.cotalk.adapter.inbound.websocket.dto.ReactionBroadcastMessage;
 import com.cotalk.adapter.inbound.websocket.dto.RemoveReactionRequest;
+import com.cotalk.adapter.inbound.websocket.dto.TypingStatusRequest;
 import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.MessageReaction;
@@ -31,7 +32,8 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
-import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * WebSocket 기반 채팅 컨트롤러.
@@ -66,6 +68,7 @@ public class ChatWebSocketController {
     private final UserEventBroker userEventBroker;
     private final UserRepository userRepository;
     private final ChatRoomPresenceTracker chatRoomPresenceTracker;
+    private final java.util.Map<Long, String> userNicknameCache = new ConcurrentHashMap<>();
 
     /**
      * 텍스트 채팅 메시지를 전송합니다.
@@ -79,6 +82,17 @@ public class ChatWebSocketController {
     @MessageMapping("/chat/message")
     public void sendMessage(@Payload ChatMessageRequest request, StompHeaderAccessor headerAccessor) {
         Long authenticatedUserId = extractUserId(headerAccessor);
+
+        if (request == null || request.roomId() == null || request.content() == null || request.content().isBlank()) {
+            log.warn("Invalid message request from user {}: {}", authenticatedUserId, request);
+            return;
+        }
+
+        if (request.content().length() > 5000) {
+            log.warn("Message content too long from user {}: {} chars", authenticatedUserId, request.content().length());
+            return;
+        }
+
         log.debug("Received message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
 
         // 메시지 저장 + 컨텍스트 조회 (sender, members 한 번만 조회)
@@ -103,6 +117,12 @@ public class ChatWebSocketController {
     @MessageMapping("/chat/message/file")
     public void sendFileMessage(@Payload FileMessageRequest request, StompHeaderAccessor headerAccessor) {
         Long authenticatedUserId = extractUserId(headerAccessor);
+
+        if (request == null || request.roomId() == null || request.fileUrl() == null || request.fileUrl().isBlank()) {
+            log.warn("Invalid file message request from user {}: {}", authenticatedUserId, request);
+            return;
+        }
+
         log.debug("Received file message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
 
         FileMessageCommand command = new FileMessageCommand(
@@ -161,7 +181,7 @@ public class ChatWebSocketController {
         // 카톡/라인 방식: 발신자를 제외한 모든 멤버가 읽지 않은 상태로 시작
         int unreadCount = Math.max(0, members.size() - 1);
 
-        log.info(
+        log.debug(
                 "[WS] publishToRedis roomId={}, messageId={}, senderId={}, senderNickname={}, totalMembers={}, unreadCount={}",
                 message.getChatRoomId(), message.getId(), message.getSenderId(),
                 senderNickname, members.size(), unreadCount);
@@ -174,7 +194,7 @@ public class ChatWebSocketController {
                 message.getChatRoomId(),
                 message.getContent(),
                 message.getType().name(),
-                message.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                message.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
                 message.getFileUrl(),
                 message.getFileName(),
                 message.getFileSize(),
@@ -215,7 +235,7 @@ public class ChatWebSocketController {
         for (ChatRoomMember member : members) {
             int memberUnreadCount = unreadCountMap.getOrDefault(member.getUserId(), 0L).intValue();
 
-            log.info(
+            log.debug(
                     "[WS] chatListUpdate roomId={}, targetUserId={}, lastReadMessageId={}, memberUnreadCount={}",
                     message.getChatRoomId(),
                     member.getUserId(),
@@ -290,10 +310,54 @@ public class ChatWebSocketController {
         MessageReaction removedReaction = MessageReaction.builder()
                 .messageId(request.messageId())
                 .userId(authenticatedUserId)
-                .emoji(Emoji.valueOf(request.emoji()))
+                .emoji(Emoji.fromString(request.emoji())
+                        .orElseThrow(() -> new com.cotalk.domain.exception.InvalidEmojiException(request.emoji())))
                 .build();
         publishReactionEvent(removedReaction, "REMOVED");
     }
+
+    /**
+     * 타이핑 상태를 브로드캐스트한다.
+     * 클라이언트가 타이핑 시작/중지를 알리면 같은 채팅방의 다른 멤버들에게 전달한다.
+     *
+     * @param request        타이핑 상태 요청 (채팅방 ID, 타이핑 여부)
+     * @param headerAccessor WebSocket 헤더 접근자 (인증된 사용자 정보 포함)
+     */
+    @MessageMapping("/chat/typing")
+    public void typingStatus(@Payload TypingStatusRequest request, StompHeaderAccessor headerAccessor) {
+        if (request == null || request.roomId() == null) {
+            return;
+        }
+        Long authenticatedUserId = extractUserId(headerAccessor);
+        String userNickname = userNicknameCache.computeIfAbsent(authenticatedUserId,
+                id -> userRepository.findById(id).map(User::getNickname).orElse(null));
+
+        String eventType = Boolean.TRUE.equals(request.isTyping()) ? "TYPING" : "STOP_TYPING";
+        chatMessageBroker.publishRoomEvent(request.roomId(), new TypingBroadcastEvent(
+                1,
+                "typing:" + request.roomId() + ":" + authenticatedUserId + ":" + System.currentTimeMillis(),
+                eventType,
+                request.roomId(),
+                authenticatedUserId,
+                userNickname,
+                request.isTyping()
+        ));
+        log.debug("[WS] typingStatus roomId={}, userId={}, isTyping={}", request.roomId(), authenticatedUserId, request.isTyping());
+    }
+
+    /**
+     * 타이핑 브로드캐스트 이벤트 DTO.
+     * Redis Pub/Sub -> WebSocket 방 토픽(/topic/chat/room/{roomId})으로 전달된다.
+     */
+    private record TypingBroadcastEvent(
+            Integer schemaVersion,
+            String eventId,
+            String eventType,
+            Long chatRoomId,
+            Long userId,
+            String userNickname,
+            Boolean isTyping
+    ) {}
 
     /**
      * 채팅방 presence ping.
@@ -345,10 +409,10 @@ public class ChatWebSocketController {
                 reaction.getId(),
                 reaction.getMessageId(),
                 reaction.getUserId(),
-                reaction.getEmoji().name(), // enum 이름을 문자열로 변환
+                reaction.getEmoji().getCharacter(), // 유니코드 이모지 문자 전송
                 eventType,
                 reaction.getCreatedAt() != null 
-                    ? reaction.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    ? reaction.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
                     : System.currentTimeMillis()
         );
 
