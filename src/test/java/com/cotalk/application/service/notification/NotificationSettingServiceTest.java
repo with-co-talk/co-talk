@@ -101,6 +101,7 @@ class NotificationSettingServiceTest {
                 false,  // messageNotification
                 false,  // friendRequestNotification
                 null,   // groupInviteNotification (null = 변경 안함)
+                null,   // showMessageContentInNotification (null = 변경 안함)
                 false,  // soundEnabled
                 null,   // vibrationEnabled
                 true,   // doNotDisturbEnabled
@@ -139,6 +140,7 @@ class NotificationSettingServiceTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
 
@@ -168,7 +170,7 @@ class NotificationSettingServiceTest {
         // when
         NotificationSetting result = notificationSettingService.updateNotificationSetting(
                 userId,
-                null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null
         );
 
         // then
@@ -196,7 +198,7 @@ class NotificationSettingServiceTest {
         // when
         NotificationSetting result = notificationSettingService.updateNotificationSetting(
                 userId,
-                null, null, null, null, null,
+                null, null, null, null, null, null,
                 true, "22:00", "07:00"
         );
 

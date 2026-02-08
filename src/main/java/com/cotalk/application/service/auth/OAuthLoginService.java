@@ -1,10 +1,12 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,10 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * @author seunggu.lee
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class OAuthLoginService {
+public class OAuthLoginService implements OAuthLoginUseCase {
 
     private final UserRepository userRepository;
     private final AuthTokenPort authTokenPort;
@@ -41,13 +44,20 @@ public class OAuthLoginService {
             String nickname,
             String avatarUrl) {
 
+        log.debug("OAuth login attempt: provider={}, email={}", provider, maskEmail(email));
+
         return userRepository.findByOAuthProviderAndOAuthId(provider, oauthId)
-                .map(existingUser -> loginExistingUser(existingUser))
+                .map(existingUser -> loginExistingUser(existingUser, provider))
                 .orElseGet(() -> signUpAndLogin(provider, oauthId, email, nickname, avatarUrl));
     }
 
-    private OAuthLoginResult loginExistingUser(User user) {
+    private OAuthLoginResult loginExistingUser(User user, User.OAuthProvider provider) {
+        if (!user.isActive()) {
+            log.warn("OAuth login failed: inactive account for userId={}, provider={}", user.getId(), provider);
+            throw new com.cotalk.domain.exception.InvalidCredentialsException("계정이 비활성화 또는 정지되었습니다.");
+        }
         String token = authTokenPort.generateAccessToken(user.getId());
+        log.info("OAuth login successful: userId={}, provider={}", user.getId(), provider);
         return new OAuthLoginResult(token, false, user.getId());
     }
 
@@ -70,15 +80,27 @@ public class OAuthLoginService {
         User savedUser = userRepository.save(newUser);
         String token = authTokenPort.generateAccessToken(savedUser.getId());
 
+        log.info("OAuth sign-up and login successful: userId={}, provider={}, email={}",
+                savedUser.getId(), provider, maskEmail(email));
         return new OAuthLoginResult(token, true, savedUser.getId());
     }
 
     /**
-     * OAuth 로그인 결과를 담는 레코드.
+     * 이메일 마스킹 처리 (로그 보안)
      *
-     * @param token JWT 토큰
-     * @param isNewUser 신규 사용자 여부
-     * @param userId 사용자 ID
+     * @param email 원본 이메일
+     * @return 마스킹된 이메일 (예: te**@example.com)
      */
-    public record OAuthLoginResult(String token, boolean isNewUser, Long userId) {}
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return "***";
+        }
+        String[] parts = email.split("@");
+        String localPart = parts[0];
+        if (localPart.length() <= 2) {
+            return "**@" + parts[1];
+        }
+        return localPart.substring(0, 2) + "**@" + parts[1];
+    }
+
 }

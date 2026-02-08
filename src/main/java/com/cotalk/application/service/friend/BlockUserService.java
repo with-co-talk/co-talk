@@ -7,6 +7,7 @@ import com.cotalk.domain.port.outbound.BlockRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.validator.UserValidator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * @author seunggu.lee
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -36,11 +38,14 @@ public class BlockUserService implements BlockUserUseCase {
      */
     @Override
     public void blockUser(Long blockerId, Long blockedId) {
+        log.debug("Block user attempt: blocker={}, blocked={}", blockerId, blockedId);
+
         userValidator.validateNotSelfAction(blockerId, blockedId, "차단");
         userValidator.validateUserExists(blockerId);
         userValidator.validateUserExists(blockedId);
 
         if (blockRepository.findByBlockerIdAndBlockedId(blockerId, blockedId).isPresent()) {
+            log.warn("Block failed: user already blocked - blocker={}, blocked={}", blockerId, blockedId);
             throw new InvalidBlockException("이미 차단한 사용자입니다");
         }
 
@@ -51,5 +56,6 @@ public class BlockUserService implements BlockUserUseCase {
                 .build();
 
         blockRepository.save(block);
+        log.info("User blocked successfully: blocker={}, blocked={}", blockerId, blockedId);
     }
 }

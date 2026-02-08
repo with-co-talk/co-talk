@@ -56,8 +56,8 @@ public class InviteGroupChatMemberService implements InviteGroupChatMemberUseCas
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new ChatRoomNotFoundException(roomId));
 
-        if (chatRoom.isDirectChat()) {
-            throw new InvalidGroupChatException("1:1 채팅방에는 멤버를 초대할 수 없습니다");
+        if (chatRoom.isDirectChat() || chatRoom.isSelfChat()) {
+            throw new InvalidGroupChatException("1:1 채팅방 또는 나와의 채팅방에는 멤버를 초대할 수 없습니다");
         }
 
         chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, inviterId)

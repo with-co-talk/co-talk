@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  * @param fileUrl                파일 URL
  * @param fileName               파일명
  * @param fileSize               파일 크기
- * @param contentType            파일 MIME 타입
+ * @param fileContentType        파일 MIME 타입
  * @param thumbnailUrl           썸네일 URL
  * @param replyToMessageId       답장 대상 메시지 ID
  * @param forwardedFromMessageId 전달 원본 메시지 ID
@@ -32,7 +32,7 @@ public record SendMessageResponse(
         String fileUrl,
         String fileName,
         Long fileSize,
-        String contentType,
+        String fileContentType,
         String thumbnailUrl,
         Long replyToMessageId,
         Long forwardedFromMessageId,

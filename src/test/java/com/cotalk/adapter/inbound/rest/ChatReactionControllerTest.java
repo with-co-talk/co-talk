@@ -94,8 +94,9 @@ class ChatReactionControllerTest {
                     .andExpect(jsonPath("$.reactionId").value(1000L))
                     .andExpect(jsonPath("$.messageId").value(messageId))
                     .andExpect(jsonPath("$.userId").value(TEST_USER_ID))
-                    .andExpect(jsonPath("$.emoji").value("THUMBS_UP"))
-                    .andExpect(jsonPath("$.emojiCharacter").value("👍"));
+                    .andExpect(jsonPath("$.emoji").value("👍"))
+                    .andExpect(jsonPath("$.emojiCharacter").value("👍"))
+                    .andExpect(jsonPath("$.emojiName").value("THUMBS_UP"));
         }
     }
 
@@ -146,7 +147,7 @@ class ChatReactionControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$").isArray())
                     .andExpect(jsonPath("$.length()").value(2))
-                    .andExpect(jsonPath("$[0].emoji").value("THUMBS_UP"))
+                    .andExpect(jsonPath("$[0].emoji").value("👍"))
                     .andExpect(jsonPath("$[0].emojiCharacter").value("👍"))
                     .andExpect(jsonPath("$[0].emojiName").value("thumbsup"))
                     .andExpect(jsonPath("$[0].count").value(2))
@@ -155,7 +156,7 @@ class ChatReactionControllerTest {
                     .andExpect(jsonPath("$[0].userIds[0]").value(1L))
                     .andExpect(jsonPath("$[0].userIds[1]").value(2L))
                     .andExpect(jsonPath("$[0].currentUserReacted").value(true))
-                    .andExpect(jsonPath("$[1].emoji").value("HEART"))
+                    .andExpect(jsonPath("$[1].emoji").value("❤️"))
                     .andExpect(jsonPath("$[1].emojiCharacter").value("❤️"))
                     .andExpect(jsonPath("$[1].count").value(1));
         }

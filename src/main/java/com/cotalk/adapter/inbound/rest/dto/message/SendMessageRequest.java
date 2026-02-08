@@ -2,12 +2,13 @@ package com.cotalk.adapter.inbound.rest.dto.message;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
  * 메시지 전송 요청 DTO.
  *
  * @param chatRoomId 채팅방 ID
- * @param content    메시지 내용
+ * @param content    메시지 내용 (최대 5000자)
  * @author seunggu.lee
  */
 public record SendMessageRequest(
@@ -15,6 +16,7 @@ public record SendMessageRequest(
         Long chatRoomId,
 
         @NotBlank(message = "메시지 내용은 필수입니다.")
+        @Size(max = 5000, message = "메시지는 최대 5000자까지 가능합니다.")
         String content
 ) {
 

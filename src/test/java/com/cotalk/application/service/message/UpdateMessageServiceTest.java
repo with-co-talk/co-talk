@@ -3,6 +3,7 @@ package com.cotalk.application.service.message;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.exception.MessageAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
+import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,11 +29,14 @@ class UpdateMessageServiceTest {
     @Mock
     private MessageRepository messageRepository;
 
+    @Mock
+    private ChatMessageBroker chatMessageBroker;
+
     private UpdateMessageService service;
 
     @BeforeEach
     void setUp() {
-        service = new UpdateMessageService(messageRepository);
+        service = new UpdateMessageService(messageRepository, chatMessageBroker);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.websocket;
 
+import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,13 +26,16 @@ class WebSocketAuthInterceptorTest {
     private JwtTokenProvider jwtTokenProvider;
 
     @Mock
+    private ChatRoomMemberRepository chatRoomMemberRepository;
+
+    @Mock
     private MessageChannel messageChannel;
 
     private WebSocketAuthInterceptor interceptor;
 
     @BeforeEach
     void setUp() {
-        interceptor = new WebSocketAuthInterceptor(jwtTokenProvider);
+        interceptor = new WebSocketAuthInterceptor(jwtTokenProvider, chatRoomMemberRepository);
     }
 
     @Nested

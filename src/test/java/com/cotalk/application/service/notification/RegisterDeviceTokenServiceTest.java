@@ -119,16 +119,45 @@ class RegisterDeviceTokenServiceTest {
     class Unregister {
 
         @Test
-        @DisplayName("토큰 삭제 성공")
+        @DisplayName("토큰 삭제 성공 - 소유자 일치")
         void should_deleteToken_when_unregister() {
             // given
+            Long userId = 1L;
             String token = "fcm-token-to-delete";
+            DeviceToken existingToken = DeviceToken.builder()
+                    .id(100L)
+                    .userId(userId)
+                    .token(token)
+                    .deviceType(DeviceToken.DeviceType.ANDROID)
+                    .build();
+            given(deviceTokenRepository.findByToken(token)).willReturn(Optional.of(existingToken));
 
             // when
-            registerDeviceTokenService.unregister(token);
+            registerDeviceTokenService.unregister(userId, token);
 
             // then
             verify(deviceTokenRepository).deleteByToken(token);
+        }
+
+        @Test
+        @DisplayName("다른 사용자의 토큰 삭제 시도 시 무시")
+        void should_ignore_when_unregisterOtherUsersToken() {
+            // given
+            Long requesterId = 2L;
+            String token = "fcm-token-to-delete";
+            DeviceToken existingToken = DeviceToken.builder()
+                    .id(100L)
+                    .userId(1L)
+                    .token(token)
+                    .deviceType(DeviceToken.DeviceType.ANDROID)
+                    .build();
+            given(deviceTokenRepository.findByToken(token)).willReturn(Optional.of(existingToken));
+
+            // when
+            registerDeviceTokenService.unregister(requesterId, token);
+
+            // then
+            verify(deviceTokenRepository, org.mockito.Mockito.never()).deleteByToken(token);
         }
     }
 }

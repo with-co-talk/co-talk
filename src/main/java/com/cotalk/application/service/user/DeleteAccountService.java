@@ -85,6 +85,7 @@ public class DeleteAccountService implements DeleteAccountUseCase {
         deviceTokenRepository.deleteByUserId(userId);
         passwordResetTokenRepository.deleteByUserId(userId);
         blockRepository.deleteByBlockerId(userId);
+        blockRepository.deleteByBlockedId(userId);
         reportRepository.deleteByReporterId(userId);
         hiddenFriendRepository.deleteByUserId(userId);
         notificationSettingRepository.deleteByUserId(userId);

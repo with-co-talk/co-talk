@@ -43,8 +43,8 @@ public class KickChatRoomMemberService implements KickChatRoomMemberUseCase {
                 .orElseThrow(() -> new ChatRoomNotFoundException(chatRoomId));
 
         // 1:1 채팅방 검증
-        if (chatRoom.getType() == ChatRoom.ChatRoomType.DIRECT) {
-            throw new InvalidChatRoomException("1:1 채팅방에서는 멤버를 강제 퇴장시킬 수 없습니다.");
+        if (chatRoom.getType() == ChatRoom.ChatRoomType.DIRECT || chatRoom.isSelfChat()) {
+            throw new InvalidChatRoomException("1:1 채팅방 또는 나와의 채팅방에서는 멤버를 강제 퇴장시킬 수 없습니다.");
         }
 
         // 자기 자신 강제 퇴장 검증

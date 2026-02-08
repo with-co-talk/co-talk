@@ -25,6 +25,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 
 /**
@@ -52,9 +55,14 @@ public class AdminController {
      */
     @Operation(summary = "대기 중인 신고 목록 조회", description = "처리 대기 중인 신고 목록을 조회합니다.")
     @GetMapping("/reports/pending")
-    public ResponseEntity<AdminReportsResponse> getPendingReports() {
+    public ResponseEntity<AdminReportsResponse> getPendingReports(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         List<Report> reports = adminUseCase.getPendingReports();
+        int safeSize = Math.min(size, 100);
         List<AdminReportDto> reportDtos = reports.stream()
+                .skip((long) page * safeSize)
+                .limit(safeSize)
                 .map(AdminReportDto::from)
                 .toList();
         return ResponseEntity.ok(AdminReportsResponse.of(reportDtos));
@@ -69,9 +77,14 @@ public class AdminController {
     @Operation(summary = "신고 목록 조회", description = "상태별 신고 목록을 조회합니다.")
     @GetMapping("/reports")
     public ResponseEntity<AdminReportsResponse> getReports(
-            @RequestParam(required = false) Report.ReportStatus status) {
+            @RequestParam(required = false) Report.ReportStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         List<Report> reports = adminUseCase.getAllReports(status);
+        int safeSize = Math.min(size, 100);
         List<AdminReportDto> reportDtos = reports.stream()
+                .skip((long) page * safeSize)
+                .limit(safeSize)
                 .map(AdminReportDto::from)
                 .toList();
         return ResponseEntity.ok(AdminReportsResponse.of(reportDtos));
@@ -107,11 +120,16 @@ public class AdminController {
     @Operation(summary = "전체 사용자 목록 조회", description = "모든 사용자 목록을 조회합니다.")
     @GetMapping("/users")
     public ResponseEntity<AdminUsersResponse> getAllUsers(
-            @RequestParam(required = false) User.UserStatus status) {
+            @RequestParam(required = false) User.UserStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         List<User> users = status == null
                 ? adminUseCase.getAllUsers()
                 : adminUseCase.getUsersByStatus(status);
+        int safeSize = Math.min(size, 100);
         List<AdminUserDto> userDtos = users.stream()
+                .skip((long) page * safeSize)
+                .limit(safeSize)
                 .map(AdminUserDto::from)
                 .toList();
         return ResponseEntity.ok(AdminUsersResponse.of(userDtos));

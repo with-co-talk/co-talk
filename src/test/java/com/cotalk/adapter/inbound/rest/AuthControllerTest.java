@@ -11,6 +11,7 @@ import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
 import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
+import com.cotalk.infrastructure.config.properties.JwtProperties;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
@@ -64,6 +65,9 @@ class AuthControllerTest {
 
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockBean
+    private JwtProperties jwtProperties;
 
     @Nested
     @DisplayName("회원가입 API")

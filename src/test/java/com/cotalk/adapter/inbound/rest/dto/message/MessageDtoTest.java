@@ -293,7 +293,7 @@ class MessageDtoTest {
             assertThat(dto.fileUrl()).isEqualTo("https://example.com/file.pdf");
             assertThat(dto.fileName()).isEqualTo("document.pdf");
             assertThat(dto.fileSize()).isEqualTo(1024L);
-            assertThat(dto.contentType()).isEqualTo("application/pdf");
+            assertThat(dto.fileContentType()).isEqualTo("application/pdf");
         }
 
         @Test

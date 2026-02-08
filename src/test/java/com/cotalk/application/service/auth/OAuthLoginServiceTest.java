@@ -1,6 +1,7 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -54,7 +55,7 @@ class OAuthLoginServiceTest {
         given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
 
         // when
-        OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
+        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
                 provider, oauthId, email, nickname, avatarUrl);
 
         // then
@@ -91,7 +92,7 @@ class OAuthLoginServiceTest {
         given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
 
         // when
-        OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
+        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
                 provider, oauthId, "oauth@kakao.com", "카카오유저", null);
 
         // then
@@ -119,7 +120,7 @@ class OAuthLoginServiceTest {
         given(authTokenPort.generateAccessToken(any())).willReturn("google_jwt_token");
 
         // when
-        OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
+        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
                 provider, oauthId, email, nickname, null);
 
         // then
@@ -144,7 +145,7 @@ class OAuthLoginServiceTest {
         given(authTokenPort.generateAccessToken(any())).willReturn("apple_jwt_token");
 
         // when
-        OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
+        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
                 provider, oauthId, email, nickname, null);
 
         // then
@@ -169,7 +170,7 @@ class OAuthLoginServiceTest {
         given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
 
         // when
-        OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
+        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
                 provider, oauthId, email, nickname, null);
 
         // then
@@ -203,7 +204,7 @@ class OAuthLoginServiceTest {
         given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
 
         // when
-        OAuthLoginService.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
+        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
                 provider, oauthId, "oauth@kakao.com", "카카오유저", null);
 
         // then

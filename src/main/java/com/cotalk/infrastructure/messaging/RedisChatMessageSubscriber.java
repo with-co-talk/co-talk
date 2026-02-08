@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 /**
  * Redis Pub/Sub 메시지 구독자.
@@ -93,7 +93,7 @@ public class RedisChatMessageSubscriber implements MessageListener {
 
     private void handleReaction(Long roomId, String jsonMessage) throws JsonProcessingException {
         ReactionBroadcastMessage reactionEvent = objectMapper.readValue(jsonMessage, ReactionBroadcastMessage.class);
-        String destination = ROOM_TOPIC_PREFIX + roomId + "/reaction";
+        String destination = ROOM_TOPIC_PREFIX + roomId;
         messagingTemplate.convertAndSend(destination, reactionEvent);
         log.debug("Broadcasted reaction to WebSocket: destination={}, messageId={}",
                 destination, reactionEvent.messageId());
@@ -110,6 +110,17 @@ public class RedisChatMessageSubscriber implements MessageListener {
             messagingTemplate.convertAndSend(destination, event);
             log.debug("Broadcasted message deleted event to WebSocket: destination={}, messageId={}",
                     destination, event.messageId());
+        } else if ("MESSAGE_UPDATED".equals(eventType)) {
+            MessageUpdatedEventMessage event =
+                    objectMapper.treeToValue(root, MessageUpdatedEventMessage.class);
+            messagingTemplate.convertAndSend(destination, event);
+            log.debug("Broadcasted message updated event to WebSocket: destination={}, messageId={}",
+                    destination, event.messageId());
+        } else if ("TYPING".equals(eventType) || "STOP_TYPING".equals(eventType)) {
+            TypingEventMessage event = objectMapper.treeToValue(root, TypingEventMessage.class);
+            messagingTemplate.convertAndSend(destination, event);
+            log.debug("Broadcasted typing event to WebSocket: destination={}, userId={}",
+                    destination, event.userId());
         } else {
             ChatRoomEventMessage event = objectMapper.treeToValue(root, ChatRoomEventMessage.class);
             messagingTemplate.convertAndSend(destination, event);
@@ -127,7 +138,7 @@ public class RedisChatMessageSubscriber implements MessageListener {
     private WebSocketChatMessage toWebSocketMessage(ChatBroadcastMessage msg) {
         LocalDateTime createdAt = LocalDateTime.ofInstant(
                 Instant.ofEpochMilli(msg.createdAtMillis()),
-                ZoneId.systemDefault()
+                ZoneOffset.UTC
         );
 
         return new WebSocketChatMessage(
@@ -145,7 +156,7 @@ public class RedisChatMessageSubscriber implements MessageListener {
                 msg.fileUrl(),
                 msg.fileName(),
                 msg.fileSize(),
-                msg.contentType(),
+                msg.fileContentType(),
                 msg.thumbnailUrl(),
                 msg.unreadCount(),
                 msg.eventType(),
@@ -168,7 +179,7 @@ public class RedisChatMessageSubscriber implements MessageListener {
      * @param fileUrl          파일 URL (파일 메시지인 경우)
      * @param fileName         파일명 (파일 메시지인 경우)
      * @param fileSize         파일 크기 (파일 메시지인 경우)
-     * @param contentType      컨텐츠 타입 (파일 메시지인 경우)
+     * @param fileContentType  컨텐츠 타입 (파일 메시지인 경우)
      * @param thumbnailUrl     썸네일 URL (이미지 메시지인 경우)
      * @param unreadCount      읽지 않은 멤버 수 (발신자 제외)
      * @param eventType        이벤트 유형 (USER_LEFT, USER_JOINED 등, 시스템 메시지인 경우)
@@ -189,7 +200,7 @@ public class RedisChatMessageSubscriber implements MessageListener {
             String fileUrl,
             String fileName,
             Long fileSize,
-            String contentType,
+            String fileContentType,
             String thumbnailUrl,
             Integer unreadCount,
             String eventType,
@@ -217,6 +228,28 @@ public class RedisChatMessageSubscriber implements MessageListener {
     ) {}
 
     /**
+     * 타이핑 이벤트 DTO.
+     * 채팅방 내 사용자 타이핑 상태를 클라이언트에 전달한다.
+     *
+     * @param schemaVersion 스키마 버전
+     * @param eventId       이벤트 ID (중복 체크용)
+     * @param eventType     이벤트 타입 (TYPING, STOP_TYPING)
+     * @param chatRoomId    채팅방 ID
+     * @param userId        타이핑 중인 사용자 ID
+     * @param userNickname  타이핑 중인 사용자 닉네임
+     * @param isTyping      타이핑 중 여부
+     */
+    public record TypingEventMessage(
+            Integer schemaVersion,
+            String eventId,
+            String eventType,
+            Long chatRoomId,
+            Long userId,
+            String userNickname,
+            Boolean isTyping
+    ) {}
+
+    /**
      * 메시지 삭제 이벤트 DTO.
      * DeleteMessageService에서 발행하는 MESSAGE_DELETED 이벤트와 동일한 형식이다.
      * 클라이언트가 실시간으로 삭제된 메시지를 반영할 수 있도록 messageId를 포함해 전달한다.
@@ -235,6 +268,29 @@ public class RedisChatMessageSubscriber implements MessageListener {
             Long messageId,
             Long deletedBy,
             Long deletedAtMillis
+    ) {}
+
+    /**
+     * 메시지 수정 이벤트 DTO.
+     * UpdateMessageService에서 발행하는 MESSAGE_UPDATED 이벤트와 동일한 형식이다.
+     * 클라이언트가 실시간으로 수정된 메시지를 반영할 수 있도록 필드를 포함해 전달한다.
+     *
+     * @param eventType      이벤트 타입 (MESSAGE_UPDATED)
+     * @param chatRoomId     채팅방 ID
+     * @param messageId      수정된 메시지 ID
+     * @param updatedBy      수정한 사용자 ID
+     * @param newContent     수정된 메시지 내용
+     * @param updatedAtMillis 수정 시간 (밀리초)
+     */
+    public record MessageUpdatedEventMessage(
+            Integer schemaVersion,
+            String eventId,
+            String eventType,
+            Long chatRoomId,
+            Long messageId,
+            Long updatedBy,
+            String newContent,
+            Long updatedAtMillis
     ) {}
 
     /**

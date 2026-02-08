@@ -10,6 +10,7 @@ import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
+import com.cotalk.infrastructure.config.properties.JwtProperties;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -40,6 +41,7 @@ public class AuthController {
     private final SignUpUseCase signUpUseCase;
     private final LoginUseCase loginUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
+    private final JwtProperties jwtProperties;
 
     /**
      * 새로운 사용자를 등록한다.
@@ -75,7 +77,8 @@ public class AuthController {
         LoginResult loginResult = loginUseCase.login(request.email(), request.password());
         // 로그인 성공 후 Refresh Token도 함께 발급
         String refreshToken = refreshTokenUseCase.createRefreshToken(loginResult.userId());
-        return ResponseEntity.ok(AuthTokenResponse.of(loginResult.accessToken(), refreshToken, 86400));
+        long expiresInSeconds = jwtProperties.expiration() / 1000;
+        return ResponseEntity.ok(AuthTokenResponse.of(loginResult.accessToken(), refreshToken, expiresInSeconds));
     }
 
     /**

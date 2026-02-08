@@ -18,12 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * 메시지 읽음 처리 유스케이스 구현체.
@@ -101,10 +97,12 @@ public class MarkAsReadService implements MarkAsReadUseCase {
         // 채팅방 토픽용 READ 이벤트 발행 (카톡/라인 스타일: 방 화면은 방 구독만으로 읽음 반영 가능)
         publishRoomReadEvent(chatRoomId, userId, now, lastReadMessageId);
 
-        // 읽음 처리 후 업데이트된 메시지들을 브로드캐스트
-        // 클라이언트가 서버가 보내주는 메시지의 unreadCount를 그대로 사용하므로
-        // 업데이트된 unreadCount가 포함된 메시지를 다시 전송해야 함
-        publishUpdatedMessages(chatRoomId, userId);
+        // NOTE: publishUpdatedMessages() 제거됨.
+        // 이전에는 최근 20개 메시지를 같은 채널(/topic/chat/room/{roomId})에 재발행하여
+        // unreadCount를 업데이트했으나, 이는 새 메시지와 구분 불가하여 클라이언트에서
+        // 메시지 폭풍 + markAsRead 피드백 루프를 유발했음.
+        // 클라이언트는 이미 READ 이벤트(publishRoomReadEvent)를 수신하여
+        // 로컬에서 unreadCount를 감소시키므로 메시지 재발행이 불필요함.
 
         // 채팅 목록 업데이트 이벤트 브로드캐스트 (unreadCount 재계산)
         // 읽은 사용자의 현재 lastReadMessageId를 기준으로 정확한 unreadCount 계산
@@ -191,76 +189,10 @@ public class MarkAsReadService implements MarkAsReadUseCase {
         }
     }
 
-    /**
-     * 읽음 처리 후 업데이트된 메시지들을 브로드캐스트한다.
-     * 각 메시지의 unreadCount를 재계산하여 클라이언트에 전송한다.
-     *
-     * <p>클라이언트 요구사항:
-     * - 서버가 보내주는 메시지의 unreadCount를 그대로 사용
-     * - 기존 메시지가 있으면 서버가 보내준 값으로 업데이트
-     *
-     * <p>성능 최적화:
-     * - 최근 20개 메시지만 브로드캐스트 (50 -> 20)
-     * - N+1 쿼리 대신 배치 쿼리 사용
-     *
-     * @param chatRoomId 채팅방 ID
-     * @param readerId   읽은 사용자 ID
-     */
-    private void publishUpdatedMessages(Long chatRoomId, Long readerId) {
-        // 최근 메시지들을 조회 (최근 20개로 제한하여 브로드캐스트 부하 감소)
-        List<Message> recentMessages = messageRepository.findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, 0, 20);
-
-        if (recentMessages.isEmpty()) {
-            log.debug("No messages found in chat room {}, skipping message update broadcast", chatRoomId);
-            return;
-        }
-
-        log.info("Publishing updated messages after markAsRead: chatRoomId={}, readerId={}, messageCount={}",
-                chatRoomId, readerId, recentMessages.size());
-
-        // 배치 쿼리로 모든 메시지의 unreadCount를 한 번에 조회 (N+1 쿼리 방지)
-        List<Long> messageIds = recentMessages.stream().map(Message::getId).toList();
-        Map<Long, Integer> unreadCountMap = chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(chatRoomId, messageIds);
-
-        // 배치 쿼리로 모든 발신자의 정보를 한 번에 조회 (N+1 쿼리 방지)
-        Set<Long> senderIds = recentMessages.stream().map(Message::getSenderId).collect(Collectors.toSet());
-        Map<Long, User> senderMap = userRepository.findAllById(senderIds).stream()
-                .collect(Collectors.toMap(User::getId, user -> user));
-
-        // 각 메시지에 대해 업데이트된 unreadCount를 포함하여 브로드캐스트
-        for (Message message : recentMessages) {
-            int unreadCount = unreadCountMap.getOrDefault(message.getId(), 0);
-            User sender = senderMap.get(message.getSenderId());
-            String senderNickname = sender != null ? sender.getNickname() : null;
-            String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
-
-            log.debug("Calculated unreadCount for message {}: unreadCount={}", message.getId(), unreadCount);
-
-            // 업데이트된 unreadCount가 포함된 메시지를 브로드캐스트
-            ChatMessageBroker.ChatBroadcastMessage broadcastMessage = new ChatMessageBroker.ChatBroadcastMessage(
-                    message.getId(),
-                    message.getSenderId(),
-                    senderNickname,
-                    senderAvatarUrl,
-                    message.getChatRoomId(),
-                    message.getContent(),
-                    message.getType().name(),
-                    message.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
-                    message.getFileUrl(),
-                    message.getFileName(),
-                    message.getFileSize(),
-                    message.getFileContentType(),
-                    message.getThumbnailUrl(),
-                    unreadCount,
-                    null,  // eventType (일반 메시지)
-                    null,  // relatedUserId
-                    null   // relatedUserNickname
-            );
-
-            chatMessageBroker.publish(chatRoomId, broadcastMessage);
-            log.debug("Published updated message: messageId={}, unreadCount={}", message.getId(), unreadCount);
-        }
-    }
+    // publishUpdatedMessages() 메서드 제거됨.
+    // 이 메서드는 markAsRead 시 최근 20개 메시지를 /topic/chat/room/{roomId}에 재발행했으나,
+    // eventType=null로 전송되어 클라이언트가 새 메시지로 인식 → 피드백 루프 발생.
+    // 클라이언트는 READ 이벤트 수신 시 로컬에서 unreadCount를 갱신하므로 불필요.
 
     /**
      * 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트한다.

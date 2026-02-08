@@ -105,8 +105,14 @@ public class SecurityConfig {
                             response.getWriter().write("{\"error\": \"접근 권한이 없습니다.\"}");
                         }))
                 .authorizeHttpRequests(auth -> auth
-                        // 공개 엔드포인트
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // 공개 엔드포인트 (인증 불필요)
+                        .requestMatchers(
+                                "/api/v1/auth/signup",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/oauth/**"
+                        ).permitAll()
+                        .requestMatchers("/api/v1/password/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()

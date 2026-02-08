@@ -1,10 +1,14 @@
 package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.Message;
+import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
+import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,14 +18,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +43,15 @@ class MessageReplyForwardServiceTest {
 
     @Mock
     private SnowflakeIdGenerator idGenerator;
+
+    @Mock
+    private ChatMessageBroker chatMessageBroker;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private UserEventBroker userEventBroker;
 
     @InjectMocks
     private MessageReplyForwardService messageReplyForwardService;
@@ -57,6 +74,12 @@ class MessageReplyForwardServiceTest {
                 .content("원본 메시지입니다.")
                 .type(Message.MessageType.TEXT)
                 .build();
+
+        // broadcastMessage()에서 사용하는 공통 스텁 (에러 테스트에서는 불필요하므로 lenient)
+        lenient().when(userRepository.findById(anyLong()))
+                .thenReturn(Optional.of(User.builder().id(senderId).nickname("테스트유저").build()));
+        lenient().when(chatRoomMemberRepository.findByChatRoomId(anyLong()))
+                .thenReturn(List.of());
     }
 
     @Nested
@@ -73,7 +96,11 @@ class MessageReplyForwardServiceTest {
             given(messageRepository.findById(originalMessageId)).willReturn(Optional.of(originalMessage));
             given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, senderId)).willReturn(true);
             given(idGenerator.nextId()).willReturn(newMessageId);
-            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> {
+                Message msg = invocation.getArgument(0);
+                ReflectionTestUtils.setField(msg, "createdAt", LocalDateTime.now());
+                return msg;
+            });
 
             // when
             Message replyMessage = messageReplyForwardService.replyToMessage(senderId, originalMessageId, replyContent);
@@ -127,7 +154,11 @@ class MessageReplyForwardServiceTest {
             given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, senderId)).willReturn(true);
             given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(targetChatRoomId, senderId)).willReturn(true);
             given(idGenerator.nextId()).willReturn(newMessageId);
-            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> {
+                Message msg = invocation.getArgument(0);
+                ReflectionTestUtils.setField(msg, "createdAt", LocalDateTime.now());
+                return msg;
+            });
 
             // when
             Message forwardedMessage = messageReplyForwardService.forwardMessage(senderId, originalMessageId, targetChatRoomId);
@@ -208,7 +239,11 @@ class MessageReplyForwardServiceTest {
             given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, senderId)).willReturn(true);
             given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(targetChatRoomId, senderId)).willReturn(true);
             given(idGenerator.nextId()).willReturn(newMessageId);
-            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> {
+                Message msg = invocation.getArgument(0);
+                ReflectionTestUtils.setField(msg, "createdAt", LocalDateTime.now());
+                return msg;
+            });
 
             // when
             Message forwardedMessage = messageReplyForwardService.forwardMessage(senderId, originalMessageId, targetChatRoomId);
@@ -246,7 +281,11 @@ class MessageReplyForwardServiceTest {
             given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, senderId)).willReturn(true);
             given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(targetChatRoomId, senderId)).willReturn(true);
             given(idGenerator.nextId()).willReturn(newMessageId);
-            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> {
+                Message msg = invocation.getArgument(0);
+                ReflectionTestUtils.setField(msg, "createdAt", LocalDateTime.now());
+                return msg;
+            });
 
             // when
             Message forwardedMessage = messageReplyForwardService.forwardMessage(senderId, originalMessageId, targetChatRoomId);

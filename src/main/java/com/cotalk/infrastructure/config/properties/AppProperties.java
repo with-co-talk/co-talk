@@ -1,5 +1,7 @@
 package com.cotalk.infrastructure.config.properties;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -24,6 +26,7 @@ public record AppProperties(
         Encryption encryption,
         Swagger swagger
 ) {
+    private static final Logger log = LoggerFactory.getLogger(AppProperties.class);
     /**
      * CORS 설정.
      *
@@ -33,6 +36,9 @@ public record AppProperties(
         public Cors {
             if (allowedOrigins == null || allowedOrigins.isBlank()) {
                 allowedOrigins = "http://localhost:3000";
+                log.warn("CORS allowedOrigins가 설정되지 않아 localhost 기본값을 사용합니다. 프로덕션 환경에서는 app.cors.allowed-origins를 반드시 설정하세요.");
+            } else if (allowedOrigins.contains("localhost")) {
+                log.warn("CORS allowedOrigins에 localhost가 포함되어 있습니다. 프로덕션 환경에서는 실제 도메인을 사용하세요.");
             }
         }
     }
@@ -108,6 +114,9 @@ public record AppProperties(
         public Swagger {
             if (serverUrl == null || serverUrl.isBlank()) {
                 serverUrl = "http://localhost:8080";
+                log.warn("Swagger serverUrl이 설정되지 않아 localhost 기본값을 사용합니다. 프로덕션 환경에서는 app.swagger.server-url을 반드시 설정하세요.");
+            } else if (serverUrl.contains("localhost")) {
+                log.warn("Swagger serverUrl에 localhost가 포함되어 있습니다. 프로덕션 환경에서는 실제 도메인을 사용하세요.");
             }
             if (serverDescription == null || serverDescription.isBlank()) {
                 serverDescription = "API 서버";
@@ -118,6 +127,9 @@ public record AppProperties(
     public AppProperties {
         if (frontendUrl == null || frontendUrl.isBlank()) {
             frontendUrl = "http://localhost:3000";
+            log.warn("frontendUrl이 설정되지 않아 localhost 기본값을 사용합니다. 프로덕션 환경에서는 app.frontend-url을 반드시 설정하세요.");
+        } else if (frontendUrl.contains("localhost")) {
+            log.warn("frontendUrl에 localhost가 포함되어 있습니다. 프로덕션 환경에서는 실제 도메인을 사용하세요.");
         }
         if (cors == null) {
             cors = new Cors("http://localhost:3000");

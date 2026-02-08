@@ -44,6 +44,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -94,14 +95,21 @@ public class ChatRoomController {
      * 사용자의 채팅방 목록을 조회합니다.
      *
      * @param principal 인증된 사용자 정보
+     * @param page 페이지 번호 (기본값: 0)
+     * @param size 페이지 크기 (기본값: 20, 최대: 100)
      * @return 채팅방 목록
      */
     @Operation(summary = "채팅방 목록 조회", description = "사용자의 채팅방 목록을 조회합니다.")
     @GetMapping
     public ResponseEntity<ChatRoomsResponse> getChatRooms(
-            @AuthenticationPrincipal CustomUserPrincipal principal) {
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        int safeSize = Math.min(size, 100);
         List<ChatRoomSummary> chatRooms = getChatRoomsUseCase.getChatRooms(principal.getUserId());
         List<ChatRoomDto> roomDtos = chatRooms.stream()
+                .skip((long) page * safeSize)
+                .limit(safeSize)
                 .map(ChatRoomDto::from)
                 .toList();
         return ResponseEntity.ok(ChatRoomsResponse.of(roomDtos));
@@ -128,16 +136,23 @@ public class ChatRoomController {
      *
      * @param principal 인증된 사용자 정보
      * @param roomId    채팅방 ID
+     * @param page 페이지 번호 (기본값: 0)
+     * @param size 페이지 크기 (기본값: 20, 최대: 100)
      * @return 멤버 목록
      */
     @Operation(summary = "채팅방 멤버 목록 조회", description = "채팅방의 멤버 목록을 조회합니다.")
     @GetMapping("/{roomId}/members")
     public ResponseEntity<ChatRoomMembersResponse> getChatRoomMembers(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long roomId) {
+            @PathVariable Long roomId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        int safeSize = Math.min(size, 100);
         List<GetChatRoomMembersUseCase.MemberInfo> members =
                 getChatRoomMembersUseCase.getChatRoomMembers(roomId, principal.getUserId());
         List<ChatRoomMemberDto> memberDtos = members.stream()
+                .skip((long) page * safeSize)
+                .limit(safeSize)
                 .map(ChatRoomMemberDto::from)
                 .toList();
         return ResponseEntity.ok(ChatRoomMembersResponse.of(memberDtos));
