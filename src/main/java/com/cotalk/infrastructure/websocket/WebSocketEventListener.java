@@ -13,6 +13,7 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionUnsubscribeEvent;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -40,6 +41,7 @@ public class WebSocketEventListener {
      * <p>UNSUBSCRIBE 이벤트에서 destination을 직접 얻기 어려워 subscriptionId로 추적한다.</p>
      */
     private final Map<String, Map<String, Long>> roomsBySessionAndSubscription = new ConcurrentHashMap<>();
+    private final Map<Long, Set<String>> userSessions = new ConcurrentHashMap<>();
 
     /**
      * WebSocket 연결 이벤트를 처리한다.
@@ -57,6 +59,10 @@ public class WebSocketEventListener {
             try {
                 Long userId = Long.parseLong(userIdStr);
                 updateUserOnlineStatusUseCase.setOnline(userId);
+                String sessionId = headerAccessor.getSessionId();
+                if (sessionId != null) {
+                    userSessions.computeIfAbsent(userId, k -> ConcurrentHashMap.newKeySet()).add(sessionId);
+                }
                 log.info("User connected via WebSocket: userId={}", userId);
             } catch (NumberFormatException e) {
                 log.warn("Invalid user ID in WebSocket connection: {}", userIdStr);
@@ -83,8 +89,22 @@ public class WebSocketEventListener {
         if (userIdStr != null) {
             try {
                 Long userId = Long.parseLong(userIdStr);
-                updateUserOnlineStatusUseCase.setOffline(userId);
-                log.info("User disconnected from WebSocket: userId={}", userId);
+
+                // 멀티 세션 지원: 마지막 세션이 끊어질 때만 오프라인 처리
+                Set<String> sessions = userSessions.get(userId);
+                if (sessions != null) {
+                    sessions.remove(sessionId);
+                    if (sessions.isEmpty()) {
+                        userSessions.remove(userId);
+                        updateUserOnlineStatusUseCase.setOffline(userId);
+                        log.info("User disconnected from WebSocket (last session): userId={}", userId);
+                    } else {
+                        log.info("User disconnected from WebSocket (remaining sessions: {}): userId={}", sessions.size(), userId);
+                    }
+                } else {
+                    updateUserOnlineStatusUseCase.setOffline(userId);
+                    log.info("User disconnected from WebSocket: userId={}", userId);
+                }
 
                 // presence 정리
                 clearPresenceForSession(userId, sessionId);
