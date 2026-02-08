@@ -4,6 +4,7 @@ import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.exception.MessageReactionNotFoundException;
 import com.cotalk.domain.port.outbound.MessageReactionRepository;
+import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.validator.MessageValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,13 +26,16 @@ class RemoveMessageReactionServiceTest {
     private MessageReactionRepository reactionRepository;
 
     @Mock
+    private MessageRepository messageRepository;
+
+    @Mock
     private MessageValidator messageValidator;
 
     private RemoveMessageReactionService service;
 
     @BeforeEach
     void setUp() {
-        service = new RemoveMessageReactionService(reactionRepository, messageValidator);
+        service = new RemoveMessageReactionService(reactionRepository, messageRepository, messageValidator);
     }
 
     @Test

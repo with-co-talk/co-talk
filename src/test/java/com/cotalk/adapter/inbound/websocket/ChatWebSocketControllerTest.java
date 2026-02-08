@@ -3,30 +3,26 @@ package com.cotalk.adapter.inbound.websocket;
 import com.cotalk.adapter.inbound.websocket.dto.AddReactionRequest;
 import com.cotalk.adapter.inbound.websocket.dto.ChatMessageRequest;
 import com.cotalk.adapter.inbound.websocket.dto.FileMessageRequest;
-import com.cotalk.adapter.inbound.websocket.dto.ReactionBroadcastMessage;
 import com.cotalk.adapter.inbound.websocket.dto.RemoveReactionRequest;
 import com.cotalk.domain.entity.BaseEntity;
 import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.MessageReaction;
+import com.cotalk.domain.entity.ChatRoomMember;
+import com.cotalk.domain.port.inbound.chat.BroadcastChatMessageUseCase;
+import com.cotalk.domain.port.inbound.chat.BroadcastReactionEventUseCase;
+import com.cotalk.domain.port.inbound.chat.PublishChatListUpdateUseCase;
+import com.cotalk.domain.port.inbound.chat.PublishTypingStatusUseCase;
+import com.cotalk.domain.port.inbound.chat.UpdatePresenceStatusUseCase;
 import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
+import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase.ReactionResult;
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase.FileMessageCommand;
-import com.cotalk.domain.entity.ChatRoomMember;
-import com.cotalk.domain.entity.User;
-import com.cotalk.domain.port.outbound.ChatMessageBroker;
-import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
-import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
-import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
-import com.cotalk.domain.port.outbound.MessageRepository;
-import com.cotalk.domain.port.outbound.UserEventBroker;
-import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -35,11 +31,8 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import java.lang.reflect.Field;
 import java.security.Principal;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -53,28 +46,25 @@ class ChatWebSocketControllerTest {
     private SendMessageUseCase sendMessageUseCase;
 
     @Mock
-    private ChatMessageBroker chatMessageBroker;
-
-    @Mock
     private AddMessageReactionUseCase addMessageReactionUseCase;
 
     @Mock
     private RemoveMessageReactionUseCase removeMessageReactionUseCase;
 
     @Mock
-    private MessageRepository messageRepository;
+    private BroadcastChatMessageUseCase broadcastChatMessageUseCase;
 
     @Mock
-    private ChatRoomMemberRepository chatRoomMemberRepository;
+    private BroadcastReactionEventUseCase broadcastReactionEventUseCase;
 
     @Mock
-    private UserEventBroker userEventBroker;
+    private PublishTypingStatusUseCase publishTypingStatusUseCase;
 
     @Mock
-    private UserRepository userRepository;
+    private UpdatePresenceStatusUseCase updatePresenceStatusUseCase;
 
     @Mock
-    private ChatRoomPresenceTracker chatRoomPresenceTracker;
+    private PublishChatListUpdateUseCase publishChatListUpdateUseCase;
 
     @InjectMocks
     private ChatWebSocketController chatWebSocketController;
@@ -114,8 +104,8 @@ class ChatWebSocketControllerTest {
     }
 
     @Test
-    @DisplayName("메시지 전송 시 저장 후 Redis로 발행")
-    void should_saveAndPublishToRedis_when_sendMessage() {
+    @DisplayName("메시지 전송 시 저장 후 브로드캐스트 유스케이스 호출")
+    void should_saveAndBroadcast_when_sendMessage() {
         // given
         ChatMessageRequest request = new ChatMessageRequest(100L, "테스트 메시지");
 
@@ -129,16 +119,10 @@ class ChatWebSocketControllerTest {
                 .chatRoomId(100L)
                 .userId(2L)
                 .build();
-
-        User sender = User.builder()
-                .id(1L)
-                .email("sender@test.com")
-                .nickname("발신자")
-                .passwordHash("hash")
-                .build();
+        List<ChatRoomMember> members = List.of(member1, member2);
 
         SendMessageUseCase.SendResult sendResult = new SendMessageUseCase.SendResult(
-                mockMessage, "발신자", null, List.of(member1, member2));
+                mockMessage, "발신자", null, members);
 
         given(sendMessageUseCase.sendMessageWithContext(anyLong(), anyLong(), anyString()))
                 .willReturn(sendResult);
@@ -148,19 +132,8 @@ class ChatWebSocketControllerTest {
 
         // then
         verify(sendMessageUseCase).sendMessageWithContext(100L, 1L, "테스트 메시지");
-
-        ArgumentCaptor<Long> roomIdCaptor = ArgumentCaptor.forClass(Long.class);
-        ArgumentCaptor<ChatBroadcastMessage> messageCaptor =
-                ArgumentCaptor.forClass(ChatBroadcastMessage.class);
-
-        verify(chatMessageBroker).publish(roomIdCaptor.capture(), messageCaptor.capture());
-
-        assertThat(roomIdCaptor.getValue()).isEqualTo(100L);
-        assertThat(messageCaptor.getValue().content()).isEqualTo("테스트 메시지");
-        assertThat(messageCaptor.getValue().senderId()).isEqualTo(1L);
-        assertThat(messageCaptor.getValue().messageId()).isEqualTo(1L);
-        // 카톡/라인 방식: unreadCount = 멤버 수 - 1 (발신자 제외)
-        assertThat(messageCaptor.getValue().unreadCount()).isEqualTo(1);
+        verify(broadcastChatMessageUseCase).broadcastMessage(mockMessage, "발신자", null, members);
+        verify(publishChatListUpdateUseCase).publishChatListUpdate(mockMessage, members, "발신자");
     }
 
     @Test
@@ -198,16 +171,10 @@ class ChatWebSocketControllerTest {
                 .chatRoomId(100L)
                 .userId(2L)
                 .build();
-
-        User sender = User.builder()
-                .id(1L)
-                .email("sender@test.com")
-                .nickname("발신자")
-                .passwordHash("hash")
-                .build();
+        List<ChatRoomMember> members = List.of(member1, member2);
 
         SendMessageUseCase.SendResult sendResult = new SendMessageUseCase.SendResult(
-                fileMessage, "발신자", null, List.of(member1, member2));
+                fileMessage, "발신자", null, members);
 
         given(sendMessageUseCase.sendFileMessageWithContext(anyLong(), anyLong(), any(FileMessageCommand.class)))
                 .willReturn(sendResult);
@@ -217,16 +184,8 @@ class ChatWebSocketControllerTest {
 
         // then
         verify(sendMessageUseCase).sendFileMessageWithContext(eq(100L), eq(1L), any(FileMessageCommand.class));
-
-        ArgumentCaptor<ChatBroadcastMessage> messageCaptor =
-                ArgumentCaptor.forClass(ChatBroadcastMessage.class);
-        verify(chatMessageBroker).publish(eq(100L), messageCaptor.capture());
-
-        ChatBroadcastMessage captured = messageCaptor.getValue();
-        assertThat(captured.fileUrl()).isEqualTo("https://storage.example.com/file.pdf");
-        assertThat(captured.fileName()).isEqualTo("document.pdf");
-        assertThat(captured.fileSize()).isEqualTo(1024L);
-        assertThat(captured.fileContentType()).isEqualTo("application/pdf");
+        verify(broadcastChatMessageUseCase).broadcastMessage(fileMessage, "발신자", null, members);
+        verify(publishChatListUpdateUseCase).publishChatListUpdate(fileMessage, members, "발신자");
     }
 
     @Test
@@ -265,16 +224,10 @@ class ChatWebSocketControllerTest {
                 .chatRoomId(100L)
                 .userId(2L)
                 .build();
-
-        User sender = User.builder()
-                .id(1L)
-                .email("sender@test.com")
-                .nickname("발신자")
-                .passwordHash("hash")
-                .build();
+        List<ChatRoomMember> members = List.of(member1, member2);
 
         SendMessageUseCase.SendResult sendResult = new SendMessageUseCase.SendResult(
-                imageMessage, "발신자", null, List.of(member1, member2));
+                imageMessage, "발신자", null, members);
 
         given(sendMessageUseCase.sendFileMessageWithContext(anyLong(), anyLong(), any(FileMessageCommand.class)))
                 .willReturn(sendResult);
@@ -283,11 +236,8 @@ class ChatWebSocketControllerTest {
         chatWebSocketController.sendFileMessage(request, createMockHeaderAccessor(1L));
 
         // then
-        ArgumentCaptor<ChatBroadcastMessage> messageCaptor =
-                ArgumentCaptor.forClass(ChatBroadcastMessage.class);
-        verify(chatMessageBroker).publish(eq(100L), messageCaptor.capture());
-
-        assertThat(messageCaptor.getValue().thumbnailUrl()).isEqualTo("https://storage.example.com/thumb.jpg");
+        verify(broadcastChatMessageUseCase).broadcastMessage(imageMessage, "발신자", null, members);
+        verify(publishChatListUpdateUseCase).publishChatListUpdate(imageMessage, members, "발신자");
     }
 
     @Test
@@ -304,26 +254,17 @@ class ChatWebSocketControllerTest {
                 .build();
         setCreatedAt(reaction, LocalDateTime.now());
 
-        given(addMessageReactionUseCase.addReaction(anyLong(), anyLong(), anyString()))
-                .willReturn(reaction);
-        given(messageRepository.findById(1L))
-                .willReturn(Optional.of(mockMessage));
+        ReactionResult result = new ReactionResult(reaction, 100L);
+
+        given(addMessageReactionUseCase.addReactionWithContext(anyLong(), anyLong(), anyString()))
+                .willReturn(result);
 
         // when
         chatWebSocketController.addReaction(request, createMockHeaderAccessor(2L));
 
         // then
-        verify(addMessageReactionUseCase).addReaction(1L, 2L, "THUMBS_UP");
-
-        ArgumentCaptor<ReactionBroadcastMessage> reactionCaptor =
-                ArgumentCaptor.forClass(ReactionBroadcastMessage.class);
-        verify(chatMessageBroker).publishReaction(eq(100L), reactionCaptor.capture());
-
-        ReactionBroadcastMessage captured = reactionCaptor.getValue();
-        assertThat(captured.messageId()).isEqualTo(1L);
-        assertThat(captured.userId()).isEqualTo(2L);
-        assertThat(captured.emoji()).isEqualTo("👍");
-        assertThat(captured.eventType()).isEqualTo("ADDED");
+        verify(addMessageReactionUseCase).addReactionWithContext(1L, 2L, "THUMBS_UP");
+        verify(broadcastReactionEventUseCase).broadcastReactionEvent(reaction, 100L, "ADDED");
     }
 
     @Test
@@ -332,45 +273,30 @@ class ChatWebSocketControllerTest {
         // given
         RemoveReactionRequest request = new RemoveReactionRequest(1L, "THUMBS_UP");
 
-        given(messageRepository.findById(1L))
-                .willReturn(Optional.of(mockMessage));
+        given(removeMessageReactionUseCase.removeReactionWithContext(1L, 2L, "THUMBS_UP"))
+                .willReturn(100L);
 
         // when
         chatWebSocketController.removeReaction(request, createMockHeaderAccessor(2L));
 
         // then
-        verify(removeMessageReactionUseCase).removeReaction(1L, 2L, "THUMBS_UP");
-
-        ArgumentCaptor<ReactionBroadcastMessage> reactionCaptor =
-                ArgumentCaptor.forClass(ReactionBroadcastMessage.class);
-        verify(chatMessageBroker).publishReaction(eq(100L), reactionCaptor.capture());
-
-        ReactionBroadcastMessage captured = reactionCaptor.getValue();
-        assertThat(captured.eventType()).isEqualTo("REMOVED");
+        verify(removeMessageReactionUseCase).removeReactionWithContext(1L, 2L, "THUMBS_UP");
+        verify(broadcastReactionEventUseCase).broadcastReactionEvent(any(MessageReaction.class), eq(100L), eq("REMOVED"));
     }
 
     @Test
-    @DisplayName("리액션 추가 시 메시지를 찾을 수 없으면 브로드캐스트 안 함")
-    void should_notBroadcast_when_messageNotFound() {
+    @DisplayName("리액션 제거 시 채팅방을 찾을 수 없으면 브로드캐스트 안 함")
+    void should_notBroadcast_when_chatRoomNotFoundForRemoveReaction() {
         // given
-        AddReactionRequest request = new AddReactionRequest(999L, "THUMBS_UP");
+        RemoveReactionRequest request = new RemoveReactionRequest(999L, "THUMBS_UP");
 
-        MessageReaction reaction = MessageReaction.builder()
-                .id(10L)
-                .messageId(999L)
-                .userId(2L)
-                .emoji(Emoji.THUMBS_UP)
-                .build();
-
-        given(addMessageReactionUseCase.addReaction(anyLong(), anyLong(), anyString()))
-                .willReturn(reaction);
-        given(messageRepository.findById(999L))
-                .willReturn(Optional.empty());
+        given(removeMessageReactionUseCase.removeReactionWithContext(999L, 2L, "THUMBS_UP"))
+                .willReturn(null);
 
         // when
-        chatWebSocketController.addReaction(request, createMockHeaderAccessor(2L));
+        chatWebSocketController.removeReaction(request, createMockHeaderAccessor(2L));
 
         // then
-        verify(chatMessageBroker, never()).publishReaction(anyLong(), any());
+        verify(broadcastReactionEventUseCase, never()).broadcastReactionEvent(any(), anyLong(), anyString());
     }
 }

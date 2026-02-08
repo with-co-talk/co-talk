@@ -8,13 +8,12 @@ import com.cotalk.adapter.inbound.rest.dto.message.UpdateMessageRequest;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.infrastructure.security.WithMockCustomUser;
 import com.cotalk.domain.port.inbound.message.DeleteMessageUseCase;
+import com.cotalk.domain.port.inbound.message.GetMediaGalleryUseCase;
 import com.cotalk.domain.port.inbound.message.GetMessageHistoryUseCase;
 import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
-import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
-import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -74,28 +73,13 @@ class ChatMessageControllerTest {
     private MessageReplyForwardUseCase messageReplyForwardUseCase;
 
     @MockBean
+    private GetMediaGalleryUseCase getMediaGalleryUseCase;
+
+    @MockBean
     private JwtTokenProvider jwtTokenProvider;
 
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    @MockBean
-    private ChatRoomMemberRepository chatRoomMemberRepository;
-
-    @MockBean
-    private UserRepository userRepository;
-
-    @MockBean
-    private com.cotalk.domain.port.outbound.ChatRoomPresenceTracker chatRoomPresenceTracker;
-
-    @MockBean
-    private com.cotalk.domain.port.outbound.ChatMessageBroker chatMessageBroker;
-
-    @MockBean
-    private com.cotalk.domain.port.outbound.MessageRepository messageRepository;
-
-    @MockBean
-    private com.cotalk.domain.port.outbound.UserEventBroker userEventBroker;
 
     @Nested
     @DisplayName("메시지 전송 API")
@@ -115,7 +99,7 @@ class ChatMessageControllerTest {
                     .content("안녕하세요!")
                     .build();
 
-            given(sendMessageUseCase.sendMessage(anyLong(), anyLong(), anyString())).willReturn(message);
+            given(sendMessageUseCase.sendTextMessageAndBroadcast(anyLong(), anyLong(), anyString())).willReturn(message);
 
             // when & then
             mockMvc.perform(post("/api/v1/chat/messages")
@@ -160,11 +144,8 @@ class ChatMessageControllerTest {
             // BaseEntity의 createdAt 필드 설정 (JPA Auditing이 동작하지 않는 단위 테스트용)
             ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
 
-            given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any()))
+            given(sendMessageUseCase.sendFileMessageAndBroadcast(anyLong(), anyLong(), any()))
                     .willReturn(message);
-            given(chatRoomMemberRepository.findByChatRoomId(anyLong())).willReturn(List.of());
-            given(messageRepository.countUnreadMessagesByLastReadMessageId(anyLong(), anyLong(), any()))
-                    .willReturn(0L);
 
             // when & then
             mockMvc.perform(post("/api/v1/chat/messages/file")
@@ -204,11 +185,8 @@ class ChatMessageControllerTest {
             // BaseEntity의 createdAt 필드 설정 (JPA Auditing이 동작하지 않는 단위 테스트용)
             ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
 
-            given(sendMessageUseCase.sendFileMessage(anyLong(), anyLong(), any()))
+            given(sendMessageUseCase.sendFileMessageAndBroadcast(anyLong(), anyLong(), any()))
                     .willReturn(message);
-            given(chatRoomMemberRepository.findByChatRoomId(anyLong())).willReturn(List.of());
-            given(messageRepository.countUnreadMessagesByLastReadMessageId(anyLong(), anyLong(), any()))
-                    .willReturn(0L);
 
             // when & then
             mockMvc.perform(post("/api/v1/chat/messages/file")
@@ -232,23 +210,22 @@ class ChatMessageControllerTest {
             // given
             Long roomId = 100L;
             Long userId = 1L;
-            List<Message> messages = List.of(
-                    Message.builder()
-                            .id(1000L)
-                            .senderId(1L)
-                            .chatRoomId(roomId)
-                            .content("최신 메시지")
-                            .build(),
-                    Message.builder()
-                            .id(999L)
-                            .senderId(2L)
-                            .chatRoomId(roomId)
-                            .content("이전 메시지")
-                            .build()
+
+            Message msg1 = Message.builder()
+                    .id(1000L).senderId(1L).chatRoomId(roomId).content("최신 메시지").build();
+            Message msg2 = Message.builder()
+                    .id(999L).senderId(2L).chatRoomId(roomId).content("이전 메시지").build();
+
+            List<GetMessageHistoryUseCase.EnrichedMessage> enriched = List.of(
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자1", null),
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 1, "사용자2", null)
             );
 
-            given(getMessageHistoryUseCase.getMessageHistory(eq(roomId), eq(userId), isNull(), eq(20)))
-                    .willReturn(messages);
+            GetMessageHistoryUseCase.EnrichedMessageHistoryResult result =
+                    new GetMessageHistoryUseCase.EnrichedMessageHistoryResult(enriched, 999L, false);
+
+            given(getMessageHistoryUseCase.getEnrichedMessageHistory(eq(roomId), eq(userId), isNull(), eq(20)))
+                    .willReturn(result);
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/messages/rooms/{roomId}", roomId)
@@ -272,23 +249,21 @@ class ChatMessageControllerTest {
             Long beforeMessageId = 1000L;
             int size = 20;
 
-            List<Message> messages = List.of(
-                    Message.builder()
-                            .id(999L)
-                            .senderId(2L)
-                            .chatRoomId(roomId)
-                            .content("이전 메시지 1")
-                            .build(),
-                    Message.builder()
-                            .id(998L)
-                            .senderId(1L)
-                            .chatRoomId(roomId)
-                            .content("이전 메시지 2")
-                            .build()
+            Message msg1 = Message.builder()
+                    .id(999L).senderId(2L).chatRoomId(roomId).content("이전 메시지 1").build();
+            Message msg2 = Message.builder()
+                    .id(998L).senderId(1L).chatRoomId(roomId).content("이전 메시지 2").build();
+
+            List<GetMessageHistoryUseCase.EnrichedMessage> enriched = List.of(
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자2", null),
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 0, "사용자1", null)
             );
 
-            given(getMessageHistoryUseCase.getMessageHistory(roomId, userId, beforeMessageId, size))
-                    .willReturn(messages);
+            GetMessageHistoryUseCase.EnrichedMessageHistoryResult result =
+                    new GetMessageHistoryUseCase.EnrichedMessageHistoryResult(enriched, 998L, false);
+
+            given(getMessageHistoryUseCase.getEnrichedMessageHistory(roomId, userId, beforeMessageId, size))
+                    .willReturn(result);
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/messages/rooms/{roomId}", roomId)
@@ -312,24 +287,21 @@ class ChatMessageControllerTest {
             Long userId = 1L;
             int size = 2;
 
-            // size와 동일한 개수의 메시지가 반환되면 hasMore = true
-            List<Message> messages = List.of(
-                    Message.builder()
-                            .id(1000L)
-                            .senderId(1L)
-                            .chatRoomId(roomId)
-                            .content("메시지 1")
-                            .build(),
-                    Message.builder()
-                            .id(999L)
-                            .senderId(2L)
-                            .chatRoomId(roomId)
-                            .content("메시지 2")
-                            .build()
+            Message msg1 = Message.builder()
+                    .id(1000L).senderId(1L).chatRoomId(roomId).content("메시지 1").build();
+            Message msg2 = Message.builder()
+                    .id(999L).senderId(2L).chatRoomId(roomId).content("메시지 2").build();
+
+            List<GetMessageHistoryUseCase.EnrichedMessage> enriched = List.of(
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자1", null),
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 0, "사용자2", null)
             );
 
-            given(getMessageHistoryUseCase.getMessageHistory(eq(roomId), eq(userId), isNull(), eq(size)))
-                    .willReturn(messages);
+            GetMessageHistoryUseCase.EnrichedMessageHistoryResult result =
+                    new GetMessageHistoryUseCase.EnrichedMessageHistoryResult(enriched, 999L, true);
+
+            given(getMessageHistoryUseCase.getEnrichedMessageHistory(eq(roomId), eq(userId), isNull(), eq(size)))
+                    .willReturn(result);
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/messages/rooms/{roomId}", roomId)
@@ -348,8 +320,11 @@ class ChatMessageControllerTest {
             Long roomId = 100L;
             Long userId = 1L;
 
-            given(getMessageHistoryUseCase.getMessageHistory(eq(roomId), eq(userId), isNull(), eq(20)))
-                    .willReturn(List.of());
+            GetMessageHistoryUseCase.EnrichedMessageHistoryResult result =
+                    new GetMessageHistoryUseCase.EnrichedMessageHistoryResult(List.of(), null, false);
+
+            given(getMessageHistoryUseCase.getEnrichedMessageHistory(eq(roomId), eq(userId), isNull(), eq(20)))
+                    .willReturn(result);
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/messages/rooms/{roomId}", roomId))

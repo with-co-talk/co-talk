@@ -5,10 +5,12 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
+import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,6 +60,12 @@ class SendMessageServiceTest {
     @Mock
     private MessageLinkPreviewService messageLinkPreviewService;
 
+    @Mock
+    private ChatMessageBroker chatMessageBroker;
+
+    @Mock
+    private UserEventBroker userEventBroker;
+
     private ChatRoomMemberValidator chatRoomMemberValidator;
 
     private SendMessageService sendMessageService;
@@ -66,7 +74,9 @@ class SendMessageServiceTest {
     void setUp() {
         chatRoomMemberValidator = new ChatRoomMemberValidator(chatRoomMemberRepository);
         sendMessageService = new SendMessageService(
-                messageRepository, chatRoomMemberRepository, userRepository, idGenerator, sendPushNotificationUseCase, chatRoomMemberValidator, chatRoomPresenceTracker, messageLinkPreviewService);
+                messageRepository, chatRoomMemberRepository, userRepository, idGenerator,
+                sendPushNotificationUseCase, chatRoomMemberValidator, chatRoomPresenceTracker,
+                messageLinkPreviewService, chatMessageBroker, userEventBroker);
 
         // Default mock behavior (lenient to avoid UnnecessaryStubbingException)
         lenient().when(chatRoomMemberRepository.updateLastReadMessageIdIfNewer(anyLong(), anyLong(), any(), anyLong()))
