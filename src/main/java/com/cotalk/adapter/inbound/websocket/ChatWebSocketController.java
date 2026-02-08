@@ -244,49 +244,6 @@ public class ChatWebSocketController {
     }
 
     /**
-     * 타이핑 상태를 브로드캐스트한다.
-     * 클라이언트가 타이핑 시작/중지를 알리면 같은 채팅방의 다른 멤버들에게 전달한다.
-     *
-     * @param request        타이핑 상태 요청 (채팅방 ID, 타이핑 여부)
-     * @param headerAccessor WebSocket 헤더 접근자 (인증된 사용자 정보 포함)
-     */
-    @MessageMapping("/chat/typing")
-    public void typingStatus(@Payload TypingStatusRequest request, StompHeaderAccessor headerAccessor) {
-        if (request == null || request.roomId() == null) {
-            return;
-        }
-        Long authenticatedUserId = extractUserId(headerAccessor);
-        String userNickname = userNicknameCache.computeIfAbsent(authenticatedUserId,
-                id -> userRepository.findById(id).map(User::getNickname).orElse(null));
-
-        String eventType = Boolean.TRUE.equals(request.isTyping()) ? "TYPING" : "STOP_TYPING";
-        chatMessageBroker.publishRoomEvent(request.roomId(), new TypingBroadcastEvent(
-                1,
-                "typing:" + request.roomId() + ":" + authenticatedUserId + ":" + System.currentTimeMillis(),
-                eventType,
-                request.roomId(),
-                authenticatedUserId,
-                userNickname,
-                request.isTyping()
-        ));
-        log.debug("[WS] typingStatus roomId={}, userId={}, isTyping={}", request.roomId(), authenticatedUserId, request.isTyping());
-    }
-
-    /**
-     * 타이핑 브로드캐스트 이벤트 DTO.
-     * Redis Pub/Sub -> WebSocket 방 토픽(/topic/chat/room/{roomId})으로 전달된다.
-     */
-    private record TypingBroadcastEvent(
-            Integer schemaVersion,
-            String eventId,
-            String eventType,
-            Long chatRoomId,
-            Long userId,
-            String userNickname,
-            Boolean isTyping
-    ) {}
-
-    /**
      * 채팅방 presence ping.
      * 클라이언트가 방을 보고 있는 동안 주기적으로 호출하여 서버 presence TTL을 갱신한다.
      */
