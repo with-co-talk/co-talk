@@ -65,6 +65,7 @@ public class NotificationSettingController {
                 request.messageNotification(),
                 request.friendRequestNotification(),
                 request.groupInviteNotification(),
+                request.showMessageContentInNotification(),
                 request.soundEnabled(),
                 request.vibrationEnabled(),
                 request.doNotDisturbEnabled(),
