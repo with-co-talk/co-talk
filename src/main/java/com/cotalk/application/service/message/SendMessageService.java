@@ -6,10 +6,14 @@ import com.cotalk.domain.entity.Message.MessageType;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
+import com.cotalk.domain.port.outbound.ChatMessageBroker;
+import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.util.HtmlSanitizer;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
@@ -19,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -41,6 +46,8 @@ public class SendMessageService implements SendMessageUseCase {
     private final ChatRoomMemberValidator chatRoomMemberValidator;
     private final ChatRoomPresenceTracker chatRoomPresenceTracker;
     private final MessageLinkPreviewService messageLinkPreviewService;
+    private final ChatMessageBroker chatMessageBroker;
+    private final UserEventBroker userEventBroker;
 
     /**
      * 텍스트 메시지를 전송한다.
@@ -78,8 +85,8 @@ public class SendMessageService implements SendMessageUseCase {
         // (HTML 엔티티로 저장하면 클라이언트에 &hellip; 같은 문자열이 그대로 노출될 수 있다)
         String sanitizedContent = HtmlSanitizer.stripAllTags(content);
 
-        if (sanitizedContent != null && sanitizedContent.length() > 2000) {
-            throw new IllegalArgumentException("메시지는 2000자를 초과할 수 없습니다.");
+        if (sanitizedContent != null && sanitizedContent.length() > 5000) {
+            throw new IllegalArgumentException("메시지는 5000자를 초과할 수 없습니다.");
         }
 
         Message message = Message.builder()
@@ -151,7 +158,7 @@ public class SendMessageService implements SendMessageUseCase {
         Message savedMessage = messageRepository.save(message);
 
         // 발신자는 자신이 보낸 메시지를 읽은 것으로 간주하여 lastReadMessageId 업데이트
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         int updated = chatRoomMemberRepository.updateLastReadMessageIdIfNewer(
                 chatRoomId, senderId, now, savedMessage.getId());
         if (updated > 0) {
@@ -163,6 +170,100 @@ public class SendMessageService implements SendMessageUseCase {
         sendPushNotificationsToOtherMembers(chatRoomId, senderId, notificationContent, senderNickname, members);
 
         return new SendResult(savedMessage, senderNickname, senderAvatarUrl, members);
+    }
+
+    /**
+     * 파일 메시지를 전송하고 WebSocket 브로드캐스트까지 내부에서 처리한다.
+     * REST 컨트롤러가 outbound 포트에 직접 의존하지 않도록 브로드캐스트 로직을 서비스 내부에 캡슐화한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param senderId 발신자 ID
+     * @param command 파일 메시지 명령
+     * @return 전송된 메시지
+     */
+    @Override
+    public Message sendFileMessageAndBroadcast(Long chatRoomId, Long senderId, FileMessageCommand command) {
+        SendResult result = sendFileMessageWithContext(chatRoomId, senderId, command);
+        broadcastToRedis(result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
+        return result.message();
+    }
+
+    @Override
+    public Message sendTextMessageAndBroadcast(Long chatRoomId, Long senderId, String content) {
+        SendResult result = sendMessageWithContext(chatRoomId, senderId, content);
+        broadcastToRedis(result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
+        return result.message();
+    }
+
+    /**
+     * 메시지를 Redis Pub/Sub으로 브로드캐스트한다.
+     * 사전 조회된 sender와 members 정보를 사용하여 추가 DB 쿼리를 방지한다.
+     *
+     * @param message 발행할 메시지
+     * @param senderNickname 발신자 닉네임
+     * @param senderAvatarUrl 발신자 프로필 이미지 URL
+     * @param members 채팅방 멤버 목록
+     */
+    private void broadcastToRedis(Message message, String senderNickname, String senderAvatarUrl,
+                                   List<ChatRoomMember> members) {
+        int unreadCount = Math.max(0, members.size() - 1);
+
+        log.info("[SendMessageService] broadcastToRedis roomId={}, messageId={}, senderId={}, type={}",
+                message.getChatRoomId(), message.getId(), message.getSenderId(), message.getType());
+
+        ChatBroadcastMessage broadcastMessage = new ChatBroadcastMessage(
+                message.getId(),
+                message.getSenderId(),
+                senderNickname,
+                senderAvatarUrl,
+                message.getChatRoomId(),
+                message.getContent(),
+                message.getType().name(),
+                message.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
+                message.getFileUrl(),
+                message.getFileName(),
+                message.getFileSize(),
+                message.getFileContentType(),
+                message.getThumbnailUrl(),
+                unreadCount,
+                null, null, null
+        );
+
+        chatMessageBroker.publish(message.getChatRoomId(), broadcastMessage);
+        broadcastChatListUpdate(message, members, senderNickname);
+    }
+
+    /**
+     * 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트한다.
+     *
+     * @param message 전송된 메시지
+     * @param members 채팅방 멤버 목록
+     * @param senderNickname 발신자 닉네임
+     */
+    private void broadcastChatListUpdate(Message message, List<ChatRoomMember> members, String senderNickname) {
+        for (ChatRoomMember member : members) {
+            Long lastReadMessageId = member.getLastReadMessageId();
+            int memberUnreadCount = (int) messageRepository.countUnreadMessagesByLastReadMessageId(
+                    message.getChatRoomId(),
+                    member.getUserId(),
+                    lastReadMessageId
+            );
+
+            ChatListUpdateEvent event = new ChatListUpdateEvent(
+                    1,
+                    "chat-list:" + message.getChatRoomId() + ":" + message.getId() + ":" + member.getUserId(),
+                    "NEW_MESSAGE",
+                    message.getChatRoomId(),
+                    message.getContent(),
+                    message.getType().name(),
+                    message.getCreatedAt(),
+                    message.getSenderId(),
+                    senderNickname,
+                    memberUnreadCount
+            );
+
+            userEventBroker.publishChatListUpdate(member.getUserId(), event);
+        }
     }
 
     /**

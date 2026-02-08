@@ -5,6 +5,7 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +31,9 @@ class GetMessageHistoryServiceTest {
     @Mock
     private ChatRoomMemberRepository chatRoomMemberRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
     private ChatRoomMemberValidator chatRoomMemberValidator;
 
     private GetMessageHistoryService getMessageHistoryService;
@@ -37,7 +41,7 @@ class GetMessageHistoryServiceTest {
     @BeforeEach
     void setUp() {
         chatRoomMemberValidator = new ChatRoomMemberValidator(chatRoomMemberRepository);
-        getMessageHistoryService = new GetMessageHistoryService(messageRepository, chatRoomMemberValidator);
+        getMessageHistoryService = new GetMessageHistoryService(messageRepository, chatRoomMemberRepository, userRepository, chatRoomMemberValidator);
     }
 
     @Test

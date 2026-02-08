@@ -5,26 +5,21 @@ import com.cotalk.adapter.inbound.websocket.dto.ChatMessageRequest;
 import com.cotalk.adapter.inbound.websocket.dto.FileMessageRequest;
 import com.cotalk.adapter.inbound.websocket.dto.PresencePingRequest;
 import com.cotalk.adapter.inbound.websocket.dto.PresenceInactiveRequest;
-import com.cotalk.adapter.inbound.websocket.dto.ReactionBroadcastMessage;
 import com.cotalk.adapter.inbound.websocket.dto.RemoveReactionRequest;
 import com.cotalk.adapter.inbound.websocket.dto.TypingStatusRequest;
 import com.cotalk.domain.entity.Emoji;
-import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.MessageReaction;
+import com.cotalk.domain.exception.InvalidEmojiException;
+import com.cotalk.domain.port.inbound.chat.BroadcastChatMessageUseCase;
+import com.cotalk.domain.port.inbound.chat.BroadcastReactionEventUseCase;
+import com.cotalk.domain.port.inbound.chat.PublishChatListUpdateUseCase;
+import com.cotalk.domain.port.inbound.chat.PublishTypingStatusUseCase;
+import com.cotalk.domain.port.inbound.chat.UpdatePresenceStatusUseCase;
 import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
+import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase.ReactionResult;
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase.FileMessageCommand;
-import com.cotalk.domain.entity.ChatRoomMember;
-import com.cotalk.domain.entity.User;
-import com.cotalk.domain.port.outbound.ChatMessageBroker;
-import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
-import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
-import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
-import com.cotalk.domain.port.outbound.MessageRepository;
-import com.cotalk.domain.port.outbound.UserEventBroker;
-import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
-import com.cotalk.domain.port.outbound.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -32,27 +27,33 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
-import java.time.ZoneOffset;
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
  * WebSocket 기반 채팅 컨트롤러.
  *
  * <p>클라이언트로부터 WebSocket 메시지를 수신하여 처리하고,
- * Redis Pub/Sub을 통해 모든 서버 인스턴스로 브로드캐스트합니다.</p>
+ * 인바운드 유스케이스 포트를 통해 비즈니스 로직을 실행합니다.</p>
+ *
+ * <p>헥사고날 아키텍처를 준수하여 아웃바운드 포트에 직접 의존하지 않으며,
+ * 모든 외부 시스템 접근은 인바운드 유스케이스를 통해 이루어집니다.</p>
  *
  * <p>지원하는 기능:</p>
  * <ul>
  *     <li>텍스트 메시지 전송</li>
  *     <li>파일 메시지 전송</li>
  *     <li>메시지 반응(이모지) 추가/제거</li>
+ *     <li>타이핑 상태 브로드캐스트</li>
+ *     <li>채팅방 presence 상태 관리</li>
  * </ul>
  *
  * @author seunggu.lee
  * @see SendMessageUseCase
  * @see AddMessageReactionUseCase
  * @see RemoveMessageReactionUseCase
- * @see ChatMessageBroker
+ * @see BroadcastChatMessageUseCase
+ * @see BroadcastReactionEventUseCase
+ * @see PublishTypingStatusUseCase
+ * @see UpdatePresenceStatusUseCase
+ * @see PublishChatListUpdateUseCase
  */
 @Slf4j
 @Controller
@@ -60,21 +61,19 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChatWebSocketController {
 
     private final SendMessageUseCase sendMessageUseCase;
-    private final ChatMessageBroker chatMessageBroker;
     private final AddMessageReactionUseCase addMessageReactionUseCase;
     private final RemoveMessageReactionUseCase removeMessageReactionUseCase;
-    private final MessageRepository messageRepository;
-    private final ChatRoomMemberRepository chatRoomMemberRepository;
-    private final UserEventBroker userEventBroker;
-    private final UserRepository userRepository;
-    private final ChatRoomPresenceTracker chatRoomPresenceTracker;
-    private final java.util.Map<Long, String> userNicknameCache = new ConcurrentHashMap<>();
+    private final BroadcastChatMessageUseCase broadcastChatMessageUseCase;
+    private final BroadcastReactionEventUseCase broadcastReactionEventUseCase;
+    private final PublishTypingStatusUseCase publishTypingStatusUseCase;
+    private final UpdatePresenceStatusUseCase updatePresenceStatusUseCase;
+    private final PublishChatListUpdateUseCase publishChatListUpdateUseCase;
 
     /**
      * 텍스트 채팅 메시지를 전송합니다.
      *
      * <p>클라이언트로부터 수신한 텍스트 메시지를 데이터베이스에 저장하고,
-     * Redis Pub/Sub을 통해 해당 채팅방의 모든 참여자에게 브로드캐스트합니다.</p>
+     * 인바운드 유스케이스를 통해 해당 채팅방의 모든 참여자에게 브로드캐스트합니다.</p>
      *
      * @param request 채팅 메시지 요청 정보 (발신자 ID, 채팅방 ID, 메시지 내용)
      * @param headerAccessor WebSocket 헤더 접근자 (인증된 사용자 정보 포함)
@@ -99,15 +98,19 @@ public class ChatWebSocketController {
         SendMessageUseCase.SendResult result = sendMessageUseCase.sendMessageWithContext(
                 request.roomId(), authenticatedUserId, request.content());
 
-        // Redis Pub/Sub 브로드캐스트 (추가 DB 쿼리 없음)
-        publishToRedis(result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
+        // 브로드캐스트 (인바운드 유스케이스를 통해 처리)
+        broadcastChatMessageUseCase.broadcastMessage(
+                result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
+
+        // 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
+        publishChatListUpdateUseCase.publishChatListUpdate(result.message(), result.members(), result.senderNickname());
     }
 
     /**
      * 파일 첨부 메시지를 전송합니다.
      *
      * <p>클라이언트로부터 수신한 파일 메시지를 데이터베이스에 저장하고,
-     * Redis Pub/Sub을 통해 해당 채팅방의 모든 참여자에게 브로드캐스트합니다.</p>
+     * 인바운드 유스케이스를 통해 해당 채팅방의 모든 참여자에게 브로드캐스트합니다.</p>
      *
      * <p>파일 정보에는 URL, 파일명, 크기, 컨텐츠 타입, 썸네일 URL이 포함됩니다.</p>
      *
@@ -137,8 +140,12 @@ public class ChatWebSocketController {
         SendMessageUseCase.SendResult result = sendMessageUseCase.sendFileMessageWithContext(
                 request.roomId(), authenticatedUserId, command);
 
-        // Redis Pub/Sub 브로드캐스트 (추가 DB 쿼리 없음)
-        publishToRedis(result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
+        // 브로드캐스트 (인바운드 유스케이스를 통해 처리)
+        broadcastChatMessageUseCase.broadcastMessage(
+                result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
+
+        // 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
+        publishChatListUpdateUseCase.publishChatListUpdate(result.message(), result.members(), result.senderNickname());
     }
 
     /**
@@ -161,112 +168,10 @@ public class ChatWebSocketController {
     }
 
     /**
-     * 메시지를 Redis Pub/Sub으로 발행한다.
-     * 사전 조회된 sender와 members 정보를 사용하여 추가 DB 쿼리를 방지한다.
-     *
-     * <p>카톡/라인 방식:</p>
-     * <ul>
-     *   <li>메시지 전송 시 unreadCount = 멤버 수 - 1 (발신자 제외)</li>
-     *   <li>상대방이 markAsRead 호출 시 unreadCount 감소</li>
-     *   <li>클라이언트가 ReadReceiptEvent를 받아서 UI 업데이트</li>
-     * </ul>
-     *
-     * @param message 발행할 메시지
-     * @param senderNickname 발신자 닉네임 (사전 조회됨)
-     * @param senderAvatarUrl 발신자 프로필 이미지 URL (사전 조회됨)
-     * @param members 채팅방 멤버 목록 (사전 조회됨)
-     */
-    private void publishToRedis(Message message, String senderNickname, String senderAvatarUrl,
-                                 java.util.List<ChatRoomMember> members) {
-        // 카톡/라인 방식: 발신자를 제외한 모든 멤버가 읽지 않은 상태로 시작
-        int unreadCount = Math.max(0, members.size() - 1);
-
-        log.debug(
-                "[WS] publishToRedis roomId={}, messageId={}, senderId={}, senderNickname={}, totalMembers={}, unreadCount={}",
-                message.getChatRoomId(), message.getId(), message.getSenderId(),
-                senderNickname, members.size(), unreadCount);
-
-        ChatBroadcastMessage broadcastMessage = new ChatBroadcastMessage(
-                message.getId(),
-                message.getSenderId(),
-                senderNickname,
-                senderAvatarUrl,
-                message.getChatRoomId(),
-                message.getContent(),
-                message.getType().name(),
-                message.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
-                message.getFileUrl(),
-                message.getFileName(),
-                message.getFileSize(),
-                message.getFileContentType(),
-                message.getThumbnailUrl(),
-                unreadCount,
-                null,  // eventType (일반 메시지)
-                null,  // relatedUserId
-                null   // relatedUserNickname
-        );
-
-        chatMessageBroker.publish(message.getChatRoomId(), broadcastMessage);
-
-        // 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
-        publishChatListUpdate(message, members, senderNickname);
-    }
-
-    /**
-     * 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
-     *
-     * <p>성능 최적화: 배치 쿼리를 사용하여 모든 멤버의 unreadCount를 한 번에 조회한다.
-     * (기존 N+1 쿼리 문제 해결)</p>
-     *
-     * @param message 전송된 메시지
-     * @param members 채팅방 멤버 목록 (중복 쿼리 방지용)
-     * @param senderNickname 발신자 닉네임 (중복 쿼리 방지용)
-     */
-    private void publishChatListUpdate(Message message, java.util.List<ChatRoomMember> members, String senderNickname) {
-        log.debug("Publishing chat list update for message: chatRoomId={}, messageId={}",
-                message.getChatRoomId(), message.getId());
-
-        log.debug("Found {} members in chat room {}", members.size(), message.getChatRoomId());
-
-        // 배치 쿼리로 모든 멤버의 unreadCount를 한 번에 조회 (N+1 쿼리 방지)
-        java.util.Map<Long, Long> unreadCountMap = messageRepository.batchCountUnreadMessagesForAllMembers(
-                message.getChatRoomId());
-
-        for (ChatRoomMember member : members) {
-            int memberUnreadCount = unreadCountMap.getOrDefault(member.getUserId(), 0L).intValue();
-
-            log.debug(
-                    "[WS] chatListUpdate roomId={}, targetUserId={}, lastReadMessageId={}, memberUnreadCount={}",
-                    message.getChatRoomId(),
-                    member.getUserId(),
-                    member.getLastReadMessageId(),
-                    memberUnreadCount
-            );
-
-            ChatListUpdateEvent event = new ChatListUpdateEvent(
-                    1,
-                    "chat-list:" + message.getChatRoomId() + ":" + message.getId() + ":" + member.getUserId(),
-                    "NEW_MESSAGE",
-                    message.getChatRoomId(),
-                    message.getContent(),
-                    message.getType().name(),
-                    message.getCreatedAt(),
-                    message.getSenderId(),
-                    senderNickname,
-                    memberUnreadCount
-            );
-
-            log.debug("Publishing chat list update to user {}: roomId={}, unreadCount={}",
-                    member.getUserId(), message.getChatRoomId(), memberUnreadCount);
-            userEventBroker.publishChatListUpdate(member.getUserId(), event);
-        }
-    }
-
-    /**
      * 메시지에 반응(이모지)을 추가합니다.
      *
      * <p>사용자가 특정 메시지에 이모지 반응을 추가하면 데이터베이스에 저장하고,
-     * Redis Pub/Sub을 통해 해당 채팅방의 모든 참여자에게 반응 추가 이벤트를 브로드캐스트합니다.</p>
+     * 인바운드 유스케이스를 통해 해당 채팅방의 모든 참여자에게 반응 추가 이벤트를 브로드캐스트합니다.</p>
      *
      * @param request 반응 추가 요청 정보 (메시지 ID, 사용자 ID, 이모지)
      * @param headerAccessor WebSocket 헤더 접근자 (인증된 사용자 정보 포함)
@@ -276,21 +181,21 @@ public class ChatWebSocketController {
         Long authenticatedUserId = extractUserId(headerAccessor);
         log.debug("Received reaction add from authenticated user {} to message {}", authenticatedUserId, request.messageId());
 
-        MessageReaction reaction = addMessageReactionUseCase.addReaction(
+        ReactionResult result = addMessageReactionUseCase.addReactionWithContext(
                 request.messageId(),
                 authenticatedUserId,
                 request.emoji()
         );
 
-        // 반응 추가 이벤트를 Redis Pub/Sub으로 브로드캐스트
-        publishReactionEvent(reaction, "ADDED");
+        // 반응 추가 이벤트를 인바운드 유스케이스를 통해 브로드캐스트
+        broadcastReactionEventUseCase.broadcastReactionEvent(result.reaction(), result.chatRoomId(), "ADDED");
     }
 
     /**
      * 메시지에서 반응(이모지)을 제거합니다.
      *
      * <p>사용자가 특정 메시지에서 이모지 반응을 제거하면 데이터베이스에서 삭제하고,
-     * Redis Pub/Sub을 통해 해당 채팅방의 모든 참여자에게 반응 제거 이벤트를 브로드캐스트합니다.</p>
+     * 인바운드 유스케이스를 통해 해당 채팅방의 모든 참여자에게 반응 제거 이벤트를 브로드캐스트합니다.</p>
      *
      * @param request 반응 제거 요청 정보 (메시지 ID, 사용자 ID, 이모지)
      * @param headerAccessor WebSocket 헤더 접근자 (인증된 사용자 정보 포함)
@@ -300,20 +205,42 @@ public class ChatWebSocketController {
         Long authenticatedUserId = extractUserId(headerAccessor);
         log.debug("Received reaction remove from authenticated user {} to message {}", authenticatedUserId, request.messageId());
 
-        removeMessageReactionUseCase.removeReaction(
+        Long chatRoomId = removeMessageReactionUseCase.removeReactionWithContext(
                 request.messageId(),
                 authenticatedUserId,
                 request.emoji()
         );
 
-        // 반응 제거 이벤트를 Redis Pub/Sub으로 브로드캐스트
+        if (chatRoomId == null) {
+            log.warn("Cannot find chat room for message: {}", request.messageId());
+            return;
+        }
+
+        // 반응 제거 이벤트를 인바운드 유스케이스를 통해 브로드캐스트
         MessageReaction removedReaction = MessageReaction.builder()
                 .messageId(request.messageId())
                 .userId(authenticatedUserId)
                 .emoji(Emoji.fromString(request.emoji())
-                        .orElseThrow(() -> new com.cotalk.domain.exception.InvalidEmojiException(request.emoji())))
+                        .orElseThrow(() -> new InvalidEmojiException(request.emoji())))
                 .build();
-        publishReactionEvent(removedReaction, "REMOVED");
+        broadcastReactionEventUseCase.broadcastReactionEvent(removedReaction, chatRoomId, "REMOVED");
+    }
+
+    /**
+     * 타이핑 상태를 브로드캐스트한다.
+     * 클라이언트가 타이핑 시작/중지를 알리면 같은 채팅방의 다른 멤버들에게 전달한다.
+     *
+     * @param request        타이핑 상태 요청 (채팅방 ID, 타이핑 여부)
+     * @param headerAccessor WebSocket 헤더 접근자 (인증된 사용자 정보 포함)
+     */
+    @MessageMapping("/chat/typing")
+    public void typingStatus(@Payload TypingStatusRequest request, StompHeaderAccessor headerAccessor) {
+        if (request == null || request.roomId() == null) {
+            return;
+        }
+        Long authenticatedUserId = extractUserId(headerAccessor);
+        publishTypingStatusUseCase.publishTypingStatus(
+                request.roomId(), authenticatedUserId, Boolean.TRUE.equals(request.isTyping()));
     }
 
     /**
@@ -369,9 +296,8 @@ public class ChatWebSocketController {
             return;
         }
         Long authenticatedUserId = extractUserId(headerAccessor);
-        String sessionId = headerAccessor != null ? headerAccessor.getSessionId() : null;
-        chatRoomPresenceTracker.markActive(request.roomId(), authenticatedUserId, sessionId);
-        log.debug("[WS] presencePing roomId={}, userId={}, sessionId={}", request.roomId(), authenticatedUserId, sessionId);
+        String sessionId = headerAccessor.getSessionId();
+        updatePresenceStatusUseCase.markActive(request.roomId(), authenticatedUserId, sessionId);
     }
 
     /**
@@ -384,40 +310,7 @@ public class ChatWebSocketController {
             return;
         }
         Long authenticatedUserId = extractUserId(headerAccessor);
-        String sessionId = headerAccessor != null ? headerAccessor.getSessionId() : null;
-        chatRoomPresenceTracker.markInactive(request.roomId(), authenticatedUserId, sessionId);
-        log.debug("[WS] presenceInactive roomId={}, userId={}, sessionId={}", request.roomId(), authenticatedUserId, sessionId);
-    }
-
-    /**
-     * 메시지 반응 이벤트를 Redis Pub/Sub으로 발행
-     */
-    private void publishReactionEvent(MessageReaction reaction, String eventType) {
-        // 메시지의 채팅방 ID 조회
-        Long chatRoomId = messageRepository.findById(reaction.getMessageId())
-                .map(Message::getChatRoomId)
-                .orElse(null);
-
-        if (chatRoomId == null) {
-            log.warn("Cannot find chat room for message: {}", reaction.getMessageId());
-            return;
-        }
-
-        ReactionBroadcastMessage broadcastMessage = new ReactionBroadcastMessage(
-                1,
-                "reaction:" + reaction.getMessageId() + ":" + reaction.getUserId() + ":" + eventType,
-                reaction.getId(),
-                reaction.getMessageId(),
-                reaction.getUserId(),
-                reaction.getEmoji().getCharacter(), // 유니코드 이모지 문자 전송
-                eventType,
-                reaction.getCreatedAt() != null 
-                    ? reaction.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
-                    : System.currentTimeMillis()
-        );
-
-        // 메시지가 속한 채팅방으로 브로드캐스트
-        // 채팅방 ID를 사용하여 브로드캐스트
-        chatMessageBroker.publishReaction(chatRoomId, broadcastMessage);
+        String sessionId = headerAccessor.getSessionId();
+        updatePresenceStatusUseCase.markInactive(request.roomId(), authenticatedUserId, sessionId);
     }
 }

@@ -66,6 +66,31 @@ public class AddMessageReactionService implements AddMessageReactionUseCase {
     }
 
     /**
+     * 메시지에 이모지 반응을 추가하고, 브로드캐스트에 필요한 chatRoomId를 함께 반환한다.
+     *
+     * @param messageId   메시지 ID
+     * @param userId      사용자 ID
+     * @param emojiString 이모지 문자열 (이모지 문자 또는 이름)
+     * @return 반응 결과 (반응 + 채팅방 ID)
+     * @throws MessageNotFoundException 메시지가 존재하지 않는 경우
+     */
+    @Override
+    public ReactionResult addReactionWithContext(Long messageId, Long userId, String emojiString) {
+        // 메시지 존재 확인 및 chatRoomId 조회
+        com.cotalk.domain.entity.Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new MessageNotFoundException(messageId));
+
+        // 이모지 유효성 검증 및 변환
+        Emoji emoji = messageValidator.validateAndParseEmoji(emojiString);
+
+        // 이미 같은 반응이 있는지 확인
+        MessageReaction reaction = reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji)
+                .orElseGet(() -> createReactionSafely(messageId, userId, emoji));
+
+        return new ReactionResult(reaction, message.getChatRoomId());
+    }
+
+    /**
      * 반응을 안전하게 생성한다.
      * 동시성으로 인한 중복 키 예외 발생 시 기존 반응을 반환한다.
      *
