@@ -86,9 +86,9 @@ jobs:
           port: ${{ secrets.NAS_SSH_PORT }}
           username: ${{ secrets.NAS_USER }}
           key: ${{ secrets.NAS_SSH_KEY }}
-          script_stop: true
           command_timeout: 5m
           script: |
+            set -e
             cd ${{ secrets.NAS_DEPLOY_PATH }}
 
             # GHCR 로그인 (이미지 풀을 위해)
