@@ -57,6 +57,28 @@ public interface SendMessageUseCase {
     SendResult sendFileMessageWithContext(Long chatRoomId, Long senderId, FileMessageCommand command);
 
     /**
+     * 파일 메시지를 전송하고 WebSocket 브로드캐스트까지 내부에서 처리한다.
+     * REST 컨트롤러에서 브로드캐스트 로직을 서비스 레이어로 이동하기 위해 사용한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param senderId 발신자 ID
+     * @param command 파일 메시지 명령
+     * @return 전송된 메시지
+     */
+    Message sendFileMessageAndBroadcast(Long chatRoomId, Long senderId, FileMessageCommand command);
+
+    /**
+     * 텍스트 메시지를 전송하고 WebSocket 브로드캐스트까지 내부에서 처리한다.
+     * REST 컨트롤러에서 브로드캐스트 로직을 서비스 레이어로 이동하기 위해 사용한다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param senderId 발신자 ID
+     * @param content 메시지 내용
+     * @return 전송된 메시지
+     */
+    Message sendTextMessageAndBroadcast(Long chatRoomId, Long senderId, String content);
+
+    /**
      * 메시지 전송 결과. 메시지와 함께 브로드캐스트에 필요한 컨텍스트를 포함한다.
      * WebSocket 컨트롤러가 추가 DB 쿼리 없이 Redis Pub/Sub 메시지를 발행할 수 있도록 한다.
      *

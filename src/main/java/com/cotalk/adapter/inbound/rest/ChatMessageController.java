@@ -11,27 +11,18 @@ import com.cotalk.adapter.inbound.rest.dto.message.SendMessageRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.SendMessageResponse;
 import com.cotalk.adapter.inbound.rest.dto.message.UpdateMessageRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.UpdateMessageResponse;
-import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
-import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.message.DeleteMessageUseCase;
+import com.cotalk.domain.port.inbound.message.GetMediaGalleryUseCase;
 import com.cotalk.domain.port.inbound.message.GetMessageHistoryUseCase;
 import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
-import com.cotalk.domain.port.outbound.ChatMessageBroker;
-import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
-import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
-import com.cotalk.domain.port.outbound.MessageRepository;
-import com.cotalk.domain.port.outbound.UserEventBroker;
-import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
-import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -47,16 +38,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 채팅 메시지 관리를 위한 REST 컨트롤러.
  * <p>
  * 메시지 전송, 조회, 수정, 삭제, 답장, 전달 등의 기능을 제공합니다.
+ * 인바운드 UseCase 포트만 의존하며, 아웃바운드 포트에 직접 접근하지 않습니다.
  *
  * @author seunggu.lee
  */
@@ -72,11 +60,7 @@ public class ChatMessageController {
     private final UpdateMessageUseCase updateMessageUseCase;
     private final DeleteMessageUseCase deleteMessageUseCase;
     private final MessageReplyForwardUseCase messageReplyForwardUseCase;
-    private final ChatRoomMemberRepository chatRoomMemberRepository;
-    private final UserRepository userRepository;
-    private final ChatMessageBroker chatMessageBroker;
-    private final MessageRepository messageRepository;
-    private final UserEventBroker userEventBroker;
+    private final GetMediaGalleryUseCase getMediaGalleryUseCase;
 
     /**
      * 채팅방에 텍스트 메시지를 전송합니다.
@@ -90,7 +74,7 @@ public class ChatMessageController {
     public ResponseEntity<SendMessageResponse> sendMessage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @Valid @RequestBody SendMessageRequest request) {
-        Message message = sendMessageUseCase.sendMessage(request.chatRoomId(), principal.getUserId(), request.content());
+        Message message = sendMessageUseCase.sendTextMessageAndBroadcast(request.chatRoomId(), principal.getUserId(), request.content());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(SendMessageResponse.from(message));
     }
@@ -118,85 +102,12 @@ public class ChatMessageController {
         );
 
         // senderId는 JWT 토큰에서 추출 (요청의 senderId는 무시)
-        Message message = sendMessageUseCase.sendFileMessage(request.chatRoomId(), principal.getUserId(), command);
-
-        // WebSocket으로 브로드캐스트
-        publishToRedis(message);
+        // 메시지 저장 + WebSocket 브로드캐스트를 서비스 내부에서 처리
+        Message message = sendMessageUseCase.sendFileMessageAndBroadcast(
+                request.chatRoomId(), principal.getUserId(), command);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(SendMessageResponse.from(message));
-    }
-
-    /**
-     * 메시지를 Redis Pub/Sub으로 발행하여 WebSocket으로 브로드캐스트합니다.
-     */
-    private void publishToRedis(Message message) {
-        List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(message.getChatRoomId());
-        int totalMembers = members.size();
-        int unreadCount = Math.max(0, totalMembers - 1);
-
-        User sender = userRepository.findById(message.getSenderId()).orElse(null);
-        String senderNickname = sender != null ? sender.getNickname() : "알 수 없음";
-        String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
-
-        log.info("[REST] publishToRedis roomId={}, messageId={}, senderId={}, type={}",
-                message.getChatRoomId(), message.getId(), message.getSenderId(), message.getType());
-
-        ChatBroadcastMessage broadcastMessage = new ChatBroadcastMessage(
-                message.getId(),
-                message.getSenderId(),
-                senderNickname,
-                senderAvatarUrl,
-                message.getChatRoomId(),
-                message.getContent(),
-                message.getType().name(),
-                message.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
-                message.getFileUrl(),
-                message.getFileName(),
-                message.getFileSize(),
-                message.getFileContentType(),
-                message.getThumbnailUrl(),
-                unreadCount,
-                null, null, null
-        );
-
-        chatMessageBroker.publish(message.getChatRoomId(), broadcastMessage);
-        publishChatListUpdate(message);
-    }
-
-    /**
-     * 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트합니다.
-     */
-    private void publishChatListUpdate(Message message) {
-        String senderNickname = userRepository.findById(message.getSenderId())
-                .map(User::getNickname)
-                .orElse("알 수 없음");
-
-        List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(message.getChatRoomId());
-
-        for (ChatRoomMember member : members) {
-            Long lastReadMessageId = member.getLastReadMessageId();
-            int memberUnreadCount = (int) messageRepository.countUnreadMessagesByLastReadMessageId(
-                    message.getChatRoomId(),
-                    member.getUserId(),
-                    lastReadMessageId
-            );
-
-            ChatListUpdateEvent event = new ChatListUpdateEvent(
-                    1,
-                    "chat-list:" + message.getChatRoomId() + ":" + message.getId() + ":" + member.getUserId(),
-                    "NEW_MESSAGE",
-                    message.getChatRoomId(),
-                    message.getContent(),
-                    message.getType().name(),
-                    message.getCreatedAt(),
-                    message.getSenderId(),
-                    senderNickname,
-                    memberUnreadCount
-            );
-
-            userEventBroker.publishChatListUpdate(member.getUserId(), event);
-        }
     }
 
     /**
@@ -215,32 +126,18 @@ public class ChatMessageController {
             @PathVariable Long roomId,
             @RequestParam(required = false) Long beforeMessageId,
             @RequestParam(defaultValue = "20") int size) {
-        List<Message> messages = getMessageHistoryUseCase.getMessageHistory(roomId, principal.getUserId(), beforeMessageId, size);
+        GetMessageHistoryUseCase.EnrichedMessageHistoryResult result =
+                getMessageHistoryUseCase.getEnrichedMessageHistory(roomId, principal.getUserId(), beforeMessageId, size);
 
-        // 배치 쿼리로 모든 메시지의 unreadCount를 한 번에 조회 (N+1 쿼리 방지)
-        List<Long> messageIds = messages.stream().map(Message::getId).toList();
-        Map<Long, Integer> unreadCountMap = chatRoomMemberRepository.batchCountUnreadMembersByMessageIds(roomId, messageIds);
-
-        // 배치 쿼리로 모든 발신자의 정보를 한 번에 조회 (N+1 쿼리 방지)
-        Set<Long> senderIds = messages.stream().map(Message::getSenderId).collect(Collectors.toSet());
-        Map<Long, User> senderMap = userRepository.findAllById(senderIds).stream()
-                .collect(Collectors.toMap(User::getId, user -> user));
-
-        List<MessageDto> messageDtos = messages.stream()
-                .map(message -> {
-                    int unreadCount = unreadCountMap.getOrDefault(message.getId(), 0);
-                    User sender = senderMap.get(message.getSenderId());
-                    String senderNickname = sender != null ? sender.getNickname() : null;
-                    String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
-                    return MessageDto.from(message, unreadCount, senderNickname, senderAvatarUrl);
-                })
+        List<MessageDto> messageDtos = result.messages().stream()
+                .map(enriched -> MessageDto.from(
+                        enriched.message(),
+                        enriched.unreadCount(),
+                        enriched.senderNickname(),
+                        enriched.senderAvatarUrl()))
                 .toList();
 
-        // 다음 페이지 존재 여부를 위한 nextCursor 계산
-        Long nextCursor = messages.isEmpty() ? null : messages.get(messages.size() - 1).getId();
-        boolean hasMore = messages.size() == size;
-
-        return ResponseEntity.ok(MessageHistoryResponse.of(messageDtos, nextCursor, hasMore));
+        return ResponseEntity.ok(MessageHistoryResponse.of(messageDtos, result.nextCursor(), result.hasMore()));
     }
 
     /**
@@ -263,53 +160,29 @@ public class ChatMessageController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size) {
 
-        // 권한 체크: 채팅방 멤버인지 확인
-        chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, principal.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("채팅방에 접근 권한이 없습니다."));
+        GetMediaGalleryUseCase.MediaGalleryResult result =
+                getMediaGalleryUseCase.getMediaGallery(roomId, principal.getUserId(), type, page, size);
 
-        Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
-        List<Message> messages;
-
-        switch (type.toUpperCase()) {
-            case "PHOTO" -> messages = messageRepository.findByTypeInChatRoom(
-                    roomId, List.of(Message.MessageType.IMAGE), pageable);
-            case "FILE" -> messages = messageRepository.findByTypeInChatRoom(
-                    roomId, List.of(Message.MessageType.FILE), pageable);
-            case "LINK" -> messages = messageRepository.findMessagesWithLinkPreview(roomId, pageable);
-            default -> throw new IllegalArgumentException("지원하지 않는 미디어 유형입니다: " + type);
-        }
-
-        // 발신자 정보 배치 조회
-        Set<Long> senderIds = messages.stream().map(Message::getSenderId).collect(Collectors.toSet());
-        Map<Long, User> senderMap = userRepository.findAllById(senderIds).stream()
-                .collect(Collectors.toMap(User::getId, user -> user));
-
-        List<MediaGalleryResponse.MediaGalleryItem> items = messages.stream()
-                .map(message -> {
-                    User sender = senderMap.get(message.getSenderId());
-                    return new MediaGalleryResponse.MediaGalleryItem(
-                            message.getId(),
-                            message.getType().name(),
-                            message.getFileUrl(),
-                            message.getFileName(),
-                            message.getFileSize(),
-                            message.getFileContentType(),
-                            message.getThumbnailUrl(),
-                            message.getLinkPreviewUrl(),
-                            message.getLinkPreviewTitle(),
-                            message.getLinkPreviewDescription(),
-                            message.getLinkPreviewImageUrl(),
-                            message.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
-                            message.getSenderId(),
-                            sender != null ? sender.getNickname() : null
-                    );
-                })
+        List<MediaGalleryResponse.MediaGalleryItem> items = result.items().stream()
+                .map(item -> new MediaGalleryResponse.MediaGalleryItem(
+                        item.messageId(),
+                        item.type(),
+                        item.fileUrl(),
+                        item.fileName(),
+                        item.fileSize(),
+                        item.fileContentType(),
+                        item.thumbnailUrl(),
+                        item.linkPreviewUrl(),
+                        item.linkPreviewTitle(),
+                        item.linkPreviewDescription(),
+                        item.linkPreviewImageUrl(),
+                        item.createdAtMillis(),
+                        item.senderId(),
+                        item.senderNickname()
+                ))
                 .toList();
 
-        Long nextCursor = messages.isEmpty() ? null : messages.get(messages.size() - 1).getId();
-        boolean hasMore = messages.size() == size;
-
-        return ResponseEntity.ok(new MediaGalleryResponse(items, nextCursor, hasMore));
+        return ResponseEntity.ok(new MediaGalleryResponse(items, result.nextCursor(), result.hasMore()));
     }
 
     /**
