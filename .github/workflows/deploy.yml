@@ -66,8 +66,13 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # GHA 캐시 + 레지스트리 캐시(보조)로 빌드 시간 단축
+          cache-from: |
+            type=gha
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: |
+            type=gha,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
   # ===========================================
   # 2단계: NAS에 무중단 배포
@@ -89,6 +94,11 @@ jobs:
           command_timeout: 5m
           script: |
             set -e
+            # NAS에서 Docker PATH 로드 (비로그인 셸이면 PATH에 없을 수 있음)
+            export PATH="/usr/bin:/usr/local/bin:$PATH"
+            [ -f "$HOME/.profile" ] && . "$HOME/.profile" || true
+            [ -f "/etc/profile" ] && . "/etc/profile" || true
+
             cd ${{ secrets.NAS_DEPLOY_PATH }}
 
             # GHCR 로그인 (이미지 풀을 위해)
