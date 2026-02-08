@@ -17,6 +17,7 @@ public interface UpdateNotificationSettingUseCase {
      * @param messageNotification 메시지 알림 활성화 여부
      * @param friendRequestNotification 친구 요청 알림 활성화 여부
      * @param groupInviteNotification 그룹 초대 알림 활성화 여부
+     * @param showMessageContentInNotification 푸시 알림에 메시지 내용 노출 여부
      * @param soundEnabled 소리 활성화 여부
      * @param vibrationEnabled 진동 활성화 여부
      * @param doNotDisturbEnabled 방해금지 모드 활성화 여부
@@ -29,6 +30,7 @@ public interface UpdateNotificationSettingUseCase {
             Boolean messageNotification,
             Boolean friendRequestNotification,
             Boolean groupInviteNotification,
+            Boolean showMessageContentInNotification,
             Boolean soundEnabled,
             Boolean vibrationEnabled,
             Boolean doNotDisturbEnabled,

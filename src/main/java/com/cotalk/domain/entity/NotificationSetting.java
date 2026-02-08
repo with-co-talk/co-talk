@@ -35,6 +35,10 @@ public class NotificationSetting extends BaseEntity {
     @Builder.Default
     private boolean groupInviteNotification = true;
 
+    @Column(name = "show_message_content_in_notification", nullable = false)
+    @Builder.Default
+    private boolean showMessageContentInNotification = true;
+
     @Column(name = "sound_enabled", nullable = false)
     @Builder.Default
     private boolean soundEnabled = true;
@@ -78,6 +82,15 @@ public class NotificationSetting extends BaseEntity {
      */
     public void updateGroupInviteNotification(boolean enabled) {
         this.groupInviteNotification = enabled;
+    }
+
+    /**
+     * 푸시 알림에 메시지 내용 노출 여부를 변경한다.
+     *
+     * @param enabled 활성화 여부
+     */
+    public void updateShowMessageContentInNotification(boolean enabled) {
+        this.showMessageContentInNotification = enabled;
     }
 
     /**
