@@ -23,7 +23,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -184,75 +183,6 @@ public class ChatMessageController {
                 .toList();
 
         return ResponseEntity.ok(new MediaGalleryResponse(items, result.nextCursor(), result.hasMore()));
-    }
-
-    /**
-     * 채팅방의 미디어 갤러리를 조회합니다.
-     * 사진, 파일, 링크를 타입별로 페이징하여 반환합니다.
-     *
-     * @param principal 인증된 사용자 정보
-     * @param roomId 채팅방 ID
-     * @param type 미디어 유형 (PHOTO, FILE, LINK)
-     * @param page 페이지 번호 (0부터 시작)
-     * @param size 페이지 크기 (기본값: 30)
-     * @return 미디어 갤러리 응답
-     */
-    @Operation(summary = "미디어 갤러리 조회", description = "채팅방의 사진, 파일, 링크를 조회합니다.")
-    @GetMapping("/rooms/{roomId}/media")
-    public ResponseEntity<MediaGalleryResponse> getMediaGallery(
-            @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long roomId,
-            @RequestParam String type,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "30") int size) {
-
-        // 권한 체크: 채팅방 멤버인지 확인
-        chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, principal.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("채팅방에 접근 권한이 없습니다."));
-
-        Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
-        List<Message> messages;
-
-        switch (type.toUpperCase()) {
-            case "PHOTO" -> messages = messageRepository.findByTypeInChatRoom(
-                    roomId, List.of(Message.MessageType.IMAGE), pageable);
-            case "FILE" -> messages = messageRepository.findByTypeInChatRoom(
-                    roomId, List.of(Message.MessageType.FILE), pageable);
-            case "LINK" -> messages = messageRepository.findMessagesWithLinkPreview(roomId, pageable);
-            default -> throw new IllegalArgumentException("지원하지 않는 미디어 유형입니다: " + type);
-        }
-
-        // 발신자 정보 배치 조회
-        Set<Long> senderIds = messages.stream().map(Message::getSenderId).collect(Collectors.toSet());
-        Map<Long, User> senderMap = userRepository.findAllById(senderIds).stream()
-                .collect(Collectors.toMap(User::getId, user -> user));
-
-        List<MediaGalleryResponse.MediaGalleryItem> items = messages.stream()
-                .map(message -> {
-                    User sender = senderMap.get(message.getSenderId());
-                    return new MediaGalleryResponse.MediaGalleryItem(
-                            message.getId(),
-                            message.getType().name(),
-                            message.getFileUrl(),
-                            message.getFileName(),
-                            message.getFileSize(),
-                            message.getFileContentType(),
-                            message.getThumbnailUrl(),
-                            message.getLinkPreviewUrl(),
-                            message.getLinkPreviewTitle(),
-                            message.getLinkPreviewDescription(),
-                            message.getLinkPreviewImageUrl(),
-                            message.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
-                            message.getSenderId(),
-                            sender != null ? sender.getNickname() : null
-                    );
-                })
-                .toList();
-
-        Long nextCursor = messages.isEmpty() ? null : messages.get(messages.size() - 1).getId();
-        boolean hasMore = messages.size() == size;
-
-        return ResponseEntity.ok(new MediaGalleryResponse(items, nextCursor, hasMore));
     }
 
     /**
