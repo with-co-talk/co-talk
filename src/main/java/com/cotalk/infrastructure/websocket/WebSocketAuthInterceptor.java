@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.websocket;
 
+import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Component;
 import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * WebSocket STOMP 연결 시 JWT 토큰을 검증하는 인터셉터.
@@ -36,8 +39,11 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final Pattern ROOM_TOPIC_PATTERN = Pattern.compile("^/topic/chat/room/(\\d+)(/.*)?$");
+    private static final Pattern USER_TOPIC_PATTERN = Pattern.compile("^/topic/user/(\\d+)(/.*)?$");
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final ChatRoomMemberRepository chatRoomMemberRepository;
 
     /**
      * 메시지 전송 전에 인증을 수행한다.
@@ -59,6 +65,11 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         // CONNECT 명령일 때만 인증 검사
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             authenticateConnection(accessor);
+        }
+
+        // SUBSCRIBE 명령일 때 채널 접근 권한 검사
+        if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            authorizeSubscription(accessor);
         }
 
         return message;
@@ -88,6 +99,53 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         accessor.setUser(new StompPrincipal(userId.toString()));
 
         log.info("WebSocket connection authenticated for user: {}", userId);
+    }
+
+    /**
+     * SUBSCRIBE 명령 시 채널 접근 권한을 검증한다.
+     * <ul>
+     *   <li>/topic/chat/room/{roomId} - 해당 채팅방의 멤버인지 확인</li>
+     *   <li>/topic/user/{userId}/* - 본인의 개인 피드인지 확인</li>
+     * </ul>
+     *
+     * @param accessor STOMP 헤더 접근자
+     * @throws IllegalArgumentException 채널 접근 권한이 없는 경우
+     */
+    private void authorizeSubscription(StompHeaderAccessor accessor) {
+        String destination = accessor.getDestination();
+        Principal user = accessor.getUser();
+
+        if (destination == null || user == null) {
+            return;
+        }
+
+        Long userId;
+        try {
+            userId = Long.parseLong(user.getName());
+        } catch (NumberFormatException e) {
+            return;
+        }
+
+        // /topic/chat/room/{roomId} 구독 권한 검사
+        Matcher roomMatcher = ROOM_TOPIC_PATTERN.matcher(destination);
+        if (roomMatcher.matches()) {
+            Long roomId = Long.parseLong(roomMatcher.group(1));
+            if (!chatRoomMemberRepository.existsByChatRoomIdAndUserId(roomId, userId)) {
+                log.warn("Unauthorized SUBSCRIBE attempt: userId={}, destination={}", userId, destination);
+                throw new IllegalArgumentException("해당 채널에 대한 접근 권한이 없습니다.");
+            }
+            return;
+        }
+
+        // /topic/user/{userId}/* 구독 권한 검사
+        Matcher userMatcher = USER_TOPIC_PATTERN.matcher(destination);
+        if (userMatcher.matches()) {
+            Long topicUserId = Long.parseLong(userMatcher.group(1));
+            if (!userId.equals(topicUserId)) {
+                log.warn("Unauthorized SUBSCRIBE attempt to other user's feed: userId={}, destination={}", userId, destination);
+                throw new IllegalArgumentException("해당 채널에 대한 접근 권한이 없습니다.");
+            }
+        }
     }
 
     /**

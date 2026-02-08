@@ -38,6 +38,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
@@ -123,14 +124,21 @@ public class FriendController {
      * 사용자의 친구 목록을 조회합니다.
      *
      * @param principal 인증된 사용자 정보
+     * @param page 페이지 번호 (기본값: 0)
+     * @param size 페이지 크기 (기본값: 20, 최대: 100)
      * @return 친구 목록
      */
     @Operation(summary = "친구 목록 조회", description = "사용자의 친구 목록을 조회합니다.")
     @GetMapping
     public ResponseEntity<FriendListResponse> getFriendList(
-            @AuthenticationPrincipal CustomUserPrincipal principal) {
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        int safeSize = Math.min(size, 100);
         List<User> friends = getFriendListUseCase.getFriendList(principal.getUserId());
         List<FriendDto> friendDtos = friends.stream()
+                .skip((long) page * safeSize)
+                .limit(safeSize)
                 .map(FriendDto::from)
                 .toList();
         return ResponseEntity.ok(FriendListResponse.of(friendDtos));
@@ -156,48 +164,55 @@ public class FriendController {
      * 받은 친구 요청 목록을 조회합니다.
      *
      * @param principal 인증된 사용자 정보
+     * @param page 페이지 번호 (기본값: 0)
+     * @param size 페이지 크기 (기본값: 20, 최대: 100)
      * @return 받은 친구 요청 목록
      */
     @Operation(summary = "받은 친구 요청 목록 조회", description = "사용자가 받은 대기 중인 친구 요청 목록을 조회합니다.")
     @GetMapping("/requests/received")
     public ResponseEntity<FriendRequestListResponse> getReceivedFriendRequests(
-            @AuthenticationPrincipal CustomUserPrincipal principal) {
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        int safeSize = Math.min(size, 100);
         Long userId = principal.getUserId();
         List<FriendRequest> requests = getReceivedFriendRequestsUseCase.getReceivedFriendRequests(userId);
-        
+
         // 빈 리스트일 때 early return
         if (requests.isEmpty()) {
             return ResponseEntity.ok(FriendRequestListResponse.of(List.of()));
         }
-        
+
         // 현재 사용자(수신자) 정보 조회 (한 번만)
         User receiver = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
-        
+
         // 요청자 ID 목록 추출
         List<Long> requesterIds = requests.stream()
                 .map(FriendRequest::getRequesterId)
                 .distinct()
                 .toList();
-        
+
         // 요청자 정보 일괄 조회
         Map<Long, User> requesterMap = userRepository.findAllById(requesterIds)
                 .stream()
                 .collect(Collectors.toMap(User::getId, user -> user));
-        
+
         // DTO 변환
         List<FriendRequestDto> requestDtos = requests.stream()
+                .skip((long) page * safeSize)
+                .limit(safeSize)
                 .map(request -> {
                     User requester = requesterMap.get(request.getRequesterId());
                     if (requester == null) {
                         throw new UserNotFoundException(request.getRequesterId());
                     }
-                    
+
                     LocalDateTime createdAt = request.getCreatedAt();
                     if (createdAt == null) {
                         throw new IllegalStateException("친구 요청의 생성 시간이 없습니다.");
                     }
-                    
+
                     return FriendRequestDto.of(
                             request.getId(),
                             UserDto.from(requester),
@@ -207,7 +222,7 @@ public class FriendController {
                     );
                 })
                 .toList();
-        
+
         return ResponseEntity.ok(FriendRequestListResponse.of(requestDtos));
     }
 
@@ -215,48 +230,55 @@ public class FriendController {
      * 보낸 친구 요청 목록을 조회합니다.
      *
      * @param principal 인증된 사용자 정보
+     * @param page 페이지 번호 (기본값: 0)
+     * @param size 페이지 크기 (기본값: 20, 최대: 100)
      * @return 보낸 친구 요청 목록
      */
     @Operation(summary = "보낸 친구 요청 목록 조회", description = "사용자가 보낸 대기 중인 친구 요청 목록을 조회합니다.")
     @GetMapping("/requests/sent")
     public ResponseEntity<FriendRequestListResponse> getSentFriendRequests(
-            @AuthenticationPrincipal CustomUserPrincipal principal) {
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        int safeSize = Math.min(size, 100);
         Long userId = principal.getUserId();
         List<FriendRequest> requests = getSentFriendRequestsUseCase.getSentFriendRequests(userId);
-        
+
         // 빈 리스트일 때 early return
         if (requests.isEmpty()) {
             return ResponseEntity.ok(FriendRequestListResponse.of(List.of()));
         }
-        
+
         // 현재 사용자(요청자) 정보 조회 (한 번만)
         User requester = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
-        
+
         // 수신자 ID 목록 추출
         List<Long> receiverIds = requests.stream()
                 .map(FriendRequest::getReceiverId)
                 .distinct()
                 .toList();
-        
+
         // 수신자 정보 일괄 조회
         Map<Long, User> receiverMap = userRepository.findAllById(receiverIds)
                 .stream()
                 .collect(Collectors.toMap(User::getId, user -> user));
-        
+
         // DTO 변환
         List<FriendRequestDto> requestDtos = requests.stream()
+                .skip((long) page * safeSize)
+                .limit(safeSize)
                 .map(request -> {
                     User receiver = receiverMap.get(request.getReceiverId());
                     if (receiver == null) {
                         throw new UserNotFoundException(request.getReceiverId());
                     }
-                    
+
                     LocalDateTime createdAt = request.getCreatedAt();
                     if (createdAt == null) {
                         throw new IllegalStateException("친구 요청의 생성 시간이 없습니다.");
                     }
-                    
+
                     return FriendRequestDto.of(
                             request.getId(),
                             UserDto.from(requester),
@@ -266,7 +288,7 @@ public class FriendController {
                     );
                 })
                 .toList();
-        
+
         return ResponseEntity.ok(FriendRequestListResponse.of(requestDtos));
     }
 
@@ -306,14 +328,23 @@ public class FriendController {
      * 숨긴 친구 목록을 조회합니다.
      *
      * @param principal 인증된 사용자 정보
+     * @param page 페이지 번호 (기본값: 0)
+     * @param size 페이지 크기 (기본값: 20, 최대: 100)
      * @return 숨긴 친구 목록
      */
     @Operation(summary = "숨긴 친구 목록 조회", description = "사용자가 숨긴 친구 목록을 조회합니다.")
     @GetMapping("/hidden")
     public ResponseEntity<HiddenFriendsResponse> getHiddenFriends(
-            @AuthenticationPrincipal CustomUserPrincipal principal) {
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        int safeSize = Math.min(size, 100);
         List<HiddenFriendDto> hiddenFriends = getHiddenFriendsUseCase.getHiddenFriends(principal.getUserId());
-        return ResponseEntity.ok(HiddenFriendsResponse.of(hiddenFriends));
+        List<HiddenFriendDto> paginatedFriends = hiddenFriends.stream()
+                .skip((long) page * safeSize)
+                .limit(safeSize)
+                .toList();
+        return ResponseEntity.ok(HiddenFriendsResponse.of(paginatedFriends));
     }
 
 }

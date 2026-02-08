@@ -9,6 +9,7 @@ import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.UserValidator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * @author seunggu.lee
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -40,6 +42,8 @@ public class SignUpService implements SignUpUseCase {
      */
     @Override
     public Long signUp(String email, String password, String nickname) {
+        log.debug("Sign-up attempt: email={}, nickname={}", maskEmail(email), nickname);
+
         userValidator.validateEmail(email);
         userValidator.validatePassword(password);
         userValidator.validateNickname(nickname);
@@ -57,6 +61,7 @@ public class SignUpService implements SignUpUseCase {
                 .build();
 
         User savedUser = userRepository.save(user);
+        log.info("Sign-up successful: userId={}, email={}", savedUser.getId(), maskEmail(email));
         return savedUser.getId();
     }
 
@@ -70,5 +75,23 @@ public class SignUpService implements SignUpUseCase {
         if (userRepository.existsByNickname(nickname)) {
             throw new DuplicateNicknameException();
         }
+    }
+
+    /**
+     * 이메일 마스킹 처리 (로그 보안)
+     *
+     * @param email 원본 이메일
+     * @return 마스킹된 이메일 (예: te**@example.com)
+     */
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return "***";
+        }
+        String[] parts = email.split("@");
+        String localPart = parts[0];
+        if (localPart.length() <= 2) {
+            return "**@" + parts[1];
+        }
+        return localPart.substring(0, 2) + "**@" + parts[1];
     }
 }

@@ -78,6 +78,10 @@ public class SendMessageService implements SendMessageUseCase {
         // (HTML 엔티티로 저장하면 클라이언트에 &hellip; 같은 문자열이 그대로 노출될 수 있다)
         String sanitizedContent = HtmlSanitizer.stripAllTags(content);
 
+        if (sanitizedContent != null && sanitizedContent.length() > 2000) {
+            throw new IllegalArgumentException("메시지는 2000자를 초과할 수 없습니다.");
+        }
+
         Message message = Message.builder()
                 .id(idGenerator.nextId())
                 .chatRoomId(chatRoomId)

@@ -1,9 +1,12 @@
 package com.cotalk.application.service.chatroom;
 
+import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
+import com.cotalk.domain.exception.ChatRoomNotFoundException;
+import com.cotalk.domain.exception.InvalidChatRoomException;
 import com.cotalk.domain.port.inbound.chatroom.LeaveChatRoomUseCase;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
@@ -18,9 +21,9 @@ import com.cotalk.infrastructure.lock.DistributedLockExecutor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -48,6 +51,7 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
     private final UserRepository userRepository;
     private final ChatMessageBroker chatMessageBroker;
     private final UserEventBroker userEventBroker;
+    private final TransactionTemplate transactionTemplate;
 
     /**
      * 채팅방에서 나간다.
@@ -67,7 +71,9 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
     public void leaveChatRoom(Long chatRoomId, Long userId) {
         String lockKey = "chatroom:leave:" + chatRoomId;
 
-        lockExecutor.executeWithLock(lockKey, () -> doLeaveChatRoom(chatRoomId, userId));
+        lockExecutor.executeWithLock(lockKey, () ->
+            transactionTemplate.executeWithoutResult(status -> doLeaveChatRoom(chatRoomId, userId))
+        );
     }
 
     /**
@@ -77,8 +83,14 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
      * @param chatRoomId 채팅방 ID
      * @param userId     사용자 ID
      */
-    @Transactional
-    protected void doLeaveChatRoom(Long chatRoomId, Long userId) {
+    private void doLeaveChatRoom(Long chatRoomId, Long userId) {
+        // SELF 채팅방 퇴장 방지
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new ChatRoomNotFoundException(chatRoomId));
+        if (chatRoom.isSelfChat()) {
+            throw new InvalidChatRoomException("나와의 채팅방에서는 나갈 수 없습니다.");
+        }
+
         ChatRoomMember member = chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId)
                 .orElseThrow(() -> new ChatRoomAccessDeniedException(chatRoomId, userId));
 
@@ -95,10 +107,7 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
         List<ChatRoomMember> remainingMembers = chatRoomMemberRepository.findByChatRoomId(chatRoomId);
 
         if (remainingMembers.isEmpty()) {
-            chatRoomRepository.findById(chatRoomId).ifPresent(chatRoom -> {
-                chatRoomRepository.delete(chatRoom);
-                log.info("Chat room deleted as last member left: chatRoomId={}", chatRoomId);
-            });
+            log.info("Chat room has no remaining members: chatRoomId={}", chatRoomId);
         } else {
             // 시스템 메시지 생성 및 브로드캐스트 (남은 멤버가 있을 때만)
             sendLeaveSystemMessage(chatRoomId, userId, userNickname, remainingMembers);
@@ -138,7 +147,7 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
                 savedMessage.getChatRoomId(),
                 savedMessage.getContent(),
                 savedMessage.getType().name(),
-                savedMessage.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                savedMessage.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
                 null, // fileUrl
                 null, // fileName
                 null, // fileSize

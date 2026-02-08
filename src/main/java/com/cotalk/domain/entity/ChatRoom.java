@@ -51,6 +51,12 @@ public class ChatRoom extends BaseEntity {
      * @param newName 새 채팅방 이름
      */
     public void updateName(String newName) {
+        if (newName == null || newName.trim().isEmpty()) {
+            throw new IllegalArgumentException("채팅방 이름은 필수입니다.");
+        }
+        if (newName.length() > 50) {
+            throw new IllegalArgumentException("채팅방 이름은 50자를 초과할 수 없습니다.");
+        }
         this.name = newName;
     }
 
@@ -60,6 +66,9 @@ public class ChatRoom extends BaseEntity {
      * @param announcement 설정할 공지사항
      */
     public void setAnnouncement(String announcement) {
+        if (announcement != null && announcement.length() > 500) {
+            throw new IllegalArgumentException("공지사항은 500자를 초과할 수 없습니다.");
+        }
         this.announcement = announcement;
     }
 

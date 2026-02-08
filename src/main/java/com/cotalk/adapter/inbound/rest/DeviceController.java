@@ -66,8 +66,10 @@ public class DeviceController {
      */
     @Operation(summary = "디바이스 토큰 삭제", description = "로그아웃 시 디바이스 토큰을 삭제합니다.")
     @DeleteMapping("/token")
-    public ResponseEntity<MessageResponse> unregisterDeviceToken(@RequestParam String token) {
-        registerDeviceTokenUseCase.unregister(token);
+    public ResponseEntity<MessageResponse> unregisterDeviceToken(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestParam String token) {
+        registerDeviceTokenUseCase.unregister(principal.getUserId(), token);
         return ResponseEntity.ok(MessageResponse.of("디바이스 토큰이 삭제되었습니다."));
     }
 }

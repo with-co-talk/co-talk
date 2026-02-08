@@ -126,6 +126,10 @@ public class ChatRoomManagementService implements ChatRoomManagementUseCase {
         getChatRoom(chatRoomId);
         validateAdminPermission(chatRoomId, adminUserId);
 
+        if (adminUserId.equals(targetUserId)) {
+            throw new InvalidChatRoomException("자기 자신을 강등시킬 수 없습니다.");
+        }
+
         ChatRoomMember targetMember = getMember(chatRoomId, targetUserId);
         targetMember.demoteToMember();
         return chatRoomMemberRepository.save(targetMember);

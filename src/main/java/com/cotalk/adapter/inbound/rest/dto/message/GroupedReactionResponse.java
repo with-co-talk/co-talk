@@ -34,7 +34,7 @@ public record GroupedReactionResponse(
      */
     public static GroupedReactionResponse from(Emoji emoji, List<Long> userIds, Long currentUserId) {
         return new GroupedReactionResponse(
-                emoji.name(),
+                emoji.getCharacter(),
                 emoji.getCharacter(),
                 emoji.getName(),
                 userIds.size(),

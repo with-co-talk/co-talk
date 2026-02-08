@@ -50,7 +50,7 @@ public interface ChatMessageBroker {
      * @param fileUrl           파일 URL (파일 메시지인 경우)
      * @param fileName          파일명 (파일 메시지인 경우)
      * @param fileSize          파일 크기 (파일 메시지인 경우)
-     * @param contentType       파일 MIME 타입 (파일 메시지인 경우)
+     * @param fileContentType   파일 MIME 타입 (파일 메시지인 경우)
      * @param thumbnailUrl      썸네일 URL (이미지/비디오 메시지인 경우)
      * @param unreadCount       읽지 않은 멤버 수 (발신자 제외)
      * @param eventType         이벤트 유형 (USER_LEFT, USER_JOINED 등, 시스템 메시지인 경우)
@@ -69,7 +69,7 @@ public interface ChatMessageBroker {
             String fileUrl,
             String fileName,
             Long fileSize,
-            String contentType,
+            String fileContentType,
             String thumbnailUrl,
             Integer unreadCount,
             String eventType,
