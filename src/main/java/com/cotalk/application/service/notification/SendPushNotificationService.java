@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,12 +37,13 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
      * @param senderNickname 메시지를 보낸 사용자 닉네임
      * @param messageContent 메시지 내용 (100자 초과시 잘림)
      * @param chatRoomId     채팅방 ID
+     * @param senderAvatarUrl 발신자 프로필 이미지 URL (없으면 null)
      */
     @Override
     @Async
-    public void sendNewMessageNotification(Long receiverUserId, String senderNickname, String messageContent, Long chatRoomId) {
+    public void sendNewMessageNotification(Long receiverUserId, String senderNickname, String messageContent, Long chatRoomId, String senderAvatarUrl) {
         List<DeviceToken> tokens = deviceTokenRepository.findActiveByUserId(receiverUserId);
-        
+
         if (tokens.isEmpty()) {
             log.debug("No active device tokens for user: {}", receiverUserId);
             return;
@@ -53,12 +55,14 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
 
         String title = senderNickname;
         String body = truncateMessage(messageContent);
-        Map<String, String> data = Map.of(
-                "type", "NEW_MESSAGE",
-                "chatRoomId", chatRoomId.toString()
-        );
+        Map<String, String> data = new HashMap<>();
+        data.put("type", "NEW_MESSAGE");
+        data.put("chatRoomId", chatRoomId.toString());
+        if (senderAvatarUrl != null) {
+            data.put("avatarUrl", senderAvatarUrl);
+        }
 
-        int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data);
+        int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data, senderAvatarUrl);
         log.info("New message push sent to user {}: {}/{} devices", receiverUserId, sentCount, tokenStrings.size());
     }
 
@@ -70,10 +74,11 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
      * @param senderNickname  메시지를 보낸 사용자 닉네임
      * @param messageContent  메시지 내용 (100자 초과시 잘림)
      * @param chatRoomId      채팅방 ID
+     * @param senderAvatarUrl 발신자 프로필 이미지 URL (없으면 null)
      */
     @Override
     @Async
-    public void sendNewMessageNotificationBulk(List<Long> receiverUserIds, String senderNickname, String messageContent, Long chatRoomId) {
+    public void sendNewMessageNotificationBulk(List<Long> receiverUserIds, String senderNickname, String messageContent, Long chatRoomId, String senderAvatarUrl) {
         if (receiverUserIds.isEmpty()) {
             return;
         }
@@ -91,12 +96,14 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
 
         String title = senderNickname;
         String body = truncateMessage(messageContent);
-        Map<String, String> data = Map.of(
-                "type", "NEW_MESSAGE",
-                "chatRoomId", chatRoomId.toString()
-        );
+        Map<String, String> data = new HashMap<>();
+        data.put("type", "NEW_MESSAGE");
+        data.put("chatRoomId", chatRoomId.toString());
+        if (senderAvatarUrl != null) {
+            data.put("avatarUrl", senderAvatarUrl);
+        }
 
-        int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data);
+        int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data, senderAvatarUrl);
         log.info("Bulk new message push sent to {} users: {}/{} devices", receiverUserIds.size(), sentCount, tokenStrings.size());
     }
 
@@ -127,7 +134,7 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
                 "type", "FRIEND_REQUEST"
         );
 
-        int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data);
+        int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data, null);
         log.info("Friend request push sent to user {}: {}/{} devices", receiverUserId, sentCount, tokenStrings.size());
     }
 

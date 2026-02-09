@@ -51,7 +51,7 @@ class FcmPushNotificationSenderTest {
                     new FcmPushNotificationSender(null, deviceTokenRepository);
 
             // when
-            boolean result = senderWithoutFirebase.send("token", "title", "body", Map.of());
+            boolean result = senderWithoutFirebase.send("token", "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isFalse();
@@ -69,7 +69,7 @@ class FcmPushNotificationSenderTest {
             given(firebaseMessaging.send(any(Message.class))).willReturn("message-id-123");
 
             // when
-            boolean result = sender.send(token, title, body, data);
+            boolean result = sender.send(token, title, body, data, null);
 
             // then
             assertThat(result).isTrue();
@@ -97,7 +97,7 @@ class FcmPushNotificationSenderTest {
             given(deviceTokenRepository.findByToken(token)).willReturn(Optional.of(deviceToken));
 
             // when
-            boolean result = sender.send(token, "title", "body", Map.of());
+            boolean result = sender.send(token, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isFalse();
@@ -124,7 +124,7 @@ class FcmPushNotificationSenderTest {
             given(deviceTokenRepository.findByToken(token)).willReturn(Optional.of(deviceToken));
 
             // when
-            boolean result = sender.send(token, "title", "body", Map.of());
+            boolean result = sender.send(token, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isFalse();
@@ -143,7 +143,7 @@ class FcmPushNotificationSenderTest {
             given(firebaseMessaging.send(any(Message.class))).willThrow(exception);
 
             // when
-            boolean result = sender.send(token, "title", "body", Map.of());
+            boolean result = sender.send(token, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isFalse();
@@ -162,7 +162,7 @@ class FcmPushNotificationSenderTest {
             given(deviceTokenRepository.findByToken(token)).willReturn(Optional.empty());
 
             // when
-            boolean result = sender.send(token, "title", "body", Map.of());
+            boolean result = sender.send(token, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isFalse();
@@ -183,7 +183,7 @@ class FcmPushNotificationSenderTest {
             List<String> tokens = List.of("token1", "token2");
 
             // when
-            int result = senderWithoutFirebase.sendMultiple(tokens, "title", "body", Map.of());
+            int result = senderWithoutFirebase.sendMultiple(tokens, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isZero();
@@ -196,7 +196,7 @@ class FcmPushNotificationSenderTest {
             List<String> tokens = List.of();
 
             // when
-            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isZero();
@@ -216,7 +216,7 @@ class FcmPushNotificationSenderTest {
                     .willReturn(batchResponse);
 
             // when
-            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isEqualTo(3);
@@ -255,7 +255,7 @@ class FcmPushNotificationSenderTest {
                     .willReturn(Optional.of(invalidDeviceToken));
 
             // when
-            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isEqualTo(1);
@@ -285,7 +285,7 @@ class FcmPushNotificationSenderTest {
                     .willReturn(batchResponse2);
 
             // when
-            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isEqualTo(600);
@@ -303,7 +303,7 @@ class FcmPushNotificationSenderTest {
                     .willThrow(exception);
 
             // when
-            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isZero();
@@ -327,7 +327,7 @@ class FcmPushNotificationSenderTest {
                     .willReturn(batchResponse);
 
             // when
-            int result = sender.sendMultiple(tokens, "title", "body", Map.of());
+            int result = sender.sendMultiple(tokens, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isZero();

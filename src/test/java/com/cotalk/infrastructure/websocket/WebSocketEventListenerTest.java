@@ -37,9 +37,12 @@ class WebSocketEventListenerTest {
     @Mock
     private ChatRoomPresenceTracker chatRoomPresenceTracker;
 
+    @Mock
+    private com.cotalk.infrastructure.metrics.CustomMetrics customMetrics;
+
     @BeforeEach
     void setUp() {
-        eventListener = new WebSocketEventListener(updateUserOnlineStatusUseCase, chatRoomPresenceTracker);
+        eventListener = new WebSocketEventListener(updateUserOnlineStatusUseCase, chatRoomPresenceTracker, customMetrics);
     }
 
     @Nested

@@ -19,9 +19,10 @@ public interface PushNotificationSender {
      * @param title 알림 제목
      * @param body  알림 내용
      * @param data  추가 데이터 (key-value 쌍)
+     * @param imageUrl 알림에 표시할 이미지 URL (없으면 null)
      * @return 전송 성공 여부
      */
-    boolean send(String token, String title, String body, Map<String, String> data);
+    boolean send(String token, String title, String body, Map<String, String> data, String imageUrl);
 
     /**
      * 여러 디바이스에 푸시 알림을 전송한다.
@@ -30,7 +31,8 @@ public interface PushNotificationSender {
      * @param title  알림 제목
      * @param body   알림 내용
      * @param data   추가 데이터 (key-value 쌍)
+     * @param imageUrl 알림에 표시할 이미지 URL (없으면 null)
      * @return 성공한 전송 수
      */
-    int sendMultiple(List<String> tokens, String title, String body, Map<String, String> data);
+    int sendMultiple(List<String> tokens, String title, String body, Map<String, String> data, String imageUrl);
 }

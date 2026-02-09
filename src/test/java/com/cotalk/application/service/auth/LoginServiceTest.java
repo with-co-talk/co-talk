@@ -8,6 +8,7 @@ import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.infrastructure.metrics.CustomMetrics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,11 +39,14 @@ class LoginServiceTest {
     @Mock
     private UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
 
+    @Mock
+    private CustomMetrics customMetrics;
+
     private LoginService loginService;
 
     @BeforeEach
     void setUp() {
-        loginService = new LoginService(userRepository, passwordEncoder, authTokenPort, updateUserOnlineStatusUseCase);
+        loginService = new LoginService(userRepository, passwordEncoder, authTokenPort, updateUserOnlineStatusUseCase, customMetrics);
     }
 
     @Nested

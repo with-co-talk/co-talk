@@ -141,6 +141,8 @@ public class SendMessageService implements SendMessageUseCase {
      * @return 저장된 메시지와 브로드캐스트 컨텍스트
      */
     private SendResult doSendMessage(Long chatRoomId, Long senderId, Message message, String notificationContent) {
+        var timerSample = customMetrics.startMessageProcessingTimer();
+
         // Pre-fetch ONCE: 중복 쿼리 방지
         List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(chatRoomId);
         User sender = userRepository.findById(senderId).orElse(null);
@@ -170,8 +172,9 @@ public class SendMessageService implements SendMessageUseCase {
         }
 
         // 푸시 알림 전송 (사전 조회된 데이터 사용, 추가 DB 쿼리 없음)
-        sendPushNotificationsToOtherMembers(chatRoomId, senderId, notificationContent, senderNickname, members);
+        sendPushNotificationsToOtherMembers(chatRoomId, senderId, notificationContent, senderNickname, senderAvatarUrl, members);
 
+        customMetrics.stopMessageProcessingTimer(timerSample);
         return new SendResult(savedMessage, senderNickname, senderAvatarUrl, members);
     }
 
@@ -277,10 +280,11 @@ public class SendMessageService implements SendMessageUseCase {
      * @param senderId 발신자 ID
      * @param content 알림 내용
      * @param senderNickname 발신자 닉네임 (사전 조회됨)
+     * @param senderAvatarUrl 발신자 프로필 이미지 URL (없으면 null)
      * @param members 채팅방 멤버 목록 (사전 조회됨)
      */
     private void sendPushNotificationsToOtherMembers(Long chatRoomId, Long senderId, String content,
-                                                      String senderNickname, List<ChatRoomMember> members) {
+                                                      String senderNickname, String senderAvatarUrl, List<ChatRoomMember> members) {
         // 채팅방의 다른 멤버들 중 현재 채팅방을 보고 있지 않은 사용자만 필터링
         // (채팅방에 있는 사용자는 WebSocket으로 실시간 메시지를 받으므로 푸시 불필요)
         List<Long> receiverUserIds = members.stream()
@@ -295,7 +299,8 @@ public class SendMessageService implements SendMessageUseCase {
                     receiverUserIds,
                     senderNickname,
                     content,
-                    chatRoomId
+                    chatRoomId,
+                    senderAvatarUrl
             );
             log.debug("Push notification sent to {} users (excluded {} active users in room)",
                     receiverUserIds.size(),

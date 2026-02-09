@@ -13,6 +13,7 @@ import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
+import com.cotalk.infrastructure.metrics.CustomMetrics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -66,6 +67,9 @@ class SendMessageServiceTest {
     @Mock
     private UserEventBroker userEventBroker;
 
+    @Mock
+    private CustomMetrics customMetrics;
+
     private ChatRoomMemberValidator chatRoomMemberValidator;
 
     private SendMessageService sendMessageService;
@@ -76,7 +80,7 @@ class SendMessageServiceTest {
         sendMessageService = new SendMessageService(
                 messageRepository, chatRoomMemberRepository, userRepository, idGenerator,
                 sendPushNotificationUseCase, chatRoomMemberValidator, chatRoomPresenceTracker,
-                messageLinkPreviewService, chatMessageBroker, userEventBroker);
+                customMetrics, messageLinkPreviewService, chatMessageBroker, userEventBroker);
 
         // Default mock behavior (lenient to avoid UnnecessaryStubbingException)
         lenient().when(chatRoomMemberRepository.updateLastReadMessageIdIfNewer(anyLong(), anyLong(), any(), anyLong()))
@@ -135,7 +139,7 @@ class SendMessageServiceTest {
 
             // 벌크 푸시 알림이 수신자에게 전송되었는지 검증
             verify(sendPushNotificationUseCase).sendNewMessageNotificationBulk(
-                    List.of(receiverId), "발신자", content, chatRoomId);
+                    eq(List.of(receiverId)), eq("발신자"), eq(content), eq(chatRoomId), nullable(String.class));
         }
 
         @Test
@@ -396,7 +400,7 @@ class SendMessageServiceTest {
 
             // then
             verify(sendPushNotificationUseCase).sendNewMessageNotificationBulk(
-                    List.of(receiverId), "발신자", "📷 사진을 보냈습니다.", chatRoomId);
+                    eq(List.of(receiverId)), eq("발신자"), eq("📷 사진을 보냈습니다."), eq(chatRoomId), nullable(String.class));
         }
 
         @Test
@@ -461,7 +465,7 @@ class SendMessageServiceTest {
             @SuppressWarnings("unchecked")
             ArgumentCaptor<List<Long>> receiverIdsCaptor = ArgumentCaptor.forClass(List.class);
             verify(sendPushNotificationUseCase).sendNewMessageNotificationBulk(
-                    receiverIdsCaptor.capture(), anyString(), anyString(), anyLong());
+                    receiverIdsCaptor.capture(), anyString(), anyString(), anyLong(), nullable(String.class));
 
             assertThat(receiverIdsCaptor.getValue())
                     .containsExactlyInAnyOrder(receiver1Id, receiver2Id)
@@ -494,7 +498,7 @@ class SendMessageServiceTest {
             // then
             ArgumentCaptor<String> nicknameCaptor = ArgumentCaptor.forClass(String.class);
             verify(sendPushNotificationUseCase).sendNewMessageNotificationBulk(
-                    anyList(), nicknameCaptor.capture(), anyString(), anyLong());
+                    anyList(), nicknameCaptor.capture(), anyString(), anyLong(), nullable(String.class));
 
             assertThat(nicknameCaptor.getValue()).isEqualTo("알 수 없음");
         }
@@ -524,7 +528,7 @@ class SendMessageServiceTest {
 
             // then
             verify(sendPushNotificationUseCase, never()).sendNewMessageNotificationBulk(
-                    anyList(), anyString(), anyString(), anyLong());
+                    anyList(), anyString(), anyString(), anyLong(), nullable(String.class));
         }
     }
 }

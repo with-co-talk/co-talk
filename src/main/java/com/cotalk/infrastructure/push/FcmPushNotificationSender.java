@@ -57,11 +57,12 @@ public class FcmPushNotificationSender implements PushNotificationSender {
      * @param title 알림 제목
      * @param body  알림 본문
      * @param data  추가 데이터 맵
+     * @param imageUrl 알림에 표시할 이미지 URL (없으면 null)
      * @return 전송 성공 시 {@code true}, 실패 시 {@code false}
      */
     @Override
     @Transactional
-    public boolean send(String token, String title, String body, Map<String, String> data) {
+    public boolean send(String token, String title, String body, Map<String, String> data, String imageUrl) {
         if (firebaseMessaging == null) {
             log.debug("Firebase is not configured. Skipping push notification.");
             return false;
@@ -70,7 +71,7 @@ public class FcmPushNotificationSender implements PushNotificationSender {
         try {
             Message message = Message.builder()
                     .setToken(token)
-                    .setNotification(createNotification(title, body))
+                    .setNotification(createNotification(title, body, imageUrl))
                     .putAllData(data)
                     .setAndroidConfig(createAndroidConfig())
                     .setApnsConfig(createApnsConfig())
@@ -95,11 +96,12 @@ public class FcmPushNotificationSender implements PushNotificationSender {
      * @param title  알림 제목
      * @param body   알림 본문
      * @param data   추가 데이터 맵
+     * @param imageUrl 알림에 표시할 이미지 URL (없으면 null)
      * @return 성공적으로 전송된 알림 수
      */
     @Override
     @Transactional
-    public int sendMultiple(List<String> tokens, String title, String body, Map<String, String> data) {
+    public int sendMultiple(List<String> tokens, String title, String body, Map<String, String> data, String imageUrl) {
         if (firebaseMessaging == null) {
             log.debug("Firebase is not configured. Skipping push notifications.");
             return 0;
@@ -112,7 +114,7 @@ public class FcmPushNotificationSender implements PushNotificationSender {
         int successCount = 0;
         for (int i = 0; i < tokens.size(); i += FCM_BATCH_SIZE) {
             List<String> batch = tokens.subList(i, Math.min(i + FCM_BATCH_SIZE, tokens.size()));
-            successCount += sendBatch(batch, title, body, data);
+            successCount += sendBatch(batch, title, body, data, imageUrl);
         }
         return successCount;
     }
@@ -124,13 +126,14 @@ public class FcmPushNotificationSender implements PushNotificationSender {
      * @param title  알림 제목
      * @param body   알림 본문
      * @param data   추가 데이터 맵
+     * @param imageUrl 알림에 표시할 이미지 URL (없으면 null)
      * @return 성공적으로 전송된 알림 수
      */
-    private int sendBatch(List<String> tokens, String title, String body, Map<String, String> data) {
+    private int sendBatch(List<String> tokens, String title, String body, Map<String, String> data, String imageUrl) {
         try {
             MulticastMessage message = MulticastMessage.builder()
                     .addAllTokens(tokens)
-                    .setNotification(createNotification(title, body))
+                    .setNotification(createNotification(title, body, imageUrl))
                     .putAllData(data)
                     .setAndroidConfig(createAndroidConfig())
                     .setApnsConfig(createApnsConfig())
@@ -239,13 +242,17 @@ public class FcmPushNotificationSender implements PushNotificationSender {
      *
      * @param title 알림 제목
      * @param body  알림 본문
+     * @param imageUrl 알림에 표시할 이미지 URL (없으면 null)
      * @return Notification 객체
      */
-    private Notification createNotification(String title, String body) {
-        return Notification.builder()
+    private Notification createNotification(String title, String body, String imageUrl) {
+        Notification.Builder builder = Notification.builder()
                 .setTitle(title)
-                .setBody(body)
-                .build();
+                .setBody(body);
+        if (imageUrl != null && !imageUrl.isBlank()) {
+            builder.setImage(imageUrl);
+        }
+        return builder.build();
     }
 
     /**

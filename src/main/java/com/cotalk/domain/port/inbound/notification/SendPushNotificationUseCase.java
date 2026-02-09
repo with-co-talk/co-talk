@@ -17,8 +17,9 @@ public interface SendPushNotificationUseCase {
      * @param senderNickname 메시지 발신자 닉네임
      * @param messageContent 메시지 내용 (미리보기)
      * @param chatRoomId 채팅방 ID
+     * @param senderAvatarUrl 발신자 프로필 이미지 URL (없으면 null)
      */
-    void sendNewMessageNotification(Long receiverUserId, String senderNickname, String messageContent, Long chatRoomId);
+    void sendNewMessageNotification(Long receiverUserId, String senderNickname, String messageContent, Long chatRoomId, String senderAvatarUrl);
 
     /**
      * 여러 사용자에게 새 메시지 알림을 벌크 전송한다.
@@ -27,8 +28,9 @@ public interface SendPushNotificationUseCase {
      * @param senderNickname  메시지 발신자 닉네임
      * @param messageContent  메시지 내용 (미리보기)
      * @param chatRoomId      채팅방 ID
+     * @param senderAvatarUrl 발신자 프로필 이미지 URL (없으면 null)
      */
-    void sendNewMessageNotificationBulk(List<Long> receiverUserIds, String senderNickname, String messageContent, Long chatRoomId);
+    void sendNewMessageNotificationBulk(List<Long> receiverUserIds, String senderNickname, String messageContent, Long chatRoomId, String senderAvatarUrl);
 
     /**
      * 특정 사용자에게 친구 요청 알림을 전송한다.
