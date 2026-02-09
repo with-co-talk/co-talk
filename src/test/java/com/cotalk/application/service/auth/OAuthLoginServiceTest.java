@@ -5,6 +5,7 @@ import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.infrastructure.metrics.CustomMetrics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +34,9 @@ class OAuthLoginServiceTest {
 
     @Mock
     private IdGenerator idGenerator;
+
+    @Mock
+    private CustomMetrics customMetrics;
 
     @InjectMocks
     private OAuthLoginService oAuthLoginService;

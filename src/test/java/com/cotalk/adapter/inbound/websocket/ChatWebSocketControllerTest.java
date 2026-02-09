@@ -19,6 +19,7 @@ import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase.Reaction
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase.FileMessageCommand;
+import com.cotalk.infrastructure.metrics.CustomMetrics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,6 +66,9 @@ class ChatWebSocketControllerTest {
 
     @Mock
     private PublishChatListUpdateUseCase publishChatListUpdateUseCase;
+
+    @Mock
+    private CustomMetrics customMetrics;
 
     @InjectMocks
     private ChatWebSocketController chatWebSocketController;
