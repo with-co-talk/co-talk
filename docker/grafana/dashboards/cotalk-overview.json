@@ -29,8 +29,9 @@
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
       "id": 1,
       "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto", "orientation": "auto" },
-      "targets": [{ "expr": "up{job=\"cotalk-app\"}", "legendFormat": "{{color}}", "refId": "A" }],
+      "targets": [{ "expr": "max(up{job=\"cotalk-app\"})", "legendFormat": "서비스", "refId": "A" }],
       "title": "앱 상태",
+      "description": "Blue-Green 중 활성 앱의 상태 (1개만 실행이 정상)",
       "type": "stat"
     },
     {
