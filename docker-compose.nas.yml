@@ -13,8 +13,7 @@ services:
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./docker/nginx/upstream.conf:/etc/nginx/upstream.conf:ro
-    depends_on:
-      - app-blue
+    # depends_on 제거 - blue/green 어느 쪽이든 먼저 뜰 수 있으므로
     networks:
       - cotalk-network
     healthcheck:
@@ -141,8 +140,7 @@ services:
     image: postgres:16-alpine
     container_name: cotalk-postgres
     restart: unless-stopped
-    ports:
-      - "${POSTGRES_PORT:-15432}:5432"
+    # 외부 포트 노출 없음 - 도커 내부 네트워크에서 postgres:5432로 접근
     environment:
       POSTGRES_DB: cotalk
       POSTGRES_USER: ${DB_USERNAME:-cotalk}
@@ -169,8 +167,7 @@ services:
     image: redis:7-alpine
     container_name: cotalk-redis
     restart: unless-stopped
-    ports:
-      - "${REDIS_PORT:-16379}:6379"
+    # 외부 포트 노출 없음 - 도커 내부 네트워크에서 redis:6379로 접근
     command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
@@ -193,9 +190,7 @@ services:
     image: minio/minio:latest
     container_name: cotalk-minio
     restart: unless-stopped
-    ports:
-      - "${MINIO_API_PORT:-19000}:9000"
-      - "${MINIO_CONSOLE_PORT:-19001}:9001"
+    # 외부 포트 노출 없음 - 도커 내부 네트워크에서 minio:9000으로 접근
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
