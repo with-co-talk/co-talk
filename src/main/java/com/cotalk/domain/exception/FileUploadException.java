@@ -34,7 +34,9 @@ public class FileUploadException extends DomainException {
      * @return FileUploadException
      */
     public static FileUploadException invalidFileSignature(String contentType) {
-        return new FileUploadException("파일 시그니처가 Content-Type과 일치하지 않습니다: " + contentType);
+        return new FileUploadException(
+                "파일 시그니처가 선언된 Content-Type과 일치하지 않습니다: " + contentType +
+                ". 파일이 손상되었거나 확장자가 실제 형식과 다를 수 있습니다.");
     }
 
     /**
