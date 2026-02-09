@@ -204,6 +204,113 @@ services:
         limits:
           memory: 512M
 
+  # ===========================================
+  # 모니터링 - Prometheus
+  # ===========================================
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: cotalk-prometheus
+    restart: unless-stopped
+    # 외부 포트 불필요 - Grafana가 내부 네트워크에서 접근
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - cotalk-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ===========================================
+  # 모니터링 - Grafana
+  # ===========================================
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: cotalk-grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-13001}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - cotalk-network
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ===========================================
+  # 분산 추적 - Zipkin
+  # ===========================================
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: cotalk-zipkin
+    restart: unless-stopped
+    # 외부 포트 불필요 - Grafana/내부에서 접근
+    environment:
+      - STORAGE_TYPE=mem
+    networks:
+      - cotalk-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ===========================================
+  # 로그 수집 - Loki
+  # ===========================================
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: cotalk-loki
+    restart: unless-stopped
+    # 외부 포트 불필요 - Grafana가 내부에서 접근
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./docker/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - cotalk-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ===========================================
+  # 알림 - Alertmanager
+  # ===========================================
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: cotalk-alertmanager
+    restart: unless-stopped
+    # 외부 포트 불필요 - Prometheus가 내부에서 접근
+    volumes:
+      - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - cotalk-network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
 networks:
   cotalk-network:
     driver: bridge
@@ -212,3 +319,7 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  alertmanager-data:
