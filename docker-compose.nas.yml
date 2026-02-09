@@ -55,6 +55,9 @@ services:
       # Firebase 설정 (푸시 알림)
       - FIREBASE_ENABLED=true
       - FIREBASE_CREDENTIALS_PATH=/tmp/firebase-service-account.json
+      # 모니터링 연동
+      - TRACING_ENABLED=true
+      - ZIPKIN_ENDPOINT=http://zipkin:9411/api/v2/spans
     volumes:
       # Firebase 서비스 계정 키 마운트 (컨테이너 /tmp에 마운트)
       - ${HOME}/firebase-service-account.json:/tmp/firebase-service-account.json
@@ -109,6 +112,9 @@ services:
       # Firebase 설정 (푸시 알림)
       - FIREBASE_ENABLED=true
       - FIREBASE_CREDENTIALS_PATH=/tmp/firebase-service-account.json
+      # 모니터링 연동
+      - TRACING_ENABLED=true
+      - ZIPKIN_ENDPOINT=http://zipkin:9411/api/v2/spans
     volumes:
       # Firebase 서비스 계정 키 마운트 (컨테이너 /tmp에 마운트)
       - ${HOME}/firebase-service-account.json:/tmp/firebase-service-account.json
@@ -252,6 +258,8 @@ services:
       - cotalk-network
     depends_on:
       - prometheus
+      - loki
+      - zipkin
     deploy:
       resources:
         limits:
@@ -293,6 +301,28 @@ services:
       resources:
         limits:
           memory: 256M
+
+  # ===========================================
+  # 로그 수집 에이전트 - Promtail
+  # ===========================================
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: cotalk-promtail
+    restart: unless-stopped
+    user: root
+    volumes:
+      - ./docker/promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - cotalk-network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   # ===========================================
   # 알림 - Alertmanager
