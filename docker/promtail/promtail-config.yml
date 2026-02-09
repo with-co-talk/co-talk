@@ -9,14 +9,6 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  - job_name: docker
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: docker
-          __path__: /var/log/docker/*-json.log
-
   - job_name: cotalk-containers
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
@@ -25,14 +17,19 @@ scrape_configs:
           - name: label
             values: ["com.docker.compose.project"]
     relabel_configs:
+      # 컨테이너 이름에서 / 제거
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'
         target_label: 'container'
       - source_labels: ['__meta_docker_container_log_stream']
         target_label: 'logstream'
+      # compose 서비스 이름
       - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
         target_label: 'service'
+      # app-blue/app-green → job=cotalk-app 으로 통일
       - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
         regex: 'app-blue|app-green'
         target_label: 'job'
         replacement: 'cotalk-app'
+    pipeline_stages:
+      - docker: {}

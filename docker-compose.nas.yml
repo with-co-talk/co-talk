@@ -313,7 +313,8 @@ services:
     volumes:
       - ./docker/promtail/promtail-config.yml:/etc/promtail/config.yml
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # Synology NAS Docker 로그 경로 (docker info | grep "Docker Root Dir" 로 확인)
+      - ${DOCKER_ROOT_DIR:-/volume1/@docker}/containers:/var/lib/docker/containers:ro
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
