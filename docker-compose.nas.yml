@@ -213,6 +213,7 @@ services:
     image: prom/prometheus:v2.48.0
     container_name: cotalk-prometheus
     restart: unless-stopped
+    user: root
     # 외부 포트 불필요 - Grafana가 내부 네트워크에서 접근
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -237,6 +238,7 @@ services:
     image: grafana/grafana:10.2.2
     container_name: cotalk-grafana
     restart: unless-stopped
+    user: root
     ports:
       - "${GRAFANA_PORT:-13001}:3000"
     environment:
@@ -280,6 +282,7 @@ services:
     image: grafana/loki:2.9.2
     container_name: cotalk-loki
     restart: unless-stopped
+    user: root
     # 외부 포트 불필요 - Grafana가 내부에서 접근
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
@@ -299,6 +302,7 @@ services:
     image: prom/alertmanager:v0.26.0
     container_name: cotalk-alertmanager
     restart: unless-stopped
+    user: root
     # 외부 포트 불필요 - Prometheus가 내부에서 접근
     volumes:
       - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
