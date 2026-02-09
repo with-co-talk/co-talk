@@ -2,6 +2,7 @@ package com.cotalk.infrastructure.websocket;
 
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
+import com.cotalk.infrastructure.metrics.CustomMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -35,6 +36,7 @@ public class WebSocketEventListener {
 
     private final UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
     private final ChatRoomPresenceTracker chatRoomPresenceTracker;
+    private final CustomMetrics customMetrics;
 
     /**
      * subscriptionId -> roomId 매핑(세션별).
@@ -59,6 +61,7 @@ public class WebSocketEventListener {
             try {
                 Long userId = Long.parseLong(userIdStr);
                 updateUserOnlineStatusUseCase.setOnline(userId);
+                customMetrics.incrementWebSocketConnections();
                 String sessionId = headerAccessor.getSessionId();
                 if (sessionId != null) {
                     userSessions.computeIfAbsent(userId, k -> ConcurrentHashMap.newKeySet()).add(sessionId);
@@ -92,6 +95,7 @@ public class WebSocketEventListener {
 
                 // 멀티 세션 지원: 마지막 세션이 끊어질 때만 오프라인 처리
                 Set<String> sessions = userSessions.get(userId);
+                customMetrics.decrementWebSocketConnections();
                 if (sessions != null) {
                     sessions.remove(sessionId);
                     if (sessions.isEmpty()) {

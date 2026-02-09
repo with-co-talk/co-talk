@@ -20,6 +20,7 @@ import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase.Reaction
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase.FileMessageCommand;
+import com.cotalk.infrastructure.metrics.CustomMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -68,6 +69,7 @@ public class ChatWebSocketController {
     private final PublishTypingStatusUseCase publishTypingStatusUseCase;
     private final UpdatePresenceStatusUseCase updatePresenceStatusUseCase;
     private final PublishChatListUpdateUseCase publishChatListUpdateUseCase;
+    private final CustomMetrics customMetrics;
 
     /**
      * 텍스트 채팅 메시지를 전송합니다.
@@ -92,6 +94,7 @@ public class ChatWebSocketController {
             return;
         }
 
+        customMetrics.incrementMessagesReceived();
         log.debug("Received message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
 
         // 메시지 저장 + 컨텍스트 조회 (sender, members 한 번만 조회)
@@ -137,6 +140,7 @@ public class ChatWebSocketController {
             return;
         }
 
+        customMetrics.incrementMessagesReceived();
         log.debug("Received file message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
 
         FileMessageCommand command = new FileMessageCommand(
