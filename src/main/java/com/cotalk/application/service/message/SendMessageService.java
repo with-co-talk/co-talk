@@ -17,6 +17,7 @@ import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.util.HtmlSanitizer;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
+import com.cotalk.infrastructure.metrics.CustomMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,6 +46,7 @@ public class SendMessageService implements SendMessageUseCase {
     private final SendPushNotificationUseCase sendPushNotificationUseCase;
     private final ChatRoomMemberValidator chatRoomMemberValidator;
     private final ChatRoomPresenceTracker chatRoomPresenceTracker;
+    private final CustomMetrics customMetrics;
     private final MessageLinkPreviewService messageLinkPreviewService;
     private final ChatMessageBroker chatMessageBroker;
     private final UserEventBroker userEventBroker;
@@ -156,6 +158,7 @@ public class SendMessageService implements SendMessageUseCase {
 
         // 메시지 저장
         Message savedMessage = messageRepository.save(message);
+        customMetrics.incrementMessagesSent();
 
         // 발신자는 자신이 보낸 메시지를 읽은 것으로 간주하여 lastReadMessageId 업데이트
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
