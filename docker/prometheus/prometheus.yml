@@ -17,7 +17,7 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # Spring Boot 애플리케이션 메트릭
+  # Spring Boot 애플리케이션 메트릭 (Blue/Green)
   - job_name: 'cotalk-app'
     metrics_path: '/actuator/prometheus'
     scrape_interval: 5s
@@ -25,22 +25,6 @@ scrape_configs:
       - targets: ['app-blue:8080', 'app-green:8080']
     relabel_configs:
       - source_labels: [__address__]
-        target_label: instance
-
-  # PostgreSQL 메트릭 (postgres_exporter 사용 시)
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['postgres:5432']
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: 'cotalk-postgres'
-
-  # Redis 메트릭 (redis_exporter 사용 시)
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis:6379']
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: 'cotalk-redis'
+        regex: 'app-(.+):8080'
+        target_label: color
+        replacement: '$1'
