@@ -180,8 +180,19 @@ health_check() {
     return 1
 }
 
-# Reload nginx configuration
+# Reload nginx configuration (start if not running)
 reload_nginx() {
+    if ! dc ps nginx 2>/dev/null | grep -q "Up\|running"; then
+        log_info "Nginx is not running. Starting..."
+        if dc up -d nginx; then
+            log_success "Nginx started successfully"
+            return 0
+        else
+            log_error "Failed to start nginx"
+            return 1
+        fi
+    fi
+
     log_info "Reloading nginx configuration..."
     if dc exec -T nginx nginx -s reload; then
         log_success "Nginx reloaded successfully"
@@ -243,6 +254,51 @@ rollback() {
     log_success "Active color: ${rollback_color}"
 }
 
+# Ensure backend infrastructure services (DB, cache, storage) are running
+ensure_infrastructure() {
+    local services=("postgres" "redis" "minio")
+
+    for svc in "${services[@]}"; do
+        if ! dc ps "$svc" 2>/dev/null | grep -q "Up\|running"; then
+            log_warn "${svc} is not running. Starting..."
+            if ! dc up -d "$svc"; then
+                log_error "Failed to start ${svc}"
+                exit 1
+            fi
+            log_success "Started ${svc}"
+        else
+            log_info "${svc} is already running"
+        fi
+    done
+
+    # Wait for postgres and redis to be healthy before proceeding
+    log_info "Waiting for database and cache to be healthy..."
+    local infra_wait=0
+    local infra_timeout=60
+    while [ $infra_wait -lt $infra_timeout ]; do
+        local pg_healthy=false
+        local redis_healthy=false
+
+        if dc ps postgres 2>/dev/null | grep -q "healthy"; then
+            pg_healthy=true
+        fi
+        if dc ps redis 2>/dev/null | grep -q "healthy"; then
+            redis_healthy=true
+        fi
+
+        if [ "$pg_healthy" = true ] && [ "$redis_healthy" = true ]; then
+            log_success "Infrastructure services are healthy"
+            return 0
+        fi
+
+        sleep 3
+        infra_wait=$((infra_wait + 3))
+    done
+
+    log_error "Infrastructure services failed to become healthy within ${infra_timeout}s"
+    exit 1
+}
+
 # ===========================================
 # Main Deployment Function
 # ===========================================
@@ -270,6 +326,9 @@ deploy() {
 
     # Check dependencies
     check_dependencies
+
+    # Ensure infrastructure services (nginx, postgres, redis, minio) are running
+    ensure_infrastructure
 
     # Determine current and target colors
     local current_color
