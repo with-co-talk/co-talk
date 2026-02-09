@@ -99,11 +99,22 @@ public class ChatWebSocketController {
                 request.roomId(), authenticatedUserId, request.content());
 
         // 브로드캐스트 (인바운드 유스케이스를 통해 처리)
-        broadcastChatMessageUseCase.broadcastMessage(
-                result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
+        // 실패해도 메시지는 저장됨 - 다음 조회 시 표시
+        try {
+            broadcastChatMessageUseCase.broadcastMessage(
+                    result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
+        } catch (Exception e) {
+            log.error("[WS] Failed to broadcast message: messageId={}, roomId={}",
+                    result.message().getId(), request.roomId(), e);
+        }
 
         // 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
-        publishChatListUpdateUseCase.publishChatListUpdate(result.message(), result.members(), result.senderNickname());
+        try {
+            publishChatListUpdateUseCase.publishChatListUpdate(result.message(), result.members(), result.senderNickname());
+        } catch (Exception e) {
+            log.error("[WS] Failed to publish chat list update: messageId={}, roomId={}",
+                    result.message().getId(), request.roomId(), e);
+        }
     }
 
     /**
@@ -141,11 +152,22 @@ public class ChatWebSocketController {
                 request.roomId(), authenticatedUserId, command);
 
         // 브로드캐스트 (인바운드 유스케이스를 통해 처리)
-        broadcastChatMessageUseCase.broadcastMessage(
-                result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
+        // 실패해도 메시지는 저장됨 - 다음 조회 시 표시
+        try {
+            broadcastChatMessageUseCase.broadcastMessage(
+                    result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
+        } catch (Exception e) {
+            log.error("[WS] Failed to broadcast file message: messageId={}, roomId={}",
+                    result.message().getId(), request.roomId(), e);
+        }
 
         // 채팅 목록 업데이트 이벤트를 채팅방 참여자들에게 브로드캐스트
-        publishChatListUpdateUseCase.publishChatListUpdate(result.message(), result.members(), result.senderNickname());
+        try {
+            publishChatListUpdateUseCase.publishChatListUpdate(result.message(), result.members(), result.senderNickname());
+        } catch (Exception e) {
+            log.error("[WS] Failed to publish chat list update for file message: messageId={}, roomId={}",
+                    result.message().getId(), request.roomId(), e);
+        }
     }
 
     /**
@@ -188,7 +210,13 @@ public class ChatWebSocketController {
         );
 
         // 반응 추가 이벤트를 인바운드 유스케이스를 통해 브로드캐스트
-        broadcastReactionEventUseCase.broadcastReactionEvent(result.reaction(), result.chatRoomId(), "ADDED");
+        // 실패해도 반응은 저장됨 - 다음 조회 시 표시
+        try {
+            broadcastReactionEventUseCase.broadcastReactionEvent(result.reaction(), result.chatRoomId(), "ADDED");
+        } catch (Exception e) {
+            log.error("[WS] Failed to broadcast reaction add: messageId={}, roomId={}, emoji={}",
+                    request.messageId(), result.chatRoomId(), request.emoji(), e);
+        }
     }
 
     /**
@@ -217,13 +245,19 @@ public class ChatWebSocketController {
         }
 
         // 반응 제거 이벤트를 인바운드 유스케이스를 통해 브로드캐스트
+        // 실패해도 반응은 제거됨 - 다음 조회 시 표시
         MessageReaction removedReaction = MessageReaction.builder()
                 .messageId(request.messageId())
                 .userId(authenticatedUserId)
                 .emoji(Emoji.fromString(request.emoji())
                         .orElseThrow(() -> new InvalidEmojiException(request.emoji())))
                 .build();
-        broadcastReactionEventUseCase.broadcastReactionEvent(removedReaction, chatRoomId, "REMOVED");
+        try {
+            broadcastReactionEventUseCase.broadcastReactionEvent(removedReaction, chatRoomId, "REMOVED");
+        } catch (Exception e) {
+            log.error("[WS] Failed to broadcast reaction remove: messageId={}, roomId={}, emoji={}",
+                    request.messageId(), chatRoomId, request.emoji(), e);
+        }
     }
 
     /**
