@@ -34,11 +34,17 @@ import java.util.UUID;
 @Service
 public class UploadFileService implements UploadFileUseCase {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UploadFileService.class);
+
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "image/jpeg",
             "image/png",
             "image/gif",
             "image/webp",
+            "image/heic",
+            "image/heif",
+            "video/mp4",
+            "video/quicktime",
             "application/pdf",
             "application/msword",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -51,12 +57,12 @@ public class UploadFileService implements UploadFileUseCase {
      * 파일 매직넘버(시그니처) 정의.
      * 각 파일 형식의 첫 바이트들을 기반으로 실제 파일 타입을 검증한다.
      */
-    private static final Map<String, byte[][]> MAGIC_NUMBERS = Map.of(
-            "image/jpeg", new byte[][]{{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}},
-            "image/png", new byte[][]{{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}},
-            "image/gif", new byte[][]{{0x47, 0x49, 0x46, 0x38, 0x37, 0x61}, {0x47, 0x49, 0x46, 0x38, 0x39, 0x61}},
-            "image/webp", new byte[][]{{0x52, 0x49, 0x46, 0x46}},
-            "application/pdf", new byte[][]{{0x25, 0x50, 0x44, 0x46}}
+    private static final Map<String, byte[][]> MAGIC_NUMBERS = Map.ofEntries(
+            Map.entry("image/jpeg", new byte[][]{{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}}),
+            Map.entry("image/png", new byte[][]{{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}}),
+            Map.entry("image/gif", new byte[][]{{0x47, 0x49, 0x46, 0x38, 0x37, 0x61}, {0x47, 0x49, 0x46, 0x38, 0x39, 0x61}}),
+            Map.entry("image/webp", new byte[][]{{0x52, 0x49, 0x46, 0x46}}),
+            Map.entry("application/pdf", new byte[][]{{0x25, 0x50, 0x44, 0x46}})
     );
 
     private static final int MAX_MAGIC_NUMBER_LENGTH = 8;
@@ -163,6 +169,8 @@ public class UploadFileService implements UploadFileUseCase {
             }
 
             if (!signatureMatched) {
+                log.warn("File signature mismatch: contentType={}, actualBytes={}", contentType,
+                        bytesToHex(fileHeader, bytesRead));
                 throw FileUploadException.invalidFileSignature(contentType);
             }
         } catch (IOException e) {
@@ -178,6 +186,21 @@ public class UploadFileService implements UploadFileUseCase {
             return false;
         }
         return Arrays.equals(Arrays.copyOf(data, signature.length), signature);
+    }
+
+    /**
+     * 바이트 배열을 16진수 문자열로 변환한다 (디버깅용).
+     *
+     * @param bytes  변환할 바이트 배열
+     * @param length 변환할 바이트 수
+     * @return 16진수 문자열
+     */
+    private String bytesToHex(byte[] bytes, int length) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < Math.min(length, bytes.length); i++) {
+            sb.append(String.format("%02X ", bytes[i]));
+        }
+        return sb.toString().trim();
     }
 
     private String generateStoragePath(Long userId, String originalFileName) {
