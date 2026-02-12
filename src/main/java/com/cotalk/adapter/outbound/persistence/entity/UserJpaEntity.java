@@ -56,6 +56,10 @@ public class UserJpaEntity extends BaseJpaEntity {
     @Builder.Default
     private User.OnlineStatus onlineStatus = User.OnlineStatus.OFFLINE;
 
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private boolean emailVerified = true;
+
     @Column(name = "last_active_at")
     private LocalDateTime lastActiveAt;
 

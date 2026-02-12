@@ -50,4 +50,18 @@ public class ConsoleEmailSender implements EmailSender {
         log.info("Reset Link: {}", resetLink);
         log.info("============================");
     }
+
+    /**
+     * 이메일 인증 이메일 내용을 콘솔에 출력한다.
+     *
+     * @param to               수신자 이메일 주소
+     * @param verificationLink 이메일 인증 링크 URL
+     */
+    @Override
+    public void sendVerificationEmail(String to, String verificationLink) {
+        log.info("=== Verification Email ===");
+        log.info("To: {}", to);
+        log.info("Verification Link: {}", verificationLink);
+        log.info("==========================");
+    }
 }

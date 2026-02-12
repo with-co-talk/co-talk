@@ -24,4 +24,12 @@ public interface EmailSender {
      * @param resetLink 비밀번호 재설정 링크
      */
     void sendPasswordResetEmail(String to, String resetLink);
+
+    /**
+     * 이메일 인증 이메일을 발송한다.
+     *
+     * @param to               수신자 이메일 주소
+     * @param verificationLink 이메일 인증 링크
+     */
+    void sendVerificationEmail(String to, String verificationLink);
 }

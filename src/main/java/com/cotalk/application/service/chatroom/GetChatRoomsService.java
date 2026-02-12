@@ -366,6 +366,7 @@ public class GetChatRoomsService implements GetChatRoomsUseCase, GetChatRoomUseC
         return new ChatRoomSummary(
                 chatRoom.getId(),
                 chatRoom.getName(),
+                chatRoom.getImageUrl(),
                 chatRoom.getType(),
                 chatRoom.getCreatedAt(),
                 lastMessageContent,
