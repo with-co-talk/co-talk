@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
@@ -50,28 +51,32 @@ public class AdminController {
 
     /**
      * 처리 대기 중인 신고 목록을 조회합니다.
+     * DB 레벨 페이지네이션을 사용하여 대규모 데이터에서도 효율적으로 동작합니다.
      *
-     * @return 대기 중인 신고 목록
+     * @param page 페이지 번호 (기본값: 0)
+     * @param size 페이지 크기 (기본값: 20, 최대: 100)
+     * @return 페이지네이션된 대기 중인 신고 목록
      */
     @Operation(summary = "대기 중인 신고 목록 조회", description = "처리 대기 중인 신고 목록을 조회합니다.")
     @GetMapping("/reports/pending")
     public ResponseEntity<AdminReportsResponse> getPendingReports(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<Report> reports = adminUseCase.getPendingReports();
         int safeSize = Math.min(size, 100);
-        List<AdminReportDto> reportDtos = reports.stream()
-                .skip((long) page * safeSize)
-                .limit(safeSize)
+        Page<Report> reportPage = adminUseCase.getPendingReports(PageRequest.of(page, safeSize));
+        List<AdminReportDto> reportDtos = reportPage.getContent().stream()
                 .map(AdminReportDto::from)
                 .toList();
-        return ResponseEntity.ok(AdminReportsResponse.of(reportDtos));
+        return ResponseEntity.ok(AdminReportsResponse.of(reportDtos, reportPage));
     }
 
     /**
      * 상태별 신고 목록을 조회합니다.
+     * 이 엔드포인트는 기존 호환성을 위해 인메모리 페이지네이션을 유지합니다.
      *
      * @param status 신고 상태 (null인 경우 전체 조회)
+     * @param page   페이지 번호 (기본값: 0)
+     * @param size   페이지 크기 (기본값: 20, 최대: 100)
      * @return 신고 목록
      */
     @Operation(summary = "신고 목록 조회", description = "상태별 신고 목록을 조회합니다.")
@@ -113,9 +118,12 @@ public class AdminController {
 
     /**
      * 모든 사용자 목록을 조회합니다.
+     * DB 레벨 페이지네이션을 사용하여 대규모 데이터에서도 효율적으로 동작합니다.
      *
      * @param status 사용자 상태 (null인 경우 전체 조회)
-     * @return 사용자 목록
+     * @param page   페이지 번호 (기본값: 0)
+     * @param size   페이지 크기 (기본값: 20, 최대: 100)
+     * @return 페이지네이션된 사용자 목록
      */
     @Operation(summary = "전체 사용자 목록 조회", description = "모든 사용자 목록을 조회합니다.")
     @GetMapping("/users")
@@ -123,16 +131,15 @@ public class AdminController {
             @RequestParam(required = false) User.UserStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<User> users = status == null
-                ? adminUseCase.getAllUsers()
-                : adminUseCase.getUsersByStatus(status);
         int safeSize = Math.min(size, 100);
-        List<AdminUserDto> userDtos = users.stream()
-                .skip((long) page * safeSize)
-                .limit(safeSize)
+        Pageable pageable = PageRequest.of(page, safeSize);
+        Page<User> userPage = status == null
+                ? adminUseCase.getAllUsers(pageable)
+                : adminUseCase.getUsersByStatus(status, pageable);
+        List<AdminUserDto> userDtos = userPage.getContent().stream()
                 .map(AdminUserDto::from)
                 .toList();
-        return ResponseEntity.ok(AdminUsersResponse.of(userDtos));
+        return ResponseEntity.ok(AdminUsersResponse.of(userDtos, userPage));
     }
 
     /**

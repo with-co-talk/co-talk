@@ -12,6 +12,8 @@ import com.cotalk.domain.port.outbound.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,6 +53,18 @@ public class AdminService implements AdminUseCase {
                 .stream()
                 .limit(MAX_ADMIN_LIST_SIZE)
                 .toList();
+    }
+
+    /**
+     * 처리 대기 중인 신고 목록을 DB 레벨 페이지네이션으로 조회한다.
+     *
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 대기 중인 신고 목록
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Report> getPendingReports(Pageable pageable) {
+        return reportRepository.findByStatus(Report.ReportStatus.PENDING, pageable);
     }
 
     /**
@@ -108,6 +122,18 @@ public class AdminService implements AdminUseCase {
     }
 
     /**
+     * 전체 사용자 목록을 DB 레벨 페이지네이션으로 조회한다.
+     *
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 사용자 목록
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<User> getAllUsers(Pageable pageable) {
+        return userRepository.findAll(pageable);
+    }
+
+    /**
      * 특정 상태의 사용자 목록을 조회한다.
      * 메모리 보호를 위해 최대 {@value MAX_ADMIN_LIST_SIZE}건으로 제한한다.
      *
@@ -121,6 +147,19 @@ public class AdminService implements AdminUseCase {
                 .stream()
                 .limit(MAX_ADMIN_LIST_SIZE)
                 .toList();
+    }
+
+    /**
+     * 특정 상태의 사용자 목록을 DB 레벨 페이지네이션으로 조회한다.
+     *
+     * @param status   필터링할 사용자 상태
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 사용자 목록
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<User> getUsersByStatus(User.UserStatus status, Pageable pageable) {
+        return userRepository.findByStatus(status, pageable);
     }
 
     /**

@@ -5,6 +5,8 @@ import com.cotalk.domain.entity.Friend;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -102,6 +104,20 @@ public class FriendRepositoryAdapter implements FriendRepository {
         return friendJpaRepository.findAcceptedFriendsWithUserData(userId).stream()
                 .map(userMapper::toDomain)
                 .toList();
+    }
+
+    /**
+     * 사용자의 수락된 친구 목록을 DB 레벨 페이지네이션으로 조회한다.
+     * N+1 쿼리를 방지하기 위한 최적화된 조회 메서드이다.
+     *
+     * @param userId   사용자 ID
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 친구 User 목록
+     */
+    @Override
+    public Page<User> findAcceptedFriendsWithUserData(Long userId, Pageable pageable) {
+        return friendJpaRepository.findAcceptedFriendsWithUserData(userId, pageable)
+                .map(userMapper::toDomain);
     }
 
     /**

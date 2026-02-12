@@ -15,6 +15,9 @@ import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -139,6 +142,102 @@ public class GetChatRoomsService implements GetChatRoomsUseCase, GetChatRoomUseC
                     return bTime.compareTo(aTime); // 내림차순 (최신이 위)
                 })
                 .toList();
+    }
+
+    /**
+     * 사용자가 참여한 채팅방 목록을 DB 레벨 페이지네이션으로 조회한다.
+     * 각 채팅방의 마지막 메시지, 안 읽은 메시지 수, 상대방 정보 등을 포함한다.
+     *
+     * <p>배치 쿼리를 사용하여 N+1 쿼리 문제를 해결한다.
+     *
+     * @param userId   사용자 ID
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 채팅방 요약 정보
+     */
+    @Override
+    public Page<ChatRoomSummary> getChatRooms(Long userId, Pageable pageable) {
+        // 1. 채팅방 목록을 페이지네이션하여 조회 (1 query + count query)
+        Page<ChatRoom> chatRoomPage = chatRoomRepository.findByUserId(userId, pageable);
+
+        if (chatRoomPage.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, 0);
+        }
+
+        List<ChatRoom> chatRooms = chatRoomPage.getContent();
+        List<Long> chatRoomIds = chatRooms.stream()
+                .map(ChatRoom::getId)
+                .toList();
+
+        // 2. 내 멤버 정보 배치 조회 (1 query)
+        Map<Long, ChatRoomMember> myMemberMap = chatRoomMemberRepository
+                .findByUserIdAndChatRoomIds(userId, chatRoomIds)
+                .stream()
+                .collect(Collectors.toMap(ChatRoomMember::getChatRoomId, Function.identity()));
+
+        // 3. 마지막 메시지 배치 조회 (1 query)
+        Map<Long, Message> lastMessageMap = messageRepository
+                .findLastMessagesByRoomIds(chatRoomIds)
+                .stream()
+                .collect(Collectors.toMap(Message::getChatRoomId, Function.identity()));
+
+        // 4. 읽지 않은 메시지 수 배치 조회 (1 query)
+        Map<Long, Long> unreadCountMap = messageRepository.batchCountUnreadMessages(userId, chatRoomIds);
+
+        // 5. DIRECT 채팅방의 상대방 멤버 정보 배치 조회 (1 query)
+        List<Long> directChatRoomIds = chatRooms.stream()
+                .filter(room -> room.getType() == ChatRoom.ChatRoomType.DIRECT)
+                .map(ChatRoom::getId)
+                .toList();
+
+        Map<Long, ChatRoomMember> otherMemberMap = chatRoomMemberRepository
+                .findOtherMembersByChatRoomIds(userId, directChatRoomIds)
+                .stream()
+                .collect(Collectors.toMap(ChatRoomMember::getChatRoomId, Function.identity(), (a, b) -> a));
+
+        // 6. 상대방이 나간 채팅방의 경우 메시지 기록에서 상대방 ID 복구
+        Map<Long, Long> leftUserIdMap = new java.util.HashMap<>();
+        for (Long directRoomId : directChatRoomIds) {
+            if (!otherMemberMap.containsKey(directRoomId)) {
+                List<Long> senderIds = messageRepository.findDistinctSenderIdsByChatRoomIdExcludingUser(directRoomId, userId);
+                if (!senderIds.isEmpty()) {
+                    leftUserIdMap.put(directRoomId, senderIds.get(0));
+                }
+            }
+        }
+
+        // 7. 상대방 사용자 정보 배치 조회 (1 query)
+        Set<Long> otherUserIds = new java.util.HashSet<>();
+        otherUserIds.addAll(otherMemberMap.values().stream()
+                .map(ChatRoomMember::getUserId)
+                .collect(Collectors.toSet()));
+        otherUserIds.addAll(leftUserIdMap.values());
+
+        Map<Long, User> otherUserMap = userRepository.findAllById(otherUserIds)
+                .stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+
+        // 8. ChatRoomSummary 조립
+        List<ChatRoomSummary> summaries = chatRooms.stream()
+                .map(chatRoom -> buildChatRoomSummary(
+                        chatRoom,
+                        myMemberMap.get(chatRoom.getId()),
+                        lastMessageMap.get(chatRoom.getId()),
+                        unreadCountMap.getOrDefault(chatRoom.getId(), 0L),
+                        otherMemberMap.get(chatRoom.getId()),
+                        leftUserIdMap.get(chatRoom.getId()),
+                        otherUserMap
+                ))
+                .sorted((a, b) -> {
+                    LocalDateTime aTime = a.lastMessageAt() != null ? a.lastMessageAt() : a.createdAt();
+                    LocalDateTime bTime = b.lastMessageAt() != null ? b.lastMessageAt() : b.createdAt();
+                    if (aTime == null && bTime == null) return 0;
+                    if (aTime == null) return 1;
+                    if (bTime == null) return -1;
+                    return bTime.compareTo(aTime);
+                })
+                .toList();
+
+        return new PageImpl<>(summaries, pageable, chatRoomPage.getTotalElements());
     }
 
     /**

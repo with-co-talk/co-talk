@@ -1,6 +1,8 @@
 package com.cotalk.adapter.outbound.persistence.chatroom;
 
 import com.cotalk.domain.entity.ChatRoom;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,6 +26,16 @@ public interface ChatRoomJpaRepository extends JpaRepository<ChatRoom, Long> {
      */
     @Query("SELECT cr FROM ChatRoom cr JOIN ChatRoomMember m ON cr.id = m.chatRoomId WHERE m.userId = :userId")
     List<ChatRoom> findByUserId(@Param("userId") Long userId);
+
+    /**
+     * 사용자 ID로 참여 중인 채팅방 목록을 페이지네이션하여 조회한다.
+     *
+     * @param userId   사용자 ID
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 채팅방 목록
+     */
+    @Query("SELECT cr FROM ChatRoom cr JOIN ChatRoomMember m ON cr.id = m.chatRoomId WHERE m.userId = :userId")
+    Page<ChatRoom> findByUserId(@Param("userId") Long userId, Pageable pageable);
 
     /**
      * 두 사용자 간의 1:1 채팅방을 조회한다.

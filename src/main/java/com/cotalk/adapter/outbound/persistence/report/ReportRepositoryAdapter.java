@@ -3,6 +3,8 @@ package com.cotalk.adapter.outbound.persistence.report;
 import com.cotalk.domain.entity.Report;
 import com.cotalk.domain.port.outbound.ReportRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -100,6 +102,18 @@ public class ReportRepositoryAdapter implements ReportRepository {
     }
 
     /**
+     * 특정 상태의 신고 목록을 페이지네이션하여 조회한다.
+     *
+     * @param status   신고 상태
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 신고 목록
+     */
+    @Override
+    public Page<Report> findByStatus(Report.ReportStatus status, Pageable pageable) {
+        return reportJpaRepository.findByStatus(status, pageable);
+    }
+
+    /**
      * 모든 신고 목록을 조회한다.
      *
      * @return 신고 목록
@@ -107,6 +121,17 @@ public class ReportRepositoryAdapter implements ReportRepository {
     @Override
     public List<Report> findAll() {
         return reportJpaRepository.findAll();
+    }
+
+    /**
+     * 모든 신고 목록을 페이지네이션하여 조회한다.
+     *
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 신고 목록
+     */
+    @Override
+    public Page<Report> findAll(Pageable pageable) {
+        return reportJpaRepository.findAll(pageable);
     }
 
     /**

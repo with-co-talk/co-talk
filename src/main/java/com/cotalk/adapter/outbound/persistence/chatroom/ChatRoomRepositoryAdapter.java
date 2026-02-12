@@ -6,6 +6,8 @@ import com.cotalk.infrastructure.config.CacheConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -58,6 +60,18 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
     @Override
     public List<ChatRoom> findByUserId(Long userId) {
         return chatRoomJpaRepository.findByUserId(userId);
+    }
+
+    /**
+     * 사용자 ID로 참여 중인 채팅방 목록을 페이지네이션하여 조회한다.
+     *
+     * @param userId   사용자 ID
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 채팅방 목록
+     */
+    @Override
+    public Page<ChatRoom> findByUserId(Long userId, Pageable pageable) {
+        return chatRoomJpaRepository.findByUserId(userId, pageable);
     }
 
     /**

@@ -35,9 +35,9 @@ public class NotificationSetting extends BaseEntity {
     @Builder.Default
     private boolean groupInviteNotification = true;
 
-    @Column(name = "show_message_content_in_notification", nullable = false)
+    @Column(name = "notification_preview_mode", nullable = false, length = 20)
     @Builder.Default
-    private boolean showMessageContentInNotification = true;
+    private String notificationPreviewMode = "NAME_AND_MESSAGE";
 
     @Column(name = "sound_enabled", nullable = false)
     @Builder.Default
@@ -85,12 +85,12 @@ public class NotificationSetting extends BaseEntity {
     }
 
     /**
-     * 푸시 알림에 메시지 내용 노출 여부를 변경한다.
+     * 알림 미리보기 모드를 변경한다.
      *
-     * @param enabled 활성화 여부
+     * @param mode 미리보기 모드 (NAME_AND_MESSAGE, NAME_ONLY, NOTHING)
      */
-    public void updateShowMessageContentInNotification(boolean enabled) {
-        this.showMessageContentInNotification = enabled;
+    public void updateNotificationPreviewMode(String mode) {
+        this.notificationPreviewMode = mode;
     }
 
     /**
