@@ -2,6 +2,7 @@ package com.cotalk.adapter.outbound.persistence.user;
 
 import com.cotalk.adapter.outbound.persistence.entity.UserJpaEntity;
 import com.cotalk.domain.entity.User;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -30,6 +31,15 @@ public interface UserJpaRepository extends JpaRepository<UserJpaEntity, Long> {
     boolean existsByNickname(String nickname);
 
     List<UserJpaEntity> findByStatus(User.UserStatus status);
+
+    /**
+     * 특정 상태의 사용자 목록을 페이지네이션하여 조회한다.
+     *
+     * @param status   사용자 상태
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 사용자 목록
+     */
+    Page<UserJpaEntity> findByStatus(User.UserStatus status, Pageable pageable);
 
     long countByStatus(User.UserStatus status);
 }

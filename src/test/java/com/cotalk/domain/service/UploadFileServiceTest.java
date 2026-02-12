@@ -203,5 +203,151 @@ class UploadFileServiceTest {
             // then
             assertThat(result.fileUrl()).isEqualTo(expectedUrl);
         }
+
+        @Test
+        @DisplayName("MP4 Content-Type이지만 실제로는 랜덤 바이트인 파일은 거부되어야 함")
+        void should_rejectFile_when_mp4ContentTypeButInvalidBytes() {
+            // Given: MP4 Content-Type이지만 실제로는 랜덤 바이트 (ftyp 없음)
+            byte[] randomBytes = new byte[]{0x12, 0x34, 0x56, 0x78, (byte) 0x9A, (byte) 0xBC, (byte) 0xDE, (byte) 0xF0};
+            InputStream inputStream = new ByteArrayInputStream(randomBytes);
+
+            FileUploadCommand command = new FileUploadCommand(
+                    1L,
+                    inputStream,
+                    "video.mp4",
+                    "video/mp4",
+                    randomBytes.length
+            );
+
+            // When & Then: 매직넘버 검증 실패로 예외 발생해야 함
+            assertThatThrownBy(() -> uploadFileService.uploadFile(command))
+                    .isInstanceOf(FileUploadException.class)
+                    .hasMessageContaining("시그니처");
+        }
+
+        @Test
+        @DisplayName("QuickTime Content-Type이지만 실제로는 랜덤 바이트인 파일은 거부되어야 함")
+        void should_rejectFile_when_quicktimeContentTypeButInvalidBytes() {
+            // Given: QuickTime Content-Type이지만 실제로는 랜덤 바이트
+            byte[] randomBytes = new byte[]{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77};
+            InputStream inputStream = new ByteArrayInputStream(randomBytes);
+
+            FileUploadCommand command = new FileUploadCommand(
+                    1L,
+                    inputStream,
+                    "video.mov",
+                    "video/quicktime",
+                    randomBytes.length
+            );
+
+            // When & Then: 매직넘버 검증 실패로 예외 발생해야 함
+            assertThatThrownBy(() -> uploadFileService.uploadFile(command))
+                    .isInstanceOf(FileUploadException.class)
+                    .hasMessageContaining("시그니처");
+        }
+
+        @Test
+        @DisplayName("HEIC Content-Type이지만 실제로는 랜덤 바이트인 파일은 거부되어야 함")
+        void should_rejectFile_when_heicContentTypeButInvalidBytes() {
+            // Given: HEIC Content-Type이지만 실제로는 JPEG 바이트
+            byte[] randomBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10, 0x4A, 0x46};
+            InputStream inputStream = new ByteArrayInputStream(randomBytes);
+
+            FileUploadCommand command = new FileUploadCommand(
+                    1L,
+                    inputStream,
+                    "image.heic",
+                    "image/heic",
+                    randomBytes.length
+            );
+
+            // When & Then: 매직넘버 검증 실패로 예외 발생해야 함
+            assertThatThrownBy(() -> uploadFileService.uploadFile(command))
+                    .isInstanceOf(FileUploadException.class)
+                    .hasMessageContaining("시그니처");
+        }
+
+        @Test
+        @DisplayName("HEIF Content-Type이지만 실제로는 랜덤 바이트인 파일은 거부되어야 함")
+        void should_rejectFile_when_heifContentTypeButInvalidBytes() {
+            // Given: HEIF Content-Type이지만 실제로는 모두 0인 바이트
+            byte[] randomBytes = new byte[]{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            InputStream inputStream = new ByteArrayInputStream(randomBytes);
+
+            FileUploadCommand command = new FileUploadCommand(
+                    1L,
+                    inputStream,
+                    "image.heif",
+                    "image/heif",
+                    randomBytes.length
+            );
+
+            // When & Then: 매직넘버 검증 실패로 예외 발생해야 함
+            assertThatThrownBy(() -> uploadFileService.uploadFile(command))
+                    .isInstanceOf(FileUploadException.class)
+                    .hasMessageContaining("시그니처");
+        }
+
+        @Test
+        @DisplayName("올바른 MP4 매직넘버를 가진 파일은 허용되어야 함")
+        void should_acceptFile_when_validMp4MagicNumber() {
+            // Given: 올바른 MP4 매직넘버 (ftyp at offset 4)
+            // 00 00 00 1C 66 74 79 70 69 73 6F 6D ... (ftyp box with 'isom' brand)
+            byte[] validMp4Bytes = new byte[]{
+                    0x00, 0x00, 0x00, 0x1C, // box size (28 bytes)
+                    0x66, 0x74, 0x79, 0x70, // 'ftyp'
+                    0x69, 0x73, 0x6F, 0x6D, // major brand 'isom'
+                    0x00, 0x00, 0x00, 0x01, // minor version
+                    0x69, 0x73, 0x6F, 0x6D, // compatible brand 'isom'
+                    0x00, 0x00, 0x00, 0x00  // padding
+            };
+            InputStream inputStream = new ByteArrayInputStream(validMp4Bytes);
+
+            FileUploadCommand command = new FileUploadCommand(
+                    1L,
+                    inputStream,
+                    "video.mp4",
+                    "video/mp4",
+                    validMp4Bytes.length
+            );
+
+            given(fileStorage.upload(any(), anyString(), anyString(), anyLong()))
+                    .willReturn("http://example.com/uploads/1/video.mp4");
+
+            // When & Then: 예외 없이 정상 처리되어야 함
+            FileUploadResult result = uploadFileService.uploadFile(command);
+            assertThat(result.fileUrl()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("올바른 HEIC 매직넘버를 가진 파일은 허용되어야 함")
+        void should_acceptFile_when_validHeicMagicNumber() {
+            // Given: 올바른 HEIC 매직넘버 (ftyp at offset 4 with 'heic' brand)
+            // 00 00 00 18 66 74 79 70 68 65 69 63 ... (ftyp box with 'heic' brand)
+            byte[] validHeicBytes = new byte[]{
+                    0x00, 0x00, 0x00, 0x18, // box size (24 bytes)
+                    0x66, 0x74, 0x79, 0x70, // 'ftyp'
+                    0x68, 0x65, 0x69, 0x63, // major brand 'heic'
+                    0x00, 0x00, 0x00, 0x00, // minor version
+                    0x6D, 0x69, 0x66, 0x31, // compatible brand 'mif1'
+                    0x00, 0x00, 0x00, 0x00  // padding
+            };
+            InputStream inputStream = new ByteArrayInputStream(validHeicBytes);
+
+            FileUploadCommand command = new FileUploadCommand(
+                    1L,
+                    inputStream,
+                    "image.heic",
+                    "image/heic",
+                    validHeicBytes.length
+            );
+
+            given(fileStorage.upload(any(), anyString(), anyString(), anyLong()))
+                    .willReturn("http://example.com/uploads/1/image.heic");
+
+            // When & Then: 예외 없이 정상 처리되어야 함
+            FileUploadResult result = uploadFileService.uploadFile(command);
+            assertThat(result.fileUrl()).isNotNull();
+        }
     }
 }

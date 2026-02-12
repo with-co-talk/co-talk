@@ -2,6 +2,8 @@ package com.cotalk.adapter.outbound.persistence.friend;
 
 import com.cotalk.adapter.outbound.persistence.entity.UserJpaEntity;
 import com.cotalk.domain.entity.Friend;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -63,6 +65,27 @@ public interface FriendJpaRepository extends JpaRepository<Friend, Long> {
            "WHERE u.id IN (" +
            "  SELECT f.friendId FROM Friend f " +
            "  WHERE f.userId = :userId AND f.status = 'ACCEPTED'" +
+           ") AND u.id NOT IN (" +
+           "  SELECT h.friendId FROM HiddenFriend h " +
+           "  WHERE h.userId = :userId" +
            ")")
     List<UserJpaEntity> findAcceptedFriendsWithUserData(@Param("userId") Long userId);
+
+    /**
+     * N+1 쿼리를 방지하기 위한 JOIN 쿼리 (페이지네이션).
+     * 사용자의 수락된 친구 목록을 User 엔티티와 함께 페이지네이션하여 조회한다.
+     *
+     * @param userId   사용자 ID
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 친구 User 목록
+     */
+    @Query("SELECT u FROM UserJpaEntity u " +
+           "WHERE u.id IN (" +
+           "  SELECT f.friendId FROM Friend f " +
+           "  WHERE f.userId = :userId AND f.status = 'ACCEPTED'" +
+           ") AND u.id NOT IN (" +
+           "  SELECT h.friendId FROM HiddenFriend h " +
+           "  WHERE h.userId = :userId" +
+           ")")
+    Page<UserJpaEntity> findAcceptedFriendsWithUserData(@Param("userId") Long userId, Pageable pageable);
 }

@@ -56,16 +56,26 @@ public class UploadFileService implements UploadFileUseCase {
     /**
      * 파일 매직넘버(시그니처) 정의.
      * 각 파일 형식의 첫 바이트들을 기반으로 실제 파일 타입을 검증한다.
+     * <p>
+     * MP4/MOV/HEIC/HEIF는 ISO Base Media File Format (ISOBMFF)을 사용하며,
+     * 'ftyp' 박스가 offset 4부터 시작한다.
+     * </p>
      */
     private static final Map<String, byte[][]> MAGIC_NUMBERS = Map.ofEntries(
             Map.entry("image/jpeg", new byte[][]{{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}}),
             Map.entry("image/png", new byte[][]{{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}}),
             Map.entry("image/gif", new byte[][]{{0x47, 0x49, 0x46, 0x38, 0x37, 0x61}, {0x47, 0x49, 0x46, 0x38, 0x39, 0x61}}),
             Map.entry("image/webp", new byte[][]{{0x52, 0x49, 0x46, 0x46}}),
-            Map.entry("application/pdf", new byte[][]{{0x25, 0x50, 0x44, 0x46}})
+            Map.entry("application/pdf", new byte[][]{{0x25, 0x50, 0x44, 0x46}}),
+            // MP4/MOV: 'ftyp' 박스 (offset 4-7)
+            Map.entry("video/mp4", new byte[][]{{0x00, 0x00, 0x00, 0x00, 0x66, 0x74, 0x79, 0x70}}),
+            Map.entry("video/quicktime", new byte[][]{{0x00, 0x00, 0x00, 0x00, 0x66, 0x74, 0x79, 0x70}}),
+            // HEIC/HEIF: 'ftyp' 박스 (offset 4-7)
+            Map.entry("image/heic", new byte[][]{{0x00, 0x00, 0x00, 0x00, 0x66, 0x74, 0x79, 0x70}}),
+            Map.entry("image/heif", new byte[][]{{0x00, 0x00, 0x00, 0x00, 0x66, 0x74, 0x79, 0x70}})
     );
 
-    private static final int MAX_MAGIC_NUMBER_LENGTH = 8;
+    private static final int MAX_MAGIC_NUMBER_LENGTH = 12;
 
     private final FileStorage fileStorage;
     private final long maxFileSize;
@@ -180,12 +190,26 @@ public class UploadFileService implements UploadFileUseCase {
 
     /**
      * 바이트 배열이 특정 시그니처로 시작하는지 확인한다.
+     * <p>
+     * 0x00 바이트는 와일드카드로 처리되어 모든 값과 매치된다.
+     * 이는 ISOBMFF 포맷(MP4/MOV/HEIC/HEIF)에서 box size가 가변적인 경우를 처리하기 위함이다.
+     * </p>
+     *
+     * @param data      검사할 데이터 배열
+     * @param signature 매칭할 시그니처 (0x00은 와일드카드)
+     * @return 시그니처가 매치되면 true
      */
     private boolean startsWith(byte[] data, byte[] signature) {
         if (data.length < signature.length) {
             return false;
         }
-        return Arrays.equals(Arrays.copyOf(data, signature.length), signature);
+        for (int i = 0; i < signature.length; i++) {
+            // 0x00은 와일드카드로 어떤 값이든 매치
+            if (signature[i] != 0x00 && data[i] != signature[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

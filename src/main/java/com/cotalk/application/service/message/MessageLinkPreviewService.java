@@ -3,12 +3,15 @@ package com.cotalk.application.service.message;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.port.inbound.linkpreview.GetLinkPreviewUseCase;
 import com.cotalk.domain.port.inbound.linkpreview.GetLinkPreviewUseCase.LinkPreviewResult;
+import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -27,6 +30,7 @@ public class MessageLinkPreviewService {
 
     private final MessageRepository messageRepository;
     private final GetLinkPreviewUseCase getLinkPreviewUseCase;
+    private final ChatMessageBroker chatMessageBroker;
 
     /**
      * 메시지 내용에서 첫 번째 URL을 추출한다.
@@ -51,6 +55,7 @@ public class MessageLinkPreviewService {
     /**
      * URL에서 링크 미리보기를 수집하여 해당 메시지에 저장한다.
      * 메시지 전송 직후 비동기로 호출되므로 메시지 응답 지연이 없다.
+     * 링크 미리보기 저장 후 WebSocket을 통해 실시간으로 클라이언트에게 업데이트를 전송한다.
      *
      * @param messageId 메시지 ID
      * @param url       미리보기 수집할 URL
@@ -72,6 +77,20 @@ public class MessageLinkPreviewService {
             );
             messageRepository.save(message);
             log.debug("Link preview saved for messageId={}, url={}", messageId, url);
+
+            // Publish LINK_PREVIEW_UPDATED event so WebSocket clients can update in real-time
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("schemaVersion", 1);
+            event.put("eventId", "linkpreview:" + messageId + ":" + System.currentTimeMillis());
+            event.put("eventType", "LINK_PREVIEW_UPDATED");
+            event.put("chatRoomId", message.getChatRoomId());
+            event.put("messageId", messageId);
+            event.put("linkPreviewUrl", result.url());
+            event.put("linkPreviewTitle", result.title());
+            event.put("linkPreviewDescription", result.description());
+            event.put("linkPreviewImageUrl", result.imageUrl());
+            chatMessageBroker.publishRoomEvent(message.getChatRoomId(), event);
+            log.debug("Published LINK_PREVIEW_UPDATED event for messageId={}", messageId);
         } catch (Exception e) {
             log.warn("Failed to fetch link preview for messageId={}, url={}: {}", messageId, url, e.getMessage());
         }

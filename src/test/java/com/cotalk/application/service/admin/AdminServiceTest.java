@@ -18,6 +18,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -164,6 +169,34 @@ class AdminServiceTest {
         }
 
         @Test
+        @DisplayName("Pageable을 사용한 대기 중인 신고 목록 DB 레벨 페이지네이션 조회")
+        void should_returnPagedPendingReports_when_pageableProvided() {
+            // given
+            Pageable pageable = PageRequest.of(0, 20);
+            List<Report> reports = List.of(
+                    Report.builder()
+                            .id(1L)
+                            .reporterId(100L)
+                            .reportedUserId(200L)
+                            .type(Report.ReportType.USER)
+                            .reason(Report.ReportReason.SPAM)
+                            .status(Report.ReportStatus.PENDING)
+                            .build()
+            );
+
+            Page<Report> reportPage = new PageImpl<>(reports, pageable, 1);
+            given(reportRepository.findByStatus(Report.ReportStatus.PENDING, pageable)).willReturn(reportPage);
+
+            // when
+            Page<Report> result = adminService.getPendingReports(pageable);
+
+            // then
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getContent().get(0).getStatus()).isEqualTo(Report.ReportStatus.PENDING);
+            assertThat(result.getTotalElements()).isEqualTo(1);
+        }
+
+        @Test
         @DisplayName("존재하지 않는 신고 처리시 예외 발생")
         void should_throwException_when_reportNotFound() {
             // given
@@ -231,6 +264,56 @@ class AdminServiceTest {
             // then
             assertThat(result).hasSize(1);
             assertThat(result.get(0).getStatus()).isEqualTo(User.UserStatus.SUSPENDED);
+        }
+
+        @Test
+        @DisplayName("Pageable을 사용한 전체 사용자 목록 DB 레벨 페이지네이션 조회")
+        void should_returnPagedAllUsers_when_pageableProvided() {
+            // given
+            Pageable pageable = PageRequest.of(0, 20);
+            List<User> users = List.of(
+                    User.builder()
+                            .id(1L)
+                            .email("user1@test.com")
+                            .passwordHash("hash")
+                            .nickname("user1")
+                            .build()
+            );
+
+            Page<User> userPage = new PageImpl<>(users, pageable, 1);
+            given(userRepository.findAll(pageable)).willReturn(userPage);
+
+            // when
+            Page<User> result = adminService.getAllUsers(pageable);
+
+            // then
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getTotalElements()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("Pageable을 사용한 상태별 사용자 목록 DB 레벨 페이지네이션 조회")
+        void should_returnPagedUsersByStatus_when_pageableProvided() {
+            // given
+            Pageable pageable = PageRequest.of(0, 20);
+            List<User> users = List.of(
+                    User.builder()
+                            .id(1L)
+                            .email("suspended@test.com")
+                            .nickname("suspended")
+                            .status(User.UserStatus.SUSPENDED)
+                            .build()
+            );
+
+            Page<User> userPage = new PageImpl<>(users, pageable, 1);
+            given(userRepository.findByStatus(User.UserStatus.SUSPENDED, pageable)).willReturn(userPage);
+
+            // when
+            Page<User> result = adminService.getUsersByStatus(User.UserStatus.SUSPENDED, pageable);
+
+            // then
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getContent().get(0).getStatus()).isEqualTo(User.UserStatus.SUSPENDED);
         }
 
         @Test

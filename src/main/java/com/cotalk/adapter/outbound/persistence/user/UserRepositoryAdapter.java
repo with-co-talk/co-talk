@@ -8,6 +8,7 @@ import com.cotalk.infrastructure.config.CacheConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
@@ -93,11 +94,36 @@ public class UserRepositoryAdapter implements UserRepository {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 모든 사용자를 페이지네이션하여 조회한다.
+     *
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 사용자 목록
+     */
+    @Override
+    public Page<User> findAll(Pageable pageable) {
+        return userJpaRepository.findAll(pageable)
+                .map(userMapper::toDomain);
+    }
+
     @Override
     public List<User> findByStatus(User.UserStatus status) {
         return userJpaRepository.findByStatus(status).stream()
                 .map(userMapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 특정 상태의 사용자를 페이지네이션하여 조회한다.
+     *
+     * @param status   사용자 상태
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 사용자 목록
+     */
+    @Override
+    public Page<User> findByStatus(User.UserStatus status, Pageable pageable) {
+        return userJpaRepository.findByStatus(status, pageable)
+                .map(userMapper::toDomain);
     }
 
     @Override

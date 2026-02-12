@@ -2,6 +2,8 @@ package com.cotalk.domain.port.inbound.admin;
 
 import com.cotalk.domain.entity.Report;
 import com.cotalk.domain.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -19,6 +21,14 @@ public interface AdminUseCase {
      * @return 대기 중인 신고 목록
      */
     List<Report> getPendingReports();
+
+    /**
+     * 처리 대기 중인 신고 목록을 DB 레벨 페이지네이션으로 조회한다.
+     *
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 대기 중인 신고 목록
+     */
+    Page<Report> getPendingReports(Pageable pageable);
 
     /**
      * 특정 상태의 모든 신고 목록을 조회한다.
@@ -47,12 +57,29 @@ public interface AdminUseCase {
     List<User> getAllUsers();
 
     /**
+     * 모든 사용자 목록을 DB 레벨 페이지네이션으로 조회한다.
+     *
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 사용자 목록
+     */
+    Page<User> getAllUsers(Pageable pageable);
+
+    /**
      * 특정 상태의 사용자 목록을 조회한다.
      *
      * @param status 사용자 상태
      * @return 사용자 목록
      */
     List<User> getUsersByStatus(User.UserStatus status);
+
+    /**
+     * 특정 상태의 사용자 목록을 DB 레벨 페이지네이션으로 조회한다.
+     *
+     * @param status   사용자 상태
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 사용자 목록
+     */
+    Page<User> getUsersByStatus(User.UserStatus status, Pageable pageable);
 
     /**
      * 사용자를 정지시킨다.

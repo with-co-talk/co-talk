@@ -32,6 +32,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -145,7 +150,7 @@ class FriendControllerTest {
     class GetFriendListApi {
 
         @Test
-        @DisplayName("친구 목록 조회 성공")
+        @DisplayName("친구 목록 조회 성공 - 페이지네이션 메타데이터 포함")
         @WithMockCustomUser(userId = 1L)
         void should_returnFriendList_when_validUserId() throws Exception {
             // given
@@ -165,14 +170,49 @@ class FriendControllerTest {
                             .build()
             );
 
-            given(getFriendListUseCase.getFriendList(userId)).willReturn(friends);
+            Page<User> friendPage = new PageImpl<>(friends, PageRequest.of(0, 20), 2);
+            given(getFriendListUseCase.getFriendList(eq(userId), any(Pageable.class))).willReturn(friendPage);
 
             // when & then
-            mockMvc.perform(get("/api/v1/friends"))
+            mockMvc.perform(get("/api/v1/friends")
+                            .param("page", "0")
+                            .param("size", "20"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.friends").isArray())
                     .andExpect(jsonPath("$.friends.length()").value(2))
-                    .andExpect(jsonPath("$.friends[0].user.nickname").value("친구1"));
+                    .andExpect(jsonPath("$.friends[0].user.nickname").value("친구1"))
+                    .andExpect(jsonPath("$.page").value(0))
+                    .andExpect(jsonPath("$.size").value(20))
+                    .andExpect(jsonPath("$.totalElements").value(2))
+                    .andExpect(jsonPath("$.totalPages").value(1));
+        }
+
+        @Test
+        @DisplayName("페이지네이션 파라미터로 DB 레벨 페이지네이션 동작")
+        @WithMockCustomUser(userId = 1L)
+        void should_paginateAtDbLevel_when_pageAndSizeProvided() throws Exception {
+            // given
+            Long userId = 1L;
+            User friend = User.builder()
+                    .id(22L)
+                    .email("friend22@example.com")
+                    .nickname("친구22")
+                    .passwordHash("hash")
+                    .build();
+
+            Page<User> friendPage = new PageImpl<>(List.of(friend), PageRequest.of(2, 5), 15);
+            given(getFriendListUseCase.getFriendList(eq(userId), any(Pageable.class))).willReturn(friendPage);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/friends")
+                            .param("page", "2")
+                            .param("size", "5"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.friends.length()").value(1))
+                    .andExpect(jsonPath("$.page").value(2))
+                    .andExpect(jsonPath("$.size").value(5))
+                    .andExpect(jsonPath("$.totalElements").value(15))
+                    .andExpect(jsonPath("$.totalPages").value(3));
         }
     }
 

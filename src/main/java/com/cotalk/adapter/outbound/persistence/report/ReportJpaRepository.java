@@ -1,6 +1,8 @@
 package com.cotalk.adapter.outbound.persistence.report;
 
 import com.cotalk.domain.entity.Report;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -54,6 +56,15 @@ public interface ReportJpaRepository extends JpaRepository<Report, Long> {
      * @return 신고 목록
      */
     List<Report> findByStatus(Report.ReportStatus status);
+
+    /**
+     * 특정 상태의 신고 목록을 페이지네이션하여 조회한다.
+     *
+     * @param status   신고 상태
+     * @param pageable 페이지네이션 정보
+     * @return 페이지네이션된 신고 목록
+     */
+    Page<Report> findByStatus(Report.ReportStatus status, Pageable pageable);
 
     /**
      * 특정 상태의 신고 수를 조회한다.

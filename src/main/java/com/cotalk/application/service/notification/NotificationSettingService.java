@@ -41,16 +41,16 @@ public class NotificationSettingService implements GetNotificationSettingUseCase
      * 사용자의 알림 설정을 수정한다.
      * null이 아닌 값만 업데이트하며, 설정이 없는 경우 기본 설정을 생성 후 수정한다.
      *
-     * @param userId                             알림 설정을 수정할 사용자 ID
-     * @param messageNotification                메시지 알림 활성화 여부
-     * @param friendRequestNotification          친구 요청 알림 활성화 여부
-     * @param groupInviteNotification            그룹 초대 알림 활성화 여부
-     * @param showMessageContentInNotification   푸시 알림에 메시지 내용 노출 여부
-     * @param soundEnabled                       알림 소리 활성화 여부
-     * @param vibrationEnabled                   알림 진동 활성화 여부
-     * @param doNotDisturbEnabled                방해 금지 모드 활성화 여부
-     * @param doNotDisturbStart                  방해 금지 시작 시간
-     * @param doNotDisturbEnd                    방해 금지 종료 시간
+     * @param userId                      알림 설정을 수정할 사용자 ID
+     * @param messageNotification         메시지 알림 활성화 여부
+     * @param friendRequestNotification   친구 요청 알림 활성화 여부
+     * @param groupInviteNotification     그룹 초대 알림 활성화 여부
+     * @param notificationPreviewMode     알림 미리보기 모드 (NAME_AND_MESSAGE, NAME_ONLY, NOTHING)
+     * @param soundEnabled                알림 소리 활성화 여부
+     * @param vibrationEnabled            알림 진동 활성화 여부
+     * @param doNotDisturbEnabled         방해 금지 모드 활성화 여부
+     * @param doNotDisturbStart           방해 금지 시작 시간
+     * @param doNotDisturbEnd             방해 금지 종료 시간
      * @return 수정된 알림 설정 정보
      */
     @Override
@@ -59,7 +59,7 @@ public class NotificationSettingService implements GetNotificationSettingUseCase
             Boolean messageNotification,
             Boolean friendRequestNotification,
             Boolean groupInviteNotification,
-            Boolean showMessageContentInNotification,
+            String notificationPreviewMode,
             Boolean soundEnabled,
             Boolean vibrationEnabled,
             Boolean doNotDisturbEnabled,
@@ -78,8 +78,8 @@ public class NotificationSettingService implements GetNotificationSettingUseCase
         if (groupInviteNotification != null) {
             setting.updateGroupInviteNotification(groupInviteNotification);
         }
-        if (showMessageContentInNotification != null) {
-            setting.updateShowMessageContentInNotification(showMessageContentInNotification);
+        if (notificationPreviewMode != null) {
+            setting.updateNotificationPreviewMode(notificationPreviewMode);
         }
         if (soundEnabled != null) {
             setting.updateSoundEnabled(soundEnabled);

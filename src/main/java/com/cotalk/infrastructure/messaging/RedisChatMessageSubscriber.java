@@ -121,6 +121,12 @@ public class RedisChatMessageSubscriber implements MessageListener {
             messagingTemplate.convertAndSend(destination, event);
             log.debug("Broadcasted typing event to WebSocket: destination={}, userId={}",
                     destination, event.userId());
+        } else if ("LINK_PREVIEW_UPDATED".equals(eventType)) {
+            LinkPreviewUpdatedEventMessage event =
+                    objectMapper.treeToValue(root, LinkPreviewUpdatedEventMessage.class);
+            messagingTemplate.convertAndSend(destination, event);
+            log.debug("Broadcasted link preview updated event to WebSocket: destination={}, messageId={}",
+                    destination, event.messageId());
         } else {
             ChatRoomEventMessage event = objectMapper.treeToValue(root, ChatRoomEventMessage.class);
             messagingTemplate.convertAndSend(destination, event);
@@ -291,6 +297,33 @@ public class RedisChatMessageSubscriber implements MessageListener {
             Long updatedBy,
             String newContent,
             Long updatedAtMillis
+    ) {}
+
+    /**
+     * 링크 미리보기 업데이트 이벤트 DTO.
+     * MessageLinkPreviewService에서 링크 미리보기를 수집하여 저장한 후 발행한다.
+     * 클라이언트가 실시간으로 링크 미리보기를 표시할 수 있도록 메타데이터를 전달한다.
+     *
+     * @param schemaVersion           스키마 버전
+     * @param eventId                 이벤트 ID (중복 체크용)
+     * @param eventType               이벤트 타입 (LINK_PREVIEW_UPDATED)
+     * @param chatRoomId              채팅방 ID
+     * @param messageId               메시지 ID
+     * @param linkPreviewUrl          링크 미리보기 URL
+     * @param linkPreviewTitle        링크 미리보기 제목
+     * @param linkPreviewDescription  링크 미리보기 설명
+     * @param linkPreviewImageUrl     링크 미리보기 이미지 URL
+     */
+    public record LinkPreviewUpdatedEventMessage(
+            Integer schemaVersion,
+            String eventId,
+            String eventType,
+            Long chatRoomId,
+            Long messageId,
+            String linkPreviewUrl,
+            String linkPreviewTitle,
+            String linkPreviewDescription,
+            String linkPreviewImageUrl
     ) {}
 
     /**

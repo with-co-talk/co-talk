@@ -29,6 +29,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -122,11 +124,12 @@ public class FriendController {
 
     /**
      * 사용자의 친구 목록을 조회합니다.
+     * DB 레벨 페이지네이션을 사용하여 대규모 데이터에서도 효율적으로 동작합니다.
      *
      * @param principal 인증된 사용자 정보
      * @param page 페이지 번호 (기본값: 0)
      * @param size 페이지 크기 (기본값: 20, 최대: 100)
-     * @return 친구 목록
+     * @return 페이지네이션된 친구 목록
      */
     @Operation(summary = "친구 목록 조회", description = "사용자의 친구 목록을 조회합니다.")
     @GetMapping
@@ -135,13 +138,12 @@ public class FriendController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         int safeSize = Math.min(size, 100);
-        List<User> friends = getFriendListUseCase.getFriendList(principal.getUserId());
-        List<FriendDto> friendDtos = friends.stream()
-                .skip((long) page * safeSize)
-                .limit(safeSize)
+        Page<User> friendPage = getFriendListUseCase.getFriendList(
+                principal.getUserId(), PageRequest.of(page, safeSize));
+        List<FriendDto> friendDtos = friendPage.getContent().stream()
                 .map(FriendDto::from)
                 .toList();
-        return ResponseEntity.ok(FriendListResponse.of(friendDtos));
+        return ResponseEntity.ok(FriendListResponse.of(friendDtos, friendPage));
     }
 
     /**
