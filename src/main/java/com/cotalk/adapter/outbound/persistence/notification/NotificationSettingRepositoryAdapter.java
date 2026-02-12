@@ -5,6 +5,7 @@ import com.cotalk.domain.port.outbound.NotificationSettingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -39,6 +40,17 @@ public class NotificationSettingRepositoryAdapter implements NotificationSetting
     @Override
     public Optional<NotificationSetting> findByUserId(Long userId) {
         return notificationSettingJpaRepository.findByUserId(userId);
+    }
+
+    /**
+     * 여러 사용자 ID로 알림 설정을 일괄 조회한다.
+     *
+     * @param userIds 사용자 ID 목록
+     * @return 조회된 알림 설정 목록
+     */
+    @Override
+    public List<NotificationSetting> findByUserIds(List<Long> userIds) {
+        return notificationSettingJpaRepository.findByUserIdIn(userIds);
     }
 
     /**

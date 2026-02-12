@@ -3,6 +3,8 @@ package com.cotalk.domain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalTime;
+
 /**
  * 알림 설정 엔티티.
  * 사용자의 푸시 알림 설정 정보를 나타낸다.
@@ -122,5 +124,30 @@ public class NotificationSetting extends BaseEntity {
         this.doNotDisturbEnabled = enabled;
         this.doNotDisturbStart = start;
         this.doNotDisturbEnd = end;
+    }
+
+    /**
+     * 현재 시각이 방해 금지 시간대에 해당하는지 판단한다.
+     * 방해 금지 모드가 비활성화되어 있거나 시작/종료 시간이 설정되지 않은 경우 {@code false}를 반환한다.
+     * 자정을 넘어가는 시간대(예: 23:00 ~ 07:00)도 올바르게 처리한다.
+     *
+     * @param now 현재 시각
+     * @return 방해 금지 시간대인 경우 {@code true}
+     */
+    public boolean isInDoNotDisturbTime(LocalTime now) {
+        if (!doNotDisturbEnabled || doNotDisturbStart == null || doNotDisturbEnd == null) {
+            return false;
+        }
+
+        LocalTime start = LocalTime.parse(doNotDisturbStart);
+        LocalTime end = LocalTime.parse(doNotDisturbEnd);
+
+        if (start.isBefore(end)) {
+            // 같은 날 범위 (예: 09:00 ~ 18:00)
+            return !now.isBefore(start) && now.isBefore(end);
+        } else {
+            // 자정을 넘어가는 범위 (예: 23:00 ~ 07:00)
+            return !now.isBefore(start) || now.isBefore(end);
+        }
     }
 }

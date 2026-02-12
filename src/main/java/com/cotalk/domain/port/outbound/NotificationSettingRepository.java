@@ -2,6 +2,7 @@ package com.cotalk.domain.port.outbound;
 
 import com.cotalk.domain.entity.NotificationSetting;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -27,6 +28,14 @@ public interface NotificationSettingRepository {
      * @return 조회된 알림 설정 (Optional)
      */
     Optional<NotificationSetting> findByUserId(Long userId);
+
+    /**
+     * 여러 사용자 ID로 알림 설정을 일괄 조회한다.
+     *
+     * @param userIds 사용자 ID 목록
+     * @return 조회된 알림 설정 목록
+     */
+    List<NotificationSetting> findByUserIds(List<Long> userIds);
 
     /**
      * 특정 사용자의 알림 설정을 삭제한다.
