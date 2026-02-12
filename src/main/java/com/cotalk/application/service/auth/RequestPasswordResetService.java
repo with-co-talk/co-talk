@@ -68,4 +68,26 @@ public class RequestPasswordResetService implements RequestPasswordResetUseCase 
             log.info("Password reset email sent to: {}", LogMaskingUtil.maskEmail(email));
         });
     }
+
+    @Override
+    public void requestPasswordResetWithCode(String email) {
+        // 보안상 이메일 존재 여부와 관계없이 동일하게 응답
+        userRepository.findByEmail(email).ifPresent(user -> {
+            // 기존 토큰 삭제
+            tokenRepository.deleteByUserId(user.getId());
+
+            // 6자리 코드가 포함된 새 토큰 생성
+            PasswordResetToken token = PasswordResetToken.createWithCode(
+                    user.getId(),
+                    email,
+                    tokenExpirationMinutes
+            );
+            tokenRepository.save(token);
+
+            // 이메일로 인증 코드 발송
+            emailSender.sendPasswordResetCode(email, token.getVerificationCode());
+
+            log.info("Password reset code sent to: {}", LogMaskingUtil.maskEmail(email));
+        });
+    }
 }

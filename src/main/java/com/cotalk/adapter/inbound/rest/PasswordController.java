@@ -1,9 +1,12 @@
 package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.adapter.inbound.rest.dto.auth.ChangePasswordRequest;
+import com.cotalk.adapter.inbound.rest.dto.auth.PasswordResetCodeRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.PasswordResetRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.ResetPasswordRequest;
+import com.cotalk.adapter.inbound.rest.dto.auth.ResetPasswordWithCodeRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.TokenValidationResponse;
+import com.cotalk.adapter.inbound.rest.dto.auth.VerifyCodeRequest;
 import com.cotalk.adapter.inbound.rest.dto.common.MessageResponse;
 import com.cotalk.domain.port.inbound.auth.ChangePasswordUseCase;
 import com.cotalk.domain.port.inbound.auth.RequestPasswordResetUseCase;
@@ -97,6 +100,32 @@ public class PasswordController {
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody ChangePasswordRequest request) {
         changePasswordUseCase.changePassword(userId, request.currentPassword(), request.newPassword());
+        return ResponseEntity.ok(MessageResponse.of("비밀번호가 성공적으로 변경되었습니다."));
+    }
+
+    @Operation(summary = "비밀번호 재설정 코드 발송", description = "이메일로 6자리 인증 코드를 발송합니다.")
+    @PostMapping("/reset-request-code")
+    public ResponseEntity<MessageResponse> requestPasswordResetCode(
+            @Valid @RequestBody PasswordResetCodeRequest request) {
+        requestPasswordResetUseCase.requestPasswordResetWithCode(request.email());
+        return ResponseEntity.ok(MessageResponse.of(
+                "인증 코드가 이메일로 발송되었습니다. 이메일을 확인해주세요."
+        ));
+    }
+
+    @Operation(summary = "인증 코드 검증", description = "이메일과 6자리 인증 코드를 검증합니다.")
+    @PostMapping("/verify-code")
+    public ResponseEntity<TokenValidationResponse> verifyCode(
+            @Valid @RequestBody VerifyCodeRequest request) {
+        boolean isValid = resetPasswordUseCase.verifyCode(request.email(), request.code());
+        return ResponseEntity.ok(TokenValidationResponse.of(isValid));
+    }
+
+    @Operation(summary = "인증 코드로 비밀번호 재설정", description = "인증 코드를 이용하여 새 비밀번호로 변경합니다.")
+    @PostMapping("/reset-with-code")
+    public ResponseEntity<MessageResponse> resetPasswordWithCode(
+            @Valid @RequestBody ResetPasswordWithCodeRequest request) {
+        resetPasswordUseCase.resetPasswordWithCode(request.email(), request.code(), request.newPassword());
         return ResponseEntity.ok(MessageResponse.of("비밀번호가 성공적으로 변경되었습니다."));
     }
 }

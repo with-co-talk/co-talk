@@ -108,4 +108,35 @@ public class ResetPasswordService implements ResetPasswordUseCase {
                     "비밀번호는 8-128자이며, 대문자, 소문자, 숫자, 특수문자를 각각 1개 이상 포함해야 합니다.");
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean verifyCode(String email, String code) {
+        return tokenRepository.findByEmailAndVerificationCode(email, code)
+                .map(PasswordResetToken::isValid)
+                .orElse(false);
+    }
+
+    @Override
+    public void resetPasswordWithCode(String email, String code, String newPassword) {
+        PasswordResetToken resetToken = tokenRepository.findByEmailAndVerificationCode(email, code)
+                .orElseThrow(InvalidPasswordResetTokenException::notFound);
+
+        validateToken(resetToken);
+        validatePasswordStrength(newPassword);
+
+        User user = userRepository.findById(resetToken.getUserId())
+                .orElseThrow(() -> new UserNotFoundException(resetToken.getUserId()));
+
+        // 비밀번호 변경
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        user.updatePassword(encodedPassword);
+        userRepository.save(user);
+
+        // 토큰 사용 처리
+        resetToken.markAsUsed();
+        tokenRepository.save(resetToken);
+
+        log.info("Password reset with code completed for user: {}", LogMaskingUtil.maskEmail(email));
+    }
 }
