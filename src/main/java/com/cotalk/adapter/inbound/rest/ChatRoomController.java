@@ -12,6 +12,8 @@ import com.cotalk.adapter.inbound.rest.dto.chatroom.CreateGroupChatRoomRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.InviteMembersRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.ReinviteMemberRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.SetAnnouncementRequest;
+import com.cotalk.adapter.inbound.rest.dto.chatroom.UpdateChatRoomImageRequest;
+import com.cotalk.adapter.inbound.rest.dto.chatroom.UpdateChatRoomImageResponse;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.UpdateChatRoomNameRequest;
 import com.cotalk.adapter.inbound.rest.dto.chatroom.UpdateChatRoomNameResponse;
 import com.cotalk.adapter.inbound.rest.dto.common.MessageResponse;
@@ -241,6 +243,25 @@ public class ChatRoomController {
             @Valid @RequestBody UpdateChatRoomNameRequest request) {
         ChatRoom chatRoom = chatRoomManagementUseCase.updateChatRoomName(roomId, principal.getUserId(), request.newName());
         return ResponseEntity.ok(UpdateChatRoomNameResponse.of(chatRoom.getName(), "채팅방 이름이 변경되었습니다."));
+    }
+
+    /**
+     * 그룹 채팅방의 이미지를 변경합니다. (관리자 권한 필요)
+     *
+     * @param roomId  채팅방 ID
+     * @param request 이미지 변경 요청 (이미지 URL)
+     * @return 변경된 이미지 URL 정보
+     */
+    @Operation(summary = "채팅방 이미지 변경", description = "그룹 채팅방의 이미지를 변경합니다. (관리자 권한 필요)")
+    @PutMapping("/{roomId}/image")
+    public ResponseEntity<UpdateChatRoomImageResponse> updateChatRoomImage(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable Long roomId,
+            @Valid @RequestBody UpdateChatRoomImageRequest request) {
+        ChatRoom chatRoom = chatRoomManagementUseCase.updateChatRoomImage(
+                roomId, principal.getUserId(), request.imageUrl());
+        return ResponseEntity.ok(UpdateChatRoomImageResponse.of(
+                chatRoom.getImageUrl(), "채팅방 이미지가 변경되었습니다."));
     }
 
     /**

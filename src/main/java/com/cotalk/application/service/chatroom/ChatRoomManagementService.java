@@ -145,6 +145,31 @@ public class ChatRoomManagementService implements ChatRoomManagementUseCase {
                 .orElseThrow(() -> new UserNotFoundException(userId));
     }
 
+    /**
+     * 채팅방 이미지를 변경한다.
+     * 그룹 채팅방만 이미지 변경이 가능하며, 관리자만 변경할 수 있다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId 요청 사용자 ID
+     * @param imageUrl 새 이미지 URL
+     * @return 업데이트된 채팅방 정보
+     * @throws InvalidChatRoomException 그룹 채팅방이 아닌 경우
+     * @throws ChatRoomAccessDeniedException 관리자 권한이 없는 경우
+     */
+    @Override
+    public ChatRoom updateChatRoomImage(Long chatRoomId, Long userId, String imageUrl) {
+        ChatRoom chatRoom = getChatRoom(chatRoomId);
+
+        if (!chatRoom.isGroupChat()) {
+            throw new InvalidChatRoomException("그룹 채팅방만 이미지를 변경할 수 있습니다.");
+        }
+
+        validateAdminPermission(chatRoomId, userId);
+
+        chatRoom.updateImageUrl(imageUrl);
+        return chatRoomRepository.save(chatRoom);
+    }
+
     private void validateAdminPermission(Long chatRoomId, Long userId) {
         ChatRoomMember member = getMember(chatRoomId, userId);
         if (!member.isAdmin()) {
