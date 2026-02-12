@@ -42,4 +42,6 @@ public interface UserJpaRepository extends JpaRepository<UserJpaEntity, Long> {
     Page<UserJpaEntity> findByStatus(User.UserStatus status, Pageable pageable);
 
     long countByStatus(User.UserStatus status);
+
+    Optional<UserJpaEntity> findByNicknameAndPhoneNumber(String nickname, String phoneNumber);
 }

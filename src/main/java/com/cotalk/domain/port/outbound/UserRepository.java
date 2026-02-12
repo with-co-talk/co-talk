@@ -142,4 +142,13 @@ public interface UserRepository {
      * @return 해당 상태의 사용자 수
      */
     long countByStatus(User.UserStatus status);
+
+    /**
+     * 닉네임과 전화번호로 사용자를 조회한다.
+     *
+     * @param nickname 닉네임
+     * @param phoneNumber 전화번호
+     * @return 조회된 사용자 (Optional)
+     */
+    Optional<User> findByNicknameAndPhoneNumber(String nickname, String phoneNumber);
 }

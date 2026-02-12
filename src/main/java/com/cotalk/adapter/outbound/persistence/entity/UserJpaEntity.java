@@ -68,4 +68,7 @@ public class UserJpaEntity extends BaseJpaEntity {
 
     @Column(name = "background_url", length = 500)
     private String backgroundUrl;
+
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
 }

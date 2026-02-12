@@ -36,6 +36,7 @@ public class User extends DomainBaseEntity {
     private LocalDateTime lastActiveAt;
     private String statusMessage;
     private String backgroundUrl;
+    private String phoneNumber;
 
     /** 사용자 상태 */
     public enum UserStatus {
@@ -140,5 +141,9 @@ public class User extends DomainBaseEntity {
 
     public void updateBackgroundUrl(String backgroundUrl) {
         this.backgroundUrl = backgroundUrl;
+    }
+
+    public void updatePhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
     }
 }
