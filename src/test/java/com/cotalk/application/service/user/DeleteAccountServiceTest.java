@@ -1,7 +1,7 @@
 package com.cotalk.application.service.user;
 
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.InvalidCredentialsException;
+import com.cotalk.domain.exception.PasswordMismatchException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.BlockRepository;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
@@ -153,7 +153,7 @@ class DeleteAccountServiceTest {
 
         // when & then
         assertThatThrownBy(() -> service.deleteAccount(userId, wrongPassword))
-                .isInstanceOf(InvalidCredentialsException.class);
+                .isInstanceOf(PasswordMismatchException.class);
     }
 
     @Test

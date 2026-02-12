@@ -68,7 +68,7 @@ class FriendIntegrationTest {
     }
 
     private Long createUserAndGetId(String email, String password, String nickname) throws Exception {
-        SignUpRequest request = new SignUpRequest(email, password, nickname);
+        SignUpRequest request = new SignUpRequest(email, password, nickname, null);
         MvcResult result = mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

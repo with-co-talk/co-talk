@@ -10,6 +10,7 @@ import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
+import com.cotalk.domain.port.inbound.user.FindEmailUseCase;
 import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.config.properties.JwtProperties;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
@@ -29,6 +30,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
@@ -69,6 +71,9 @@ class AuthControllerTest {
     @MockBean
     private JwtProperties jwtProperties;
 
+    @MockBean
+    private FindEmailUseCase findEmailUseCase;
+
     @Nested
     @DisplayName("회원가입 API")
     class SignUpApi {
@@ -77,8 +82,8 @@ class AuthControllerTest {
         @DisplayName("유효한 요청으로 회원가입 성공")
         void should_returnCreated_when_validSignUpRequest() throws Exception {
             // given
-            SignUpRequest request = new SignUpRequest("test@example.com", "Password123!", "테스트유저");
-            given(signUpUseCase.signUp(anyString(), anyString(), anyString())).willReturn(1L);
+            SignUpRequest request = new SignUpRequest("test@example.com", "Password123!", "테스트유저", null);
+            given(signUpUseCase.signUp(anyString(), anyString(), anyString(), any())).willReturn(1L);
 
             // when & then
             mockMvc.perform(post("/api/v1/auth/signup")
@@ -93,7 +98,7 @@ class AuthControllerTest {
         @DisplayName("이메일이 비어있으면 400 에러")
         void should_returnBadRequest_when_emptyEmail() throws Exception {
             // given
-            SignUpRequest request = new SignUpRequest("", "Password123!", "테스트유저");
+            SignUpRequest request = new SignUpRequest("", "Password123!", "테스트유저", null);
 
             // when & then
             mockMvc.perform(post("/api/v1/auth/signup")
@@ -106,7 +111,7 @@ class AuthControllerTest {
         @DisplayName("비밀번호가 비어있으면 400 에러")
         void should_returnBadRequest_when_emptyPassword() throws Exception {
             // given
-            SignUpRequest request = new SignUpRequest("test@example.com", "", "테스트유저");
+            SignUpRequest request = new SignUpRequest("test@example.com", "", "테스트유저", null);
 
             // when & then
             mockMvc.perform(post("/api/v1/auth/signup")
@@ -119,8 +124,8 @@ class AuthControllerTest {
         @DisplayName("중복된 이메일로 가입 시 409 에러")
         void should_returnConflict_when_duplicateEmail() throws Exception {
             // given
-            SignUpRequest request = new SignUpRequest("duplicate@example.com", "Password123!", "테스트유저");
-            given(signUpUseCase.signUp(anyString(), anyString(), anyString()))
+            SignUpRequest request = new SignUpRequest("duplicate@example.com", "Password123!", "테스트유저", null);
+            given(signUpUseCase.signUp(anyString(), anyString(), anyString(), any()))
                     .willThrow(new DuplicateEmailException());
 
             // when & then
