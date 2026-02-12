@@ -27,6 +27,9 @@ public class ChatRoom extends BaseEntity {
     @Column(length = 500)
     private String announcement;
 
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ChatRoomType type;
@@ -77,6 +80,18 @@ public class ChatRoom extends BaseEntity {
      */
     public void clearAnnouncement() {
         this.announcement = null;
+    }
+
+    /**
+     * 채팅방 이미지를 변경한다.
+     *
+     * @param imageUrl 새 이미지 URL
+     */
+    public void updateImageUrl(String imageUrl) {
+        if (imageUrl != null && imageUrl.length() > 500) {
+            throw new IllegalArgumentException("이미지 URL은 500자를 초과할 수 없습니다.");
+        }
+        this.imageUrl = imageUrl;
     }
 
     /**

@@ -1,9 +1,11 @@
 package com.cotalk.adapter.inbound.rest;
 
+import com.cotalk.adapter.inbound.rest.dto.auth.ChangePasswordRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.PasswordResetRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.ResetPasswordRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.TokenValidationResponse;
 import com.cotalk.adapter.inbound.rest.dto.common.MessageResponse;
+import com.cotalk.domain.port.inbound.auth.ChangePasswordUseCase;
 import com.cotalk.domain.port.inbound.auth.RequestPasswordResetUseCase;
 import com.cotalk.domain.port.inbound.auth.ResetPasswordUseCase;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,8 +13,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -32,6 +36,7 @@ public class PasswordController {
 
     private final RequestPasswordResetUseCase requestPasswordResetUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
+    private final ChangePasswordUseCase changePasswordUseCase;
 
     /**
      * 이메일로 비밀번호 재설정 링크를 발송한다.
@@ -75,6 +80,23 @@ public class PasswordController {
     public ResponseEntity<MessageResponse> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {
         resetPasswordUseCase.resetPassword(request.token(), request.newPassword());
+        return ResponseEntity.ok(MessageResponse.of("비밀번호가 성공적으로 변경되었습니다."));
+    }
+
+    /**
+     * 현재 비밀번호를 확인 후 새 비밀번호로 변경한다.
+     * 인증된 사용자만 사용할 수 있다.
+     *
+     * @param userId 인증된 사용자 ID
+     * @param request 비밀번호 변경 요청 정보 (현재 비밀번호, 새 비밀번호)
+     * @return 변경 완료 메시지
+     */
+    @Operation(summary = "비밀번호 변경", description = "현재 비밀번호를 확인 후 새 비밀번호로 변경합니다.")
+    @PutMapping("/change")
+    public ResponseEntity<MessageResponse> changePassword(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        changePasswordUseCase.changePassword(userId, request.currentPassword(), request.newPassword());
         return ResponseEntity.ok(MessageResponse.of("비밀번호가 성공적으로 변경되었습니다."));
     }
 }

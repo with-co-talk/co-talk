@@ -59,4 +59,14 @@ public interface ChatRoomManagementUseCase {
      * @return 수정된 채팅방 멤버
      */
     ChatRoomMember demoteFromAdmin(Long chatRoomId, Long adminUserId, Long targetUserId);
+
+    /**
+     * 채팅방 이미지를 변경한다. (관리자 권한 필요, 그룹 채팅방만)
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId 요청 사용자 ID
+     * @param imageUrl 새 이미지 URL
+     * @return 수정된 채팅방
+     */
+    ChatRoom updateChatRoomImage(Long chatRoomId, Long userId, String imageUrl);
 }

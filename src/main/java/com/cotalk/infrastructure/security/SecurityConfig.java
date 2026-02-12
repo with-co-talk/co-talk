@@ -110,9 +110,15 @@ public class SecurityConfig {
                                 "/api/v1/auth/signup",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
-                                "/api/v1/auth/oauth/**"
+                                "/api/v1/auth/oauth/**",
+                                "/api/v1/auth/verify-email",
+                                "/api/v1/auth/resend-verification"
                         ).permitAll()
-                        .requestMatchers("/api/v1/password/**").permitAll()
+                        .requestMatchers(
+                                "/api/v1/password/reset-request",
+                                "/api/v1/password/reset-validate",
+                                "/api/v1/password/reset"
+                        ).permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/prometheus", "/actuator/info").permitAll()

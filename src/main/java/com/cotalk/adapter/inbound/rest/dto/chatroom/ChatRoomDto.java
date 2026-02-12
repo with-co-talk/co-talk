@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
  *
  * @param id                     채팅방 ID
  * @param name                   채팅방 이름
+ * @param imageUrl               채팅방 이미지 URL (그룹 채팅방인 경우)
  * @param type                   채팅방 타입 (PRIVATE, GROUP)
  * @param createdAt              생성 일시
  * @param lastMessage            마지막 메시지
@@ -26,6 +27,7 @@ import java.time.LocalDateTime;
 public record ChatRoomDto(
         Long id,
         String name,
+        String imageUrl,
         String type,
         LocalDateTime createdAt,
         String lastMessage,
@@ -50,6 +52,7 @@ public record ChatRoomDto(
         return new ChatRoomDto(
                 summary.id(),
                 summary.name(),
+                summary.imageUrl(),
                 summary.type().name(),
                 summary.createdAt(),
                 summary.lastMessage(),

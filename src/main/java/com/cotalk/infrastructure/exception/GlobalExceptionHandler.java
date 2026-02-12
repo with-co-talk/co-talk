@@ -4,6 +4,7 @@ import com.cotalk.domain.exception.BlockNotFoundException;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.ChatRoomNotFoundException;
 import com.cotalk.domain.exception.DomainException;
+import com.cotalk.domain.exception.EmailNotVerifiedException;
 import com.cotalk.domain.exception.DuplicateEmailException;
 import com.cotalk.domain.exception.DuplicateNicknameException;
 import com.cotalk.domain.exception.FileUploadException;
@@ -14,6 +15,7 @@ import com.cotalk.domain.exception.InvalidBlockException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.InvalidEmojiException;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
+import com.cotalk.domain.exception.InvalidEmailVerificationTokenException;
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
 import com.cotalk.domain.exception.InvalidRefreshTokenException;
 import com.cotalk.domain.exception.InvalidReportException;
@@ -245,6 +247,32 @@ public class GlobalExceptionHandler {
         log.warn("File upload failed: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(e.getMessage(), "FILE_UPLOAD_ERROR", LocalDateTime.now()));
+    }
+
+    /**
+     * 이메일 미인증 예외를 처리한다.
+     *
+     * @param e 이메일 미인증 예외
+     * @return 403 Forbidden 응답
+     */
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ErrorResponse> handleEmailNotVerifiedException(EmailNotVerifiedException e) {
+        log.warn("Email not verified: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(e.getMessage(), "EMAIL_NOT_VERIFIED", LocalDateTime.now()));
+    }
+
+    /**
+     * 유효하지 않은 이메일 인증 토큰 예외를 처리한다.
+     *
+     * @param e 유효하지 않은 이메일 인증 토큰 예외
+     * @return 400 Bad Request 응답
+     */
+    @ExceptionHandler(InvalidEmailVerificationTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidEmailVerificationTokenException(InvalidEmailVerificationTokenException e) {
+        log.warn("Invalid email verification token: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(e.getMessage(), "INVALID_EMAIL_VERIFICATION_TOKEN", LocalDateTime.now()));
     }
 
     /**

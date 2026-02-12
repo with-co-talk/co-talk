@@ -1,11 +1,15 @@
 package com.cotalk.application.service.auth;
 
+import com.cotalk.domain.entity.EmailVerificationToken;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DomainException;
+import com.cotalk.domain.port.outbound.EmailSender;
+import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.UserValidator;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -40,11 +44,21 @@ class SignUpServiceTest {
     @Mock
     private UserValidator userValidator;
 
+    @Mock
+    private EmailVerificationTokenRepository emailVerificationTokenRepository;
+
+    @Mock
+    private EmailSender emailSender;
+
+    @Mock
+    private AppProperties appProperties;
+
     private SignUpService signUpService;
 
     @BeforeEach
     void setUp() {
-        signUpService = new SignUpService(userRepository, passwordEncoder, idGenerator, userValidator);
+        signUpService = new SignUpService(userRepository, passwordEncoder, idGenerator, userValidator,
+                emailVerificationTokenRepository, emailSender, appProperties);
     }
 
     @Nested
@@ -66,6 +80,9 @@ class SignUpServiceTest {
             given(passwordEncoder.encode(password)).willReturn(encodedPassword);
             given(idGenerator.nextId()).willReturn(expectedUserId);
             given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+            given(emailVerificationTokenRepository.save(any(EmailVerificationToken.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+            given(appProperties.frontendUrl()).willReturn("http://localhost:3000");
 
             // when
             Long result = signUpService.signUp(email, password, nickname);
@@ -88,6 +105,9 @@ class SignUpServiceTest {
             given(passwordEncoder.encode(password)).willReturn(encodedPassword);
             given(idGenerator.nextId()).willReturn(1L);
             given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+            given(emailVerificationTokenRepository.save(any(EmailVerificationToken.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+            given(appProperties.frontendUrl()).willReturn("http://localhost:3000");
 
             // when
             signUpService.signUp(email, password, nickname);
@@ -112,6 +132,9 @@ class SignUpServiceTest {
             given(passwordEncoder.encode(password)).willReturn("encoded");
             given(idGenerator.nextId()).willReturn(snowflakeId);
             given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+            given(emailVerificationTokenRepository.save(any(EmailVerificationToken.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+            given(appProperties.frontendUrl()).willReturn("http://localhost:3000");
 
             // when
             signUpService.signUp(email, password, nickname);

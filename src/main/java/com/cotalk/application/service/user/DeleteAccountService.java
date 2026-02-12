@@ -29,6 +29,7 @@ public class DeleteAccountService implements DeleteAccountUseCase {
     private final FriendRequestRepository friendRequestRepository;
     private final DeviceTokenRepository deviceTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final BlockRepository blockRepository;
     private final ReportRepository reportRepository;
     private final HiddenFriendRepository hiddenFriendRepository;
@@ -84,6 +85,7 @@ public class DeleteAccountService implements DeleteAccountUseCase {
         friendRequestRepository.deleteByUserId(userId);
         deviceTokenRepository.deleteByUserId(userId);
         passwordResetTokenRepository.deleteByUserId(userId);
+        emailVerificationTokenRepository.deleteByUserId(userId);
         blockRepository.deleteByBlockerId(userId);
         blockRepository.deleteByBlockedId(userId);
         reportRepository.deleteByReporterId(userId);

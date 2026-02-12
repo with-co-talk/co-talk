@@ -1,13 +1,17 @@
 package com.cotalk.application.service.auth;
 
+import com.cotalk.domain.entity.EmailVerificationToken;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DuplicateEmailException;
 import com.cotalk.domain.exception.DuplicateNicknameException;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
+import com.cotalk.domain.port.outbound.EmailSender;
+import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.UserValidator;
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +33,9 @@ public class SignUpService implements SignUpUseCase {
     private final PasswordEncoderPort passwordEncoder;
     private final IdGenerator idGenerator;
     private final UserValidator userValidator;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private final EmailSender emailSender;
+    private final AppProperties appProperties;
 
     /**
      * 새로운 사용자를 등록한다.
@@ -58,9 +65,19 @@ public class SignUpService implements SignUpUseCase {
                 .email(email)
                 .passwordHash(passwordHash)
                 .nickname(nickname)
+                .emailVerified(false)
                 .build();
 
         User savedUser = userRepository.save(user);
+
+        // 이메일 인증 토큰 생성 및 발송
+        EmailVerificationToken verificationToken = EmailVerificationToken.create(
+                savedUser.getId(), email, 1440); // 24시간
+        emailVerificationTokenRepository.save(verificationToken);
+
+        String verificationLink = appProperties.frontendUrl() + "/verify-email?token=" + verificationToken.getToken();
+        emailSender.sendVerificationEmail(email, verificationLink);
+
         log.info("Sign-up successful: userId={}, email={}", savedUser.getId(), maskEmail(email));
         return savedUser.getId();
     }

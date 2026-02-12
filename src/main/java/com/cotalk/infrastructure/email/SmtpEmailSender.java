@@ -76,6 +76,68 @@ public class SmtpEmailSender implements EmailSender {
     }
 
     /**
+     * 이메일 인증 이메일을 비동기로 발송한다.
+     *
+     * <p>미리 정의된 HTML 템플릿을 사용하여 이메일 인증 링크가 포함된 이메일을 발송한다.
+     *
+     * @param to               수신자 이메일 주소
+     * @param verificationLink 이메일 인증 링크 URL
+     */
+    @Override
+    @Async
+    public void sendVerificationEmail(String to, String verificationLink) {
+        String subject = "[Co-Talk] 이메일 인증";
+        String body = buildVerificationEmailBody(verificationLink);
+        send(to, subject, body);
+    }
+
+    /**
+     * 이메일 인증 이메일의 HTML 본문을 생성한다.
+     *
+     * @param verificationLink 이메일 인증 링크 URL
+     * @return 생성된 HTML 본문 문자열
+     */
+    private String buildVerificationEmailBody(String verificationLink) {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Apple SD Gothic Neo', sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+                    .button { display: inline-block; background: #4F46E5; color: white; padding: 12px 30px;
+                              text-decoration: none; border-radius: 6px; margin: 20px 0; }
+                    .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Co-Talk 이메일 인증</h1>
+                    </div>
+                    <div class="content">
+                        <p>안녕하세요,</p>
+                        <p>Co-Talk 회원가입을 환영합니다!</p>
+                        <p>아래 버튼을 클릭하여 이메일 인증을 완료해주세요:</p>
+                        <p style="text-align: center;">
+                            <a href="%s" class="button">이메일 인증하기</a>
+                        </p>
+                        <p><strong>이 링크는 24시간 후에 만료됩니다.</strong></p>
+                        <p>만약 회원가입을 요청하지 않으셨다면, 이 이메일을 무시하셔도 됩니다.</p>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; 2026 Co-Talk. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(verificationLink);
+    }
+
+    /**
      * 비밀번호 재설정 이메일의 HTML 본문을 생성한다.
      *
      * @param resetLink 비밀번호 재설정 링크 URL

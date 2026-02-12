@@ -144,6 +144,7 @@ class ChatRoomControllerTest {
                     new ChatRoomSummary(
                             100L,
                             "채팅방1",
+                            null,
                             ChatRoom.ChatRoomType.DIRECT,
                             now,
                             "마지막 메시지입니다",
@@ -160,6 +161,7 @@ class ChatRoomControllerTest {
                     new ChatRoomSummary(
                             101L,
                             "채팅방2",
+                            null,
                             ChatRoom.ChatRoomType.DIRECT,
                             now,
                             "안녕하세요",
@@ -224,7 +226,7 @@ class ChatRoomControllerTest {
             Long userId = 1L;
             LocalDateTime now = LocalDateTime.now();
             ChatRoomSummary room = new ChatRoomSummary(
-                    100L, "채팅방", ChatRoom.ChatRoomType.DIRECT, now,
+                    100L, "채팅방", null, ChatRoom.ChatRoomType.DIRECT, now,
                     "msg", "TEXT", now, 0L, 2L, "상대방", null, false, false, null
             );
 

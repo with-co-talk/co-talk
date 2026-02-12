@@ -31,6 +31,8 @@ public class User extends DomainBaseEntity {
     private Role role = Role.USER;
     @Builder.Default
     private OnlineStatus onlineStatus = OnlineStatus.OFFLINE;
+    @Builder.Default
+    private boolean emailVerified = true;
     private LocalDateTime lastActiveAt;
     private String statusMessage;
     private String backgroundUrl;
@@ -114,6 +116,22 @@ public class User extends DomainBaseEntity {
 
     public boolean isOAuthUser() {
         return this.oauthProvider != null;
+    }
+
+    /**
+     * 이메일 인증을 완료한다.
+     */
+    public void verifyEmail() {
+        this.emailVerified = true;
+    }
+
+    /**
+     * 이메일 인증 여부를 확인한다.
+     *
+     * @return 이메일 인증 완료 시 true
+     */
+    public boolean isEmailVerified() {
+        return this.emailVerified;
     }
 
     public void updateStatusMessage(String statusMessage) {

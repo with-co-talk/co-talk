@@ -1,6 +1,7 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.exception.EmailNotVerifiedException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.auth.LoginResult;
@@ -63,6 +64,12 @@ public class LoginService implements LoginUseCase {
             log.warn("Login failed: inactive account for userId: {}", user.getId());
             customMetrics.incrementLoginFailure();
             throw new InvalidCredentialsException("계정이 비활성화 또는 정지되었습니다.");
+        }
+
+        if (!user.isEmailVerified()) {
+            log.warn("Login failed: email not verified for userId: {}", user.getId());
+            customMetrics.incrementLoginFailure();
+            throw new EmailNotVerifiedException(user.getEmail());
         }
 
         // 로그인 시 온라인 상태로 변경 및 마지막 접속 시간 업데이트
