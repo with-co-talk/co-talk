@@ -18,6 +18,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -485,6 +490,107 @@ class GetChatRoomsServiceTest {
 
             // then - DIRECT 채팅방 ID만 전달되었는지 검증
             verify(chatRoomMemberRepository).findOtherMembersByChatRoomIds(userId, List.of(directChatRoomId));
+        }
+    }
+
+    @Nested
+    @DisplayName("페이지네이션된 채팅방 목록 조회 시")
+    class GetPagedChatRoomsTest {
+
+        @Test
+        @DisplayName("DB 레벨 페이지네이션으로 채팅방 목록을 조회한다")
+        void should_returnPagedChatRoomSummaries_when_pageableProvided() {
+            // given
+            Long userId = 1L;
+            Long otherUserId = 2L;
+            Long chatRoomId = 100L;
+            Pageable pageable = PageRequest.of(0, 20);
+
+            ChatRoom chatRoom = ChatRoom.builder()
+                    .id(chatRoomId)
+                    .name("채팅방1")
+                    .type(ChatRoom.ChatRoomType.DIRECT)
+                    .build();
+
+            Page<ChatRoom> chatRoomPage = new PageImpl<>(List.of(chatRoom), pageable, 1);
+
+            ChatRoomMember myMember = ChatRoomMember.builder()
+                    .id(500L)
+                    .chatRoomId(chatRoomId)
+                    .userId(userId)
+                    .lastReadMessageId(900L)
+                    .build();
+
+            ChatRoomMember otherMember = ChatRoomMember.builder()
+                    .id(501L)
+                    .chatRoomId(chatRoomId)
+                    .userId(otherUserId)
+                    .build();
+
+            User otherUser = User.builder()
+                    .id(otherUserId)
+                    .email("other@test.com")
+                    .nickname("상대방")
+                    .passwordHash("hash")
+                    .avatarUrl("https://example.com/avatar.png")
+                    .build();
+
+            Message lastMessage = Message.builder()
+                    .id(1000L)
+                    .chatRoomId(chatRoomId)
+                    .senderId(otherUserId)
+                    .content("마지막 메시지입니다")
+                    .build();
+
+            // 배치 쿼리 모킹
+            given(chatRoomRepository.findByUserId(userId, pageable)).willReturn(chatRoomPage);
+            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of(myMember));
+            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
+                    .willReturn(List.of(lastMessage));
+            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
+                    .willReturn(Map.of(chatRoomId, 5L));
+            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
+                    .willReturn(List.of(otherMember));
+            given(userRepository.findAllById(any())).willReturn(List.of(otherUser));
+
+            // when
+            Page<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId, pageable);
+
+            // then
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getTotalElements()).isEqualTo(1);
+            assertThat(result.getNumber()).isEqualTo(0);
+            assertThat(result.getSize()).isEqualTo(20);
+
+            ChatRoomSummary summary = result.getContent().get(0);
+            assertThat(summary.id()).isEqualTo(chatRoomId);
+            assertThat(summary.name()).isEqualTo("채팅방1");
+            assertThat(summary.lastMessage()).isEqualTo("마지막 메시지입니다");
+            assertThat(summary.unreadCount()).isEqualTo(5L);
+            assertThat(summary.otherUserId()).isEqualTo(otherUserId);
+            assertThat(summary.otherUserNickname()).isEqualTo("상대방");
+        }
+
+        @Test
+        @DisplayName("채팅방이 없을 때 빈 페이지를 반환한다")
+        void should_returnEmptyPage_when_noChatRooms() {
+            // given
+            Long userId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<ChatRoom> emptyPage = new PageImpl<>(List.of(), pageable, 0);
+
+            given(chatRoomRepository.findByUserId(userId, pageable)).willReturn(emptyPage);
+
+            // when
+            Page<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId, pageable);
+
+            // then
+            assertThat(result.getContent()).isEmpty();
+            assertThat(result.getTotalElements()).isEqualTo(0);
+            // 빈 페이지일 때 다른 배치 쿼리가 호출되지 않음
+            verify(chatRoomMemberRepository, never()).findByUserIdAndChatRoomIds(any(), anyList());
+            verify(messageRepository, never()).findLastMessagesByRoomIds(anyList());
         }
     }
 }

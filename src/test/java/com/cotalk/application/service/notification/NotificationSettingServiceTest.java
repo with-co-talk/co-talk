@@ -101,7 +101,7 @@ class NotificationSettingServiceTest {
                 false,  // messageNotification
                 false,  // friendRequestNotification
                 null,   // groupInviteNotification (null = 변경 안함)
-                null,   // showMessageContentInNotification (null = 변경 안함)
+                null,   // notificationPreviewMode (null = 변경 안함)
                 false,  // soundEnabled
                 null,   // vibrationEnabled
                 true,   // doNotDisturbEnabled

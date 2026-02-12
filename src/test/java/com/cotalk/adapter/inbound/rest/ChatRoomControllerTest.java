@@ -36,6 +36,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -129,7 +134,7 @@ class ChatRoomControllerTest {
     class GetChatRoomsApi {
 
         @Test
-        @DisplayName("사용자의 채팅방 목록 조회 성공 - 마지막 메시지, 안읽은 개수, 상대방 정보 포함")
+        @DisplayName("사용자의 채팅방 목록 조회 성공 - 페이지네이션 메타데이터 포함")
         @WithMockCustomUser(userId = 1L)
         void should_returnChatRoomSummaries_when_validUserId() throws Exception {
             // given
@@ -170,10 +175,13 @@ class ChatRoomControllerTest {
                     )
             );
 
-            given(getChatRoomsUseCase.getChatRooms(userId)).willReturn(chatRooms);
+            Page<ChatRoomSummary> chatRoomPage = new PageImpl<>(chatRooms, PageRequest.of(0, 20), 2);
+            given(getChatRoomsUseCase.getChatRooms(eq(userId), any(Pageable.class))).willReturn(chatRoomPage);
 
             // when & then
-            mockMvc.perform(get("/api/v1/chat/rooms"))
+            mockMvc.perform(get("/api/v1/chat/rooms")
+                            .param("page", "0")
+                            .param("size", "20"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.rooms").isArray())
                     .andExpect(jsonPath("$.rooms.length()").value(2))
@@ -183,22 +191,56 @@ class ChatRoomControllerTest {
                     .andExpect(jsonPath("$.rooms[0].unreadCount").value(5))
                     .andExpect(jsonPath("$.rooms[0].otherUserId").value(2))
                     .andExpect(jsonPath("$.rooms[0].otherUserNickname").value("상대방"))
-                    .andExpect(jsonPath("$.rooms[0].otherUserAvatarUrl").value("https://example.com/avatar.png"));
+                    .andExpect(jsonPath("$.rooms[0].otherUserAvatarUrl").value("https://example.com/avatar.png"))
+                    .andExpect(jsonPath("$.page").value(0))
+                    .andExpect(jsonPath("$.size").value(20))
+                    .andExpect(jsonPath("$.totalElements").value(2))
+                    .andExpect(jsonPath("$.totalPages").value(1));
         }
 
         @Test
-        @DisplayName("채팅방이 없을 때 빈 배열 반환")
+        @DisplayName("채팅방이 없을 때 빈 배열과 페이지네이션 메타데이터 반환")
         @WithMockCustomUser(userId = 1L)
         void should_returnEmptyArray_when_noChatRooms() throws Exception {
             // given
             Long userId = 1L;
-            given(getChatRoomsUseCase.getChatRooms(userId)).willReturn(List.of());
+            Page<ChatRoomSummary> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+            given(getChatRoomsUseCase.getChatRooms(eq(userId), any(Pageable.class))).willReturn(emptyPage);
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/rooms"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.rooms").isArray())
-                    .andExpect(jsonPath("$.rooms.length()").value(0));
+                    .andExpect(jsonPath("$.rooms.length()").value(0))
+                    .andExpect(jsonPath("$.totalElements").value(0))
+                    .andExpect(jsonPath("$.totalPages").value(0));
+        }
+
+        @Test
+        @DisplayName("페이지네이션 파라미터로 DB 레벨 페이지네이션 동작")
+        @WithMockCustomUser(userId = 1L)
+        void should_paginateAtDbLevel_when_pageAndSizeProvided() throws Exception {
+            // given
+            Long userId = 1L;
+            LocalDateTime now = LocalDateTime.now();
+            ChatRoomSummary room = new ChatRoomSummary(
+                    100L, "채팅방", ChatRoom.ChatRoomType.DIRECT, now,
+                    "msg", "TEXT", now, 0L, 2L, "상대방", null, false, false, null
+            );
+
+            Page<ChatRoomSummary> chatRoomPage = new PageImpl<>(List.of(room), PageRequest.of(1, 10), 25);
+            given(getChatRoomsUseCase.getChatRooms(eq(userId), any(Pageable.class))).willReturn(chatRoomPage);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/chat/rooms")
+                            .param("page", "1")
+                            .param("size", "10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.rooms.length()").value(1))
+                    .andExpect(jsonPath("$.page").value(1))
+                    .andExpect(jsonPath("$.size").value(10))
+                    .andExpect(jsonPath("$.totalElements").value(25))
+                    .andExpect(jsonPath("$.totalPages").value(3));
         }
     }
 

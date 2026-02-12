@@ -21,9 +21,15 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -56,7 +62,7 @@ class AdminControllerTest {
     class ReportManagementApi {
 
         @Test
-        @DisplayName("대기 중인 신고 목록 조회")
+        @DisplayName("대기 중인 신고 목록 조회 - 페이지네이션 메타데이터 포함")
         void should_returnPendingReports() throws Exception {
             // given
             List<Report> reports = List.of(
@@ -70,14 +76,21 @@ class AdminControllerTest {
                             .build()
             );
 
-            given(adminUseCase.getPendingReports()).willReturn(reports);
+            Page<Report> reportPage = new PageImpl<>(reports, PageRequest.of(0, 20), 1);
+            given(adminUseCase.getPendingReports(any(Pageable.class))).willReturn(reportPage);
 
             // when & then
-            mockMvc.perform(get("/api/v1/admin/reports/pending"))
+            mockMvc.perform(get("/api/v1/admin/reports/pending")
+                            .param("page", "0")
+                            .param("size", "20"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.reports").isArray())
                     .andExpect(jsonPath("$.reports.length()").value(1))
-                    .andExpect(jsonPath("$.reports[0].status").value("PENDING"));
+                    .andExpect(jsonPath("$.reports[0].status").value("PENDING"))
+                    .andExpect(jsonPath("$.page").value(0))
+                    .andExpect(jsonPath("$.size").value(20))
+                    .andExpect(jsonPath("$.totalElements").value(1))
+                    .andExpect(jsonPath("$.totalPages").value(1));
         }
 
         @Test
@@ -119,7 +132,7 @@ class AdminControllerTest {
     class UserManagementApi {
 
         @Test
-        @DisplayName("전체 사용자 목록 조회")
+        @DisplayName("전체 사용자 목록 조회 - 페이지네이션 메타데이터 포함")
         void should_returnAllUsers() throws Exception {
             // given
             List<User> users = List.of(
@@ -137,13 +150,20 @@ class AdminControllerTest {
                             .build()
             );
 
-            given(adminUseCase.getAllUsers()).willReturn(users);
+            Page<User> userPage = new PageImpl<>(users, PageRequest.of(0, 20), 2);
+            given(adminUseCase.getAllUsers(any(Pageable.class))).willReturn(userPage);
 
             // when & then
-            mockMvc.perform(get("/api/v1/admin/users"))
+            mockMvc.perform(get("/api/v1/admin/users")
+                            .param("page", "0")
+                            .param("size", "20"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.users").isArray())
-                    .andExpect(jsonPath("$.users.length()").value(2));
+                    .andExpect(jsonPath("$.users.length()").value(2))
+                    .andExpect(jsonPath("$.page").value(0))
+                    .andExpect(jsonPath("$.size").value(20))
+                    .andExpect(jsonPath("$.totalElements").value(2))
+                    .andExpect(jsonPath("$.totalPages").value(1));
         }
 
         @Test
