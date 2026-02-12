@@ -1,6 +1,7 @@
 package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
+import com.cotalk.domain.port.inbound.auth.ChangePasswordUseCase;
 import com.cotalk.domain.port.inbound.auth.RequestPasswordResetUseCase;
 import com.cotalk.domain.port.inbound.auth.ResetPasswordUseCase;
 import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
@@ -41,6 +42,9 @@ class PasswordControllerTest {
 
     @MockBean
     private ResetPasswordUseCase resetPasswordUseCase;
+
+    @MockBean
+    private ChangePasswordUseCase changePasswordUseCase;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;

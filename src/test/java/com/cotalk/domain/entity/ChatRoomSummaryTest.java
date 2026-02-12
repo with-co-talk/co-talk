@@ -30,6 +30,7 @@ class ChatRoomSummaryTest {
             ChatRoomSummary summary = new ChatRoomSummary(
                     1L,
                     "1:1 채팅",
+                    null,
                     ChatRoom.ChatRoomType.DIRECT,
                     now,
                     "마지막 메시지",
@@ -71,6 +72,7 @@ class ChatRoomSummaryTest {
             ChatRoomSummary summary = new ChatRoomSummary(
                     2L,
                     "프로젝트 팀",
+                    "https://example.com/team.png",
                     ChatRoom.ChatRoomType.GROUP,
                     now,
                     "안녕하세요",
@@ -106,6 +108,7 @@ class ChatRoomSummaryTest {
             ChatRoomSummary summary = new ChatRoomSummary(
                     3L,
                     "빈 채팅방",
+                    null,
                     ChatRoom.ChatRoomType.DIRECT,
                     now,
                     null,
@@ -136,6 +139,7 @@ class ChatRoomSummaryTest {
             ChatRoomSummary summary = new ChatRoomSummary(
                     4L,
                     "나간 채팅방",
+                    null,
                     ChatRoom.ChatRoomType.DIRECT,
                     now,
                     "OOO님이 나갔습니다",
@@ -168,11 +172,11 @@ class ChatRoomSummaryTest {
             LocalDateTime now = LocalDateTime.now();
 
             ChatRoomSummary summary1 = new ChatRoomSummary(
-                    1L, "채팅방", ChatRoom.ChatRoomType.DIRECT, now,
+                    1L, "채팅방", null, ChatRoom.ChatRoomType.DIRECT, now,
                     "메시지", "TEXT", now, 0, 2L, "닉네임", null, false, false, null
             );
             ChatRoomSummary summary2 = new ChatRoomSummary(
-                    1L, "채팅방", ChatRoom.ChatRoomType.DIRECT, now,
+                    1L, "채팅방", null, ChatRoom.ChatRoomType.DIRECT, now,
                     "메시지", "TEXT", now, 0, 2L, "닉네임", null, false, false, null
             );
 
@@ -188,11 +192,11 @@ class ChatRoomSummaryTest {
             LocalDateTime now = LocalDateTime.now();
 
             ChatRoomSummary summary1 = new ChatRoomSummary(
-                    1L, "채팅방1", ChatRoom.ChatRoomType.DIRECT, now,
+                    1L, "채팅방1", null, ChatRoom.ChatRoomType.DIRECT, now,
                     "메시지", "TEXT", now, 0, 2L, "닉네임", null, false, false, null
             );
             ChatRoomSummary summary2 = new ChatRoomSummary(
-                    2L, "채팅방2", ChatRoom.ChatRoomType.GROUP, now,
+                    2L, "채팅방2", "https://example.com/group.png", ChatRoom.ChatRoomType.GROUP, now,
                     "메시지", "TEXT", now, 5, null, null, null, false, false, null
             );
 
@@ -205,7 +209,7 @@ class ChatRoomSummaryTest {
         void should_containsContent_when_toString() {
             // given
             ChatRoomSummary summary = new ChatRoomSummary(
-                    1L, "테스트 채팅방", ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
+                    1L, "테스트 채팅방", null, ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
                     null, null, null, 0, 2L, "테스터", null, false, false, null
             );
 

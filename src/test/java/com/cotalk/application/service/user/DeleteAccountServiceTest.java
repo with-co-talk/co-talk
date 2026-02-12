@@ -10,6 +10,7 @@ import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.domain.port.outbound.HiddenFriendRepository;
 import com.cotalk.domain.port.outbound.NotificationSettingRepository;
+import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
 import com.cotalk.domain.port.outbound.ProfileHistoryRepository;
 import com.cotalk.domain.port.outbound.RefreshTokenRepository;
@@ -54,6 +55,9 @@ class DeleteAccountServiceTest {
     private PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Mock
+    private EmailVerificationTokenRepository emailVerificationTokenRepository;
+
+    @Mock
     private BlockRepository blockRepository;
 
     @Mock
@@ -88,6 +92,7 @@ class DeleteAccountServiceTest {
                 friendRequestRepository,
                 deviceTokenRepository,
                 passwordResetTokenRepository,
+                emailVerificationTokenRepository,
                 blockRepository,
                 reportRepository,
                 hiddenFriendRepository,

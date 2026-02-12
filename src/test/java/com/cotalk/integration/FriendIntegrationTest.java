@@ -3,7 +3,9 @@ package com.cotalk.integration;
 import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
+import com.cotalk.adapter.outbound.persistence.auth.EmailVerificationTokenJpaRepository;
 import com.cotalk.config.TestRedisConfiguration;
+import com.cotalk.domain.entity.EmailVerificationToken;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +47,9 @@ class FriendIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private EmailVerificationTokenJpaRepository emailVerificationTokenJpaRepository;
+
     private Long user1Id;
     private Long user2Id;
     private String user1Token;
@@ -52,11 +57,13 @@ class FriendIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // 두 명의 사용자 생성 및 로그인
+        // 두 명의 사용자 생성, 이메일 인증 및 로그인
         user1Id = createUserAndGetId("user1@test.com", "Password123!", "사용자1");
+        verifyEmailForUser("user1@test.com");
         user1Token = loginAndGetToken("user1@test.com", "Password123!");
 
         user2Id = createUserAndGetId("user2@test.com", "Password123!", "사용자2");
+        verifyEmailForUser("user2@test.com");
         user2Token = loginAndGetToken("user2@test.com", "Password123!");
     }
 
@@ -82,6 +89,17 @@ class FriendIntegrationTest {
 
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
         return response.get("accessToken").asText();
+    }
+
+    private void verifyEmailForUser(String email) throws Exception {
+        EmailVerificationToken token = emailVerificationTokenJpaRepository.findAll().stream()
+                .filter(t -> t.getEmail().equals(email))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Verification token not found for: " + email));
+
+        mockMvc.perform(get("/api/v1/auth/verify-email")
+                        .param("token", token.getToken()))
+                .andExpect(status().isOk());
     }
 
     private void setSecurityContext(Long userId) {
