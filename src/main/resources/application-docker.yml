@@ -13,14 +13,14 @@ spring:
       - org.redisson.spring.starter.RedissonAutoConfigurationV2
   datasource:
     url: ${DB_URL:jdbc:postgresql://postgres:5432/cotalk}
-    username: ${DB_USERNAME:cotalk}
-    password: ${DB_PASSWORD:cotalk}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
   data:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
-      password:
+      password: ${REDIS_PASSWORD:}
 
   jpa:
     hibernate:
