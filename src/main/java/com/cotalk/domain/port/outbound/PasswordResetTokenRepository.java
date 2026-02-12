@@ -29,6 +29,15 @@ public interface PasswordResetTokenRepository {
     Optional<PasswordResetToken> findByToken(String token);
 
     /**
+     * 이메일과 인증 코드로 비밀번호 재설정 토큰을 조회한다.
+     *
+     * @param email 이메일 주소
+     * @param verificationCode 6자리 인증 코드
+     * @return 조회된 비밀번호 재설정 토큰 (Optional)
+     */
+    Optional<PasswordResetToken> findByEmailAndVerificationCode(String email, String verificationCode);
+
+    /**
      * 특정 사용자의 모든 비밀번호 재설정 토큰을 삭제한다.
      *
      * @param userId 사용자 ID

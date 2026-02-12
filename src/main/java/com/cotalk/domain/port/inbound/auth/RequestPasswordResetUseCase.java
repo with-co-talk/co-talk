@@ -14,4 +14,11 @@ public interface RequestPasswordResetUseCase {
      * @param email 사용자 이메일
      */
     void requestPasswordReset(String email);
+
+    /**
+     * 6자리 인증 코드가 포함된 비밀번호 재설정 이메일을 발송한다.
+     *
+     * @param email 사용자 이메일
+     */
+    void requestPasswordResetWithCode(String email);
 }

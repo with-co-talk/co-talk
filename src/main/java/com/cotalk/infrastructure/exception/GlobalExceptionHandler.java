@@ -14,6 +14,7 @@ import com.cotalk.domain.exception.FriendRequestNotFoundException;
 import com.cotalk.domain.exception.InvalidBlockException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.InvalidEmojiException;
+import com.cotalk.domain.exception.PasswordMismatchException;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.exception.InvalidEmailVerificationTokenException;
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
@@ -63,6 +64,20 @@ public class GlobalExceptionHandler {
         log.warn("Duplicate email: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorResponse(e.getMessage(), "DUPLICATE_EMAIL", LocalDateTime.now()));
+    }
+
+    /**
+     * 비밀번호 불일치 예외를 처리한다.
+     * 로그인이 아닌 비밀번호 확인 시 사용한다 (회원탈퇴, 비밀번호 변경 등).
+     *
+     * @param e 비밀번호 불일치 예외
+     * @return 400 Bad Request 응답
+     */
+    @ExceptionHandler(PasswordMismatchException.class)
+    public ResponseEntity<ErrorResponse> handlePasswordMismatchException(PasswordMismatchException e) {
+        log.warn("Password mismatch: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(e.getMessage(), "PASSWORD_MISMATCH", LocalDateTime.now()));
     }
 
     /**

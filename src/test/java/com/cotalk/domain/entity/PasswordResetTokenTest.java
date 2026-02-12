@@ -252,6 +252,57 @@ class PasswordResetTokenTest {
     }
 
     @Nested
+    @DisplayName("createWithCode 메서드")
+    class CreateWithCode {
+
+        @Test
+        @DisplayName("createWithCode는 6자리 숫자 코드를 생성한다")
+        void should_createSixDigitCode_when_createWithCode() {
+            // when
+            PasswordResetToken token = PasswordResetToken.createWithCode(1L, "test@example.com", 30);
+
+            // then
+            assertThat(token.getVerificationCode()).isNotNull();
+            assertThat(token.getVerificationCode()).hasSize(6);
+            assertThat(token.getVerificationCode()).matches("\\d{6}");
+        }
+
+        @Test
+        @DisplayName("createWithCode로 생성된 토큰은 유효하다")
+        void should_beValid_when_justCreated() {
+            // when
+            PasswordResetToken token = PasswordResetToken.createWithCode(1L, "test@example.com", 30);
+
+            // then
+            assertThat(token.isValid()).isTrue();
+            assertThat(token.isExpired()).isFalse();
+            assertThat(token.isUsed()).isFalse();
+            assertThat(token.getToken()).isNotNull();
+            assertThat(token.getUserId()).isEqualTo(1L);
+            assertThat(token.getEmail()).isEqualTo("test@example.com");
+        }
+
+        @Test
+        @DisplayName("서로 다른 코드가 생성된다")
+        void should_generateDifferentCodes() {
+            // when
+            PasswordResetToken token1 = PasswordResetToken.createWithCode(1L, "test@example.com", 30);
+
+            // then - 확률적으로 다름 (6자리 코드가 같을 확률은 1/900000)
+            // 100번 생성하면 모두 같을 확률은 0에 수렴
+            boolean hasDifferent = false;
+            for (int i = 0; i < 100; i++) {
+                PasswordResetToken t = PasswordResetToken.createWithCode(1L, "test@example.com", 30);
+                if (!t.getVerificationCode().equals(token1.getVerificationCode())) {
+                    hasDifferent = true;
+                    break;
+                }
+            }
+            assertThat(hasDifferent).isTrue();
+        }
+    }
+
+    @Nested
     @DisplayName("markAsUsed 메서드")
     class MarkAsUsed {
 

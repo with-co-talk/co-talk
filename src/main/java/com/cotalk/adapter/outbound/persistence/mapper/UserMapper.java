@@ -31,6 +31,7 @@ public class UserMapper {
                 .lastActiveAt(jpa.getLastActiveAt())
                 .statusMessage(jpa.getStatusMessage())
                 .backgroundUrl(jpa.getBackgroundUrl())
+                .phoneNumber(jpa.getPhoneNumber())
                 .createdAt(jpa.getCreatedAt())
                 .updatedAt(jpa.getUpdatedAt())
                 .build();
@@ -55,6 +56,7 @@ public class UserMapper {
                 .lastActiveAt(domain.getLastActiveAt())
                 .statusMessage(domain.getStatusMessage())
                 .backgroundUrl(domain.getBackgroundUrl())
+                .phoneNumber(domain.getPhoneNumber())
                 .build();
         if (domain.getCreatedAt() != null) {
             jpa.setCreatedAt(domain.getCreatedAt());

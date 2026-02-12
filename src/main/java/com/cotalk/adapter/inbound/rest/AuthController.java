@@ -1,6 +1,8 @@
 package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.adapter.inbound.rest.dto.auth.AuthTokenResponse;
+import com.cotalk.adapter.inbound.rest.dto.auth.FindEmailRequest;
+import com.cotalk.adapter.inbound.rest.dto.auth.FindEmailResponse;
 import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpResponse;
@@ -10,6 +12,7 @@ import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
+import com.cotalk.domain.port.inbound.user.FindEmailUseCase;
 import com.cotalk.infrastructure.config.properties.JwtProperties;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,6 +45,7 @@ public class AuthController {
     private final LoginUseCase loginUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final JwtProperties jwtProperties;
+    private final FindEmailUseCase findEmailUseCase;
 
     /**
      * 새로운 사용자를 등록한다.
@@ -56,7 +60,7 @@ public class AuthController {
     })
     @PostMapping("/signup")
     public ResponseEntity<SignUpResponse> signUp(@Valid @RequestBody SignUpRequest request) {
-        Long userId = signUpUseCase.signUp(request.email(), request.password(), request.nickname());
+        Long userId = signUpUseCase.signUp(request.email(), request.password(), request.nickname(), request.phoneNumber());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(SignUpResponse.of(userId, "회원가입이 완료되었습니다."));
     }
@@ -113,6 +117,17 @@ public class AuthController {
     public ResponseEntity<Void> logout(@AuthenticationPrincipal CustomUserPrincipal principal) {
         refreshTokenUseCase.revokeAllTokensByUserId(principal.getUserId());
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "아이디(이메일) 찾기", description = "닉네임과 전화번호로 가입된 이메일을 찾습니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
+    @PostMapping("/find-email")
+    public ResponseEntity<FindEmailResponse> findEmail(@Valid @RequestBody FindEmailRequest request) {
+        FindEmailUseCase.FindEmailResult result = findEmailUseCase.findEmail(
+                request.nickname(), request.phoneNumber());
+        return ResponseEntity.ok(FindEmailResponse.from(result.found(), result.maskedEmail(), result.message()));
     }
 
 }

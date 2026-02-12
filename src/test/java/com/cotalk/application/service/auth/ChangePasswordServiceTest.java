@@ -1,7 +1,7 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.InvalidCredentialsException;
+import com.cotalk.domain.exception.PasswordMismatchException;
 import com.cotalk.domain.exception.RateLimitExceededException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
@@ -99,10 +99,10 @@ class ChangePasswordServiceTest {
 
     /**
      * 현재 비밀번호가 일치하지 않을 때
-     * {@link InvalidCredentialsException}이 발생해야 한다.
+     * {@link PasswordMismatchException}이 발생해야 한다.
      */
     @Test
-    @DisplayName("현재 비밀번호가 틀렸을 때 InvalidCredentialsException 발생")
+    @DisplayName("현재 비밀번호가 틀렸을 때 PasswordMismatchException 발생")
     void should_throwInvalidCredentialsException_when_wrongCurrentPassword() {
         // given
         User user = User.builder()
@@ -118,7 +118,7 @@ class ChangePasswordServiceTest {
         // when & then
         assertThatThrownBy(() ->
                 changePasswordService.changePassword(USER_ID, "wrongPassword", NEW_PASSWORD))
-                .isInstanceOf(InvalidCredentialsException.class)
+                .isInstanceOf(PasswordMismatchException.class)
                 .hasMessageContaining("현재 비밀번호가 일치하지 않습니다.");
 
         verify(userRepository, never()).save(any());
@@ -173,7 +173,7 @@ class ChangePasswordServiceTest {
         for (int i = 0; i < 5; i++) {
             try {
                 changePasswordService.changePassword(USER_ID, "wrongPassword", NEW_PASSWORD);
-            } catch (InvalidCredentialsException ignored) {
+            } catch (PasswordMismatchException ignored) {
                 // 예상된 예외
             }
         }
@@ -210,7 +210,7 @@ class ChangePasswordServiceTest {
         for (int i = 0; i < 4; i++) {
             try {
                 changePasswordService.changePassword(USER_ID, "wrongPassword", NEW_PASSWORD);
-            } catch (InvalidCredentialsException ignored) {
+            } catch (PasswordMismatchException ignored) {
                 // 예상된 예외
             }
         }
@@ -222,14 +222,14 @@ class ChangePasswordServiceTest {
         for (int i = 0; i < 4; i++) {
             try {
                 changePasswordService.changePassword(USER_ID, "wrongPassword", NEW_PASSWORD);
-            } catch (InvalidCredentialsException ignored) {
+            } catch (PasswordMismatchException ignored) {
                 // 예상된 예외 - RateLimitExceededException이 아님
             }
         }
 
-        // then - 5번째도 InvalidCredentialsException (카운터가 리셋되었으므로)
+        // then - 5번째도 PasswordMismatchException (카운터가 리셋되었으므로)
         assertThatThrownBy(() ->
                 changePasswordService.changePassword(USER_ID, "wrongPassword", NEW_PASSWORD))
-                .isInstanceOf(InvalidCredentialsException.class);
+                .isInstanceOf(PasswordMismatchException.class);
     }
 }

@@ -1,6 +1,6 @@
 package com.cotalk.adapter.inbound.rest;
 
-import com.cotalk.domain.exception.InvalidCredentialsException;
+import com.cotalk.domain.exception.PasswordMismatchException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.user.DeleteAccountUseCase;
 import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
@@ -72,14 +72,14 @@ class AccountControllerTest {
         }
 
         @Test
-        @DisplayName("잘못된 비밀번호로 탈퇴 시 401 에러")
+        @DisplayName("잘못된 비밀번호로 탈퇴 시 400 에러")
         @WithMockCustomUser(userId = 1L)
         void should_returnUnauthorized_when_wrongPassword() throws Exception {
             // given
             Long userId = 1L;
             String wrongPassword = "wrongPassword";
 
-            willThrow(new InvalidCredentialsException("비밀번호가 일치하지 않습니다."))
+            willThrow(new PasswordMismatchException())
                     .given(deleteAccountUseCase).deleteAccount(eq(userId), eq(wrongPassword));
 
             String requestBody = """
@@ -92,7 +92,8 @@ class AccountControllerTest {
             mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
-                    .andExpect(status().isUnauthorized());
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("PASSWORD_MISMATCH"));
         }
 
         @Test

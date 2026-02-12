@@ -1,7 +1,7 @@
 package com.cotalk.application.service.user;
 
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.InvalidCredentialsException;
+import com.cotalk.domain.exception.PasswordMismatchException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.user.DeleteAccountUseCase;
 import com.cotalk.domain.port.outbound.*;
@@ -46,7 +46,7 @@ public class DeleteAccountService implements DeleteAccountUseCase {
      * @param userId 삭제할 사용자 ID
      * @param password 비밀번호 확인용
      * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
-     * @throws InvalidCredentialsException 비밀번호가 일치하지 않는 경우
+     * @throws PasswordMismatchException 비밀번호가 일치하지 않는 경우
      */
     @Override
     public void deleteAccount(Long userId, String password) {
@@ -55,7 +55,7 @@ public class DeleteAccountService implements DeleteAccountUseCase {
 
         // 비밀번호 확인
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw new InvalidCredentialsException("비밀번호가 일치하지 않습니다.");
+            throw new PasswordMismatchException();
         }
 
         deleteUserData(userId, user);

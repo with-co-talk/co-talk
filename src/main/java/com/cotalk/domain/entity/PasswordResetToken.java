@@ -39,6 +39,9 @@ public class PasswordResetToken extends BaseEntity {
     @Column(name = "used_at")
     private LocalDateTime usedAt;
 
+    @Column(name = "verification_code", length = 6)
+    private String verificationCode;
+
     /**
      * 비밀번호 재설정 토큰을 생성한다.
      *
@@ -54,6 +57,36 @@ public class PasswordResetToken extends BaseEntity {
                 .email(email)
                 .expiresAt(LocalDateTime.now().plusMinutes(expirationMinutes))
                 .build();
+    }
+
+    /**
+     * 6자리 인증 코드가 포함된 비밀번호 재설정 토큰을 생성한다.
+     *
+     * @param userId 사용자 ID
+     * @param email 이메일 주소
+     * @param expirationMinutes 만료 시간 (분 단위)
+     * @return 생성된 PasswordResetToken 인스턴스 (6자리 인증 코드 포함)
+     */
+    public static PasswordResetToken createWithCode(Long userId, String email, int expirationMinutes) {
+        String code = generateVerificationCode();
+        return PasswordResetToken.builder()
+                .token(UUID.randomUUID().toString())
+                .userId(userId)
+                .email(email)
+                .verificationCode(code)
+                .expiresAt(LocalDateTime.now().plusMinutes(expirationMinutes))
+                .build();
+    }
+
+    /**
+     * 6자리 숫자 인증 코드를 생성한다.
+     *
+     * @return 6자리 숫자 문자열
+     */
+    private static String generateVerificationCode() {
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        int code = 100000 + random.nextInt(900000);
+        return String.valueOf(code);
     }
 
     /**

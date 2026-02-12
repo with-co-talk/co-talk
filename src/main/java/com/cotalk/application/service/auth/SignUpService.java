@@ -82,6 +82,20 @@ public class SignUpService implements SignUpUseCase {
         return savedUser.getId();
     }
 
+    @Override
+    public Long signUp(String email, String password, String nickname, String phoneNumber) {
+        Long userId = signUp(email, password, nickname);
+
+        if (phoneNumber != null && !phoneNumber.isBlank()) {
+            userRepository.findById(userId).ifPresent(user -> {
+                user.updatePhoneNumber(phoneNumber);
+                userRepository.save(user);
+            });
+        }
+
+        return userId;
+    }
+
     private void checkEmailNotExists(String email) {
         if (userRepository.existsByEmail(email)) {
             throw new DuplicateEmailException();

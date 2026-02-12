@@ -64,4 +64,12 @@ public class ConsoleEmailSender implements EmailSender {
         log.info("Verification Link: {}", verificationLink);
         log.info("==========================");
     }
+
+    @Override
+    public void sendPasswordResetCode(String to, String code) {
+        log.info("=== Password Reset Code ===");
+        log.info("To: {}", to);
+        log.info("Code: {}", code);
+        log.info("===========================");
+    }
 }

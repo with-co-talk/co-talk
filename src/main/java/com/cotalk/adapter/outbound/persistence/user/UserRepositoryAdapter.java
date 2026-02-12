@@ -142,4 +142,10 @@ public class UserRepositoryAdapter implements UserRepository {
     public long countByStatus(User.UserStatus status) {
         return userJpaRepository.countByStatus(status);
     }
+
+    @Override
+    public Optional<User> findByNicknameAndPhoneNumber(String nickname, String phoneNumber) {
+        return userJpaRepository.findByNicknameAndPhoneNumber(nickname, phoneNumber)
+                .map(userMapper::toDomain);
+    }
 }

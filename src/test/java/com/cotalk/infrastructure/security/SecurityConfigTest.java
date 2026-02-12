@@ -6,6 +6,7 @@ import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
+import com.cotalk.domain.port.inbound.user.FindEmailUseCase;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
@@ -31,6 +32,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -96,11 +98,14 @@ class SecurityConfigTest {
     @MockBean
     private UserRepository userRepository;
 
+    @MockBean
+    private FindEmailUseCase findEmailUseCase;
+
     @Test
     @DisplayName("인증 없이 회원가입 API 접근 가능")
     void should_allowAccess_when_signUpWithoutAuth() throws Exception {
         // given
-        given(signUpUseCase.signUp(anyString(), anyString(), anyString())).willReturn(1L);
+        given(signUpUseCase.signUp(anyString(), anyString(), anyString(), any())).willReturn(1L);
 
         String requestBody = """
                 {

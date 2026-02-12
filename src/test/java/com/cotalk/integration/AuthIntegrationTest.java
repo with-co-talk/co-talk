@@ -45,7 +45,7 @@ class AuthIntegrationTest {
         String password = "Password123!";
         String nickname = "테스트유저";
 
-        SignUpRequest signUpRequest = new SignUpRequest(email, password, nickname);
+        SignUpRequest signUpRequest = new SignUpRequest(email, password, nickname, null);
         LoginRequest loginRequest = new LoginRequest(email, password);
 
         // when - 회원가입
@@ -82,8 +82,8 @@ class AuthIntegrationTest {
         String email = "duplicate@example.com";
         String password = "Password123!";
 
-        SignUpRequest request1 = new SignUpRequest(email, password, "유저1");
-        SignUpRequest request2 = new SignUpRequest(email, password, "유저2");
+        SignUpRequest request1 = new SignUpRequest(email, password, "유저1", null);
+        SignUpRequest request2 = new SignUpRequest(email, password, "유저2", null);
 
         // when - 첫 번째 회원가입 성공
         mockMvc.perform(post("/api/v1/auth/signup")
@@ -107,7 +107,7 @@ class AuthIntegrationTest {
         String password = "CorrectP@ss123";
         String wrongPassword = "WrongP@ss123";
 
-        SignUpRequest signUpRequest = new SignUpRequest(email, password, "테스트");
+        SignUpRequest signUpRequest = new SignUpRequest(email, password, "테스트", null);
         LoginRequest loginRequest = new LoginRequest(email, wrongPassword);
 
         // when - 회원가입
