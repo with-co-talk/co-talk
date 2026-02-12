@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Size;
  * @param email    이메일 주소
  * @param password 비밀번호 (8-128자, 대문자/소문자/숫자/특수문자 각 1개 이상)
  * @param nickname 닉네임 (2-50자)
+ * @param phoneNumber 전화번호 (선택, 20자 이내)
  * @author seunggu.lee
  */
 public record SignUpRequest(
@@ -24,5 +25,8 @@ public record SignUpRequest(
 
         @NotBlank(message = "닉네임은 필수입니다.")
         @Size(min = 2, max = 50, message = "닉네임은 2-50자여야 합니다.")
-        String nickname
+        String nickname,
+
+        @Size(max = 20, message = "전화번호는 20자 이내여야 합니다.")
+        String phoneNumber
 ) {}

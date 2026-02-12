@@ -1,7 +1,7 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.InvalidCredentialsException;
+import com.cotalk.domain.exception.PasswordMismatchException;
 import com.cotalk.domain.exception.RateLimitExceededException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.auth.ChangePasswordUseCase;
@@ -49,7 +49,7 @@ public class ChangePasswordService implements ChangePasswordUseCase {
      * @param newPassword 새 비밀번호
      * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
      * @throws RateLimitExceededException 5회 연속 실패로 잠금된 경우
-     * @throws InvalidCredentialsException 현재 비밀번호가 일치하지 않는 경우
+     * @throws PasswordMismatchException 현재 비밀번호가 일치하지 않는 경우
      * @throws IllegalArgumentException 새 비밀번호가 보안 요구사항을 충족하지 않는 경우
      */
     @Override
@@ -61,7 +61,7 @@ public class ChangePasswordService implements ChangePasswordUseCase {
 
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             recordFailure(userId);
-            throw new InvalidCredentialsException("현재 비밀번호가 일치하지 않습니다.");
+            throw new PasswordMismatchException("현재 비밀번호가 일치하지 않습니다.");
         }
 
         validatePasswordStrength(newPassword);

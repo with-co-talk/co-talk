@@ -91,6 +91,14 @@ public class SmtpEmailSender implements EmailSender {
         send(to, subject, body);
     }
 
+    @Override
+    @Async
+    public void sendPasswordResetCode(String to, String code) {
+        String subject = "[Co-Talk] 비밀번호 재설정 인증 코드";
+        String body = buildPasswordResetCodeEmailBody(code);
+        send(to, subject, body);
+    }
+
     /**
      * 이메일 인증 이메일의 HTML 본문을 생성한다.
      *
@@ -181,5 +189,43 @@ public class SmtpEmailSender implements EmailSender {
             </body>
             </html>
             """.formatted(resetLink);
+    }
+
+    private String buildPasswordResetCodeEmailBody(String code) {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Apple SD Gothic Neo', sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+                    .code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5;
+                            text-align: center; padding: 20px; background: white; border-radius: 8px;
+                            border: 2px dashed #4F46E5; margin: 20px 0; }
+                    .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>비밀번호 재설정</h1>
+                    </div>
+                    <div class="content">
+                        <p>안녕하세요,</p>
+                        <p>Co-Talk 비밀번호 재설정을 위한 인증 코드입니다.</p>
+                        <div class="code">%s</div>
+                        <p><strong>이 코드는 30분 후에 만료됩니다.</strong></p>
+                        <p>만약 비밀번호 재설정을 요청하지 않으셨다면, 이 이메일을 무시하셔도 됩니다.</p>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; 2026 Co-Talk. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(code);
     }
 }

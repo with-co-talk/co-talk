@@ -112,12 +112,16 @@ public class SecurityConfig {
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/oauth/**",
                                 "/api/v1/auth/verify-email",
-                                "/api/v1/auth/resend-verification"
+                                "/api/v1/auth/resend-verification",
+                                "/api/v1/auth/find-email"
                         ).permitAll()
                         .requestMatchers(
                                 "/api/v1/password/reset-request",
                                 "/api/v1/password/reset-validate",
-                                "/api/v1/password/reset"
+                                "/api/v1/password/reset",
+                                "/api/v1/password/reset-request-code",
+                                "/api/v1/password/verify-code",
+                                "/api/v1/password/reset-with-code"
                         ).permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
