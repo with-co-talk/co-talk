@@ -1,6 +1,6 @@
 package com.cotalk.application.service.message;
 
-import com.cotalk.adapter.inbound.rest.dto.message.GroupedReactionResponse;
+import com.cotalk.domain.model.GroupedReaction;
 import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.port.outbound.MessageReactionRepository;
@@ -90,12 +90,12 @@ class GetMessageReactionsServiceTest {
             given(reactionRepository.findByMessageId(messageId)).willReturn(reactions);
 
             // when
-            List<GroupedReactionResponse> result = service.getGroupedReactions(messageId, currentUserId);
+            List<GroupedReaction> result = service.getGroupedReactions(messageId, currentUserId);
 
             // then
             assertThat(result).hasSize(2);
 
-            GroupedReactionResponse heartResponse = result.stream()
+            GroupedReaction heartResponse = result.stream()
                     .filter(r -> r.emoji().equals("❤️"))
                     .findFirst()
                     .orElseThrow();
@@ -103,7 +103,7 @@ class GetMessageReactionsServiceTest {
             assertThat(heartResponse.userIds()).containsExactlyInAnyOrder(10L, 20L);
             assertThat(heartResponse.currentUserReacted()).isTrue();
 
-            GroupedReactionResponse thumbsUpResponse = result.stream()
+            GroupedReaction thumbsUpResponse = result.stream()
                     .filter(r -> r.emoji().equals("👍"))
                     .findFirst()
                     .orElseThrow();
@@ -128,7 +128,7 @@ class GetMessageReactionsServiceTest {
             given(reactionRepository.findByMessageId(messageId)).willReturn(reactions);
 
             // when
-            List<GroupedReactionResponse> result = service.getGroupedReactions(messageId, null);
+            List<GroupedReaction> result = service.getGroupedReactions(messageId, null);
 
             // then
             assertThat(result).hasSize(3);
@@ -152,7 +152,7 @@ class GetMessageReactionsServiceTest {
             given(reactionRepository.findByMessageId(messageId)).willReturn(reactions);
 
             // when
-            List<GroupedReactionResponse> result = service.getGroupedReactions(messageId, null);
+            List<GroupedReaction> result = service.getGroupedReactions(messageId, null);
 
             // then
             assertThat(result).hasSize(1);
@@ -167,7 +167,7 @@ class GetMessageReactionsServiceTest {
             given(reactionRepository.findByMessageId(messageId)).willReturn(List.of());
 
             // when
-            List<GroupedReactionResponse> result = service.getGroupedReactions(messageId, 1L);
+            List<GroupedReaction> result = service.getGroupedReactions(messageId, 1L);
 
             // then
             assertThat(result).isEmpty();
@@ -185,11 +185,11 @@ class GetMessageReactionsServiceTest {
             given(reactionRepository.findByMessageId(messageId)).willReturn(reactions);
 
             // when
-            List<GroupedReactionResponse> result = service.getGroupedReactions(messageId, null);
+            List<GroupedReaction> result = service.getGroupedReactions(messageId, null);
 
             // then
             assertThat(result).hasSize(1);
-            GroupedReactionResponse response = result.get(0);
+            GroupedReaction response = result.get(0);
             assertThat(response.emoji()).isEqualTo("🎉");
             assertThat(response.emojiCharacter()).isEqualTo("🎉");
             assertThat(response.emojiName()).isEqualTo("party");

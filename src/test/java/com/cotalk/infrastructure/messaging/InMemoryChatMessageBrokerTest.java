@@ -1,7 +1,8 @@
 package com.cotalk.infrastructure.messaging;
 
-import com.cotalk.adapter.inbound.websocket.dto.WebSocketMessage;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
+import com.cotalk.domain.port.outbound.ChatMessageBroker.ReactionBroadcastEvent;
+import com.cotalk.infrastructure.messaging.InMemoryChatMessageBroker.WebSocketChatMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,10 +30,10 @@ class InMemoryChatMessageBrokerTest {
     private SimpMessagingTemplate messagingTemplate;
 
     @Captor
-    private ArgumentCaptor<WebSocketMessage> messageCaptor;
+    private ArgumentCaptor<WebSocketChatMessage> messageCaptor;
 
     @Captor
-    private ArgumentCaptor<Object> reactionCaptor;
+    private ArgumentCaptor<ReactionBroadcastEvent> reactionCaptor;
 
     private InMemoryChatMessageBroker messageBroker;
 
@@ -73,7 +74,7 @@ class InMemoryChatMessageBrokerTest {
         String expectedDestination = "/topic/chat/room/" + roomId;
         verify(messagingTemplate).convertAndSend(eq(expectedDestination), messageCaptor.capture());
 
-        WebSocketMessage capturedMessage = messageCaptor.getValue();
+        WebSocketChatMessage capturedMessage = messageCaptor.getValue();
         assertEquals(100L, capturedMessage.messageId());
         assertEquals(1L, capturedMessage.senderId());
         assertEquals(roomId, capturedMessage.roomId());
@@ -112,7 +113,7 @@ class InMemoryChatMessageBrokerTest {
         // then
         verify(messagingTemplate).convertAndSend(eq("/topic/chat/room/" + roomId), messageCaptor.capture());
 
-        WebSocketMessage capturedMessage = messageCaptor.getValue();
+        WebSocketChatMessage capturedMessage = messageCaptor.getValue();
         assertEquals("IMAGE", capturedMessage.type());
         assertEquals("https://storage.example.com/image.png", capturedMessage.fileUrl());
         assertEquals("image.png", capturedMessage.fileName());
@@ -126,7 +127,8 @@ class InMemoryChatMessageBrokerTest {
     void should_publishReaction_when_validInput() {
         // given
         Long roomId = 1L;
-        Object reactionEvent = new TestReactionEvent(100L, 1L, "LIKE");
+        ReactionBroadcastEvent reactionEvent = new ReactionBroadcastEvent(
+                1, "event:100:1:ADDED", 1L, 100L, 1L, "👍", "ADDED", System.currentTimeMillis());
 
         // when
         messageBroker.publishReaction(roomId, reactionEvent);
@@ -135,12 +137,10 @@ class InMemoryChatMessageBrokerTest {
         String expectedDestination = "/topic/chat/room/" + roomId;
         verify(messagingTemplate).convertAndSend(eq(expectedDestination), reactionCaptor.capture());
 
-        Object capturedReaction = reactionCaptor.getValue();
-        assertInstanceOf(TestReactionEvent.class, capturedReaction);
-        TestReactionEvent captured = (TestReactionEvent) capturedReaction;
+        ReactionBroadcastEvent captured = reactionCaptor.getValue();
         assertEquals(100L, captured.messageId());
         assertEquals(1L, captured.userId());
-        assertEquals("LIKE", captured.reactionType());
+        assertEquals("ADDED", captured.eventType());
     }
 
     @Test
@@ -166,7 +166,8 @@ class InMemoryChatMessageBrokerTest {
     void should_sendReactionToCorrectDestination_when_publishReaction() {
         // given
         Long roomId = 456L;
-        Object reactionEvent = "test-reaction";
+        ReactionBroadcastEvent reactionEvent = new ReactionBroadcastEvent(
+                1, "event:200:2:ADDED", 2L, 200L, 2L, "❤️", "ADDED", System.currentTimeMillis());
 
         // when
         messageBroker.publishReaction(roomId, reactionEvent);
@@ -174,9 +175,4 @@ class InMemoryChatMessageBrokerTest {
         // then
         verify(messagingTemplate).convertAndSend(eq("/topic/chat/room/456"), reactionCaptor.capture());
     }
-
-    /**
-     * 테스트용 리액션 이벤트 record.
-     */
-    private record TestReactionEvent(Long messageId, Long userId, String reactionType) {}
 }

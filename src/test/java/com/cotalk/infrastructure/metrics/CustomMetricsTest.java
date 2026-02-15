@@ -1,7 +1,7 @@
 package com.cotalk.infrastructure.metrics;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
+
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -58,7 +58,7 @@ class CustomMetricsTest {
         @DisplayName("메시지 처리 시간을 측정한다")
         void should_measureMessageProcessingTime() throws InterruptedException {
             // given
-            Timer.Sample sample = customMetrics.startMessageProcessingTimer();
+            Object sample = customMetrics.startMessageProcessingTimer();
 
             // when
             Thread.sleep(10); // 10ms 대기

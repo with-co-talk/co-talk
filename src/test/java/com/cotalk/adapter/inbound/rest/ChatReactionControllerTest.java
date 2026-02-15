@@ -1,12 +1,12 @@
 package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.adapter.inbound.rest.dto.message.AddReactionRequest;
-import com.cotalk.adapter.inbound.rest.dto.message.GroupedReactionResponse;
 import com.cotalk.adapter.inbound.rest.dto.message.RemoveReactionRequest;
-import com.cotalk.application.service.message.GetMessageReactionsService;
+import com.cotalk.domain.model.GroupedReaction;
 import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
+import com.cotalk.domain.port.inbound.message.GetMessageReactionsUseCase;
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
@@ -56,7 +56,7 @@ class ChatReactionControllerTest {
     private RemoveMessageReactionUseCase removeMessageReactionUseCase;
 
     @MockBean
-    private GetMessageReactionsService getMessageReactionsService;
+    private GetMessageReactionsUseCase getMessageReactionsUseCase;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
@@ -134,12 +134,12 @@ class ChatReactionControllerTest {
         void should_returnReactions_when_validMessageId() throws Exception {
             // given
             Long messageId = 500L;
-            List<GroupedReactionResponse> groupedReactions = List.of(
-                    GroupedReactionResponse.from(Emoji.THUMBS_UP, List.of(1L, 2L), TEST_USER_ID),
-                    GroupedReactionResponse.from(Emoji.HEART, List.of(3L), TEST_USER_ID)
+            List<GroupedReaction> groupedReactions = List.of(
+                    GroupedReaction.of(Emoji.THUMBS_UP, List.of(1L, 2L), TEST_USER_ID),
+                    GroupedReaction.of(Emoji.HEART, List.of(3L), TEST_USER_ID)
             );
 
-            given(getMessageReactionsService.getGroupedReactions(eq(messageId), eq(TEST_USER_ID)))
+            given(getMessageReactionsUseCase.getGroupedReactions(eq(messageId), eq(TEST_USER_ID)))
                     .willReturn(groupedReactions);
 
             // when & then
@@ -167,7 +167,7 @@ class ChatReactionControllerTest {
         void should_returnEmptyArray_when_noReactions() throws Exception {
             // given
             Long messageId = 500L;
-            given(getMessageReactionsService.getGroupedReactions(eq(messageId), eq(TEST_USER_ID)))
+            given(getMessageReactionsUseCase.getGroupedReactions(eq(messageId), eq(TEST_USER_ID)))
                     .willReturn(List.of());
 
             // when & then

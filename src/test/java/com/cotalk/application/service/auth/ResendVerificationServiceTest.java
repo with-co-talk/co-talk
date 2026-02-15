@@ -6,7 +6,7 @@ import com.cotalk.domain.exception.RateLimitExceededException;
 import com.cotalk.domain.port.outbound.EmailSender;
 import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.config.properties.AppProperties;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,14 +44,12 @@ class ResendVerificationServiceTest {
     @Mock
     private EmailSender emailSender;
 
-    @Mock
-    private AppProperties appProperties;
-
     private ResendVerificationService service;
 
     @BeforeEach
     void setUp() {
-        service = new ResendVerificationService(userRepository, tokenRepository, emailSender, appProperties);
+        String frontendUrl = "http://localhost:3000";
+        service = new ResendVerificationService(userRepository, tokenRepository, emailSender, frontendUrl);
     }
 
     @Test
@@ -72,7 +70,6 @@ class ResendVerificationServiceTest {
         given(tokenRepository.findLatestByUserId(10L)).willReturn(Optional.empty());
         given(tokenRepository.save(any(EmailVerificationToken.class)))
                 .willAnswer(inv -> inv.getArgument(0));
-        given(appProperties.frontendUrl()).willReturn("http://localhost:3000");
 
         // when
         service.resendVerification(email);

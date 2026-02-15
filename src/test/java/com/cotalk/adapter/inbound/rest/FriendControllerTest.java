@@ -1,19 +1,15 @@
 package com.cotalk.adapter.inbound.rest;
 
-import com.cotalk.adapter.inbound.rest.dto.friend.HiddenFriendDto;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.domain.entity.FriendRequest;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
-import com.cotalk.domain.port.inbound.friend.GetHiddenFriendsUseCase;
 import com.cotalk.domain.port.inbound.friend.GetReceivedFriendRequestsUseCase;
 import com.cotalk.domain.port.inbound.friend.GetSentFriendRequestsUseCase;
-import com.cotalk.domain.port.inbound.friend.HideFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
-import com.cotalk.domain.port.inbound.friend.UnhideFriendUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
@@ -84,15 +80,6 @@ class FriendControllerTest {
     private GetSentFriendRequestsUseCase getSentFriendRequestsUseCase;
 
     @MockBean
-    private HideFriendUseCase hideFriendUseCase;
-
-    @MockBean
-    private UnhideFriendUseCase unhideFriendUseCase;
-
-    @MockBean
-    private GetHiddenFriendsUseCase getHiddenFriendsUseCase;
-
-    @MockBean
     private UserRepository userRepository;
 
     @MockBean
@@ -134,7 +121,6 @@ class FriendControllerTest {
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long requestId = 100L;
-            Long userId = 1L;
 
             given(acceptFriendRequestUseCase.acceptFriendRequest(anyLong(), anyLong())).willReturn(200L);
 
@@ -226,7 +212,6 @@ class FriendControllerTest {
         void should_returnOk_when_validRequest() throws Exception {
             // given
             Long requestId = 100L;
-            Long userId = 1L;
 
             willDoNothing().given(rejectFriendRequestUseCase).rejectFriendRequest(anyLong(), anyLong());
 
@@ -246,7 +231,6 @@ class FriendControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_validRequest() throws Exception {
             // given
-            Long userId = 1L;
             Long friendId = 2L;
 
             willDoNothing().given(removeFriendUseCase).removeFriend(anyLong(), anyLong());
@@ -406,80 +390,4 @@ class FriendControllerTest {
         }
     }
 
-    @Nested
-    @DisplayName("숨김 친구 API")
-    class HiddenFriendApi {
-
-        @Test
-        @DisplayName("친구 숨기기 성공")
-        @WithMockCustomUser(userId = 1L)
-        void should_returnOk_when_hideFriendSuccessfully() throws Exception {
-            // given
-            Long userId = 1L;
-            Long friendId = 2L;
-
-            willDoNothing().given(hideFriendUseCase).hideFriend(anyLong(), anyLong());
-
-            // when & then
-            mockMvc.perform(post("/api/v1/friends/{friendId}/hide", friendId))
-                    .andExpect(status().isOk());
-        }
-
-        @Test
-        @DisplayName("숨김 친구 해제 성공")
-        @WithMockCustomUser(userId = 1L)
-        void should_returnOk_when_unhideFriendSuccessfully() throws Exception {
-            // given
-            Long userId = 1L;
-            Long friendId = 2L;
-
-            willDoNothing().given(unhideFriendUseCase).unhideFriend(anyLong(), anyLong());
-
-            // when & then
-            mockMvc.perform(delete("/api/v1/friends/{friendId}/hide", friendId))
-                    .andExpect(status().isOk());
-        }
-
-        @Test
-        @DisplayName("숨김 친구 목록 조회 성공")
-        @WithMockCustomUser(userId = 1L)
-        void should_returnHiddenFriendList_when_validUserId() throws Exception {
-            // given
-            Long userId = 1L;
-            HiddenFriendDto dto = HiddenFriendDto.builder()
-                    .id(1L)
-                    .friendId(2L)
-                    .nickname("숨긴친구")
-                    .profileImageUrl("https://example.com/profile.jpg")
-                    .hiddenAt(LocalDateTime.now())
-                    .build();
-
-            given(getHiddenFriendsUseCase.getHiddenFriends(userId))
-                    .willReturn(List.of(dto));
-
-            // when & then
-            mockMvc.perform(get("/api/v1/friends/hidden"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.friends").isArray())
-                    .andExpect(jsonPath("$.friends.length()").value(1))
-                    .andExpect(jsonPath("$.friends[0].friendId").value(2))
-                    .andExpect(jsonPath("$.friends[0].nickname").value("숨긴친구"));
-        }
-
-        @Test
-        @DisplayName("숨김 친구가 없을 때 빈 리스트 반환")
-        @WithMockCustomUser(userId = 1L)
-        void should_returnEmptyList_when_noHiddenFriends() throws Exception {
-            // given
-            Long userId = 1L;
-            given(getHiddenFriendsUseCase.getHiddenFriends(userId))
-                    .willReturn(List.of());
-
-            // when & then
-            mockMvc.perform(get("/api/v1/friends/hidden"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.friends").isArray())
-                    .andExpect(jsonPath("$.friends.length()").value(0));
-        }
-    }
 }

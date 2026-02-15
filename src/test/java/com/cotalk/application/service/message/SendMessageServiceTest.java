@@ -5,15 +5,15 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
-import com.cotalk.domain.port.outbound.ChatMessageBroker;
+
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
-import com.cotalk.domain.port.outbound.UserEventBroker;
+
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
-import com.cotalk.infrastructure.metrics.CustomMetrics;
+import com.cotalk.domain.port.outbound.MetricsPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -62,13 +62,10 @@ class SendMessageServiceTest {
     private MessageLinkPreviewService messageLinkPreviewService;
 
     @Mock
-    private ChatMessageBroker chatMessageBroker;
+    private MessageBroadcastService messageBroadcastService;
 
     @Mock
-    private UserEventBroker userEventBroker;
-
-    @Mock
-    private CustomMetrics customMetrics;
+    private MetricsPort customMetrics;
 
     private ChatRoomMemberValidator chatRoomMemberValidator;
 
@@ -80,7 +77,7 @@ class SendMessageServiceTest {
         sendMessageService = new SendMessageService(
                 messageRepository, chatRoomMemberRepository, userRepository, idGenerator,
                 sendPushNotificationUseCase, chatRoomMemberValidator, chatRoomPresenceTracker,
-                customMetrics, messageLinkPreviewService, chatMessageBroker, userEventBroker);
+                customMetrics, messageLinkPreviewService, messageBroadcastService);
 
         // Default mock behavior (lenient to avoid UnnecessaryStubbingException)
         lenient().when(chatRoomMemberRepository.updateLastReadMessageIdIfNewer(anyLong(), anyLong(), any(), anyLong()))

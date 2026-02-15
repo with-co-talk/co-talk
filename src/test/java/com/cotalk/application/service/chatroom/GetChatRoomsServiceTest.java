@@ -57,12 +57,15 @@ class GetChatRoomsServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private ChatRoomSummaryAssembler chatRoomSummaryAssembler;
+
     private GetChatRoomsUseCase getChatRoomsUseCase;
 
     @BeforeEach
     void setUp() {
         getChatRoomsUseCase = new GetChatRoomsService(
-                chatRoomRepository, chatRoomMemberRepository, messageRepository, userRepository);
+                chatRoomRepository, chatRoomMemberRepository, messageRepository, userRepository, chatRoomSummaryAssembler);
     }
 
     @Nested
@@ -76,7 +79,6 @@ class GetChatRoomsServiceTest {
             Long userId = 1L;
             Long otherUserId = 2L;
             Long chatRoomId = 100L;
-            LocalDateTime lastReadAt = LocalDateTime.now().minusHours(1);
 
             ChatRoom chatRoom = ChatRoom.builder()
                     .id(chatRoomId)
@@ -84,46 +86,21 @@ class GetChatRoomsServiceTest {
                     .type(ChatRoom.ChatRoomType.DIRECT)
                     .build();
 
-            ChatRoomMember myMember = ChatRoomMember.builder()
-                    .id(500L)
-                    .chatRoomId(chatRoomId)
-                    .userId(userId)
-                    .lastReadAt(lastReadAt)
-                    .lastReadMessageId(900L)
-                    .build();
+            ChatRoomSummaryAssembler.BatchData batchData = new ChatRoomSummaryAssembler.BatchData(
+                    Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()
+            );
 
-            ChatRoomMember otherMember = ChatRoomMember.builder()
-                    .id(501L)
-                    .chatRoomId(chatRoomId)
-                    .userId(otherUserId)
-                    .build();
+            ChatRoomSummary expectedSummary = new ChatRoomSummary(
+                    chatRoomId, "채팅방1", null, ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
+                    "마지막 메시지입니다", "TEXT", LocalDateTime.now(), 5L,
+                    otherUserId, "상대방", "https://example.com/avatar.png",
+                    false, false, null
+            );
 
-            User otherUser = User.builder()
-                    .id(otherUserId)
-                    .email("other@test.com")
-                    .nickname("상대방")
-                    .passwordHash("hash")
-                    .avatarUrl("https://example.com/avatar.png")
-                    .build();
-
-            Message lastMessage = Message.builder()
-                    .id(1000L)
-                    .chatRoomId(chatRoomId)
-                    .senderId(otherUserId)
-                    .content("마지막 메시지입니다")
-                    .build();
-
-            // 배치 쿼리 모킹
             given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
-            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of(myMember));
-            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
-                    .willReturn(List.of(lastMessage));
-            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
-                    .willReturn(Map.of(chatRoomId, 5L));
-            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of(otherMember));
-            given(userRepository.findAllById(any())).willReturn(List.of(otherUser));
+            given(chatRoomSummaryAssembler.loadBatchData(userId, List.of(chatRoom))).willReturn(batchData);
+            given(chatRoomSummaryAssembler.assembleSummaries(List.of(chatRoom), batchData))
+                    .willReturn(List.of(expectedSummary));
 
             // when
             List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
@@ -152,9 +129,9 @@ class GetChatRoomsServiceTest {
 
             // then
             assertThat(result).isEmpty();
-            // 빈 목록일 때 다른 배치 쿼리가 호출되지 않음
-            verify(chatRoomMemberRepository, never()).findByUserIdAndChatRoomIds(any(), anyList());
-            verify(messageRepository, never()).findLastMessagesByRoomIds(anyList());
+            // 빈 목록일 때 assembler가 호출되지 않음
+            verify(chatRoomSummaryAssembler, never()).loadBatchData(any(), anyList());
+            verify(chatRoomSummaryAssembler, never()).assembleSummaries(anyList(), any());
         }
 
         @Test
@@ -162,7 +139,6 @@ class GetChatRoomsServiceTest {
         void should_returnSummaryWithoutMessage_when_noMessages() {
             // given
             Long userId = 1L;
-            Long otherUserId = 2L;
             Long chatRoomId = 100L;
 
             ChatRoom chatRoom = ChatRoom.builder()
@@ -171,37 +147,21 @@ class GetChatRoomsServiceTest {
                     .type(ChatRoom.ChatRoomType.DIRECT)
                     .build();
 
-            ChatRoomMember myMember = ChatRoomMember.builder()
-                    .id(500L)
-                    .chatRoomId(chatRoomId)
-                    .userId(userId)
-                    .lastReadMessageId(null)
-                    .build();
+            ChatRoomSummaryAssembler.BatchData batchData = new ChatRoomSummaryAssembler.BatchData(
+                    Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()
+            );
 
-            ChatRoomMember otherMember = ChatRoomMember.builder()
-                    .id(501L)
-                    .chatRoomId(chatRoomId)
-                    .userId(otherUserId)
-                    .build();
+            ChatRoomSummary expectedSummary = new ChatRoomSummary(
+                    chatRoomId, "새 채팅방", null, ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
+                    "", null, null, 0L,
+                    2L, "상대방", null,
+                    false, false, null
+            );
 
-            User otherUser = User.builder()
-                    .id(otherUserId)
-                    .email("other@test.com")
-                    .nickname("상대방")
-                    .passwordHash("hash")
-                    .build();
-
-            // 배치 쿼리 모킹 - 빈 결과
             given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
-            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of(myMember));
-            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
-                    .willReturn(List.of()); // 메시지 없음
-            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
-                    .willReturn(Map.of()); // 읽지 않은 메시지 없음
-            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of(otherMember));
-            given(userRepository.findAllById(any())).willReturn(List.of(otherUser));
+            given(chatRoomSummaryAssembler.loadBatchData(userId, List.of(chatRoom))).willReturn(batchData);
+            given(chatRoomSummaryAssembler.assembleSummaries(List.of(chatRoom), batchData))
+                    .willReturn(List.of(expectedSummary));
 
             // when
             List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
@@ -227,17 +187,21 @@ class GetChatRoomsServiceTest {
                     .type(ChatRoom.ChatRoomType.DIRECT)
                     .build();
 
-            // 배치 쿼리 모킹 - 멤버 없음
+            ChatRoomSummaryAssembler.BatchData batchData = new ChatRoomSummaryAssembler.BatchData(
+                    Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()
+            );
+
+            ChatRoomSummary expectedSummary = new ChatRoomSummary(
+                    chatRoomId, "채팅방", null, ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
+                    "", null, null, 0L,
+                    null, null, null,
+                    false, false, null
+            );
+
             given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
-            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of()); // 멤버 없음
-            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
-                    .willReturn(List.of());
-            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
-                    .willReturn(Map.of());
-            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of());
-            given(userRepository.findAllById(any())).willReturn(List.of());
+            given(chatRoomSummaryAssembler.loadBatchData(userId, List.of(chatRoom))).willReturn(batchData);
+            given(chatRoomSummaryAssembler.assembleSummaries(List.of(chatRoom), batchData))
+                    .willReturn(List.of(expectedSummary));
 
             // when
             List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
@@ -260,25 +224,21 @@ class GetChatRoomsServiceTest {
                     .type(ChatRoom.ChatRoomType.GROUP)
                     .build();
 
-            ChatRoomMember myMember = ChatRoomMember.builder()
-                    .id(500L)
-                    .chatRoomId(chatRoomId)
-                    .userId(userId)
-                    .lastReadMessageId(null)
-                    .build();
+            ChatRoomSummaryAssembler.BatchData batchData = new ChatRoomSummaryAssembler.BatchData(
+                    Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()
+            );
 
-            // 배치 쿼리 모킹
+            ChatRoomSummary expectedSummary = new ChatRoomSummary(
+                    chatRoomId, "그룹 채팅방", null, ChatRoom.ChatRoomType.GROUP, LocalDateTime.now(),
+                    "", null, null, 0L,
+                    null, null, null,
+                    false, false, null
+            );
+
             given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(groupChatRoom));
-            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of(myMember));
-            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
-                    .willReturn(List.of());
-            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
-                    .willReturn(Map.of());
-            // 그룹 채팅방은 DIRECT 타입이 아니므로 빈 리스트로 호출됨
-            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(eq(userId), anyList()))
-                    .willReturn(List.of());
-            given(userRepository.findAllById(any())).willReturn(List.of());
+            given(chatRoomSummaryAssembler.loadBatchData(userId, List.of(groupChatRoom))).willReturn(batchData);
+            given(chatRoomSummaryAssembler.assembleSummaries(List.of(groupChatRoom), batchData))
+                    .willReturn(List.of(expectedSummary));
 
             // when
             List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
@@ -296,7 +256,6 @@ class GetChatRoomsServiceTest {
         void should_handleNullOtherUser_when_otherUserNotFound() {
             // given
             Long userId = 1L;
-            Long otherUserId = 999L; // 삭제된 사용자
             Long chatRoomId = 100L;
 
             ChatRoom chatRoom = ChatRoom.builder()
@@ -305,30 +264,21 @@ class GetChatRoomsServiceTest {
                     .type(ChatRoom.ChatRoomType.DIRECT)
                     .build();
 
-            ChatRoomMember myMember = ChatRoomMember.builder()
-                    .id(500L)
-                    .chatRoomId(chatRoomId)
-                    .userId(userId)
-                    .lastReadMessageId(null)
-                    .build();
+            ChatRoomSummaryAssembler.BatchData batchData = new ChatRoomSummaryAssembler.BatchData(
+                    Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()
+            );
 
-            ChatRoomMember otherMember = ChatRoomMember.builder()
-                    .id(501L)
-                    .chatRoomId(chatRoomId)
-                    .userId(otherUserId)
-                    .build();
+            ChatRoomSummary expectedSummary = new ChatRoomSummary(
+                    chatRoomId, "채팅방", null, ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
+                    "", null, null, 0L,
+                    null, null, null,
+                    false, false, null
+            );
 
-            // 배치 쿼리 모킹
             given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
-            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of(myMember));
-            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
-                    .willReturn(List.of());
-            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
-                    .willReturn(Map.of());
-            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of(otherMember));
-            given(userRepository.findAllById(any())).willReturn(List.of()); // 사용자 없음
+            given(chatRoomSummaryAssembler.loadBatchData(userId, List.of(chatRoom))).willReturn(batchData);
+            given(chatRoomSummaryAssembler.assembleSummaries(List.of(chatRoom), batchData))
+                    .willReturn(List.of(expectedSummary));
 
             // when
             List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
@@ -355,36 +305,21 @@ class GetChatRoomsServiceTest {
                     .type(ChatRoom.ChatRoomType.DIRECT)
                     .build();
 
-            ChatRoomMember myMember = ChatRoomMember.builder()
-                    .id(500L)
-                    .chatRoomId(chatRoomId)
-                    .userId(userId)
-                    .lastReadMessageId(null)
-                    .build();
+            ChatRoomSummaryAssembler.BatchData batchData = new ChatRoomSummaryAssembler.BatchData(
+                    Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()
+            );
 
-            User leftUser = User.builder()
-                    .id(leftUserId)
-                    .email("left@test.com")
-                    .nickname("나간유저")
-                    .passwordHash("hash")
-                    .avatarUrl("https://example.com/avatar.png")
-                    .build();
+            ChatRoomSummary expectedSummary = new ChatRoomSummary(
+                    chatRoomId, "채팅방", null, ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
+                    "", null, null, 0L,
+                    leftUserId, "나간유저", "https://example.com/avatar.png",
+                    true, false, null
+            );
 
-            // 배치 쿼리 모킹
             given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom));
-            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of(myMember));
-            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
-                    .willReturn(List.of());
-            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
-                    .willReturn(Map.of());
-            // 상대방 멤버가 없음 (나갔기 때문)
-            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of());
-            // 메시지 기록에서 상대방 ID 복구
-            given(messageRepository.findDistinctSenderIdsByChatRoomIdExcludingUser(chatRoomId, userId))
-                    .willReturn(List.of(leftUserId));
-            given(userRepository.findAllById(any())).willReturn(List.of(leftUser));
+            given(chatRoomSummaryAssembler.loadBatchData(userId, List.of(chatRoom))).willReturn(batchData);
+            given(chatRoomSummaryAssembler.assembleSummaries(List.of(chatRoom), batchData))
+                    .willReturn(List.of(expectedSummary));
 
             // when
             List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
@@ -412,23 +347,28 @@ class GetChatRoomsServiceTest {
             Long chatRoomId2 = 101L;
             Long chatRoomId3 = 102L;
 
-            List<Long> chatRoomIds = List.of(chatRoomId1, chatRoomId2, chatRoomId3);
-
             ChatRoom chatRoom1 = ChatRoom.builder().id(chatRoomId1).name("채팅방1").type(ChatRoom.ChatRoomType.DIRECT).build();
             ChatRoom chatRoom2 = ChatRoom.builder().id(chatRoomId2).name("채팅방2").type(ChatRoom.ChatRoomType.DIRECT).build();
             ChatRoom chatRoom3 = ChatRoom.builder().id(chatRoomId3).name("채팅방3").type(ChatRoom.ChatRoomType.GROUP).build();
 
-            // 배치 쿼리 모킹
-            given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(chatRoom1, chatRoom2, chatRoom3));
-            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(eq(userId), eq(chatRoomIds)))
-                    .willReturn(List.of());
-            given(messageRepository.findLastMessagesByRoomIds(eq(chatRoomIds)))
-                    .willReturn(List.of());
-            given(messageRepository.batchCountUnreadMessages(eq(userId), eq(chatRoomIds)))
-                    .willReturn(Map.of(chatRoomId1, 3L, chatRoomId2, 0L, chatRoomId3, 10L));
-            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(eq(userId), anyList()))
-                    .willReturn(List.of());
-            given(userRepository.findAllById(any())).willReturn(List.of());
+            List<ChatRoom> chatRooms = List.of(chatRoom1, chatRoom2, chatRoom3);
+
+            ChatRoomSummaryAssembler.BatchData batchData = new ChatRoomSummaryAssembler.BatchData(
+                    Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()
+            );
+
+            List<ChatRoomSummary> expectedSummaries = List.of(
+                    new ChatRoomSummary(chatRoomId1, "채팅방1", null, ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
+                            "", null, null, 3L, null, null, null, false, false, null),
+                    new ChatRoomSummary(chatRoomId2, "채팅방2", null, ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
+                            "", null, null, 0L, null, null, null, false, false, null),
+                    new ChatRoomSummary(chatRoomId3, "채팅방3", null, ChatRoom.ChatRoomType.GROUP, LocalDateTime.now(),
+                            "", null, null, 10L, null, null, null, false, false, null)
+            );
+
+            given(chatRoomRepository.findByUserId(userId)).willReturn(chatRooms);
+            given(chatRoomSummaryAssembler.loadBatchData(userId, chatRooms)).willReturn(batchData);
+            given(chatRoomSummaryAssembler.assembleSummaries(chatRooms, batchData)).willReturn(expectedSummaries);
 
             // when
             List<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId);
@@ -436,10 +376,9 @@ class GetChatRoomsServiceTest {
             // then
             assertThat(result).hasSize(3);
 
-            // 배치 쿼리가 사용되었는지 검증
-            verify(chatRoomMemberRepository).findByUserIdAndChatRoomIds(userId, chatRoomIds);
-            verify(messageRepository).findLastMessagesByRoomIds(chatRoomIds);
-            verify(messageRepository).batchCountUnreadMessages(userId, chatRoomIds);
+            // assembler가 호출되었는지 검증
+            verify(chatRoomSummaryAssembler).loadBatchData(userId, chatRooms);
+            verify(chatRoomSummaryAssembler).assembleSummaries(chatRooms, batchData);
 
             // unreadCount가 올바르게 매핑되었는지 확인
             ChatRoomSummary summary1 = result.stream().filter(s -> s.id().equals(chatRoomId1)).findFirst().orElseThrow();
@@ -472,24 +411,29 @@ class GetChatRoomsServiceTest {
                     .type(ChatRoom.ChatRoomType.GROUP)
                     .build();
 
-            // 배치 쿼리 모킹
-            given(chatRoomRepository.findByUserId(userId)).willReturn(List.of(directChatRoom, groupChatRoom));
-            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(eq(userId), anyList()))
-                    .willReturn(List.of());
-            given(messageRepository.findLastMessagesByRoomIds(anyList()))
-                    .willReturn(List.of());
-            given(messageRepository.batchCountUnreadMessages(eq(userId), anyList()))
-                    .willReturn(Map.of());
-            // DIRECT 채팅방 ID만 전달되어야 함
-            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(eq(userId), eq(List.of(directChatRoomId))))
-                    .willReturn(List.of());
-            given(userRepository.findAllById(any())).willReturn(List.of());
+            List<ChatRoom> chatRooms = List.of(directChatRoom, groupChatRoom);
+
+            ChatRoomSummaryAssembler.BatchData batchData = new ChatRoomSummaryAssembler.BatchData(
+                    Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()
+            );
+
+            List<ChatRoomSummary> expectedSummaries = List.of(
+                    new ChatRoomSummary(directChatRoomId, "1:1 채팅방", null, ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
+                            "", null, null, 0L, null, null, null, false, false, null),
+                    new ChatRoomSummary(groupChatRoomId, "그룹 채팅방", null, ChatRoom.ChatRoomType.GROUP, LocalDateTime.now(),
+                            "", null, null, 0L, null, null, null, false, false, null)
+            );
+
+            given(chatRoomRepository.findByUserId(userId)).willReturn(chatRooms);
+            given(chatRoomSummaryAssembler.loadBatchData(userId, chatRooms)).willReturn(batchData);
+            given(chatRoomSummaryAssembler.assembleSummaries(chatRooms, batchData)).willReturn(expectedSummaries);
 
             // when
             getChatRoomsUseCase.getChatRooms(userId);
 
-            // then - DIRECT 채팅방 ID만 전달되었는지 검증
-            verify(chatRoomMemberRepository).findOtherMembersByChatRoomIds(userId, List.of(directChatRoomId));
+            // then - assembler가 호출되었는지 검증
+            verify(chatRoomSummaryAssembler).loadBatchData(userId, chatRooms);
+            verify(chatRoomSummaryAssembler).assembleSummaries(chatRooms, batchData);
         }
     }
 
@@ -514,45 +458,21 @@ class GetChatRoomsServiceTest {
 
             Page<ChatRoom> chatRoomPage = new PageImpl<>(List.of(chatRoom), pageable, 1);
 
-            ChatRoomMember myMember = ChatRoomMember.builder()
-                    .id(500L)
-                    .chatRoomId(chatRoomId)
-                    .userId(userId)
-                    .lastReadMessageId(900L)
-                    .build();
+            ChatRoomSummaryAssembler.BatchData batchData = new ChatRoomSummaryAssembler.BatchData(
+                    Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()
+            );
 
-            ChatRoomMember otherMember = ChatRoomMember.builder()
-                    .id(501L)
-                    .chatRoomId(chatRoomId)
-                    .userId(otherUserId)
-                    .build();
+            ChatRoomSummary expectedSummary = new ChatRoomSummary(
+                    chatRoomId, "채팅방1", null, ChatRoom.ChatRoomType.DIRECT, LocalDateTime.now(),
+                    "마지막 메시지입니다", "TEXT", LocalDateTime.now(), 5L,
+                    otherUserId, "상대방", "https://example.com/avatar.png",
+                    false, false, null
+            );
 
-            User otherUser = User.builder()
-                    .id(otherUserId)
-                    .email("other@test.com")
-                    .nickname("상대방")
-                    .passwordHash("hash")
-                    .avatarUrl("https://example.com/avatar.png")
-                    .build();
-
-            Message lastMessage = Message.builder()
-                    .id(1000L)
-                    .chatRoomId(chatRoomId)
-                    .senderId(otherUserId)
-                    .content("마지막 메시지입니다")
-                    .build();
-
-            // 배치 쿼리 모킹
             given(chatRoomRepository.findByUserId(userId, pageable)).willReturn(chatRoomPage);
-            given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of(myMember));
-            given(messageRepository.findLastMessagesByRoomIds(List.of(chatRoomId)))
-                    .willReturn(List.of(lastMessage));
-            given(messageRepository.batchCountUnreadMessages(userId, List.of(chatRoomId)))
-                    .willReturn(Map.of(chatRoomId, 5L));
-            given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(userId, List.of(chatRoomId)))
-                    .willReturn(List.of(otherMember));
-            given(userRepository.findAllById(any())).willReturn(List.of(otherUser));
+            given(chatRoomSummaryAssembler.loadBatchData(userId, List.of(chatRoom))).willReturn(batchData);
+            given(chatRoomSummaryAssembler.assembleSummaries(List.of(chatRoom), batchData))
+                    .willReturn(List.of(expectedSummary));
 
             // when
             Page<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId, pageable);
@@ -588,9 +508,9 @@ class GetChatRoomsServiceTest {
             // then
             assertThat(result.getContent()).isEmpty();
             assertThat(result.getTotalElements()).isEqualTo(0);
-            // 빈 페이지일 때 다른 배치 쿼리가 호출되지 않음
-            verify(chatRoomMemberRepository, never()).findByUserIdAndChatRoomIds(any(), anyList());
-            verify(messageRepository, never()).findLastMessagesByRoomIds(anyList());
+            // 빈 페이지일 때 assembler가 호출되지 않음
+            verify(chatRoomSummaryAssembler, never()).loadBatchData(any(), anyList());
+            verify(chatRoomSummaryAssembler, never()).assembleSummaries(anyList(), any());
         }
     }
 }
