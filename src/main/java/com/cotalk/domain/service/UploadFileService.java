@@ -3,12 +3,9 @@ package com.cotalk.domain.service;
 import com.cotalk.domain.exception.FileUploadException;
 import com.cotalk.domain.port.inbound.file.UploadFileUseCase;
 import com.cotalk.domain.port.outbound.FileStorage;
-import com.cotalk.infrastructure.config.properties.FileUploadProperties;
-import org.springframework.stereotype.Service;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -31,7 +28,6 @@ import java.util.UUID;
  * @see UploadFileUseCase
  * @see FileStorage
  */
-@Service
 public class UploadFileService implements UploadFileUseCase {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UploadFileService.class);
@@ -83,12 +79,12 @@ public class UploadFileService implements UploadFileUseCase {
     /**
      * UploadFileService 생성자.
      *
-     * @param fileStorage          파일 저장소 인터페이스
-     * @param fileUploadProperties 파일 업로드 설정 프로퍼티
+     * @param fileStorage 파일 저장소 인터페이스
+     * @param maxFileSize 최대 파일 크기 (바이트)
      */
-    public UploadFileService(FileStorage fileStorage, FileUploadProperties fileUploadProperties) {
+    public UploadFileService(FileStorage fileStorage, long maxFileSize) {
         this.fileStorage = fileStorage;
-        this.maxFileSize = fileUploadProperties.maxSize();
+        this.maxFileSize = maxFileSize;
     }
 
     /**

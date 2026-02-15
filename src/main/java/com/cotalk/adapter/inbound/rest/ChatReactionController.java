@@ -5,9 +5,10 @@ import com.cotalk.adapter.inbound.rest.dto.message.AddReactionRequest;
 import com.cotalk.adapter.inbound.rest.dto.message.GroupedReactionResponse;
 import com.cotalk.adapter.inbound.rest.dto.message.MessageReactionResponse;
 import com.cotalk.adapter.inbound.rest.dto.message.RemoveReactionRequest;
-import com.cotalk.application.service.message.GetMessageReactionsService;
 import com.cotalk.domain.entity.MessageReaction;
+import com.cotalk.domain.model.GroupedReaction;
 import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
+import com.cotalk.domain.port.inbound.message.GetMessageReactionsUseCase;
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,7 +43,7 @@ public class ChatReactionController {
 
     private final AddMessageReactionUseCase addMessageReactionUseCase;
     private final RemoveMessageReactionUseCase removeMessageReactionUseCase;
-    private final GetMessageReactionsService getMessageReactionsService;
+    private final GetMessageReactionsUseCase getMessageReactionsUseCase;
 
     /**
      * 메시지에 이모지 반응을 추가합니다.
@@ -94,8 +95,11 @@ public class ChatReactionController {
     public ResponseEntity<List<GroupedReactionResponse>> getReactions(
             @PathVariable Long messageId,
             @AuthenticationPrincipal CustomUserPrincipal principal) {
-        List<GroupedReactionResponse> groupedReactions =
-                getMessageReactionsService.getGroupedReactions(messageId, principal.getUserId());
-        return ResponseEntity.ok(groupedReactions);
+        List<GroupedReaction> groupedReactions =
+                getMessageReactionsUseCase.getGroupedReactions(messageId, principal.getUserId());
+        List<GroupedReactionResponse> response = groupedReactions.stream()
+                .map(GroupedReactionResponse::from)
+                .toList();
+        return ResponseEntity.ok(response);
     }
 }

@@ -5,9 +5,8 @@ import com.cotalk.domain.entity.TermsAgreement.TermsType;
 import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.port.inbound.auth.AgreeToTermsUseCase;
 import com.cotalk.domain.port.outbound.TermsAgreementRepository;
-import com.cotalk.infrastructure.config.properties.AppProperties;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +21,29 @@ import java.util.List;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class AgreeToTermsService implements AgreeToTermsUseCase {
 
     private final TermsAgreementRepository termsAgreementRepository;
-    private final AppProperties appProperties;
+    private final String termsServiceVersion;
+    private final String termsPrivacyVersion;
+
+    /**
+     * AgreeToTermsService 생성자.
+     * 약관 버전 정보는 application.yml에서 주입된다.
+     *
+     * @param termsAgreementRepository 약관 동의 저장소
+     * @param termsServiceVersion 서비스 이용약관 버전
+     * @param termsPrivacyVersion 개인정보 처리방침 버전
+     */
+    public AgreeToTermsService(
+            TermsAgreementRepository termsAgreementRepository,
+            @Value("${app.terms.service-version:1.0}") String termsServiceVersion,
+            @Value("${app.terms.privacy-version:1.0}") String termsPrivacyVersion) {
+        this.termsAgreementRepository = termsAgreementRepository;
+        this.termsServiceVersion = termsServiceVersion;
+        this.termsPrivacyVersion = termsPrivacyVersion;
+    }
 
     /**
      * 약관에 동의한다.
@@ -128,8 +144,8 @@ public class AgreeToTermsService implements AgreeToTermsUseCase {
 
     private String getVersionForType(TermsType type) {
         return switch (type) {
-            case SERVICE -> appProperties.terms().serviceVersion();
-            case PRIVACY -> appProperties.terms().privacyVersion();
+            case SERVICE -> termsServiceVersion;
+            case PRIVACY -> termsPrivacyVersion;
             case MARKETING -> "1.0";
         };
     }

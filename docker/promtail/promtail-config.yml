@@ -26,9 +26,9 @@ scrape_configs:
       # compose 서비스 이름
       - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
         target_label: 'service'
-      # app-blue/app-green → job=cotalk-app 으로 통일
+      # app-1/app-2/app-3 → job=cotalk-app 으로 통일
       - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
-        regex: 'app-blue|app-green'
+        regex: 'app-(1|2|3)'
         target_label: 'job'
         replacement: 'cotalk-app'
     pipeline_stages:

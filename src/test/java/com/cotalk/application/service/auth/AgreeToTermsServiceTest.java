@@ -5,7 +5,7 @@ import com.cotalk.domain.entity.TermsAgreement.TermsType;
 import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.port.inbound.auth.AgreeToTermsUseCase.*;
 import com.cotalk.domain.port.outbound.TermsAgreementRepository;
-import com.cotalk.infrastructure.config.properties.AppProperties;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,20 +36,9 @@ class AgreeToTermsServiceTest {
 
     @BeforeEach
     void setUp() {
-        AppProperties appProperties = createTestAppProperties();
-        service = new AgreeToTermsService(termsAgreementRepository, appProperties);
-    }
-
-    private AppProperties createTestAppProperties() {
-        return new AppProperties(
-                "http://localhost:3000",
-                new AppProperties.Cors("http://localhost:3000"),
-                new AppProperties.Redis("chat:room:", "user:event:"),
-                new AppProperties.PasswordReset(30),
-                new AppProperties.Terms("1.0", "1.0"),
-                new AppProperties.Encryption("", true),
-                new AppProperties.Swagger("http://localhost:8080", "API 서버")
-        );
+        String termsServiceVersion = "1.0";
+        String termsPrivacyVersion = "1.0";
+        service = new AgreeToTermsService(termsAgreementRepository, termsServiceVersion, termsPrivacyVersion);
     }
 
     @Test

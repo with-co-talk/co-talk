@@ -1,7 +1,7 @@
 package com.cotalk.infrastructure.messaging;
 
-import com.cotalk.adapter.inbound.websocket.dto.ReactionBroadcastMessage;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
+import com.cotalk.domain.port.outbound.ChatMessageBroker.ReactionBroadcastEvent;
 import com.cotalk.domain.util.HtmlSanitizer;
 import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -92,7 +92,7 @@ public class RedisChatMessageSubscriber implements MessageListener {
     }
 
     private void handleReaction(Long roomId, String jsonMessage) throws JsonProcessingException {
-        ReactionBroadcastMessage reactionEvent = objectMapper.readValue(jsonMessage, ReactionBroadcastMessage.class);
+        ReactionBroadcastEvent reactionEvent = objectMapper.readValue(jsonMessage, ReactionBroadcastEvent.class);
         String destination = ROOM_TOPIC_PREFIX + roomId;
         messagingTemplate.convertAndSend(destination, reactionEvent);
         log.debug("Broadcasted reaction to WebSocket: destination={}, messageId={}",

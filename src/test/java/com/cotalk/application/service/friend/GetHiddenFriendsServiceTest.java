@@ -1,8 +1,8 @@
 package com.cotalk.application.service.friend;
 
-import com.cotalk.adapter.inbound.rest.dto.friend.HiddenFriendDto;
 import com.cotalk.domain.entity.HiddenFriend;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.HiddenFriendInfo;
 import com.cotalk.domain.port.outbound.HiddenFriendRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -65,7 +65,7 @@ class GetHiddenFriendsServiceTest {
         given(userRepository.findAllById(any())).willReturn(List.of(friend1, friend2, friend3));
 
         // When
-        List<HiddenFriendDto> result = getHiddenFriendsService.getHiddenFriends(userId);
+        List<HiddenFriendInfo> result = getHiddenFriendsService.getHiddenFriends(userId);
 
         // Then: findById가 호출되지 않고 findAllById가 정확히 1번 호출되어야 함
         verify(userRepository, never()).findById(anyLong());
@@ -77,7 +77,7 @@ class GetHiddenFriendsServiceTest {
 
         // 결과 검증
         assertThat(result).hasSize(3);
-        assertThat(result).extracting("friendId").containsExactlyInAnyOrder(10L, 20L, 30L);
+        assertThat(result).extracting(HiddenFriendInfo::friendId).containsExactlyInAnyOrder(10L, 20L, 30L);
     }
 
     @Test
@@ -88,7 +88,7 @@ class GetHiddenFriendsServiceTest {
         given(hiddenFriendRepository.findByUserId(userId)).willReturn(List.of());
 
         // When
-        List<HiddenFriendDto> result = getHiddenFriendsService.getHiddenFriends(userId);
+        List<HiddenFriendInfo> result = getHiddenFriendsService.getHiddenFriends(userId);
 
         // Then
         assertThat(result).isEmpty();
@@ -116,11 +116,11 @@ class GetHiddenFriendsServiceTest {
         given(userRepository.findAllById(any())).willReturn(List.of(friend1, friend3));
 
         // When
-        List<HiddenFriendDto> result = getHiddenFriendsService.getHiddenFriends(userId);
+        List<HiddenFriendInfo> result = getHiddenFriendsService.getHiddenFriends(userId);
 
         // Then: 탈퇴한 친구는 제외되고 2명만 반환
         assertThat(result).hasSize(2);
-        assertThat(result).extracting("friendId").containsExactlyInAnyOrder(10L, 30L);
+        assertThat(result).extracting(HiddenFriendInfo::friendId).containsExactlyInAnyOrder(10L, 30L);
 
         verify(userRepository, never()).findById(anyLong());
         verify(userRepository, times(1)).findAllById(any());

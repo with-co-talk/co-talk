@@ -1,5 +1,6 @@
 package com.cotalk.adapter.inbound.websocket.dto;
 
+import com.cotalk.domain.constants.MessageConstants;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -17,6 +18,6 @@ public record ChatMessageRequest(
         Long roomId,
 
         @NotBlank(message = "메시지 내용은 필수입니다.")
-        @Size(max = 5000, message = "메시지는 최대 5000자까지 가능합니다.")
+        @Size(max = MessageConstants.MAX_MESSAGE_LENGTH, message = "메시지는 최대 " + MessageConstants.MAX_MESSAGE_LENGTH + "자까지 가능합니다.")
         String content
 ) {}

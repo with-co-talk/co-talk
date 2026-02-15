@@ -1,7 +1,9 @@
 package com.cotalk.common.fixture;
 
+import com.cotalk.domain.entity.BaseEntity;
 import com.cotalk.domain.entity.Message;
 
+import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 
 /**
@@ -32,13 +34,15 @@ public class MessageTestFixture {
      * ID, 채팅방 ID, 발신자 ID, 내용을 지정하여 Message 객체를 생성합니다.
      */
     public static Message createMessage(Long messageId, Long chatRoomId, Long senderId, String content) {
-        return Message.builder()
+        Message message = Message.builder()
                 .id(messageId)
                 .chatRoomId(chatRoomId)
                 .senderId(senderId)
                 .content(content)
                 .type(Message.MessageType.TEXT)
                 .build();
+        setCreatedAt(message, LocalDateTime.now());
+        return message;
     }
 
     /**
@@ -52,7 +56,7 @@ public class MessageTestFixture {
      * 이미지 타입 메시지를 생성합니다.
      */
     public static Message createImageMessage(Long messageId, Long chatRoomId, Long senderId, String fileUrl) {
-        return Message.builder()
+        Message message = Message.builder()
                 .id(messageId)
                 .chatRoomId(chatRoomId)
                 .senderId(senderId)
@@ -64,13 +68,15 @@ public class MessageTestFixture {
                 .fileContentType("image/jpeg")
                 .thumbnailUrl(fileUrl + "/thumbnail")
                 .build();
+        setCreatedAt(message, LocalDateTime.now());
+        return message;
     }
 
     /**
      * 파일 타입 메시지를 생성합니다.
      */
     public static Message createFileMessage(Long messageId, Long chatRoomId, Long senderId, String fileUrl, String fileName) {
-        return Message.builder()
+        Message message = Message.builder()
                 .id(messageId)
                 .chatRoomId(chatRoomId)
                 .senderId(senderId)
@@ -81,13 +87,15 @@ public class MessageTestFixture {
                 .fileSize(204800L)
                 .fileContentType("application/pdf")
                 .build();
+        setCreatedAt(message, LocalDateTime.now());
+        return message;
     }
 
     /**
      * 삭제된 메시지를 생성합니다.
      */
     public static Message createDeletedMessage(Long messageId, Long chatRoomId, Long senderId) {
-        return Message.builder()
+        Message message = Message.builder()
                 .id(messageId)
                 .chatRoomId(chatRoomId)
                 .senderId(senderId)
@@ -95,6 +103,8 @@ public class MessageTestFixture {
                 .type(Message.MessageType.TEXT)
                 .deleted(true)
                 .build();
+        setCreatedAt(message, LocalDateTime.now());
+        return message;
     }
 
     /**
@@ -189,7 +199,7 @@ public class MessageTestFixture {
         }
 
         public Message build() {
-            return Message.builder()
+            Message message = Message.builder()
                     .id(id)
                     .chatRoomId(chatRoomId)
                     .senderId(senderId)
@@ -202,6 +212,21 @@ public class MessageTestFixture {
                     .thumbnailUrl(thumbnailUrl)
                     .deleted(deleted)
                     .build();
+            setCreatedAt(message, LocalDateTime.now());
+            return message;
+        }
+    }
+
+    /**
+     * Reflection을 사용하여 createdAt 필드를 설정합니다.
+     */
+    private static void setCreatedAt(Message message, LocalDateTime createdAt) {
+        try {
+            Field createdAtField = BaseEntity.class.getDeclaredField("createdAt");
+            createdAtField.setAccessible(true);
+            createdAtField.set(message, createdAt);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set createdAt", e);
         }
     }
 }

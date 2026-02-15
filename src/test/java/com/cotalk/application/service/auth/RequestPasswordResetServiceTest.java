@@ -5,7 +5,7 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.outbound.EmailSender;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.config.properties.AppProperties;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,20 +38,14 @@ class RequestPasswordResetServiceTest {
 
     @BeforeEach
     void setUp() {
-        AppProperties appProperties = new AppProperties(
-                "http://localhost:3000",
-                new AppProperties.Cors("http://localhost:3000"),
-                new AppProperties.Redis("chat:room:", "user:event:"),
-                new AppProperties.PasswordReset(30),
-                new AppProperties.Terms("1.0", "1.0"),
-                new AppProperties.Encryption("", true),
-                new AppProperties.Swagger("http://localhost:8080", "API 서버")
-        );
+        String frontendUrl = "http://localhost:3000";
+        int tokenExpirationMinutes = 30;
         service = new RequestPasswordResetService(
                 userRepository,
                 tokenRepository,
                 emailSender,
-                appProperties
+                frontendUrl,
+                tokenExpirationMinutes
         );
     }
 

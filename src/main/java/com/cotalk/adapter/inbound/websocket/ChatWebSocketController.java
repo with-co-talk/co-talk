@@ -7,6 +7,7 @@ import com.cotalk.adapter.inbound.websocket.dto.PresencePingRequest;
 import com.cotalk.adapter.inbound.websocket.dto.PresenceInactiveRequest;
 import com.cotalk.adapter.inbound.websocket.dto.RemoveReactionRequest;
 import com.cotalk.adapter.inbound.websocket.dto.TypingStatusRequest;
+import com.cotalk.domain.constants.MessageConstants;
 import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.exception.InvalidEmojiException;
@@ -89,7 +90,7 @@ public class ChatWebSocketController {
             return;
         }
 
-        if (request.content().length() > 5000) {
+        if (request.content().length() > MessageConstants.MAX_MESSAGE_LENGTH) {
             log.warn("Message content too long from user {}: {} chars", authenticatedUserId, request.content().length());
             return;
         }

@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.metrics;
 
+import com.cotalk.domain.port.outbound.MetricsPort;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -29,7 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @Component
 @Getter
-public class CustomMetrics {
+public class CustomMetrics implements MetricsPort {
 
     /** 전송된 메시지 카운터 */
     private final Counter messagesSentCounter;
@@ -95,6 +96,7 @@ public class CustomMetrics {
     /**
      * 전송된 메시지 카운터를 1 증가시킨다.
      */
+    @Override
     public void incrementMessagesSent() {
         messagesSentCounter.increment();
     }
@@ -102,6 +104,7 @@ public class CustomMetrics {
     /**
      * 수신된 메시지 카운터를 1 증가시킨다.
      */
+    @Override
     public void incrementMessagesReceived() {
         messagesReceivedCounter.increment();
     }
@@ -109,6 +112,7 @@ public class CustomMetrics {
     /**
      * 사용자 등록 카운터를 1 증가시킨다.
      */
+    @Override
     public void incrementUserRegistration() {
         userRegistrationCounter.increment();
     }
@@ -116,6 +120,7 @@ public class CustomMetrics {
     /**
      * 로그인 성공 카운터를 1 증가시킨다.
      */
+    @Override
     public void incrementLoginSuccess() {
         loginSuccessCounter.increment();
     }
@@ -123,6 +128,7 @@ public class CustomMetrics {
     /**
      * 로그인 실패 카운터를 1 증가시킨다.
      */
+    @Override
     public void incrementLoginFailure() {
         loginFailureCounter.increment();
     }
@@ -155,7 +161,8 @@ public class CustomMetrics {
      *
      * @return 타이머 샘플
      */
-    public Timer.Sample startMessageProcessingTimer() {
+    @Override
+    public Object startMessageProcessingTimer() {
         return Timer.start();
     }
 
@@ -164,7 +171,8 @@ public class CustomMetrics {
      *
      * @param sample 타이머 샘플
      */
-    public void stopMessageProcessingTimer(Timer.Sample sample) {
-        sample.stop(messageProcessingTimer);
+    @Override
+    public void stopMessageProcessingTimer(Object sample) {
+        ((Timer.Sample) sample).stop(messageProcessingTimer);
     }
 }

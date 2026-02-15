@@ -28,8 +28,8 @@ spring:
     password: ${DB_PASSWORD:cotalk}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 50
-      minimum-idle: 10
+      maximum-pool-size: 20
+      minimum-idle: 5
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
@@ -74,9 +74,14 @@ spring:
     redis:
       time-to-live: 3600000 # 1시간
 
+  # Graceful Shutdown (롤링 배포 시 in-flight 요청 완료 대기)
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
 # 서버 설정
 server:
   port: ${SERVER_PORT:8080}
+  shutdown: graceful
   error:
     include-message: always
     include-binding-errors: always

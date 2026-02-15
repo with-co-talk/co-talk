@@ -1,6 +1,6 @@
 package com.cotalk.domain.port.inbound.friend;
 
-import com.cotalk.adapter.inbound.rest.dto.friend.HiddenFriendDto;
+import com.cotalk.domain.model.HiddenFriendInfo;
 
 import java.util.List;
 
@@ -18,5 +18,5 @@ public interface GetHiddenFriendsUseCase {
      * @param userId 숨긴 친구 목록을 조회할 사용자 ID
      * @return 숨긴 친구 정보 목록
      */
-    List<HiddenFriendDto> getHiddenFriends(Long userId);
+    List<HiddenFriendInfo> getHiddenFriends(Long userId);
 }

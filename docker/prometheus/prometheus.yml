@@ -17,14 +17,14 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # Spring Boot 애플리케이션 메트릭 (Blue/Green)
+  # Spring Boot 애플리케이션 메트릭 (3-instance)
   - job_name: 'cotalk-app'
     metrics_path: '/actuator/prometheus'
     scrape_interval: 5s
     static_configs:
-      - targets: ['app-blue:8080', 'app-green:8080']
+      - targets: ['app-1:8080', 'app-2:8080', 'app-3:8080']
     relabel_configs:
       - source_labels: [__address__]
         regex: 'app-(.+):8080'
-        target_label: color
+        target_label: instance_id
         replacement: '$1'

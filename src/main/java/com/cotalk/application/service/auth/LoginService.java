@@ -8,9 +8,9 @@ import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
+import com.cotalk.domain.port.outbound.MetricsPort;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.metrics.CustomMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,7 +31,7 @@ public class LoginService implements LoginUseCase {
     private final PasswordEncoderPort passwordEncoder;
     private final AuthTokenPort authTokenPort;
     private final UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
-    private final CustomMetrics customMetrics;
+    private final MetricsPort metricsPort;
 
     /**
      * 이메일과 비밀번호로 로그인한다.
@@ -50,25 +50,25 @@ public class LoginService implements LoginUseCase {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> {
                     log.warn("Login failed: user not found for email: {}", maskEmail(email));
-                    customMetrics.incrementLoginFailure();
+                    metricsPort.incrementLoginFailure();
                     return new InvalidCredentialsException();
                 });
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             log.warn("Login failed: invalid password for userId: {}", user.getId());
-            customMetrics.incrementLoginFailure();
+            metricsPort.incrementLoginFailure();
             throw new InvalidCredentialsException();
         }
 
         if (!user.isActive()) {
             log.warn("Login failed: inactive account for userId: {}", user.getId());
-            customMetrics.incrementLoginFailure();
+            metricsPort.incrementLoginFailure();
             throw new InvalidCredentialsException("계정이 비활성화 또는 정지되었습니다.");
         }
 
         if (!user.isEmailVerified()) {
             log.warn("Login failed: email not verified for userId: {}", user.getId());
-            customMetrics.incrementLoginFailure();
+            metricsPort.incrementLoginFailure();
             throw new EmailNotVerifiedException(user.getEmail());
         }
 
@@ -76,7 +76,7 @@ public class LoginService implements LoginUseCase {
         updateUserOnlineStatusUseCase.setOnline(user.getId());
 
         String accessToken = authTokenPort.generateAccessToken(user.getId());
-        customMetrics.incrementLoginSuccess();
+        metricsPort.incrementLoginSuccess();
         log.info("Login successful: userId={}", user.getId());
         return new LoginResult(accessToken, user.getId());
     }

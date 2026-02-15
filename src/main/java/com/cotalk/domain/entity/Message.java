@@ -1,6 +1,7 @@
 package com.cotalk.domain.entity;
 
-import com.cotalk.infrastructure.crypto.EncryptedStringConverter;
+import com.cotalk.domain.constants.MessageConstants;
+import com.cotalk.domain.converter.EncryptedStringConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -243,6 +244,6 @@ public class Message extends BaseEntity {
         if (getCreatedAt() == null) {
             return false;
         }
-        return getCreatedAt().plusMinutes(5).isBefore(LocalDateTime.now());
+        return getCreatedAt().plusMinutes(MessageConstants.EDIT_TIME_LIMIT_MINUTES).isBefore(LocalDateTime.now());
     }
 }

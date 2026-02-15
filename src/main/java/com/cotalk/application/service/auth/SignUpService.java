@@ -11,9 +11,8 @@ import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.UserValidator;
-import com.cotalk.infrastructure.config.properties.AppProperties;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class SignUpService implements SignUpUseCase {
 
@@ -35,7 +33,36 @@ public class SignUpService implements SignUpUseCase {
     private final UserValidator userValidator;
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final EmailSender emailSender;
-    private final AppProperties appProperties;
+    private final String frontendUrl;
+
+    /**
+     * SignUpService 생성자.
+     * 프론트엔드 URL은 application.yml의 app.frontend-url 속성에서 주입된다.
+     *
+     * @param userRepository 사용자 저장소
+     * @param passwordEncoder 비밀번호 인코더
+     * @param idGenerator ID 생성기
+     * @param userValidator 사용자 정보 검증기
+     * @param emailVerificationTokenRepository 이메일 인증 토큰 저장소
+     * @param emailSender 이메일 발송 포트
+     * @param frontendUrl 프론트엔드 URL
+     */
+    public SignUpService(
+            UserRepository userRepository,
+            PasswordEncoderPort passwordEncoder,
+            IdGenerator idGenerator,
+            UserValidator userValidator,
+            EmailVerificationTokenRepository emailVerificationTokenRepository,
+            EmailSender emailSender,
+            @Value("${app.frontend-url}") String frontendUrl) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.idGenerator = idGenerator;
+        this.userValidator = userValidator;
+        this.emailVerificationTokenRepository = emailVerificationTokenRepository;
+        this.emailSender = emailSender;
+        this.frontendUrl = frontendUrl;
+    }
 
     /**
      * 새로운 사용자를 등록한다.
@@ -75,7 +102,7 @@ public class SignUpService implements SignUpUseCase {
                 savedUser.getId(), email, 1440); // 24시간
         emailVerificationTokenRepository.save(verificationToken);
 
-        String verificationLink = appProperties.frontendUrl() + "/verify-email?token=" + verificationToken.getToken();
+        String verificationLink = frontendUrl + "/verify-email?token=" + verificationToken.getToken();
         emailSender.sendVerificationEmail(email, verificationLink);
 
         log.info("Sign-up successful: userId={}, email={}", savedUser.getId(), maskEmail(email));

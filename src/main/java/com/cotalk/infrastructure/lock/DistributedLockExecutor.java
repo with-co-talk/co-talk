@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.lock;
 
+import com.cotalk.domain.port.outbound.DistributedLockPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -35,7 +36,7 @@ import java.util.function.Supplier;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnBean(RedissonClient.class)
-public class DistributedLockExecutor {
+public class DistributedLockExecutor implements DistributedLockPort {
 
     private static final String LOCK_PREFIX = "lock:";
 
@@ -53,6 +54,7 @@ public class DistributedLockExecutor {
      * @return 작업 실행 결과
      * @throws DistributedLockException 락 획득 실패 시
      */
+    @Override
     public <T> T executeWithLock(String lockKey, long waitTime, long leaseTime,
                                   TimeUnit timeUnit, Supplier<T> supplier) {
         RLock lock = redissonClient.getLock(LOCK_PREFIX + lockKey);
@@ -87,6 +89,7 @@ public class DistributedLockExecutor {
      * @param runnable  실행할 작업
      * @throws DistributedLockException 락 획득 실패 시
      */
+    @Override
     public void executeWithLock(String lockKey, long waitTime, long leaseTime,
                                 TimeUnit timeUnit, Runnable runnable) {
         executeWithLock(lockKey, waitTime, leaseTime, timeUnit, () -> {
@@ -104,6 +107,7 @@ public class DistributedLockExecutor {
      * @param <T>      반환 타입
      * @return 작업 실행 결과
      */
+    @Override
     public <T> T executeWithLock(String lockKey, Supplier<T> supplier) {
         return executeWithLock(lockKey, 3, 10, TimeUnit.SECONDS, supplier);
     }
@@ -114,6 +118,7 @@ public class DistributedLockExecutor {
      * @param lockKey  락 키
      * @param runnable 실행할 작업
      */
+    @Override
     public void executeWithLock(String lockKey, Runnable runnable) {
         executeWithLock(lockKey, 3, 10, TimeUnit.SECONDS, runnable);
     }

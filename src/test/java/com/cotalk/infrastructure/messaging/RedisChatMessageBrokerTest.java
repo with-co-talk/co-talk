@@ -2,6 +2,7 @@ package com.cotalk.infrastructure.messaging;
 
 import com.cotalk.domain.exception.MessageBrokerException;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
+import com.cotalk.domain.port.outbound.ChatMessageBroker.ReactionBroadcastEvent;
 import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -161,7 +162,8 @@ class RedisChatMessageBrokerTest {
         void should_publishReaction_when_validInput() {
             // given
             Long roomId = 1L;
-            TestReactionEvent reactionEvent = new TestReactionEvent(100L, 1L, "LIKE");
+            ReactionBroadcastEvent reactionEvent = new ReactionBroadcastEvent(
+                    1, "event:100:1:ADDED", 1L, 100L, 1L, "👍", "ADDED", System.currentTimeMillis());
 
             // when
             broker.publishReaction(roomId, reactionEvent);
@@ -173,7 +175,7 @@ class RedisChatMessageBrokerTest {
             verify(redisTemplate).convertAndSend(channelCaptor.capture(), messageCaptor.capture());
 
             assertThat(channelCaptor.getValue()).isEqualTo("chat:room:1:reaction");
-            assertThat(messageCaptor.getValue()).contains("LIKE");
+            assertThat(messageCaptor.getValue()).contains("ADDED");
             assertThat(messageCaptor.getValue()).contains("100");
         }
 
@@ -185,7 +187,8 @@ class RedisChatMessageBrokerTest {
             RedisChatMessageBroker brokerWithMockMapper = new RedisChatMessageBroker(redisTemplate, mockMapper, appProperties);
 
             Long roomId = 1L;
-            Object reactionEvent = new TestReactionEvent(100L, 1L, "LIKE");
+            ReactionBroadcastEvent reactionEvent = new ReactionBroadcastEvent(
+                    1, "event:100:1:ADDED", 1L, 100L, 1L, "👍", "ADDED", System.currentTimeMillis());
             when(mockMapper.writeValueAsString(reactionEvent))
                     .thenThrow(new JsonProcessingException("Serialization failed") {});
 
@@ -199,7 +202,8 @@ class RedisChatMessageBrokerTest {
         void should_publishToCorrectChannel_when_differentRoomIds() {
             // given
             Long roomId = 456L;
-            TestReactionEvent reactionEvent = new TestReactionEvent(200L, 2L, "HEART");
+            ReactionBroadcastEvent reactionEvent = new ReactionBroadcastEvent(
+                    1, "event:200:2:ADDED", 2L, 200L, 2L, "❤️", "ADDED", System.currentTimeMillis());
 
             // when
             broker.publishReaction(roomId, reactionEvent);
@@ -209,5 +213,4 @@ class RedisChatMessageBrokerTest {
         }
     }
 
-    private record TestReactionEvent(Long messageId, Long userId, String reactionType) {}
 }

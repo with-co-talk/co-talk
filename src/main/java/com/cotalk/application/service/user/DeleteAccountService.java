@@ -5,7 +5,7 @@ import com.cotalk.domain.exception.PasswordMismatchException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.user.DeleteAccountUseCase;
 import com.cotalk.domain.port.outbound.*;
-import com.cotalk.infrastructure.util.LogMaskingUtil;
+import com.cotalk.domain.util.LogMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
