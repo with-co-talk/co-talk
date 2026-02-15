@@ -1,8 +1,8 @@
 package com.cotalk.application.service.message;
 
-import com.cotalk.adapter.inbound.rest.dto.message.GroupedReactionResponse;
 import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.MessageReaction;
+import com.cotalk.domain.model.GroupedReaction;
 import com.cotalk.domain.port.inbound.message.GetMessageReactionsUseCase;
 import com.cotalk.domain.port.outbound.MessageReactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +45,8 @@ public class GetMessageReactionsService implements GetMessageReactionsUseCase {
      * @param currentUserId 현재 사용자 ID (null 가능)
      * @return 그룹핑된 반응 목록
      */
-    public List<GroupedReactionResponse> getGroupedReactions(Long messageId, Long currentUserId) {
+    @Override
+    public List<GroupedReaction> getGroupedReactions(Long messageId, Long currentUserId) {
         List<MessageReaction> reactions = reactionRepository.findByMessageId(messageId);
 
         // 이모지별로 그룹핑
@@ -55,10 +56,10 @@ public class GetMessageReactionsService implements GetMessageReactionsUseCase {
                         Collectors.mapping(MessageReaction::getUserId, Collectors.toList())
                 ));
 
-        // GroupedReactionResponse로 변환하고 count 내림차순 정렬
+        // GroupedReaction으로 변환하고 count 내림차순 정렬
         return groupedByEmoji.entrySet().stream()
-                .map(entry -> GroupedReactionResponse.from(entry.getKey(), entry.getValue(), currentUserId))
-                .sorted(Comparator.comparing(GroupedReactionResponse::count).reversed())
+                .map(entry -> GroupedReaction.of(entry.getKey(), entry.getValue(), currentUserId))
+                .sorted(Comparator.comparing(GroupedReaction::count).reversed())
                 .toList();
     }
 }

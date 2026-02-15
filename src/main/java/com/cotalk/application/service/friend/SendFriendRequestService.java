@@ -9,7 +9,7 @@ import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.validator.UserValidator;
-import com.cotalk.infrastructure.lock.DistributedLockExecutor;
+import com.cotalk.domain.port.outbound.DistributedLockPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -37,7 +37,7 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
     private final FriendRepository friendRepository;
     private final UserValidator userValidator;
     private final IdGenerator idGenerator;
-    private final DistributedLockExecutor lockExecutor;
+    private final DistributedLockPort lockExecutor;
     private final SendPushNotificationUseCase sendPushNotificationUseCase;
 
     /**

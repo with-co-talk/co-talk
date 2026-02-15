@@ -21,7 +21,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,6 +47,7 @@ public class GetChatRoomsService implements GetChatRoomsUseCase, GetChatRoomUseC
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
+    private final ChatRoomSummaryAssembler assembler;
 
     /**
      * 사용자가 참여한 채팅방 목록을 조회한다.
@@ -67,81 +67,11 @@ public class GetChatRoomsService implements GetChatRoomsUseCase, GetChatRoomUseC
             return List.of();
         }
 
-        List<Long> chatRoomIds = chatRooms.stream()
-                .map(ChatRoom::getId)
-                .toList();
+        // 2-7. 배치 데이터 조회 (6 queries)
+        ChatRoomSummaryAssembler.BatchData batchData = assembler.loadBatchData(userId, chatRooms);
 
-        // 2. 내 멤버 정보 배치 조회 (1 query)
-        Map<Long, ChatRoomMember> myMemberMap = chatRoomMemberRepository
-                .findByUserIdAndChatRoomIds(userId, chatRoomIds)
-                .stream()
-                .collect(Collectors.toMap(ChatRoomMember::getChatRoomId, Function.identity()));
-
-        // 3. 마지막 메시지 배치 조회 (1 query)
-        Map<Long, Message> lastMessageMap = messageRepository
-                .findLastMessagesByRoomIds(chatRoomIds)
-                .stream()
-                .collect(Collectors.toMap(Message::getChatRoomId, Function.identity()));
-
-        // 4. 읽지 않은 메시지 수 배치 조회 (1 query)
-        Map<Long, Long> unreadCountMap = messageRepository.batchCountUnreadMessages(userId, chatRoomIds);
-
-        // 5. DIRECT 채팅방의 상대방 멤버 정보 배치 조회 (1 query)
-        List<Long> directChatRoomIds = chatRooms.stream()
-                .filter(room -> room.getType() == ChatRoom.ChatRoomType.DIRECT)
-                .map(ChatRoom::getId)
-                .toList();
-
-        Map<Long, ChatRoomMember> otherMemberMap = chatRoomMemberRepository
-                .findOtherMembersByChatRoomIds(userId, directChatRoomIds)
-                .stream()
-                .collect(Collectors.toMap(ChatRoomMember::getChatRoomId, Function.identity(), (a, b) -> a));
-
-        // 6. 상대방이 나간 채팅방의 경우 메시지 기록에서 상대방 ID 복구
-        // otherMemberMap에 없는 DIRECT 채팅방은 상대방이 나간 것
-        Map<Long, Long> leftUserIdMap = new java.util.HashMap<>();
-        for (Long directRoomId : directChatRoomIds) {
-            if (!otherMemberMap.containsKey(directRoomId)) {
-                // 상대방이 나간 채팅방 - 메시지 기록에서 상대방 ID 찾기
-                List<Long> senderIds = messageRepository.findDistinctSenderIdsByChatRoomIdExcludingUser(directRoomId, userId);
-                if (!senderIds.isEmpty()) {
-                    leftUserIdMap.put(directRoomId, senderIds.get(0));
-                }
-            }
-        }
-
-        // 7. 상대방 사용자 정보 배치 조회 (1 query)
-        Set<Long> otherUserIds = new java.util.HashSet<>();
-        otherUserIds.addAll(otherMemberMap.values().stream()
-                .map(ChatRoomMember::getUserId)
-                .collect(Collectors.toSet()));
-        otherUserIds.addAll(leftUserIdMap.values());
-
-        Map<Long, User> otherUserMap = userRepository.findAllById(otherUserIds)
-                .stream()
-                .collect(Collectors.toMap(User::getId, Function.identity()));
-
-        // 8. ChatRoomSummary 조립 (no query)
-        // 9. 마지막 메시지 시간 기준 내림차순 정렬 (최신 메시지가 위로)
-        return chatRooms.stream()
-                .map(chatRoom -> buildChatRoomSummary(
-                        chatRoom,
-                        myMemberMap.get(chatRoom.getId()),
-                        lastMessageMap.get(chatRoom.getId()),
-                        unreadCountMap.getOrDefault(chatRoom.getId(), 0L),
-                        otherMemberMap.get(chatRoom.getId()),
-                        leftUserIdMap.get(chatRoom.getId()),
-                        otherUserMap
-                ))
-                .sorted((a, b) -> {
-                    LocalDateTime aTime = a.lastMessageAt() != null ? a.lastMessageAt() : a.createdAt();
-                    LocalDateTime bTime = b.lastMessageAt() != null ? b.lastMessageAt() : b.createdAt();
-                    if (aTime == null && bTime == null) return 0;
-                    if (aTime == null) return 1;
-                    if (bTime == null) return -1;
-                    return bTime.compareTo(aTime); // 내림차순 (최신이 위)
-                })
-                .toList();
+        // 8-9. ChatRoomSummary 조립 및 정렬
+        return assembler.assembleSummaries(chatRooms, batchData);
     }
 
     /**
@@ -164,78 +94,12 @@ public class GetChatRoomsService implements GetChatRoomsUseCase, GetChatRoomUseC
         }
 
         List<ChatRoom> chatRooms = chatRoomPage.getContent();
-        List<Long> chatRoomIds = chatRooms.stream()
-                .map(ChatRoom::getId)
-                .toList();
 
-        // 2. 내 멤버 정보 배치 조회 (1 query)
-        Map<Long, ChatRoomMember> myMemberMap = chatRoomMemberRepository
-                .findByUserIdAndChatRoomIds(userId, chatRoomIds)
-                .stream()
-                .collect(Collectors.toMap(ChatRoomMember::getChatRoomId, Function.identity()));
+        // 2-7. 배치 데이터 조회 (6 queries)
+        ChatRoomSummaryAssembler.BatchData batchData = assembler.loadBatchData(userId, chatRooms);
 
-        // 3. 마지막 메시지 배치 조회 (1 query)
-        Map<Long, Message> lastMessageMap = messageRepository
-                .findLastMessagesByRoomIds(chatRoomIds)
-                .stream()
-                .collect(Collectors.toMap(Message::getChatRoomId, Function.identity()));
-
-        // 4. 읽지 않은 메시지 수 배치 조회 (1 query)
-        Map<Long, Long> unreadCountMap = messageRepository.batchCountUnreadMessages(userId, chatRoomIds);
-
-        // 5. DIRECT 채팅방의 상대방 멤버 정보 배치 조회 (1 query)
-        List<Long> directChatRoomIds = chatRooms.stream()
-                .filter(room -> room.getType() == ChatRoom.ChatRoomType.DIRECT)
-                .map(ChatRoom::getId)
-                .toList();
-
-        Map<Long, ChatRoomMember> otherMemberMap = chatRoomMemberRepository
-                .findOtherMembersByChatRoomIds(userId, directChatRoomIds)
-                .stream()
-                .collect(Collectors.toMap(ChatRoomMember::getChatRoomId, Function.identity(), (a, b) -> a));
-
-        // 6. 상대방이 나간 채팅방의 경우 메시지 기록에서 상대방 ID 복구
-        Map<Long, Long> leftUserIdMap = new java.util.HashMap<>();
-        for (Long directRoomId : directChatRoomIds) {
-            if (!otherMemberMap.containsKey(directRoomId)) {
-                List<Long> senderIds = messageRepository.findDistinctSenderIdsByChatRoomIdExcludingUser(directRoomId, userId);
-                if (!senderIds.isEmpty()) {
-                    leftUserIdMap.put(directRoomId, senderIds.get(0));
-                }
-            }
-        }
-
-        // 7. 상대방 사용자 정보 배치 조회 (1 query)
-        Set<Long> otherUserIds = new java.util.HashSet<>();
-        otherUserIds.addAll(otherMemberMap.values().stream()
-                .map(ChatRoomMember::getUserId)
-                .collect(Collectors.toSet()));
-        otherUserIds.addAll(leftUserIdMap.values());
-
-        Map<Long, User> otherUserMap = userRepository.findAllById(otherUserIds)
-                .stream()
-                .collect(Collectors.toMap(User::getId, Function.identity()));
-
-        // 8. ChatRoomSummary 조립
-        List<ChatRoomSummary> summaries = chatRooms.stream()
-                .map(chatRoom -> buildChatRoomSummary(
-                        chatRoom,
-                        myMemberMap.get(chatRoom.getId()),
-                        lastMessageMap.get(chatRoom.getId()),
-                        unreadCountMap.getOrDefault(chatRoom.getId(), 0L),
-                        otherMemberMap.get(chatRoom.getId()),
-                        leftUserIdMap.get(chatRoom.getId()),
-                        otherUserMap
-                ))
-                .sorted((a, b) -> {
-                    LocalDateTime aTime = a.lastMessageAt() != null ? a.lastMessageAt() : a.createdAt();
-                    LocalDateTime bTime = b.lastMessageAt() != null ? b.lastMessageAt() : b.createdAt();
-                    if (aTime == null && bTime == null) return 0;
-                    if (aTime == null) return 1;
-                    if (bTime == null) return -1;
-                    return bTime.compareTo(aTime);
-                })
-                .toList();
+        // 8. ChatRoomSummary 조립 및 정렬
+        List<ChatRoomSummary> summaries = assembler.assembleSummaries(chatRooms, batchData);
 
         return new PageImpl<>(summaries, pageable, chatRoomPage.getTotalElements());
     }
@@ -295,90 +159,6 @@ public class GetChatRoomsService implements GetChatRoomsUseCase, GetChatRoomUseC
             }
         }
 
-        return buildChatRoomSummary(chatRoom, myMember, lastMessage, unreadCount, otherMember, leftUserId, otherUserMap);
-    }
-
-    /**
-     * 배치 조회된 데이터를 사용하여 ChatRoomSummary를 조립한다.
-     *
-     * @param chatRoom 채팅방
-     * @param myMember 내 멤버 정보
-     * @param lastMessage 마지막 메시지
-     * @param unreadCount 읽지 않은 메시지 수
-     * @param otherMember 상대방 멤버 정보 (나간 경우 null)
-     * @param leftUserId 나간 사용자 ID (메시지 기록에서 복구, 없으면 null)
-     * @param otherUserMap 사용자 정보 맵
-     * @return 채팅방 요약 정보
-     */
-    private ChatRoomSummary buildChatRoomSummary(
-            ChatRoom chatRoom,
-            ChatRoomMember myMember,
-            Message lastMessage,
-            long unreadCount,
-            ChatRoomMember otherMember,
-            Long leftUserId,
-            Map<Long, User> otherUserMap
-    ) {
-        // 마지막 메시지 정보
-        String lastMessageContent = lastMessage != null ? lastMessage.getContent() : "";
-        String lastMessageType = lastMessage != null ? lastMessage.getType().name() : null;
-        LocalDateTime lastMessageCreatedAt = lastMessage != null ? lastMessage.getCreatedAt() : null;
-
-        // 상대방 정보 (1:1 채팅인 경우)
-        Long otherUserId = null;
-        String otherNickname = null;
-        String otherAvatarUrl = null;
-        boolean isOtherUserLeft = false;
-        boolean isOtherUserOnline = false;
-        LocalDateTime otherUserLastActiveAt = null;
-
-        if (chatRoom.getType() == ChatRoom.ChatRoomType.DIRECT) {
-            // 1:1 채팅방에서 상대방이 나갔는지 확인
-            // otherMember가 null이면 상대방이 채팅방을 나간 것
-            isOtherUserLeft = (otherMember == null);
-
-            if (otherMember != null) {
-                User otherUser = otherUserMap.get(otherMember.getUserId());
-                if (otherUser != null) {
-                    otherUserId = otherUser.getId();
-                    otherNickname = otherUser.getNickname();
-                    otherAvatarUrl = otherUser.getAvatarUrl();
-                    isOtherUserOnline = otherUser.isOnline();
-                    otherUserLastActiveAt = otherUser.getLastActiveAt();
-                }
-            } else if (leftUserId != null) {
-                // 상대방이 나갔지만 메시지 기록에서 ID를 복구한 경우
-                User leftUser = otherUserMap.get(leftUserId);
-                if (leftUser != null) {
-                    otherUserId = leftUser.getId();
-                    otherNickname = leftUser.getNickname();
-                    otherAvatarUrl = leftUser.getAvatarUrl();
-                    // 나간 사용자는 오프라인 처리
-                    isOtherUserOnline = false;
-                    otherUserLastActiveAt = leftUser.getLastActiveAt();
-                }
-            }
-        }
-
-        log.debug("buildChatRoomSummary: chatRoomId={}, unreadCount={}, isOtherUserLeft={}, otherUserId={}, isOtherUserOnline={}",
-                chatRoom.getId(), unreadCount, isOtherUserLeft, otherUserId, isOtherUserOnline);
-
-        return new ChatRoomSummary(
-                chatRoom.getId(),
-                chatRoom.getName(),
-                chatRoom.getImageUrl(),
-                chatRoom.getType(),
-                chatRoom.getCreatedAt(),
-                lastMessageContent,
-                lastMessageType,
-                lastMessageCreatedAt,
-                unreadCount,
-                otherUserId,
-                otherNickname,
-                otherAvatarUrl,
-                isOtherUserLeft,
-                isOtherUserOnline,
-                otherUserLastActiveAt
-        );
+        return assembler.assembleSummary(chatRoom, myMember, lastMessage, unreadCount, otherMember, leftUserId, otherUserMap);
     }
 }

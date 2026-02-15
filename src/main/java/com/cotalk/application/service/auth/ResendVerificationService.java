@@ -6,10 +6,9 @@ import com.cotalk.domain.port.inbound.auth.ResendVerificationUseCase;
 import com.cotalk.domain.port.outbound.EmailSender;
 import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.config.properties.AppProperties;
-import com.cotalk.infrastructure.util.LogMaskingUtil;
-import lombok.RequiredArgsConstructor;
+import com.cotalk.domain.util.LogMaskingUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,16 +22,35 @@ import java.time.LocalDateTime;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class ResendVerificationService implements ResendVerificationUseCase {
 
     private final UserRepository userRepository;
     private final EmailVerificationTokenRepository tokenRepository;
     private final EmailSender emailSender;
-    private final AppProperties appProperties;
+    private final String frontendUrl;
 
     private static final long RESEND_COOLDOWN_SECONDS = 60;
+
+    /**
+     * ResendVerificationService 생성자.
+     * 프론트엔드 URL은 application.yml의 app.frontend-url 속성에서 주입된다.
+     *
+     * @param userRepository 사용자 저장소
+     * @param tokenRepository 이메일 인증 토큰 저장소
+     * @param emailSender 이메일 발송 포트
+     * @param frontendUrl 프론트엔드 URL
+     */
+    public ResendVerificationService(
+            UserRepository userRepository,
+            EmailVerificationTokenRepository tokenRepository,
+            EmailSender emailSender,
+            @Value("${app.frontend-url}") String frontendUrl) {
+        this.userRepository = userRepository;
+        this.tokenRepository = tokenRepository;
+        this.emailSender = emailSender;
+        this.frontendUrl = frontendUrl;
+    }
 
     /**
      * 이메일 인증 이메일을 재발송한다.
@@ -63,7 +81,7 @@ public class ResendVerificationService implements ResendVerificationUseCase {
                     user.getId(), user.getEmail(), 1440); // 24시간
             tokenRepository.save(token);
 
-            String verificationLink = appProperties.frontendUrl() + "/verify-email?token=" + token.getToken();
+            String verificationLink = frontendUrl + "/verify-email?token=" + token.getToken();
             emailSender.sendVerificationEmail(user.getEmail(), verificationLink);
 
             log.info("Verification email resent to: {}", LogMaskingUtil.maskEmail(email));

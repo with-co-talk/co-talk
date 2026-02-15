@@ -1,6 +1,6 @@
 package com.cotalk.adapter.inbound.rest.dto.message;
 
-import com.cotalk.domain.entity.Emoji;
+import com.cotalk.domain.model.GroupedReaction;
 
 import java.util.List;
 
@@ -25,21 +25,19 @@ public record GroupedReactionResponse(
         boolean currentUserReacted
 ) {
     /**
-     * Emoji enum과 사용자 목록으로부터 그룹핑된 반응 응답을 생성합니다.
+     * 도메인 모델로부터 응답 DTO를 생성한다.
      *
-     * @param emoji              이모지 enum
-     * @param userIds            반응한 사용자 ID 목록
-     * @param currentUserId      현재 사용자 ID (null이면 currentUserReacted는 false)
+     * @param reaction 그룹핑된 반응 도메인 모델
      * @return GroupedReactionResponse 인스턴스
      */
-    public static GroupedReactionResponse from(Emoji emoji, List<Long> userIds, Long currentUserId) {
+    public static GroupedReactionResponse from(GroupedReaction reaction) {
         return new GroupedReactionResponse(
-                emoji.getCharacter(),
-                emoji.getCharacter(),
-                emoji.getName(),
-                userIds.size(),
-                userIds,
-                currentUserId != null && userIds.contains(currentUserId)
+                reaction.emoji(),
+                reaction.emojiCharacter(),
+                reaction.emojiName(),
+                reaction.count(),
+                reaction.userIds(),
+                reaction.currentUserReacted()
         );
     }
 }

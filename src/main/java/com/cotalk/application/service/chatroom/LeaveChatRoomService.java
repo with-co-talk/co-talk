@@ -17,7 +17,7 @@ import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.lock.DistributedLockExecutor;
+import com.cotalk.domain.port.outbound.DistributedLockPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,7 +45,7 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
 
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final ChatRoomRepository chatRoomRepository;
-    private final DistributedLockExecutor lockExecutor;
+    private final DistributedLockPort lockExecutor;
     private final IdGenerator idGenerator;
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;

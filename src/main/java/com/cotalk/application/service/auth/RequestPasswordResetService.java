@@ -5,9 +5,9 @@ import com.cotalk.domain.port.inbound.auth.RequestPasswordResetUseCase;
 import com.cotalk.domain.port.outbound.EmailSender;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.config.properties.AppProperties;
-import com.cotalk.infrastructure.util.LogMaskingUtil;
+import com.cotalk.domain.util.LogMaskingUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,16 +28,27 @@ public class RequestPasswordResetService implements RequestPasswordResetUseCase 
     private final String frontendUrl;
     private final int tokenExpirationMinutes;
 
+    /**
+     * RequestPasswordResetService 생성자.
+     * 프론트엔드 URL과 토큰 만료 시간은 application.yml에서 주입된다.
+     *
+     * @param userRepository 사용자 저장소
+     * @param tokenRepository 비밀번호 재설정 토큰 저장소
+     * @param emailSender 이메일 발송 포트
+     * @param frontendUrl 프론트엔드 URL
+     * @param tokenExpirationMinutes 토큰 만료 시간(분)
+     */
     public RequestPasswordResetService(
             UserRepository userRepository,
             PasswordResetTokenRepository tokenRepository,
             EmailSender emailSender,
-            AppProperties appProperties) {
+            @Value("${app.frontend-url}") String frontendUrl,
+            @Value("${app.password-reset.expiration-minutes:30}") int tokenExpirationMinutes) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.emailSender = emailSender;
-        this.frontendUrl = appProperties.frontendUrl();
-        this.tokenExpirationMinutes = appProperties.passwordReset().expirationMinutes();
+        this.frontendUrl = frontendUrl;
+        this.tokenExpirationMinutes = tokenExpirationMinutes;
     }
 
     /**

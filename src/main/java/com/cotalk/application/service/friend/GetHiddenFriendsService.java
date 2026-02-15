@@ -1,8 +1,8 @@
 package com.cotalk.application.service.friend;
 
-import com.cotalk.adapter.inbound.rest.dto.friend.HiddenFriendDto;
 import com.cotalk.domain.entity.HiddenFriend;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.HiddenFriendInfo;
 import com.cotalk.domain.port.inbound.friend.GetHiddenFriendsUseCase;
 import com.cotalk.domain.port.outbound.HiddenFriendRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -30,7 +30,7 @@ public class GetHiddenFriendsService implements GetHiddenFriendsUseCase {
 
     /**
      * 숨긴 친구 목록을 조회한다.
-     * 숨김 관계를 조회하고 해당 사용자 정보를 DTO로 변환하여 반환한다.
+     * 숨김 관계를 조회하고 해당 사용자 정보를 도메인 모델로 변환하여 반환한다.
      * <p>
      * N+1 쿼리 문제를 방지하기 위해 findAllById를 사용하여 배치 조회한다.
      * </p>
@@ -39,7 +39,7 @@ public class GetHiddenFriendsService implements GetHiddenFriendsUseCase {
      * @return 숨긴 친구 정보 목록
      */
     @Override
-    public List<HiddenFriendDto> getHiddenFriends(Long userId) {
+    public List<HiddenFriendInfo> getHiddenFriends(Long userId) {
         List<HiddenFriend> hiddenFriends = hiddenFriendRepository.findByUserId(userId);
 
         if (hiddenFriends.isEmpty()) {
@@ -58,22 +58,22 @@ public class GetHiddenFriendsService implements GetHiddenFriendsUseCase {
         Map<Long, User> friendMap = friends.stream()
                 .collect(Collectors.toMap(User::getId, user -> user));
 
-        // DTO 변환 (탈퇴한 사용자는 자동으로 필터링됨)
+        // 도메인 모델 변환 (탈퇴한 사용자는 자동으로 필터링됨)
         return hiddenFriends.stream()
                 .map(hiddenFriend -> {
                     User friend = friendMap.get(hiddenFriend.getFriendId());
                     if (friend == null) {
                         return null; // 탈퇴한 사용자
                     }
-                    return HiddenFriendDto.builder()
-                            .id(hiddenFriend.getId())
-                            .friendId(friend.getId())
-                            .nickname(friend.getNickname())
-                            .profileImageUrl(friend.getAvatarUrl())
-                            .hiddenAt(hiddenFriend.getCreatedAt())
-                            .build();
+                    return new HiddenFriendInfo(
+                            hiddenFriend.getId(),
+                            friend.getId(),
+                            friend.getNickname(),
+                            friend.getAvatarUrl(),
+                            hiddenFriend.getCreatedAt()
+                    );
                 })
-                .filter(dto -> dto != null)
+                .filter(info -> info != null)
                 .toList();
     }
 }

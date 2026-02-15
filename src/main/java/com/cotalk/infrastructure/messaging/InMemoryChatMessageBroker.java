@@ -1,6 +1,5 @@
 package com.cotalk.infrastructure.messaging;
 
-import com.cotalk.adapter.inbound.websocket.dto.WebSocketMessage;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.util.HtmlSanitizer;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +42,7 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
         log.debug("InMemory broadcast to room {}: messageId={}", roomId, message.messageId());
 
         // 직접 WebSocket으로 브로드캐스트 (단일 서버 환경)
-        WebSocketMessage wsMessage = toWebSocketMessage(message);
+        WebSocketChatMessage wsMessage = toWebSocketMessage(message);
         String destination = ROOM_TOPIC_PREFIX + roomId;
         
         messagingTemplate.convertAndSend(destination, wsMessage);
@@ -53,15 +52,15 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
      * ChatBroadcastMessage를 WebSocket 전송용 메시지로 변환한다.
      *
      * @param msg 변환할 채팅 브로드캐스트 메시지
-     * @return WebSocket 전송용 메시지
+     * @return WebSocket 전송용 채팅 메시지
      */
-    private WebSocketMessage toWebSocketMessage(ChatBroadcastMessage msg) {
+    private WebSocketChatMessage toWebSocketMessage(ChatBroadcastMessage msg) {
         LocalDateTime createdAt = LocalDateTime.ofInstant(
                 Instant.ofEpochMilli(msg.createdAtMillis()),
                 ZoneOffset.UTC
         );
 
-        return new WebSocketMessage(
+        return new WebSocketChatMessage(
                 1,
                 "message:" + msg.messageId(),
                 msg.messageId(),
@@ -93,7 +92,7 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
      * @param reactionEvent 발행할 리액션 이벤트
      */
     @Override
-    public void publishReaction(Long roomId, Object reactionEvent) {
+    public void publishReaction(Long roomId, ReactionBroadcastEvent reactionEvent) {
         log.debug("InMemory broadcast reaction to room {}: {}", roomId, reactionEvent);
         
         // 직접 WebSocket으로 브로드캐스트 (단일 서버 환경)
@@ -114,4 +113,30 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
         String destination = ROOM_TOPIC_PREFIX + roomId;
         messagingTemplate.convertAndSend(destination, event);
     }
+
+    /**
+     * WebSocket으로 전송할 채팅 메시지 DTO.
+     * InMemoryChatMessageBroker 내부에서만 사용한다.
+     */
+    public record WebSocketChatMessage(
+            Integer schemaVersion,
+            String eventId,
+            Long messageId,
+            Long senderId,
+            String senderNickname,
+            String senderAvatarUrl,
+            Long roomId,
+            String content,
+            String type,
+            LocalDateTime createdAt,
+            String fileUrl,
+            String fileName,
+            Long fileSize,
+            String fileContentType,
+            String thumbnailUrl,
+            Integer unreadCount,
+            String eventType,
+            Long relatedUserId,
+            String relatedUserNickname
+    ) {}
 }

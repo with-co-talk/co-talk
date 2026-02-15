@@ -4,8 +4,8 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.port.outbound.MetricsPort;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.metrics.CustomMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,7 +26,7 @@ public class OAuthLoginService implements OAuthLoginUseCase {
     private final UserRepository userRepository;
     private final AuthTokenPort authTokenPort;
     private final IdGenerator idGenerator;
-    private final CustomMetrics customMetrics;
+    private final MetricsPort metricsPort;
 
     /**
      * OAuth 로그인을 처리한다.
@@ -56,11 +56,11 @@ public class OAuthLoginService implements OAuthLoginUseCase {
     private OAuthLoginResult loginExistingUser(User user, User.OAuthProvider provider) {
         if (!user.isActive()) {
             log.warn("OAuth login failed: inactive account for userId={}, provider={}", user.getId(), provider);
-            customMetrics.incrementLoginFailure();
+            metricsPort.incrementLoginFailure();
             throw new com.cotalk.domain.exception.InvalidCredentialsException("계정이 비활성화 또는 정지되었습니다.");
         }
         String token = authTokenPort.generateAccessToken(user.getId());
-        customMetrics.incrementLoginSuccess();
+        metricsPort.incrementLoginSuccess();
         log.info("OAuth login successful: userId={}, provider={}", user.getId(), provider);
         return new OAuthLoginResult(token, false, user.getId());
     }
@@ -84,8 +84,8 @@ public class OAuthLoginService implements OAuthLoginUseCase {
         User savedUser = userRepository.save(newUser);
         String token = authTokenPort.generateAccessToken(savedUser.getId());
 
-        customMetrics.incrementUserRegistration();
-        customMetrics.incrementLoginSuccess();
+        metricsPort.incrementUserRegistration();
+        metricsPort.incrementLoginSuccess();
         log.info("OAuth sign-up and login successful: userId={}, provider={}, email={}",
                 savedUser.getId(), provider, maskEmail(email));
         return new OAuthLoginResult(token, true, savedUser.getId());

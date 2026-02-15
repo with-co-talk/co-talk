@@ -76,7 +76,7 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
      * @throws MessageBrokerException 리액션 이벤트 직렬화에 실패한 경우
      */
     @Override
-    public void publishReaction(Long roomId, Object reactionEvent) {
+    public void publishReaction(Long roomId, ReactionBroadcastEvent reactionEvent) {
         String channel = channelPrefix + roomId + ":reaction";
         try {
             String jsonMessage = objectMapper.writeValueAsString(reactionEvent);

@@ -1,9 +1,9 @@
 package com.cotalk.application.service.chat;
 
-import com.cotalk.adapter.inbound.websocket.dto.ReactionBroadcastMessage;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.port.inbound.chat.BroadcastReactionEventUseCase;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
+import com.cotalk.domain.port.outbound.ChatMessageBroker.ReactionBroadcastEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +28,7 @@ public class BroadcastReactionEventService implements BroadcastReactionEventUseC
      */
     @Override
     public void broadcastReactionEvent(MessageReaction reaction, Long chatRoomId, String eventType) {
-        ReactionBroadcastMessage broadcastMessage = new ReactionBroadcastMessage(
+        ReactionBroadcastEvent broadcastMessage = new ReactionBroadcastEvent(
                 1,
                 "reaction:" + reaction.getMessageId() + ":" + reaction.getUserId() + ":" + eventType,
                 reaction.getId(),
