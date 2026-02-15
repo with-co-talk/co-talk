@@ -13,6 +13,25 @@ groups:
           summary: "Co-Talk 애플리케이션이 다운되었습니다"
           description: "Co-Talk 백엔드 애플리케이션이 1분 이상 응답하지 않습니다."
 
+      # 인스턴스 다운 알림 (3인스턴스 티어)
+      - alert: InstanceDown
+        expr: up{job="cotalk-app"} == 0
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Co-Talk 인스턴스 {{ $labels.instance }}가 다운되었습니다"
+          description: "인스턴스 {{ $labels.instance }}가 30초 이상 응답하지 않습니다. 나머지 인스턴스가 트래픽을 처리 중입니다."
+
+      - alert: MultipleInstancesDown
+        expr: count(up{job="cotalk-app"} == 0) >= 2
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Co-Talk 다중 인스턴스 다운"
+          description: "3개 인스턴스 중 2개 이상이 다운되었습니다. 즉시 확인이 필요합니다."
+
       - alert: HighErrorRate
         expr: |
           sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))

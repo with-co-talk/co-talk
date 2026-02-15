@@ -13,7 +13,7 @@ services:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./docker/nginx/upstream.conf:/etc/nginx/upstream.conf:ro
     depends_on:
-      - app-blue
+      - app-1
     networks:
       - cotalk-network
     healthcheck:
@@ -24,9 +24,9 @@ services:
     restart: unless-stopped
 
   # ===========================================
-  # 애플리케이션 (Blue)
+  # 애플리케이션 (Instance 1)
   # ===========================================
-  app-blue:
+  app-1:
     build:
       context: .
       dockerfile: Dockerfile
@@ -57,9 +57,9 @@ services:
       start_period: 60s
 
   # ===========================================
-  # 애플리케이션 (Green)
+  # 애플리케이션 (Instance 2)
   # ===========================================
-  app-green:
+  app-2:
     build:
       context: .
       dockerfile: Dockerfile
@@ -88,8 +88,39 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    profiles:
-      - green
+
+  # ===========================================
+  # 애플리케이션 (Instance 3)
+  # ===========================================
+  app-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_URL=jdbc:postgresql://postgres:5432/cotalk
+      - DB_USERNAME=${DB_USERNAME:-cotalk}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - cotalk-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   # ===========================================
   # 데이터베이스
@@ -179,7 +210,7 @@ services:
     networks:
       - cotalk-network
     depends_on:
-      - app-blue
+      - app-1
 
   # ===========================================
   # 모니터링 - Grafana

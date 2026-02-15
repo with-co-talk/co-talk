@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 
 # ===========================================
-# Co-Talk Blue-Green Deployment Script
+# Co-Talk Canary Rolling Deployment Script
 # ===========================================
-# Zero-downtime deployment using Blue-Green strategy
+# Zero-downtime canary deployment for 3-instance setup
 #
 # Usage:
-#   ./scripts/deploy.sh                          # Local build deployment
-#   ./scripts/deploy.sh --pull                   # Pull remote image (for NAS)
-#   ./scripts/deploy.sh --rollback               # Rollback to previous color
-#   ./scripts/deploy.sh -f docker-compose.nas.yml --pull  # NAS compose file
+#   ./scripts/deploy.sh                                    # Local build deployment
+#   ./scripts/deploy.sh --pull                             # Pull remote image (for NAS)
+#   ./scripts/deploy.sh --rollback                         # Rollback all to previous image
+#   ./scripts/deploy.sh -f docker-compose.nas.yml --pull   # NAS compose file
+#
+# Deployment Flow:
+#   1. Tag current image as :previous (backup)
+#   2. Pull/build new image
+#   3. Canary: update app-1 only → health check → wait 60s → verify metrics
+#   4. If canary fails → rollback app-1 to :previous
+#   5. If canary passes → roll out app-2, app-3 sequentially
 #
 # Requirements:
 #   - docker compose v2
@@ -23,12 +30,21 @@ set -euo pipefail
 # ===========================================
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.yml"
-UPSTREAM_CONF="${PROJECT_ROOT}/docker/nginx/upstream.conf"
-UPSTREAM_BACKUP="${PROJECT_ROOT}/docker/nginx/upstream.conf.bak"
 
 HEALTH_CHECK_TIMEOUT=120
 HEALTH_CHECK_INTERVAL=5
 HEALTH_CHECK_URL="http://localhost:8080/actuator/health"
+
+CANARY_INSTANCE="app-1"
+ALL_INSTANCES=("app-1" "app-2" "app-3")
+REMAINING_INSTANCES=("app-2" "app-3")
+
+CANARY_WAIT_SECONDS=60
+ERROR_RATE_THRESHOLD=5  # percent
+
+# Image tags for rollback support
+IMAGE_TAG_LATEST="latest"
+IMAGE_TAG_PREVIOUS="previous"
 
 # ===========================================
 # Color Output
@@ -58,9 +74,9 @@ log_error() {
 # ===========================================
 # Docker Compose Helper
 # ===========================================
-# app-green uses profiles: [green], so --profile green is always needed
+# All 3 instances (app-1, app-2, app-3) run without profiles
 dc() {
-    docker compose -f "$COMPOSE_FILE" --profile green "$@"
+    docker compose -f "$COMPOSE_FILE" "$@"
 }
 
 # ===========================================
@@ -89,65 +105,34 @@ check_dependencies() {
     fi
 }
 
-# Get current active color from upstream.conf
-get_active_color() {
-    if [ ! -f "$UPSTREAM_CONF" ]; then
-        log_error "upstream.conf not found at: $UPSTREAM_CONF"
-        exit 1
-    fi
-
-    if grep -q "server app-blue:8080" "$UPSTREAM_CONF"; then
-        echo "blue"
-    elif grep -q "server app-green:8080" "$UPSTREAM_CONF"; then
-        echo "green"
-    else
-        log_error "Cannot determine active color from upstream.conf"
-        exit 1
-    fi
+# Get the image name from compose config for app-1
+# Returns empty string if no image is defined (local build mode)
+get_image_name() {
+    dc config --format json 2>/dev/null | \
+        python3 -c "
+import sys, json
+try:
+    cfg = json.load(sys.stdin)
+    print(next(s['image'] for k, s in cfg['services'].items() if k == 'app-1' and 'image' in s))
+except:
+    print('')
+" 2>/dev/null || echo ""
 }
 
-# Get target color (opposite of active)
-get_target_color() {
-    local active_color=$1
-    if [ "$active_color" = "blue" ]; then
-        echo "green"
-    else
-        echo "blue"
-    fi
-}
-
-# Backup upstream.conf
-backup_upstream_conf() {
-    cp "$UPSTREAM_CONF" "$UPSTREAM_BACKUP"
-    log_info "Backed up upstream.conf"
-}
-
-# Restore upstream.conf from backup
-restore_upstream_conf() {
-    if [ -f "$UPSTREAM_BACKUP" ]; then
-        cp "$UPSTREAM_BACKUP" "$UPSTREAM_CONF"
-        log_warn "Restored upstream.conf from backup"
+# Tag the current :latest image as :previous for rollback support
+backup_current_image() {
+    local image_name
+    image_name=$(get_image_name)
+    if [ -n "$image_name" ]; then
+        local base_image="${image_name%:*}"
+        log_info "Backing up current image as ${base_image}:${IMAGE_TAG_PREVIOUS}"
+        docker tag "${base_image}:${IMAGE_TAG_LATEST}" "${base_image}:${IMAGE_TAG_PREVIOUS}" 2>/dev/null || \
+            log_warn "No existing image to backup (first deployment?)"
     fi
 }
 
-# Update upstream.conf to point to new color
-update_upstream_conf() {
-    local color=$1
-
-    cat > "$UPSTREAM_CONF" << EOF
-# Active upstream for blue-green deployment
-# This file is managed by deployment scripts
-# Valid values: cotalk-blue or cotalk-green
-
-upstream cotalk-backend {
-    server app-${color}:8080 max_fails=3 fail_timeout=30s;
-}
-EOF
-
-    log_info "Updated upstream.conf to point to app-${color}"
-}
-
-# Health check for container
+# Health check for a specific container instance
+# Waits up to HEALTH_CHECK_TIMEOUT seconds, checking every HEALTH_CHECK_INTERVAL seconds
 health_check() {
     local container_name=$1
     local elapsed=0
@@ -180,81 +165,144 @@ health_check() {
     return 1
 }
 
-# Reload nginx configuration (start if not running)
-reload_nginx() {
-    if ! dc ps nginx 2>/dev/null | grep -q "Up\|running"; then
-        log_info "Nginx is not running. Starting..."
-        if dc up -d nginx; then
-            log_success "Nginx started successfully"
-            return 0
-        else
-            log_error "Failed to start nginx"
-            return 1
-        fi
-    fi
+# Query Prometheus for canary error rate metrics
+# Waits CANARY_WAIT_SECONDS before querying to allow metric accumulation
+# Returns 0 (pass) if error rate is below threshold or metrics are unavailable
+# Returns 1 (fail) if error rate exceeds ERROR_RATE_THRESHOLD
+check_canary_metrics() {
+    log_info "Waiting ${CANARY_WAIT_SECONDS}s for canary metrics collection..."
+    sleep "$CANARY_WAIT_SECONDS"
 
-    log_info "Reloading nginx configuration..."
-    if dc exec -T nginx nginx -s reload; then
-        log_success "Nginx reloaded successfully"
+    log_info "Querying Prometheus for canary error rate..."
+
+    # Query: 5xx error rate for canary instance over last 1 minute
+    local query='sum(rate(http_server_requests_seconds_count{instance=~"app-1.*",status=~"5.."}[1m])) / sum(rate(http_server_requests_seconds_count{instance=~"app-1.*"}[1m]))'
+    local encoded_query
+    encoded_query=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${query}'))" 2>/dev/null || echo "")
+
+    if [ -z "$encoded_query" ]; then
+        log_warn "python3 not available for URL encoding, skipping metric check"
+        log_info "Relying on health check only"
         return 0
+    fi
+
+    local result
+    result=$(dc exec -T prometheus wget -qO- \
+        "http://localhost:9090/api/v1/query?query=${encoded_query}" 2>/dev/null || echo "")
+
+    if [ -z "$result" ]; then
+        log_warn "Could not query Prometheus (may not be running). Skipping metric check."
+        return 0
+    fi
+
+    # Parse the Prometheus response and extract the error rate value
+    local value
+    value=$(echo "$result" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    results = data.get('data', {}).get('result', [])
+    if not results:
+        print('NO_DATA')
+    else:
+        print(results[0]['value'][1])
+except:
+    print('PARSE_ERROR')
+" 2>/dev/null || echo "PARSE_ERROR")
+
+    case "$value" in
+        NO_DATA)
+            log_info "No request data for canary (zero traffic). Skipping error rate check."
+            return 0
+            ;;
+        PARSE_ERROR)
+            log_warn "Failed to parse Prometheus response. Skipping metric check."
+            return 0
+            ;;
+        NaN)
+            log_info "Error rate is NaN (likely zero requests). Skipping error rate check."
+            return 0
+            ;;
+        *)
+            # Convert to percentage and compare against threshold
+            local error_pct
+            error_pct=$(python3 -c "print(round(float('${value}') * 100, 2))" 2>/dev/null || echo "0")
+            log_info "Canary error rate: ${error_pct}%"
+
+            local threshold_exceeded
+            threshold_exceeded=$(python3 -c "print('yes' if float('${error_pct}') > ${ERROR_RATE_THRESHOLD} else 'no')" 2>/dev/null || echo "no")
+
+            if [ "$threshold_exceeded" = "yes" ]; then
+                log_error "Canary error rate ${error_pct}% exceeds threshold ${ERROR_RATE_THRESHOLD}%!"
+                return 1
+            fi
+
+            log_success "Canary error rate ${error_pct}% is within threshold"
+            return 0
+            ;;
+    esac
+}
+
+# Rollback the canary instance to the previous image
+# Called when canary deployment fails health check or metric verification
+rollback_canary() {
+    log_warn "Rolling back canary instance ${CANARY_INSTANCE}..."
+
+    local image_name
+    image_name=$(get_image_name)
+
+    if [ -n "$image_name" ]; then
+        local base_image="${image_name%:*}"
+        log_info "Restoring ${base_image}:${IMAGE_TAG_PREVIOUS} as :${IMAGE_TAG_LATEST}"
+        docker tag "${base_image}:${IMAGE_TAG_PREVIOUS}" "${base_image}:${IMAGE_TAG_LATEST}"
+    fi
+
+    dc up -d --no-deps "$CANARY_INSTANCE"
+
+    if health_check "$CANARY_INSTANCE"; then
+        log_success "Canary rollback completed"
     else
-        log_error "Failed to reload nginx"
-        return 1
+        log_error "Canary rollback FAILED - ${CANARY_INSTANCE} is unhealthy after rollback!"
+        log_error "Manual intervention required"
     fi
 }
 
-# Stop old container gracefully
-stop_old_container() {
-    local container_name=$1
-    log_info "Stopping old container: ${container_name}"
-
-    if dc stop "$container_name"; then
-        log_success "Stopped ${container_name} (graceful shutdown)"
-    else
-        log_warn "Failed to stop ${container_name}"
-    fi
-}
-
-# Rollback deployment
+# Full rollback: restore all instances to the :previous image
+# Used with --rollback flag for emergency rollback of all instances
 rollback() {
-    log_warn "Initiating rollback..."
+    log_warn "=== Full Rollback: Restoring all instances to previous image ==="
 
-    local current_color
-    current_color=$(get_active_color)
-    local rollback_color
-    rollback_color=$(get_target_color "$current_color")
+    local image_name
+    image_name=$(get_image_name)
 
-    log_info "Current active: ${current_color}"
-    log_info "Rolling back to: ${rollback_color}"
+    if [ -n "$image_name" ]; then
+        local base_image="${image_name%:*}"
 
-    # Check if rollback target is running
-    if ! dc ps "app-${rollback_color}" | grep -q "Up"; then
-        log_error "Rollback target app-${rollback_color} is not running. Starting it..."
-        dc up -d "app-${rollback_color}"
-
-        if ! health_check "app-${rollback_color}"; then
-            log_error "Rollback failed: app-${rollback_color} is unhealthy"
+        if ! docker image inspect "${base_image}:${IMAGE_TAG_PREVIOUS}" &>/dev/null; then
+            log_error "No previous image found (${base_image}:${IMAGE_TAG_PREVIOUS})"
+            log_error "Cannot rollback - no backup available"
             exit 1
         fi
+
+        log_info "Restoring ${base_image}:${IMAGE_TAG_PREVIOUS} as :${IMAGE_TAG_LATEST}"
+        docker tag "${base_image}:${IMAGE_TAG_PREVIOUS}" "${base_image}:${IMAGE_TAG_LATEST}"
     fi
 
-    # Backup and update upstream
-    backup_upstream_conf
-    update_upstream_conf "$rollback_color"
+    for instance in "${ALL_INSTANCES[@]}"; do
+        log_info "Rolling back ${instance}..."
+        dc up -d --no-deps "$instance"
 
-    # Reload nginx
-    if ! reload_nginx; then
-        log_error "Rollback failed: nginx reload failed"
-        restore_upstream_conf
-        reload_nginx
-        exit 1
-    fi
+        if ! health_check "$instance"; then
+            log_error "Rollback failed for ${instance}!"
+            exit 1
+        fi
+        log_success "${instance} rolled back successfully"
+    done
 
-    log_success "Rollback completed successfully!"
-    log_success "Active color: ${rollback_color}"
+    log_success "=== Full rollback completed ==="
 }
 
-# Ensure backend infrastructure services (DB, cache, storage) are running
+# Ensure backend infrastructure services (DB, cache, storage) are running and healthy
 ensure_infrastructure() {
     local services=("postgres" "redis" "minio")
 
@@ -271,7 +319,7 @@ ensure_infrastructure() {
         fi
     done
 
-    # Wait for postgres and redis to be healthy before proceeding
+    # Wait for postgres and redis to become healthy before proceeding
     log_info "Waiting for database and cache to be healthy..."
     local infra_wait=0
     local infra_timeout=60
@@ -305,7 +353,7 @@ ensure_infrastructure() {
 deploy() {
     local use_pull=false
 
-    # Parse arguments
+    # Parse deployment-specific arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
             --pull)
@@ -320,92 +368,81 @@ deploy() {
         esac
     done
 
-    log_info "=== Co-Talk Blue-Green Deployment ==="
+    log_info "=== Co-Talk Canary Rolling Deployment ==="
     log_info "Project root: ${PROJECT_ROOT}"
     log_info "Compose file: ${COMPOSE_FILE}"
 
-    # Check dependencies
+    # Pre-flight checks
     check_dependencies
-
-    # Ensure infrastructure services (nginx, postgres, redis, minio) are running
     ensure_infrastructure
 
-    # Determine current and target colors
-    local current_color
-    current_color=$(get_active_color)
-    local target_color
-    target_color=$(get_target_color "$current_color")
+    # -----------------------------------------------
+    # Phase 1: Backup current image + pull/build new
+    # -----------------------------------------------
+    log_info "Phase 1: Preparing new image..."
+    backup_current_image
 
-    log_info "Current active color: ${COLOR_GREEN}${current_color}${COLOR_RESET}"
-    log_info "Target deployment color: ${COLOR_GREEN}${target_color}${COLOR_RESET}"
-
-    # Step 1: Build or pull new image
     if [ "$use_pull" = true ]; then
-        log_info "Step 1/7: Pulling remote image for app-${target_color}..."
-        if ! dc pull "app-${target_color}"; then
-            log_error "Failed to pull image for app-${target_color}"
+        log_info "Pulling new image..."
+        if ! dc pull "${CANARY_INSTANCE}"; then
+            log_error "Failed to pull image"
             exit 1
         fi
     else
-        log_info "Step 1/7: Building new image for app-${target_color}..."
-        if ! dc build "app-${target_color}"; then
-            log_error "Failed to build image for app-${target_color}"
+        log_info "Building new image..."
+        if ! dc build "${CANARY_INSTANCE}"; then
+            log_error "Failed to build image"
             exit 1
         fi
     fi
-    log_success "Image ready for app-${target_color}"
+    log_success "New image ready"
 
-    # Step 2: Start new container
-    log_info "Step 2/7: Starting new container app-${target_color}..."
-    if ! dc up -d "app-${target_color}"; then
-        log_error "Failed to start app-${target_color}"
+    # -----------------------------------------------
+    # Phase 2: Canary deployment (app-1 only)
+    # -----------------------------------------------
+    log_info "Phase 2: Deploying canary (${CANARY_INSTANCE})..."
+    dc up -d --no-deps "$CANARY_INSTANCE"
+
+    if ! health_check "$CANARY_INSTANCE"; then
+        log_error "Canary health check failed!"
+        rollback_canary
         exit 1
     fi
-    log_success "Started app-${target_color}"
+    log_success "Canary ${CANARY_INSTANCE} is healthy"
 
-    # Step 3: Health check
-    log_info "Step 3/7: Waiting for app-${target_color} to be healthy..."
-    if ! health_check "app-${target_color}"; then
-        log_error "Deployment failed: app-${target_color} is unhealthy"
-        log_info "Cleaning up failed deployment..."
-        dc stop "app-${target_color}"
+    # -----------------------------------------------
+    # Phase 3: Metric verification
+    # -----------------------------------------------
+    log_info "Phase 3: Verifying canary metrics..."
+    if ! check_canary_metrics; then
+        log_error "Canary metric verification failed!"
+        rollback_canary
         exit 1
     fi
+    log_success "Canary metrics verified"
 
-    # Step 4: Backup upstream.conf
-    log_info "Step 4/7: Backing up current configuration..."
-    backup_upstream_conf
+    # -----------------------------------------------
+    # Phase 4: Roll out remaining instances
+    # -----------------------------------------------
+    log_info "Phase 4: Rolling out to remaining instances..."
+    for instance in "${REMAINING_INSTANCES[@]}"; do
+        log_info "Updating ${instance}..."
+        dc up -d --no-deps "$instance"
 
-    # Step 5: Switch nginx to new color
-    log_info "Step 5/7: Switching nginx to app-${target_color}..."
-    update_upstream_conf "$target_color"
+        if ! health_check "$instance"; then
+            log_error "${instance} health check failed! Stopping rollout."
+            log_error "Manual rollback may be needed: ./scripts/deploy.sh --rollback"
+            exit 1
+        fi
+        log_success "${instance} is healthy"
+    done
 
-    if ! reload_nginx; then
-        log_error "Failed to reload nginx. Rolling back..."
-        restore_upstream_conf
-        reload_nginx
-        dc stop "app-${target_color}"
-        exit 1
-    fi
-
-    log_success "Nginx now routing to app-${target_color}"
-
-    # Step 6: Wait a bit to ensure traffic is flowing
-    log_info "Step 6/7: Verifying traffic routing (waiting 5s)..."
-    sleep 5
-
-    # Step 7: Stop old container
-    log_info "Step 7/7: Stopping old container app-${current_color}..."
-    stop_old_container "app-${current_color}"
-
-    # Cleanup backup
-    rm -f "$UPSTREAM_BACKUP"
-
-    # Success
+    # -----------------------------------------------
+    # Done
+    # -----------------------------------------------
     echo ""
-    log_success "=== Deployment Completed Successfully ==="
-    log_success "Active color: ${target_color}"
-    log_success "Previous color: ${current_color} (stopped)"
+    log_success "=== Canary Deployment Completed Successfully ==="
+    log_success "All instances updated: ${ALL_INSTANCES[*]}"
     echo ""
     log_info "To rollback, run: $0 --rollback"
 }
@@ -414,10 +451,9 @@ deploy() {
 # Main Entry Point
 # ===========================================
 main() {
-    # Change to project root
     cd "$PROJECT_ROOT"
 
-    # Parse global options first
+    # Parse global options (compose file, rollback) before passing rest to deploy
     local args=()
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -436,7 +472,7 @@ main() {
         esac
     done
 
-    # Run deployment
+    # Run deployment with remaining arguments
     deploy "${args[@]+"${args[@]}"}"
 }
 
