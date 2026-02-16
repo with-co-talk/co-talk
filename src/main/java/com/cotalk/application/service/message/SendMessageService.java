@@ -18,22 +18,25 @@ import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 메시지 전송 유스케이스 구현체.
  * 텍스트 메시지와 파일 메시지를 전송한다.
+ *
+ * <p>성능 최적화: DB 작업만 {@code TransactionTemplate}으로 트랜잭션 래핑하고,
+ * 푸시 알림(Redis 호출)은 트랜잭션 밖에서 실행하여 DB 커넥션 점유 시간을 최소화한다.</p>
  *
  * @author seunggu.lee
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class SendMessageService implements SendMessageUseCase {
 
     private final MessageRepository messageRepository;
@@ -46,6 +49,7 @@ public class SendMessageService implements SendMessageUseCase {
     private final MetricsPort customMetrics;
     private final MessageLinkPreviewService messageLinkPreviewService;
     private final MessageBroadcastService messageBroadcastService;
+    private final TransactionTemplate transactionTemplate;
 
     /**
      * 텍스트 메시지를 전송한다.
@@ -130,6 +134,9 @@ public class SendMessageService implements SendMessageUseCase {
      * 메시지 저장을 위한 공통 로직을 실행하고, 사전 조회한 컨텍스트를 함께 반환한다.
      * sender와 members를 한 번만 조회하여 중복 DB 쿼리를 제거한다.
      *
+     * <p>성능 최적화: DB 작업(조회+저장)만 트랜잭션으로 래핑하고,
+     * 푸시 알림(Redis 호출)은 트랜잭션 밖에서 실행하여 DB 커넥션 점유를 최소화한다.</p>
+     *
      * @param chatRoomId 채팅방 ID
      * @param senderId 발신자 ID
      * @param message 저장할 메시지
@@ -139,39 +146,45 @@ public class SendMessageService implements SendMessageUseCase {
     private SendResult doSendMessage(Long chatRoomId, Long senderId, Message message, String notificationContent) {
         var timerSample = customMetrics.startMessageProcessingTimer();
 
-        // Pre-fetch ONCE: 중복 쿼리 방지
-        List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(chatRoomId);
-        User sender = userRepository.findById(senderId).orElse(null);
-        String senderNickname = sender != null ? sender.getNickname() : "알 수 없음";
-        String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
+        // DB 작업만 트랜잭션으로 래핑 (커넥션 점유 최소화)
+        SendResult result = transactionTemplate.execute(status -> {
+            // Pre-fetch ONCE: 중복 쿼리 방지
+            List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(chatRoomId);
+            User sender = userRepository.findById(senderId).orElse(null);
+            String senderNickname = sender != null ? sender.getNickname() : "알 수 없음";
+            String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
 
-        // Validate membership using pre-fetched members (별도 쿼리 없음)
-        boolean isMember = members.stream().anyMatch(m -> m.getUserId().equals(senderId));
-        if (!isMember) {
-            throw new com.cotalk.domain.exception.ChatRoomAccessDeniedException(chatRoomId, senderId);
-        }
+            // Validate membership using pre-fetched members (별도 쿼리 없음)
+            boolean isMember = members.stream().anyMatch(m -> m.getUserId().equals(senderId));
+            if (!isMember) {
+                throw new com.cotalk.domain.exception.ChatRoomAccessDeniedException(chatRoomId, senderId);
+            }
 
-        // 내용 검증
-        message.validateContent();
+            // 내용 검증
+            message.validateContent();
 
-        // 메시지 저장
-        Message savedMessage = messageRepository.save(message);
-        customMetrics.incrementMessagesSent();
+            // 메시지 저장
+            Message savedMessage = messageRepository.save(message);
+            customMetrics.incrementMessagesSent();
 
-        // 발신자는 자신이 보낸 메시지를 읽은 것으로 간주하여 lastReadMessageId 업데이트
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-        int updated = chatRoomMemberRepository.updateLastReadMessageIdIfNewer(
-                chatRoomId, senderId, now, savedMessage.getId());
-        if (updated > 0) {
-            log.debug("Auto-updated sender's lastReadMessageId: userId={}, chatRoomId={}, messageId={}",
-                    senderId, chatRoomId, savedMessage.getId());
-        }
+            // 발신자는 자신이 보낸 메시지를 읽은 것으로 간주하여 lastReadMessageId 업데이트
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+            int updated = chatRoomMemberRepository.updateLastReadMessageIdIfNewer(
+                    chatRoomId, senderId, now, savedMessage.getId());
+            if (updated > 0) {
+                log.debug("Auto-updated sender's lastReadMessageId: userId={}, chatRoomId={}, messageId={}",
+                        senderId, chatRoomId, savedMessage.getId());
+            }
 
-        // 푸시 알림 전송 (사전 조회된 데이터 사용, 추가 DB 쿼리 없음)
-        sendPushNotificationsToOtherMembers(chatRoomId, senderId, notificationContent, senderNickname, senderAvatarUrl, members);
+            return new SendResult(savedMessage, senderNickname, senderAvatarUrl, members);
+        });
+
+        // 트랜잭션 밖: 푸시 알림 전송 (Redis 호출 — DB 커넥션 미점유)
+        sendPushNotificationsToOtherMembers(chatRoomId, senderId, notificationContent,
+                result.senderNickname(), result.senderAvatarUrl(), result.members());
 
         customMetrics.stopMessageProcessingTimer(timerSample);
-        return new SendResult(savedMessage, senderNickname, senderAvatarUrl, members);
+        return result;
     }
 
     /**
@@ -212,10 +225,16 @@ public class SendMessageService implements SendMessageUseCase {
                                                       String senderNickname, String senderAvatarUrl, List<ChatRoomMember> members) {
         // 채팅방의 다른 멤버들 중 현재 채팅방을 보고 있지 않은 사용자만 필터링
         // (채팅방에 있는 사용자는 WebSocket으로 실시간 메시지를 받으므로 푸시 불필요)
-        List<Long> receiverUserIds = members.stream()
+        List<Long> otherMemberIds = members.stream()
                 .map(ChatRoomMember::getUserId)
                 .filter(userId -> !userId.equals(senderId))
-                .filter(userId -> !chatRoomPresenceTracker.isActive(chatRoomId, userId))
+                .toList();
+
+        // 배치 presence 조회 (Redis pipeline: 2N → 2회)
+        Set<Long> activeUserIds = chatRoomPresenceTracker.getActiveUserIds(chatRoomId, otherMemberIds);
+
+        List<Long> receiverUserIds = otherMemberIds.stream()
+                .filter(userId -> !activeUserIds.contains(userId))
                 .toList();
 
         // 벌크 푸시 알림 전송 (한 번의 호출로 처리)

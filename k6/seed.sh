@@ -29,6 +29,13 @@ USER_COUNT="${2:-20}"
 EMAIL_PREFIX="${3:-loadtest}"
 DOMAIN="test.cotalk.com"
 PASSWORD="Test1234!@"
+
+# Rate limit bypass 토큰 (K6_TOKEN 환경변수로 전달)
+K6_TOKEN="${K6_TOKEN:-}"
+K6_HEADER=""
+if [ -n "$K6_TOKEN" ]; then
+    K6_HEADER="X-K6-Token: ${K6_TOKEN}"
+fi
 OUTPUT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/data"
 OUTPUT_FILE="${OUTPUT_DIR}/users.json"
 
@@ -46,6 +53,12 @@ log_error()   { echo -e "${RED}[ERROR]${RESET} $*"; }
 # ===========================================
 # 서버 상태 확인
 # ===========================================
+if [ -n "$K6_TOKEN" ]; then
+    log_info "Rate Limit 우회 토큰 설정됨 (X-K6-Token)"
+else
+    log_warn "K6_TOKEN 미설정 → Rate Limit 적용됨 (매 요청 13초 대기)"
+fi
+
 log_info "서버 연결 확인: ${BASE_URL}"
 if ! curl -sf "${BASE_URL}/actuator/health" > /dev/null 2>&1; then
     log_error "서버에 연결할 수 없습니다: ${BASE_URL}"
@@ -67,7 +80,11 @@ else
     # Phase 1: 회원가입 (nginx 5r/m Rate Limit 준수)
     # ===========================================
     log_info "=== Phase 1: 회원가입 (${USER_COUNT}명) ==="
-    log_info "Rate Limit: nginx 5r/m → 매 요청마다 13초 대기"
+    if [ -n "$K6_TOKEN" ]; then
+        log_info "Rate Limit 우회 모드 (대기 없음)"
+    else
+        log_info "Rate Limit: nginx 5r/m → 매 요청마다 13초 대기"
+    fi
 
     for i in $(seq 1 "$USER_COUNT"); do
         email="${EMAIL_PREFIX}+${i}@${DOMAIN}"
@@ -75,6 +92,7 @@ else
         status=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST "${BASE_URL}/api/v1/auth/signup" \
             -H "Content-Type: application/json" \
+            ${K6_HEADER:+-H "$K6_HEADER"} \
             -d "{\"email\":\"${email}\",\"password\":\"${PASSWORD}\",\"nickname\":\"${EMAIL_PREFIX}-user-${i}\"}")
 
         case "$status" in
@@ -87,6 +105,7 @@ else
                 status=$(curl -s -o /dev/null -w "%{http_code}" \
                     -X POST "${BASE_URL}/api/v1/auth/signup" \
                     -H "Content-Type: application/json" \
+                    ${K6_HEADER:+-H "$K6_HEADER"} \
                     -d "{\"email\":\"${email}\",\"password\":\"${PASSWORD}\",\"nickname\":\"${EMAIL_PREFIX}-user-${i}\"}")
                 if [ "$status" = "201" ]; then
                     signup_ok=$((signup_ok + 1))
@@ -104,8 +123,8 @@ else
                 ;;
         esac
 
-        # nginx rate limit 준수: 매 요청 13초 대기 (5r/m = 12초에 1개)
-        if (( i < USER_COUNT )); then
+        # K6_TOKEN 있으면 rate limit 우회 → 대기 불필요
+        if [ -z "$K6_TOKEN" ] && (( i < USER_COUNT )); then
             sleep 13
         fi
     done
@@ -121,7 +140,7 @@ log_info "=== Phase 1.5: 이메일 인증 활성화 ==="
 
 if [ -n "${NAS_SSH:-}" ]; then
     log_info "SSH를 통해 자동으로 이메일 인증 처리 중..."
-    update_result=$(ssh "$NAS_SSH" "docker exec cotalk-postgres psql -U cotalk -d cotalk -c \"UPDATE users SET email_verified = true WHERE email LIKE '${EMAIL_PREFIX}%@${DOMAIN}'\"" 2>&1)
+    update_result=$(ssh ${NAS_SSH_PORT:+-p "$NAS_SSH_PORT"} "$NAS_SSH" "docker exec cotalk-postgres psql -U cotalk -d cotalk -c \"UPDATE users SET email_verified = true WHERE email LIKE '${EMAIL_PREFIX}%@${DOMAIN}'\"" 2>&1)
     rows_updated=$(echo "$update_result" | sed -n 's/.*UPDATE \([0-9]*\).*/\1/p')
     log_success "이메일 인증 완료: ${rows_updated}명"
 else
@@ -138,7 +157,11 @@ fi
 # Phase 2: 로그인 + 프로필 조회 (5/min Rate Limit 준수)
 # ===========================================
 log_info "=== Phase 2: 로그인 + 프로필 조회 (${USER_COUNT}명) ==="
-log_info "Rate Limit: nginx 5r/m → 매 요청마다 13초 대기"
+if [ -n "$K6_TOKEN" ]; then
+    log_info "Rate Limit 우회 모드 (대기 없음)"
+else
+    log_info "Rate Limit: nginx 5r/m → 매 요청마다 13초 대기"
+fi
 
 # JSON 배열 시작
 echo "[" > "$OUTPUT_FILE"
@@ -153,6 +176,7 @@ for i in $(seq 1 "$USER_COUNT"); do
     login_response=$(curl -s \
         -X POST "${BASE_URL}/api/v1/auth/login" \
         -H "Content-Type: application/json" \
+        ${K6_HEADER:+-H "$K6_HEADER"} \
         -d "{\"email\":\"${email}\",\"password\":\"${PASSWORD}\"}")
 
     access_token=$(echo "$login_response" | python3 -c "
@@ -189,6 +213,7 @@ except:
             login_response=$(curl -s \
                 -X POST "${BASE_URL}/api/v1/auth/login" \
                 -H "Content-Type: application/json" \
+                ${K6_HEADER:+-H "$K6_HEADER"} \
                 -d "{\"email\":\"${email}\",\"password\":\"${PASSWORD}\"}")
             access_token=$(echo "$login_response" | python3 -c "
 import sys, json
@@ -213,7 +238,8 @@ except:
     # Step 2: 프로필 조회 (userId 획득)
     profile_response=$(curl -s \
         -X GET "${BASE_URL}/api/v1/users/me" \
-        -H "Authorization: Bearer ${access_token}")
+        -H "Authorization: Bearer ${access_token}" \
+        ${K6_HEADER:+-H "$K6_HEADER"})
 
     user_id=$(echo "$profile_response" | python3 -c "
 import sys, json
@@ -235,7 +261,7 @@ except:
         fi
 
         cat >> "$OUTPUT_FILE" << ENTRY
-  {"vuId": ${i}, "accessToken": "${access_token}", "userId": ${user_id}, "email": "${email}"}
+  {"vuId": ${i}, "accessToken": "${access_token}", "userId": "${user_id}", "email": "${email}"}
 ENTRY
     else
         # userId 조회 실패
@@ -243,8 +269,8 @@ ENTRY
         echo -ne "${RED}x${RESET}"
     fi
 
-    # nginx rate limit 준수: 매 요청 13초 대기 (5r/m = 12초에 1개)
-    if (( i < USER_COUNT )); then
+    # K6_TOKEN 있으면 rate limit 우회 → 대기 불필요
+    if [ -z "$K6_TOKEN" ] && (( i < USER_COUNT )); then
         sleep 13
     fi
 done

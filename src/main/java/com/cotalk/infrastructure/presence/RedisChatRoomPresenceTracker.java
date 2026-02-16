@@ -4,9 +4,12 @@ import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -112,6 +115,41 @@ public class RedisChatRoomPresenceTracker implements ChatRoomPresenceTracker {
         cleanupExpired(chatRoomId);
         Double score = redisTemplate.opsForZSet().score(roomKey(chatRoomId), String.valueOf(userId));
         return score != null && score > System.currentTimeMillis();
+    }
+
+    /**
+     * Redis pipeline을 사용하여 여러 사용자의 활성 상태를 한 번에 조회한다.
+     * 개별 isActive() 호출 대비 Redis 왕복 횟수를 2N → 2회로 감소시킨다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userIds    확인할 사용자 ID 목록
+     * @return 활성 상태인 사용자 ID의 Set
+     */
+    @Override
+    public Set<Long> getActiveUserIds(Long chatRoomId, List<Long> userIds) {
+        if (chatRoomId == null || userIds == null || userIds.isEmpty()) {
+            return Set.of();
+        }
+        cleanupExpired(chatRoomId);
+        String roomKey = roomKey(chatRoomId);
+        long now = System.currentTimeMillis();
+
+        List<Object> results = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            byte[] key = roomKey.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            for (Long userId : userIds) {
+                connection.zSetCommands().zScore(key, String.valueOf(userId).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            return null;
+        });
+
+        Set<Long> activeIds = new HashSet<>();
+        for (int i = 0; i < userIds.size(); i++) {
+            Double score = (Double) results.get(i);
+            if (score != null && score > now) {
+                activeIds.add(userIds.get(i));
+            }
+        }
+        return activeIds;
     }
 
     @Override

@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -83,6 +85,25 @@ public class InMemoryChatRoomPresenceTracker implements ChatRoomPresenceTracker 
         if (map == null) return false;
         Long expiresAt = map.get(userId);
         return expiresAt != null && expiresAt > System.currentTimeMillis();
+    }
+
+    @Override
+    public Set<Long> getActiveUserIds(Long chatRoomId, List<Long> userIds) {
+        if (chatRoomId == null || userIds == null || userIds.isEmpty()) {
+            return Set.of();
+        }
+        cleanupExpired(chatRoomId);
+        Map<Long, Long> map = expiresAtByRoomUser.get(chatRoomId);
+        if (map == null) return Set.of();
+        long now = System.currentTimeMillis();
+        Set<Long> activeIds = new HashSet<>();
+        for (Long userId : userIds) {
+            Long expiresAt = map.get(userId);
+            if (expiresAt != null && expiresAt > now) {
+                activeIds.add(userId);
+            }
+        }
+        return activeIds;
     }
 
     @Override

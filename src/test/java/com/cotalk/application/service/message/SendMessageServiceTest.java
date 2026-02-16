@@ -22,9 +22,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -67,22 +70,33 @@ class SendMessageServiceTest {
     @Mock
     private MetricsPort customMetrics;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     private ChatRoomMemberValidator chatRoomMemberValidator;
 
     private SendMessageService sendMessageService;
 
+    @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() {
         chatRoomMemberValidator = new ChatRoomMemberValidator(chatRoomMemberRepository);
         sendMessageService = new SendMessageService(
                 messageRepository, chatRoomMemberRepository, userRepository, idGenerator,
                 sendPushNotificationUseCase, chatRoomMemberValidator, chatRoomPresenceTracker,
-                customMetrics, messageLinkPreviewService, messageBroadcastService);
+                customMetrics, messageLinkPreviewService, messageBroadcastService, transactionTemplate);
+
+        // TransactionTemplate: 콜백을 즉시 실행 (트랜잭션 없이 동기 실행)
+        lenient().when(transactionTemplate.execute(any(TransactionCallback.class)))
+                .thenAnswer(invocation -> {
+                    TransactionCallback<?> callback = invocation.getArgument(0);
+                    return callback.doInTransaction(null);
+                });
 
         // Default mock behavior (lenient to avoid UnnecessaryStubbingException)
         lenient().when(chatRoomMemberRepository.updateLastReadMessageIdIfNewer(anyLong(), anyLong(), any(), anyLong()))
                 .thenReturn(1);
-        lenient().when(chatRoomPresenceTracker.isActive(anyLong(), anyLong())).thenReturn(false);
+        lenient().when(chatRoomPresenceTracker.getActiveUserIds(anyLong(), anyList())).thenReturn(Set.of());
         lenient().when(messageLinkPreviewService.extractFirstUrl(anyString())).thenReturn(Optional.empty());
     }
 
