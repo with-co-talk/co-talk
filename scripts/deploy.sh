@@ -272,6 +272,9 @@ rollback_canary() {
 rollback() {
     log_warn "=== Full Rollback: Restoring all instances to previous image ==="
 
+    # Ensure infrastructure is running before rollback
+    ensure_infrastructure
+
     local image_name
     image_name=$(get_image_name)
 
@@ -299,14 +302,21 @@ rollback() {
         log_success "${instance} rolled back successfully"
     done
 
+    # Ensure nginx is running
+    dc up -d --no-deps nginx 2>/dev/null || log_warn "Failed to start nginx"
+
     log_success "=== Full rollback completed ==="
 }
 
-# Ensure backend infrastructure services (DB, cache, storage) are running and healthy
+# Ensure all infrastructure and monitoring services are running and healthy
 ensure_infrastructure() {
-    local services=("postgres" "redis" "minio")
+    # Critical data services (must be healthy before app startup)
+    local critical_services=("postgres" "redis" "minio")
+    # Monitoring and support services (start but don't block deployment)
+    local monitoring_services=("zipkin" "loki" "prometheus" "alertmanager" "promtail" "grafana")
 
-    for svc in "${services[@]}"; do
+    # --- Start critical services ---
+    for svc in "${critical_services[@]}"; do
         if ! dc ps "$svc" 2>/dev/null | grep -q "Up\|running"; then
             log_warn "${svc} is not running. Starting..."
             if ! dc up -d "$svc"; then
@@ -335,16 +345,24 @@ ensure_infrastructure() {
         fi
 
         if [ "$pg_healthy" = true ] && [ "$redis_healthy" = true ]; then
-            log_success "Infrastructure services are healthy"
-            return 0
+            log_success "Critical infrastructure services are healthy"
+            break
         fi
 
         sleep 3
         infra_wait=$((infra_wait + 3))
     done
 
-    log_error "Infrastructure services failed to become healthy within ${infra_timeout}s"
-    exit 1
+    if [ $infra_wait -ge $infra_timeout ]; then
+        log_error "Infrastructure services failed to become healthy within ${infra_timeout}s"
+        exit 1
+    fi
+
+    # --- Start monitoring services (non-blocking) ---
+    # Single command lets Docker Compose handle dependency ordering
+    log_info "Ensuring monitoring services are running..."
+    dc up -d "${monitoring_services[@]}" 2>/dev/null || \
+        log_warn "Some monitoring services failed to start (non-critical, deployment continues)"
 }
 
 # ===========================================
@@ -436,6 +454,17 @@ deploy() {
         fi
         log_success "${instance} is healthy"
     done
+
+    # -----------------------------------------------
+    # Phase 5: Ensure nginx is running
+    # -----------------------------------------------
+    log_info "Phase 5: Ensuring nginx is running..."
+    if ! dc ps nginx 2>/dev/null | grep -q "Up\|running"; then
+        log_info "Starting nginx..."
+        dc up -d --no-deps nginx
+    else
+        log_info "nginx is already running"
+    fi
 
     # -----------------------------------------------
     # Done
