@@ -1,21 +1,22 @@
 package com.cotalk.infrastructure.lock;
 
 import com.cotalk.domain.port.outbound.DistributedLockPort;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
- * Redisson 기반 분산락 실행기.
+ * 분산락 실행기.
  *
  * <p>분산 환경에서 동시성 제어가 필요한 작업을 안전하게 실행한다.
  * Redis를 사용하여 여러 서버 인스턴스 간에 락을 공유한다.
+ *
+ * <p>RedissonClient가 없으면 락 없이 즉시 작업을 실행한다 (NoOp 모드).
  *
  * <p>사용 예시:
  * <pre>{@code
@@ -26,21 +27,30 @@ import java.util.function.Supplier;
  * );
  * }</pre>
  *
- * <p>RedissonClient 빈이 없는 경우(테스트 환경 등) 이 빈은 생성되지 않으며,
- * {@link NoOpDistributedLockExecutor}가 대신 사용된다.
- *
  * @author seunggu.lee
- * @see NoOpDistributedLockExecutor
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-@ConditionalOnBean(RedissonClient.class)
 public class DistributedLockExecutor implements DistributedLockPort {
 
     private static final String LOCK_PREFIX = "lock:";
 
     private final RedissonClient redissonClient;
+
+    /**
+     * DistributedLockExecutor 생성자.
+     * RedissonClient가 없으면 NoOp 모드로 동작한다.
+     *
+     * @param redissonClient Redisson 클라이언트 (선택적)
+     */
+    public DistributedLockExecutor(@Autowired(required = false) RedissonClient redissonClient) {
+        this.redissonClient = redissonClient;
+        if (redissonClient == null) {
+            log.warn("RedissonClient not available. Distributed locks disabled (NoOp mode).");
+        } else {
+            log.info("Distributed locks enabled with Redisson.");
+        }
+    }
 
     /**
      * 분산락을 획득한 후 작업을 실행한다.
@@ -57,6 +67,10 @@ public class DistributedLockExecutor implements DistributedLockPort {
     @Override
     public <T> T executeWithLock(String lockKey, long waitTime, long leaseTime,
                                   TimeUnit timeUnit, Supplier<T> supplier) {
+        if (redissonClient == null) {
+            return supplier.get();
+        }
+
         RLock lock = redissonClient.getLock(LOCK_PREFIX + lockKey);
 
         try {
