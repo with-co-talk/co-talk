@@ -17,7 +17,12 @@ import { SharedArray } from 'k6/data';
  */
 
 export const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
-export const WS_URL = __ENV.WS_URL || 'ws://localhost:8080';
+
+// WS_URL 자동 추론: https → wss, http → ws
+function deriveWsUrl(baseUrl) {
+  return baseUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
+}
+export const WS_URL = __ENV.WS_URL || deriveWsUrl(BASE_URL);
 export const API_PREFIX = '/api/v1';
 
 export const TEST_EMAIL_PREFIX = __ENV.TEST_EMAIL || 'loadtest';
@@ -34,11 +39,20 @@ export const THRESHOLDS = {
   ws_connecting: ['p(95)<1000'],
 };
 
+/**
+ * Snowflake ID 정밀도 보존 JSON 파서.
+ * JavaScript Number는 2^53까지만 정확하므로, 16자리 이상 숫자를 문자열로 변환 후 파싱.
+ * 예: {"roomId": 281840969769287680} → {"roomId": "281840969769287680"}
+ */
+export function safeParseBigInts(jsonStr) {
+  return JSON.parse(jsonStr.replace(/(:\s*)(\d{16,})/g, '$1"$2"'));
+}
+
 // seed.sh로 미리 생성된 사용자 로드 (SharedArray: VU간 메모리 공유)
 let _seededUsers = null;
 try {
   _seededUsers = new SharedArray('seeded-users', function () {
-    return JSON.parse(open('./data/users.json'));
+    return safeParseBigInts(open('./data/users.json'));
   });
 } catch {
   _seededUsers = null;

@@ -92,7 +92,42 @@ curl -X GET http://localhost:8080/actuator/health
 curl -X GET http://<NAS_IP>:18080/actuator/health
 ```
 
-### 2.3 환경변수 설정 (선택사항)
+### 2.3 테스트 사용자 시딩 (필수)
+
+k6 테스트를 실행하기 전에 **반드시** `seed.sh` 스크립트로 테스트 사용자를 생성하고 JWT 토큰을 저장해야 합니다.
+
+#### 사용법
+
+```bash
+./k6/seed.sh <BASE_URL> <USER_COUNT> [EMAIL_PREFIX]
+```
+
+#### 예시
+
+```bash
+# 로컬, 20명
+./k6/seed.sh
+
+# NAS, 20명 (SSH로 이메일 인증 자동처리)
+NAS_SSH=user@nas-host ./k6/seed.sh https://co-talk.sgyj-dev.synology.me 20
+
+# Rate Limit 우회 (빠른 시딩)
+K6_TOKEN=cotalk-k6-bypass-2026 ./k6/seed.sh https://co-talk.sgyj-dev.synology.me 20
+
+# 이미 가입된 사용자 → 로그인만 (--skip-signup)
+K6_TOKEN=cotalk-k6-bypass-2026 ./k6/seed.sh --skip-signup https://co-talk.sgyj-dev.synology.me 20
+```
+
+#### 출력
+
+- `k6/data/users.json`: JWT 토큰 + userId가 저장됨
+
+#### 참고
+
+- 이메일 인증이 필요합니다.
+- `NAS_SSH` 설정 시 자동처리, 미설정 시 수동 SQL 실행 필요
+
+### 2.4 환경변수 설정 (선택사항)
 
 `.env` 파일 생성:
 ```bash
@@ -121,6 +156,9 @@ DURATION=1m
 k6/
 ├── README.md                    # 이 파일
 ├── config.js                    # 공유 설정 (BASE_URL, VUS, 임계치)
+├── seed.sh                      # 테스트 사용자 시딩 스크립트
+├── data/
+│   └── users.json               # seed.sh 결과 (JWT 토큰, userId)
 ├── helpers/
 │   ├── auth.js                  # 인증 헬퍼 (회원가입, 로그인, 토큰 갱신)
 │   └── websocket.js             # WebSocket/STOMP 헬퍼 (프레임 생성, 파싱)
@@ -255,15 +293,17 @@ k6 run \
 #### 목적
 WebSocket/STOMP를 통한 실시간 채팅의 멀티 연결 안정성을 테스트합니다. 특히 Redis Pub/Sub 브로드캐스트가 정상 작동하는지 확인합니다.
 
+**참고**: 이 시나리오를 실행하기 전에 `seed.sh`로 사용자를 미리 생성해야 합니다.
+
 #### 테스트 흐름
 
 1. **setup 단계**:
-   - VUS 수만큼 테스트 사용자 생성 및 로그인
+   - `k6/data/users.json`에서 JWT 토큰 로드
    - 인접한 사용자 쌍(pair)으로 채팅방 생성 (예: VU1↔VU2, VU3↔VU4, ...)
 
 2. **각 VU 동작**:
-   - WebSocket STOMP 연결 (60초 유지)
-   - 채팅방 구독: `/topic/chat/{roomId}`
+   - WebSocket STOMP 연결 (30초 유지, SESSION_MS 기본값)
+   - 채팅방 구독: `/topic/chat/room/{roomId}`
    - 알림 큐 구독: `/user/queue/notifications`
    - 채팅방 목록 업데이트 구독: `/user/queue/chat-list`
 
@@ -284,7 +324,7 @@ VU
 
 Stages:
 - 0-20s:    0 → VUS (ramp-up)
-- 20s-DURATION: VUS (steady, 각 VU는 60초 세션 유지)
+- 20s-DURATION: VUS (steady, 각 VU는 30초 세션 유지, SESSION_MS 기본값)
 - DURATION: VUS → 0 (ramp-down)
 ```
 
@@ -317,15 +357,17 @@ VU1 (3초마다 메시지) ──→ Backend
 #### 실행 예시
 
 ```bash
-# 로컬 테스트
-k6 run k6/scenarios/websocket-chat.js
+# 1. 사용자 시딩 (최초 1회)
+K6_TOKEN=cotalk-k6-bypass-2026 ./k6/seed.sh https://co-talk.sgyj-dev.synology.me 20
 
-# NAS 테스트 (VUS=20)
-k6 run \
-  --env BASE_URL=http://your-nas-ip:18080 \
-  --env WS_URL=ws://your-nas-ip:18080 \
-  --env VUS=20 \
+# 2. WebSocket 테스트 실행
+K6_TOKEN=cotalk-k6-bypass-2026 k6 run \
+  --env BASE_URL=https://co-talk.sgyj-dev.synology.me \
+  --env K6_TOKEN=cotalk-k6-bypass-2026 \
   k6/scenarios/websocket-chat.js
+
+# 로컬 테스트 (Rate Limit 없음)
+k6 run k6/scenarios/websocket-chat.js
 
 # 출력 상세 보기
 k6 run -v k6/scenarios/websocket-chat.js
@@ -628,19 +670,23 @@ k6 run scenarios/spike.js
 # NAS 서버에서
 docker compose up -d
 
-# 로컬 머신 또는 테스트 머신에서
-k6 run \
-  --env BASE_URL=http://<NAS_IP>:18080 \
-  --env WS_URL=ws://<NAS_IP>:18080 \
-  scenarios/rest-api.js
+# 1. 사용자 시딩 (최초 1회)
+K6_TOKEN=cotalk-k6-bypass-2026 ./k6/seed.sh https://co-talk.sgyj-dev.synology.me 20
+
+# 2. k6 테스트 실행
+K6_TOKEN=cotalk-k6-bypass-2026 k6 run \
+  --env BASE_URL=https://co-talk.sgyj-dev.synology.me \
+  --env K6_TOKEN=cotalk-k6-bypass-2026 \
+  k6/scenarios/rest-api.js
 
 # 결과 저장
-k6 run \
-  --env BASE_URL=http://<NAS_IP>:18080 \
+K6_TOKEN=cotalk-k6-bypass-2026 k6 run \
+  --env BASE_URL=https://co-talk.sgyj-dev.synology.me \
+  --env K6_TOKEN=cotalk-k6-bypass-2026 \
   --env VUS=20 \
   --env DURATION=5m \
   --out json=results/rest-api-nas-$(date +%Y%m%d-%H%M%S).json \
-  scenarios/rest-api.js
+  k6/scenarios/rest-api.js
 ```
 
 ### 5.3 Docker로 실행
@@ -680,12 +726,14 @@ wait
 | 변수명 | 기본값 | 설명 | 예시 |
 |--------|--------|------|------|
 | `BASE_URL` | `http://localhost:8080` | REST API 서버 주소 | `http://your-nas:18080` |
-| `WS_URL` | `ws://localhost:8080` | WebSocket 서버 주소 | `ws://your-nas:18080` |
+| `WS_URL` | _(BASE_URL에서 자동 추론)_ | WebSocket 서버 주소 (https→wss, http→ws) | `wss://co-talk.example.com` |
 | `TEST_EMAIL` | `loadtest` | 테스트 계정 이메일 prefix | `perftest` |
 | `TEST_PASS` | `Test1234!@` | 테스트 계정 비밀번호 | `MyPassword123!` |
 | `VUS` | `10` | 가상 사용자 수 | `50`, `100` |
 | `DURATION` | `1m` | 테스트 지속 시간 | `5m`, `10m` |
 | `MAX_VUS` | `100` | 스트레스 테스트의 최대 VU | `200` |
+| `K6_TOKEN` | _(없음)_ | Rate Limit 우회 토큰 (nginx + app) | `cotalk-k6-bypass-2026` |
+| `SESSION_MS` | `30000` | WebSocket 세션 유지 시간 (ms) | `60000` |
 
 #### 실행 예시
 
@@ -1190,12 +1238,21 @@ Co-Talk에 다음과 같은 Rate Limit이 적용됨:
 
 #### 해결책
 
-**방법 1: VUS 감소**
+**방법 1 (권장): K6_TOKEN으로 Rate Limit 우회**
+```bash
+# nginx + app 양쪽 Rate Limit 우회
+K6_TOKEN=cotalk-k6-bypass-2026 k6 run \
+  --env BASE_URL=https://co-talk.sgyj-dev.synology.me \
+  --env K6_TOKEN=cotalk-k6-bypass-2026 \
+  k6/scenarios/rest-api.js
+```
+
+**방법 2: VUS 감소**
 ```bash
 k6 run --env VUS=5 scenarios/rest-api.js
 ```
 
-**방법 2: 테스트 사용자 분산**
+**방법 3: 테스트 사용자 분산**
 ```bash
 # 각 VU가 다른 계정 사용
 k6 run \
@@ -1208,7 +1265,7 @@ k6 run --env TEST_EMAIL=loadtest1 scenarios/rest-api.js &
 k6 run --env TEST_EMAIL=loadtest2 scenarios/rest-api.js &
 ```
 
-**방법 3: Rate Limit 정책 확인 및 조정**
+**방법 4: Rate Limit 정책 확인 및 조정**
 
 `application.yml`:
 ```yaml
@@ -1445,6 +1502,31 @@ k6 run \
 K6_INSECURE_SKIP_TLS_VERIFY=true k6 run scenarios/rest-api.js
 ```
 
+### 11.9 Snowflake ID 정밀도 손실
+
+#### 증상
+
+```
+STOMP ERROR "Failed to send message to ExecutorSubscribableChannel[clientInboundChannel]"
+```
+
+#### 원인
+
+- JavaScript Number는 2^53까지만 정확 (약 9천조)
+- Co-Talk의 Snowflake ID는 18자리 (> 2^53)
+- ID가 잘못 파싱되어 서버에서 거부됨
+
+#### 해결책
+
+`helpers/websocket.js`의 `safeParseBigInts()` 함수가 자동으로 처리합니다:
+
+```javascript
+// 자동으로 18자리 이상 숫자를 문자열로 보존
+const data = safeParseBigInts(rawResponse);
+```
+
+일반적으로 이 에러는 발생하지 않으며, 발생 시 helper 함수 버전을 확인하세요.
+
 ---
 
 ## 12. FAQ (자주 묻는 질문)
@@ -1591,6 +1673,14 @@ A: 테스트 실패 시 배포를 블로킹:
 
 ## 14. 변경 로그
 
+### v3.0 (2026-02-16)
+- seed.sh: 테스트 사용자 시딩 스크립트 추가 (Rate Limit 우회, 이메일 인증 자동처리)
+- K6_TOKEN: nginx + app Rate Limit 우회 토큰 지원
+- Snowflake ID 정밀도 보존: safeParseBigInts() 도입 (JavaScript Number > 2^53 대응)
+- WebSocket 엔드포인트 변경: /ws/websocket → /ws (순수 WebSocket)
+- 구독 경로 수정: /topic/chat/room/{roomId}
+- SESSION_MS 환경변수 추가 (기본 30초)
+
 ### v2.0 (2024-02-16)
 - 포괄적인 한국어 부하 테스트 가이드 작성
 - 5개 시나리오 상세 설명 추가
@@ -1604,5 +1694,5 @@ A: 테스트 실패 시 배포를 블로킹:
 ---
 
 **작성자**: Co-Talk DevOps Team
-**최종 업데이트**: 2024-02-16
+**최종 업데이트**: 2026-02-16
 **문의**: cotalk-dev@example.com

@@ -6,6 +6,10 @@ import { Counter, Trend } from 'k6/metrics';
 export const wsMessages = new Counter('ws_messages_sent');
 export const wsMessagesReceived = new Counter('ws_messages_received');
 export const wsMessageLatency = new Trend('ws_message_latency', true);
+export const wsRtt = new Trend('ws_rtt', true);
+
+// k6 rate limit bypass token (nginx WebSocket rate limit 우회)
+const K6_TOKEN = __ENV.K6_TOKEN || '';
 
 // STOMP frame helpers
 const NULL_CHAR = '\u0000';
@@ -38,10 +42,13 @@ export function stompSubscribe(destination, id) {
 }
 
 /**
- * STOMP SEND 프레임 생성
+ * STOMP SEND 프레임 생성.
+ * 문자열로 보존된 Snowflake ID를 JSON 숫자로 복원하여 서버 Long 타입과 호환.
  */
 export function stompSend(destination, body) {
-  const jsonBody = JSON.stringify(body);
+  // JSON.stringify 후, 16자리 이상 숫자 문자열을 JSON 숫자로 복원
+  // "roomId":"281840969769287680" → "roomId":281840969769287680
+  const jsonBody = JSON.stringify(body).replace(/"(\d{16,})"/g, '$1');
   return (
     'SEND\n' +
     `destination:${destination}\n` +
@@ -64,8 +71,9 @@ export function stompDisconnect() {
  * STOMP 프레임 파싱
  */
 export function parseStompFrame(data) {
-  const lines = data.split('\n');
-  const command = lines[0];
+  const normalized = data.replace(/\r\n/g, '\n');
+  const lines = normalized.split('\n');
+  const command = lines[0].trim();
 
   const headers = {};
   let i = 1;
@@ -91,36 +99,55 @@ export function parseStompFrame(data) {
  * @param {string} token - JWT access token
  * @param {function} onConnected - CONNECTED 프레임 수신 시 콜백(socket)
  * @param {number} timeoutMs - 연결 유지 시간 (기본 30초)
+ * @param {function} onMessage - MESSAGE 프레임 수신 시 콜백(frame) (RTT 측정 등)
  */
-export function connectStomp(wsUrl, token, onConnected, timeoutMs = 30000) {
-  const url = `${wsUrl}/ws/websocket`;
+export function connectStomp(wsUrl, token, onConnected, timeoutMs = 30000, onMessage = null) {
+  // 순수 WebSocket 엔드포인트 사용 (NOT SockJS /ws/websocket)
+  // WebSocketConfig.java: addEndpoint("/ws") (SockJS 없이)
+  const url = `${wsUrl}/ws`;
 
-  const res = ws.connect(url, {}, function (socket) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+  };
+  // nginx WebSocket rate limit(ws_connect zone) 우회
+  if (K6_TOKEN) {
+    headers['X-K6-Token'] = K6_TOKEN;
+  }
+
+  const res = ws.connect(url, { headers }, function (socket) {
     socket.on('open', function () {
       socket.send(stompConnect(token));
     });
 
     socket.on('message', function (msg) {
+      // STOMP heartbeat (empty line) - 먼저 체크
+      if (msg.trim() === '' || msg.trim() === '\u0000') {
+        socket.send('\n');
+        return;
+      }
+
       const frame = parseStompFrame(msg);
 
       if (frame.command === 'CONNECTED') {
         if (onConnected) {
           onConnected(socket, frame);
         }
-      }
-
-      if (frame.command === 'MESSAGE') {
+      } else if (frame.command === 'ERROR') {
+        console.error(`STOMP ERROR: ${frame.headers.message || frame.body}`);
+      } else if (frame.command === 'MESSAGE') {
         wsMessagesReceived.add(1);
-      }
-
-      // STOMP heartbeat (empty line)
-      if (msg.trim() === '') {
-        socket.send('\n');
+        if (onMessage) {
+          onMessage(frame);
+        }
       }
     });
 
     socket.on('error', function (e) {
       console.error(`WebSocket error: ${e}`);
+    });
+
+    socket.on('close', function () {
+      // 정상 종료 - 로깅 불필요
     });
 
     socket.setTimeout(function () {
