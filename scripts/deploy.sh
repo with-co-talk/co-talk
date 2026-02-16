@@ -465,6 +465,23 @@ deploy() {
     else
         log_info "nginx is already running"
     fi
+    log_success "Canary metrics verified"
+
+    # -----------------------------------------------
+    # Phase 4: Roll out remaining instances
+    # -----------------------------------------------
+    log_info "Phase 4: Rolling out to remaining instances..."
+    for instance in "${REMAINING_INSTANCES[@]}"; do
+        log_info "Updating ${instance}..."
+        dc up -d --no-deps "$instance"
+
+        if ! health_check "$instance"; then
+            log_error "${instance} health check failed! Stopping rollout."
+            log_error "Manual rollback may be needed: ./scripts/deploy.sh --rollback"
+            exit 1
+        fi
+        log_success "${instance} is healthy"
+    done
 
     # -----------------------------------------------
     # Done
