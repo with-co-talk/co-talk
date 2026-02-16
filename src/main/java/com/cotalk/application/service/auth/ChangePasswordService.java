@@ -10,17 +10,17 @@ import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.util.LogMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
  * 비밀번호 변경 유스케이스 구현체.
  * 현재 비밀번호를 확인 후 새 비밀번호로 변경한다.
- * 5회 연속 실패 시 10분간 잠금한다.
+ * 5회 연속 실패 시 10분간 잠금한다. 실패 기록은 Redis에 저장된다.
  *
  * @author seunggu.lee
  */
@@ -38,8 +38,7 @@ public class ChangePasswordService implements ChangePasswordUseCase {
 
     private final UserRepository userRepository;
     private final PasswordEncoderPort passwordEncoder;
-
-    private final ConcurrentHashMap<Long, FailureRecord> failureMap = new ConcurrentHashMap<>();
+    private final RedisTemplate<String, String> redisTemplate;
 
     /**
      * 비밀번호를 변경한다.
@@ -71,51 +70,37 @@ public class ChangePasswordService implements ChangePasswordUseCase {
         userRepository.save(user);
 
         // 성공 시 실패 기록 초기화
-        failureMap.remove(userId);
+        redisTemplate.delete("password:fail:" + userId);
 
         log.info("Password changed for user: {}", LogMaskingUtil.maskEmail(user.getEmail()));
     }
 
     private void checkRateLimit(Long userId) {
-        FailureRecord record = failureMap.get(userId);
-        if (record != null && record.isLocked()) {
-            long remainingSeconds = record.getRemainingLockSeconds();
-            throw RateLimitExceededException.tooManyRequests(remainingSeconds);
+        String key = "password:fail:" + userId;
+        String countStr = redisTemplate.opsForValue().get(key);
+        if (countStr != null) {
+            int count = Integer.parseInt(countStr);
+            if (count >= MAX_FAILURES) {
+                Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
+                long remainingSeconds = (ttl != null && ttl > 0) ? ttl : LOCKOUT_DURATION_SECONDS;
+                throw RateLimitExceededException.tooManyRequests(remainingSeconds);
+            }
         }
     }
 
     private void recordFailure(Long userId) {
-        failureMap.compute(userId, (key, existing) -> {
-            if (existing == null || existing.isExpired()) {
-                return new FailureRecord(1, Instant.now());
-            }
-            return new FailureRecord(existing.count + 1, existing.firstFailureAt);
-        });
+        String key = "password:fail:" + userId;
+        Long count = redisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1) {
+            // 첫 실패 시 TTL 설정
+            redisTemplate.expire(key, LOCKOUT_DURATION_SECONDS, TimeUnit.SECONDS);
+        }
     }
 
     private void validatePasswordStrength(String password) {
         if (password == null || !PASSWORD_PATTERN.matcher(password).matches()) {
             throw new IllegalArgumentException(
                     "비밀번호는 8-128자이며, 대문자, 소문자, 숫자, 특수문자를 각각 1개 이상 포함해야 합니다.");
-        }
-    }
-
-    /**
-     * 비밀번호 변경 실패 기록.
-     */
-    private record FailureRecord(int count, Instant firstFailureAt) {
-
-        boolean isLocked() {
-            return count >= MAX_FAILURES && !isExpired();
-        }
-
-        boolean isExpired() {
-            return Instant.now().isAfter(firstFailureAt.plusSeconds(LOCKOUT_DURATION_SECONDS));
-        }
-
-        long getRemainingLockSeconds() {
-            Instant lockEnd = firstFailureAt.plusSeconds(LOCKOUT_DURATION_SECONDS);
-            return Math.max(0, lockEnd.getEpochSecond() - Instant.now().getEpochSecond());
         }
     }
 }

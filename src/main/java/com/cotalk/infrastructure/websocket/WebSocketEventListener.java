@@ -6,6 +6,7 @@ import com.cotalk.infrastructure.metrics.CustomMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
@@ -14,12 +15,15 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionUnsubscribeEvent;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * WebSocket 연결/해제 이벤트 리스너.
  * WebSocket 세션 연결 및 해제 시 사용자의 온라인 상태를 업데이트한다.
+ *
+ * <p>멀티 인스턴스 환경을 지원하기 위해 세션 추적을 Redis Set으로 관리한다.
+ * Redis 키: {@code ws:user:{userId}:sessions} (TTL 2시간)
  *
  * <p>처리하는 이벤트:
  * <ul>
@@ -34,16 +38,21 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class WebSocketEventListener {
 
+    private static final String SESSION_KEY_PREFIX = "ws:user:";
+    private static final String SESSION_KEY_SUFFIX = ":sessions";
+    private static final long SESSION_TTL_SECONDS = 7200;
+
     private final UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
     private final ChatRoomPresenceTracker chatRoomPresenceTracker;
     private final CustomMetrics customMetrics;
+    private final RedisTemplate<String, String> redisTemplate;
 
     /**
      * subscriptionId -> roomId 매핑(세션별).
-     * <p>UNSUBSCRIBE 이벤트에서 destination을 직접 얻기 어려워 subscriptionId로 추적한다.</p>
+     * <p>UNSUBSCRIBE 이벤트에서 destination을 직접 얻기 어려워 subscriptionId로 추적한다.
+     * 로컬 인메모리 맵으로 유지한다 (SUBSCRIBE/UNSUBSCRIBE는 같은 연결에서 발생).</p>
      */
     private final Map<String, Map<String, Long>> roomsBySessionAndSubscription = new ConcurrentHashMap<>();
-    private final Map<Long, Set<String>> userSessions = new ConcurrentHashMap<>();
 
     /**
      * WebSocket 연결 이벤트를 처리한다.
@@ -64,7 +73,9 @@ public class WebSocketEventListener {
                 customMetrics.incrementWebSocketConnections();
                 String sessionId = headerAccessor.getSessionId();
                 if (sessionId != null) {
-                    userSessions.computeIfAbsent(userId, k -> ConcurrentHashMap.newKeySet()).add(sessionId);
+                    String sessionKey = sessionKey(userId);
+                    redisTemplate.opsForSet().add(sessionKey, sessionId);
+                    redisTemplate.expire(sessionKey, SESSION_TTL_SECONDS, TimeUnit.SECONDS);
                 }
                 log.info("User connected via WebSocket: userId={}", userId);
             } catch (NumberFormatException e) {
@@ -93,21 +104,17 @@ public class WebSocketEventListener {
             try {
                 Long userId = Long.parseLong(userIdStr);
 
-                // 멀티 세션 지원: 마지막 세션이 끊어질 때만 오프라인 처리
-                Set<String> sessions = userSessions.get(userId);
+                // 멀티 인스턴스 세션 지원: Redis Set에서 세션 제거 후 남은 세션이 없을 때만 오프라인 처리
                 customMetrics.decrementWebSocketConnections();
-                if (sessions != null) {
-                    sessions.remove(sessionId);
-                    if (sessions.isEmpty()) {
-                        userSessions.remove(userId);
-                        updateUserOnlineStatusUseCase.setOffline(userId);
-                        log.info("User disconnected from WebSocket (last session): userId={}", userId);
-                    } else {
-                        log.info("User disconnected from WebSocket (remaining sessions: {}): userId={}", sessions.size(), userId);
-                    }
-                } else {
+                String sessionKey = sessionKey(userId);
+                redisTemplate.opsForSet().remove(sessionKey, sessionId);
+                Long remaining = redisTemplate.opsForSet().size(sessionKey);
+                if (remaining == null || remaining == 0) {
+                    redisTemplate.delete(sessionKey);
                     updateUserOnlineStatusUseCase.setOffline(userId);
-                    log.info("User disconnected from WebSocket: userId={}", userId);
+                    log.info("User disconnected from WebSocket (last session): userId={}", userId);
+                } else {
+                    log.info("User disconnected from WebSocket (remaining sessions: {}): userId={}", remaining, userId);
                 }
 
                 // presence 정리
@@ -205,6 +212,16 @@ public class WebSocketEventListener {
             log.info("[WS] DISCONNECT cleanup sessionId={}, userId={}, roomId={}", sessionId, userId, roomId);
         }
         chatRoomPresenceTracker.clearSession(userId, sessionId);
+    }
+
+    /**
+     * Redis에서 사용자 세션 Set의 키를 생성한다.
+     *
+     * @param userId 사용자 ID
+     * @return Redis 키 (예: {@code ws:user:123:sessions})
+     */
+    private String sessionKey(Long userId) {
+        return SESSION_KEY_PREFIX + userId + SESSION_KEY_SUFFIX;
     }
 
     /**
