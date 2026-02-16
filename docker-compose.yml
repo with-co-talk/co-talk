@@ -30,6 +30,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    stop_grace_period: 35s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
@@ -64,6 +65,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    stop_grace_period: 35s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
@@ -98,6 +100,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    stop_grace_period: 35s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
@@ -206,6 +209,7 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time=15d'
       - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./docker/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
