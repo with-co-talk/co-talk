@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SetOperations;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
@@ -18,6 +20,8 @@ import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 /**
@@ -40,9 +44,16 @@ class WebSocketEventListenerTest {
     @Mock
     private com.cotalk.infrastructure.metrics.CustomMetrics customMetrics;
 
+    @Mock
+    private RedisTemplate<String, String> redisTemplate;
+
+    @Mock
+    private SetOperations<String, String> setOperations;
+
     @BeforeEach
     void setUp() {
-        eventListener = new WebSocketEventListener(updateUserOnlineStatusUseCase, chatRoomPresenceTracker, customMetrics);
+        lenient().when(redisTemplate.opsForSet()).thenReturn(setOperations);
+        eventListener = new WebSocketEventListener(updateUserOnlineStatusUseCase, chatRoomPresenceTracker, customMetrics, redisTemplate);
     }
 
     @Nested
@@ -97,6 +108,7 @@ class WebSocketEventListenerTest {
         @DisplayName("유효한 사용자 ID로 오프라인 상태를 설정한다")
         void should_setOffline_when_validUserId() {
             // given
+            given(setOperations.size(anyString())).willReturn(0L);
             SessionDisconnectEvent event = createDisconnectEvent("456");
 
             // when
