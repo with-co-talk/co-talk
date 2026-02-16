@@ -142,7 +142,7 @@
       },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
       "id": 20,
-      "options": { "legend": { "calcs": ["mean", "p95", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "options": { "legend": { "calcs": ["mean", "lastNotNull", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
         { "expr": "rate(cotalk_messages_processing_time_seconds_sum{job=\"cotalk-app\"}[5m]) / rate(cotalk_messages_processing_time_seconds_count{job=\"cotalk-app\"}[5m]) * 1000", "legendFormat": "평균 처리시간", "refId": "A" },
         { "expr": "histogram_quantile(0.95, sum(rate(cotalk_messages_processing_time_seconds_bucket{job=\"cotalk-app\"}[5m])) by (le)) * 1000", "legendFormat": "P95 처리시간", "refId": "B" }

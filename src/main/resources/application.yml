@@ -151,6 +151,7 @@ app:
     privacy-version: "1.0"
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
+    k6-bypass-token: ${K6_BYPASS_TOKEN:}
     endpoints:
       # 인증 API - IP별 제한 (무차별 대입 공격 방지)
       - path: "/api/v1/auth/login"
