@@ -13,6 +13,10 @@ services:
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./docker/nginx/upstream.conf:/etc/nginx/upstream.conf
+    depends_on:
+      - app-1
+      - app-2
+      - app-3
     networks:
       - cotalk-network
     healthcheck:
@@ -62,6 +66,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      zipkin:
+        condition: service_started
     networks:
       - cotalk-network
     healthcheck:
@@ -116,6 +122,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      zipkin:
+        condition: service_started
     networks:
       - cotalk-network
     healthcheck:
@@ -169,6 +177,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      zipkin:
+        condition: service_started
     networks:
       - cotalk-network
     healthcheck:
@@ -227,6 +237,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -320,6 +331,12 @@ services:
       - STORAGE_TYPE=mem
     networks:
       - cotalk-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9411/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     deploy:
       resources:
         limits:

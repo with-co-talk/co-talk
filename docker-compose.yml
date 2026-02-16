@@ -249,6 +249,12 @@ services:
       - STORAGE_TYPE=mem
     networks:
       - cotalk-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9411/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   # ===========================================
   # 로그 수집 - Loki
