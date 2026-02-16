@@ -39,7 +39,7 @@ CANARY_INSTANCE="app-1"
 ALL_INSTANCES=("app-1" "app-2" "app-3")
 REMAINING_INSTANCES=("app-2" "app-3")
 
-CANARY_WAIT_SECONDS=60
+CANARY_WAIT_SECONDS=30
 ERROR_RATE_THRESHOLD=5  # percent
 
 # Image tags for rollback support
