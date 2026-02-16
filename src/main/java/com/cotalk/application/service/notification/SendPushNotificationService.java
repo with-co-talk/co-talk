@@ -90,6 +90,7 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
     /**
      * 여러 사용자에게 새 메시지 알림을 벌크 전송한다.
      * 각 사용자의 알림 설정을 확인하여 메시지 알림이 꺼져 있거나 방해 금지 시간대인 사용자는 제외한다.
+     * 각 사용자의 미리보기 모드(NAME_AND_MESSAGE, NAME_ONLY, 숨김)를 존중하여 그룹별로 별도 전송한다.
      *
      * @param receiverUserIds 알림을 받을 사용자 ID 목록
      * @param senderNickname  메시지를 보낸 사용자 닉네임
@@ -121,19 +122,14 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
             return;
         }
 
-        List<DeviceToken> tokens = deviceTokenRepository.findActiveByUserIds(allowedUserIds);
+        // 미리보기 모드별로 사용자 그룹화
+        Map<String, List<Long>> usersByPreviewMode = allowedUserIds.stream()
+                .collect(Collectors.groupingBy(userId -> {
+                    NotificationSetting setting = settingsMap.get(userId);
+                    return setting != null ? setting.getNotificationPreviewMode() : PREVIEW_MODE_NAME_AND_MESSAGE;
+                }));
 
-        if (tokens.isEmpty()) {
-            log.debug("No active device tokens for users: {}", allowedUserIds);
-            return;
-        }
-
-        List<String> tokenStrings = tokens.stream()
-                .map(DeviceToken::getToken)
-                .toList();
-
-        String title = senderNickname;
-        String body = truncateMessage(messageContent);
+        // 각 미리보기 모드 그룹별로 알림 전송
         Map<String, String> data = new HashMap<>();
         data.put("type", "NEW_MESSAGE");
         data.put("chatRoomId", chatRoomId.toString());
@@ -141,9 +137,36 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
             data.put("avatarUrl", senderAvatarUrl);
         }
 
-        int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data, senderAvatarUrl);
+        int totalSentCount = 0;
+        int totalTokenCount = 0;
+
+        for (Map.Entry<String, List<Long>> entry : usersByPreviewMode.entrySet()) {
+            String previewMode = entry.getKey();
+            List<Long> userIds = entry.getValue();
+
+            List<DeviceToken> tokens = deviceTokenRepository.findActiveByUserIds(userIds);
+            if (tokens.isEmpty()) {
+                log.debug("No active device tokens for users with previewMode {}: {}", previewMode, userIds);
+                continue;
+            }
+
+            List<String> tokenStrings = tokens.stream()
+                    .map(DeviceToken::getToken)
+                    .toList();
+
+            String title = resolveTitle(senderNickname, previewMode);
+            String body = resolveBody(messageContent, previewMode);
+
+            int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data, senderAvatarUrl);
+            totalSentCount += sentCount;
+            totalTokenCount += tokenStrings.size();
+
+            log.debug("Sent bulk notification to {} users (previewMode: {}): {}/{} devices",
+                    userIds.size(), previewMode, sentCount, tokenStrings.size());
+        }
+
         log.info("Bulk new message push sent to {} users (filtered from {}): {}/{} devices",
-                allowedUserIds.size(), receiverUserIds.size(), sentCount, tokenStrings.size());
+                allowedUserIds.size(), receiverUserIds.size(), totalSentCount, totalTokenCount);
     }
 
     /**

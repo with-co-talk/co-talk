@@ -5,14 +5,16 @@ import com.cotalk.infrastructure.security.JwtTokenProvider;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -33,13 +35,39 @@ import java.util.function.Supplier;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "app.rate-limit.enabled", havingValue = "true", matchIfMissing = true)
 public class RateLimitInterceptor implements HandlerInterceptor {
 
     private final RateLimitProperties rateLimitProperties;
     private final ProxyManager<byte[]> proxyManager;
     private final JwtTokenProvider jwtTokenProvider;
+    private final Counter allowedCounter;
+    private final Counter blockedCounter;
+
+    /**
+     * RateLimitInterceptor 생성자.
+     *
+     * @param rateLimitProperties Rate Limit 설정
+     * @param proxyManager Bucket4j Redis ProxyManager
+     * @param jwtTokenProvider JWT 토큰 프로바이더
+     * @param meterRegistry Micrometer 메트릭 레지스트리
+     */
+    public RateLimitInterceptor(RateLimitProperties rateLimitProperties,
+                                 ProxyManager<byte[]> proxyManager,
+                                 JwtTokenProvider jwtTokenProvider,
+                                 MeterRegistry meterRegistry) {
+        this.rateLimitProperties = rateLimitProperties;
+        this.proxyManager = proxyManager;
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.allowedCounter = Counter.builder("cotalk.ratelimit.requests")
+                .tag("result", "allowed")
+                .description("Rate limit 허용된 요청 수")
+                .register(meterRegistry);
+        this.blockedCounter = Counter.builder("cotalk.ratelimit.requests")
+                .tag("result", "blocked")
+                .description("Rate limit 차단된 요청 수")
+                .register(meterRegistry);
+    }
 
     /**
      * 요청 처리 전에 Rate Limit을 검사한다.
@@ -52,11 +80,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        log.info("=== RateLimitInterceptor.preHandle START: path={}, enabled={}", 
-                request.getRequestURI(), rateLimitProperties.isEnabled());
-        
         if (!rateLimitProperties.isEnabled()) {
-            log.info("Rate limit is disabled, skipping");
             return true;
         }
 
@@ -64,61 +88,49 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         RateLimitProperties.EndpointRateLimit limit = findRateLimit(path);
 
         if (limit == null) {
-            // Rate Limit이 설정되지 않은 엔드포인트는 통과
-            log.info("Rate limit not configured for path: {}", path);
             return true;
         }
-        
-        log.info("Rate limit check: path={}, limit={}", path, limit);
 
         String keyString = generateKey(request, limit);
-        byte[] key = keyString.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        log.info("Rate limit key: {}", keyString);
+        byte[] key = keyString.getBytes(StandardCharsets.UTF_8);
         Bucket bucket = resolveBucket(key, limit);
-        long tokensBefore = bucket.getAvailableTokens();
-        log.info("Bucket available tokens before consume: {}", tokensBefore);
-        
         boolean consumed = bucket.tryConsume(1);
-        long tokensAfter = bucket.getAvailableTokens();
-        log.info("Bucket tryConsume result: {}, available tokens after: {}", consumed, tokensAfter);
+
+        long limitValue = resolveLimitValue(limit);
 
         if (!consumed) {
-            // Rate Limit 초과
-            long availableTokens = tokensAfter;
+            blockedCounter.increment();
             long retryAfter = calculateRetryAfter(limit);
-            
-            long limitValue;
-            if (limit.getRequestsPerSecond() > 0) {
-                limitValue = limit.getRequestsPerSecond();
-            } else if (limit.getRequestsPerMinute() > 0) {
-                limitValue = limit.getRequestsPerMinute();
-            } else {
-                limitValue = limit.getRequestsPerHour();
-            }
-            
+
             response.setHeader("X-RateLimit-Limit", String.valueOf(limitValue));
-            response.setHeader("X-RateLimit-Remaining", String.valueOf(availableTokens));
+            response.setHeader("X-RateLimit-Remaining", "0");
             response.setHeader("Retry-After", String.valueOf(retryAfter));
             response.setStatus(429);
 
-            log.warn("Rate limit exceeded: path={}, key={}, retryAfter={}s", path, new String(key), retryAfter);
+            log.warn("Rate limit exceeded: path={}, key={}, retryAfter={}s", path, keyString, retryAfter);
             throw RateLimitExceededException.tooManyRequests(retryAfter);
         }
 
-        // Rate Limit 헤더 추가
-        long limitValue;
-        if (limit.getRequestsPerSecond() > 0) {
-            limitValue = limit.getRequestsPerSecond();
-        } else if (limit.getRequestsPerMinute() > 0) {
-            limitValue = limit.getRequestsPerMinute();
-        } else {
-            limitValue = limit.getRequestsPerHour();
-        }
-        
+        allowedCounter.increment();
         response.setHeader("X-RateLimit-Limit", String.valueOf(limitValue));
         response.setHeader("X-RateLimit-Remaining", String.valueOf(bucket.getAvailableTokens()));
 
         return true;
+    }
+
+    /**
+     * Rate Limit 설정에서 표시용 제한 값을 반환한다.
+     *
+     * @param limit Rate Limit 설정
+     * @return 제한 값
+     */
+    private long resolveLimitValue(RateLimitProperties.EndpointRateLimit limit) {
+        if (limit.getRequestsPerSecond() > 0) {
+            return limit.getRequestsPerSecond();
+        } else if (limit.getRequestsPerMinute() > 0) {
+            return limit.getRequestsPerMinute();
+        }
+        return limit.getRequestsPerHour();
     }
 
     /**

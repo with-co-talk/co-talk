@@ -1,15 +1,19 @@
 package com.cotalk.application.service.linkpreview;
 
 import com.cotalk.domain.port.inbound.linkpreview.GetLinkPreviewUseCase;
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.UnknownHostException;
 
 /**
@@ -23,6 +27,7 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
 
     private static final int TIMEOUT_MILLIS = 5000;
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; CoTalkBot/1.0; +https://cotalk.com)";
+    private static final int MAX_REDIRECTS = 3;
 
     /**
      * {@inheritDoc}
@@ -34,11 +39,7 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
         String domain = extractDomain(url);
 
         try {
-            Document doc = Jsoup.connect(url)
-                    .userAgent(USER_AGENT)
-                    .timeout(TIMEOUT_MILLIS)
-                    .followRedirects(true)
-                    .get();
+            Document doc = fetchWithSafeRedirects(url);
 
             String title = extractTitle(doc);
             String description = extractDescription(doc);
@@ -59,6 +60,90 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
             // 연결 실패 시 기본 정보만 반환
             return LinkPreviewResult.empty(url, domain);
         }
+    }
+
+    /**
+     * SSRF 방어가 적용된 안전한 리다이렉트 처리.
+     * 각 리다이렉트 대상 URL을 재검증하여 내부 네트워크로의 우회를 차단한다.
+     *
+     * @param url 접근할 초기 URL
+     * @return 파싱된 HTML Document
+     * @throws IOException 연결 실패, 리다이렉트 초과, 또는 내부 네트워크 접근 시도 시
+     */
+    private Document fetchWithSafeRedirects(String url) throws IOException {
+        String currentUrl = url;
+
+        for (int i = 0; i <= MAX_REDIRECTS; i++) {
+            Connection.Response response = Jsoup.connect(currentUrl)
+                    .userAgent(USER_AGENT)
+                    .timeout(TIMEOUT_MILLIS)
+                    .followRedirects(false)
+                    .execute();
+
+            int statusCode = response.statusCode();
+
+            // 리다이렉트 응답 (3xx)
+            if (statusCode >= 300 && statusCode < 400) {
+                String redirectUrl = response.header("Location");
+                if (redirectUrl == null || redirectUrl.isBlank()) {
+                    throw new IOException("Redirect without Location header");
+                }
+
+                // 상대 URL을 절대 URL로 변환
+                redirectUrl = resolveRedirectUrl(currentUrl, redirectUrl);
+
+                // 리다이렉트 대상 URL 검증 (SSRF 방어)
+                try {
+                    URI uri = new URI(redirectUrl);
+                    String host = uri.getHost();
+                    if (host == null) {
+                        throw new IOException("Invalid redirect URL: " + redirectUrl);
+                    }
+                    validateNotInternalHost(host);
+                } catch (URISyntaxException e) {
+                    throw new IOException("Invalid redirect URL: " + redirectUrl, e);
+                }
+
+                currentUrl = redirectUrl;
+            } else {
+                // 최종 응답 반환
+                return response.parse();
+            }
+        }
+
+        throw new IOException("Too many redirects (max: " + MAX_REDIRECTS + ")");
+    }
+
+    /**
+     * 리다이렉트 URL을 절대 경로로 변환한다.
+     * 상대 경로, 프로토콜 상대 경로, 절대 경로를 모두 처리한다.
+     *
+     * @param baseUrl     현재 URL
+     * @param redirectUrl Location 헤더의 리다이렉트 URL
+     * @return 절대 URL
+     * @throws MalformedURLException URL 형식이 잘못된 경우
+     */
+    private String resolveRedirectUrl(String baseUrl, String redirectUrl) throws MalformedURLException {
+        // 이미 절대 URL인 경우
+        if (redirectUrl.startsWith("http://") || redirectUrl.startsWith("https://")) {
+            return redirectUrl;
+        }
+
+        URL base = new URL(baseUrl);
+
+        // 프로토콜 상대 URL (//example.com/path)
+        if (redirectUrl.startsWith("//")) {
+            return base.getProtocol() + ":" + redirectUrl;
+        }
+
+        // 절대 경로 (/path)
+        if (redirectUrl.startsWith("/")) {
+            return base.getProtocol() + "://" + base.getHost() +
+                   (base.getPort() != -1 ? ":" + base.getPort() : "") + redirectUrl;
+        }
+
+        // 상대 경로 (path 또는 ./path 또는 ../path)
+        return new URL(base, redirectUrl).toString();
     }
 
     /**

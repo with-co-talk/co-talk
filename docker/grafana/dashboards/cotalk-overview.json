@@ -31,7 +31,7 @@
       "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto", "orientation": "auto" },
       "targets": [{ "expr": "max(up{job=\"cotalk-app\"})", "legendFormat": "서비스", "refId": "A" }],
       "title": "앱 상태",
-      "description": "Blue-Green 중 활성 앱의 상태 (1개만 실행이 정상)",
+      "description": "3인스턴스 중 활성 앱 수 (3개 모두 UP이 정상)",
       "type": "stat"
     },
     {
@@ -214,6 +214,68 @@
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "id": 104,
+      "title": "Rate Limiting & 보안",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 10 }, { "color": "red", "value": 50 }] },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 24 },
+      "id": 40,
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto", "orientation": "auto" },
+      "targets": [{ "expr": "sum(increase(cotalk_ratelimit_requests_total{job=\"cotalk-app\",result=\"blocked\"}[1h]))", "legendFormat": "차단", "refId": "A" }],
+      "title": "Rate Limit 차단 (1시간)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 24 },
+      "id": 41,
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto", "orientation": "auto" },
+      "targets": [{ "expr": "sum(increase(cotalk_ratelimit_requests_total{job=\"cotalk-app\",result=\"allowed\"}[1h]))", "legendFormat": "허용", "refId": "A" }],
+      "title": "Rate Limit 허용 (1시간)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisCenteredZero": false, "axisLabel": "", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 20, "gradientMode": "opacity", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" } },
+          "unit": "reqps"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "차단" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "id": 42,
+      "options": { "legend": { "calcs": ["mean", "max", "sum"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "expr": "sum(rate(cotalk_ratelimit_requests_total{job=\"cotalk-app\",result=\"allowed\"}[5m]))", "legendFormat": "허용", "refId": "A" },
+        { "expr": "sum(rate(cotalk_ratelimit_requests_total{job=\"cotalk-app\",result=\"blocked\"}[5m]))", "legendFormat": "차단", "refId": "B" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"cotalk-app\",status=\"429\"}[5m]))", "legendFormat": "429 응답", "refId": "C" }
+      ],
+      "title": "Rate Limiting 추이",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
       "id": 103,
       "title": "시스템 리소스",
       "type": "row"
@@ -228,7 +290,7 @@
           "unit": "percentunit", "max": 1
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
       "id": 30,
       "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -247,7 +309,7 @@
           "unit": "short"
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
       "id": 31,
       "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
