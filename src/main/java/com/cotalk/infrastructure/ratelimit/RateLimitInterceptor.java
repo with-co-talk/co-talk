@@ -84,6 +84,15 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // k6 부하 테스트 우회: X-K6-Token 헤더가 설정된 토큰과 일치하면 rate limit 미적용
+        String bypassToken = rateLimitProperties.getK6BypassToken();
+        if (bypassToken != null && !bypassToken.isBlank()) {
+            String requestToken = request.getHeader("X-K6-Token");
+            if (bypassToken.equals(requestToken)) {
+                return true;
+            }
+        }
+
         String path = request.getRequestURI();
         RateLimitProperties.EndpointRateLimit limit = findRateLimit(path);
 

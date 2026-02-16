@@ -46,6 +46,9 @@ firebase-service-account.json
 k8s/**/secret.yaml
 k8s/**/secrets.yaml
 
+# k6 테스트 데이터 (JWT 토큰 포함)
+k6/data/users.json
+
 # Backup (데이터 디렉토리만 - 스크립트는 제외)
 backup/
 !docker/backup/

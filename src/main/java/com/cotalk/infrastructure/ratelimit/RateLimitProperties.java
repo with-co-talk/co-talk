@@ -24,6 +24,9 @@ public class RateLimitProperties {
     /** Rate Limiting 활성화 여부 */
     private boolean enabled = true;
 
+    /** k6 부하 테스트 우회 토큰. X-K6-Token 헤더와 일치 시 rate limit 미적용. */
+    private String k6BypassToken = "";
+
     /**
      * 엔드포인트별 Rate Limit 설정 리스트.
      */
