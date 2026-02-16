@@ -214,13 +214,13 @@ services:
     container_name: cotalk-redis
     restart: unless-stopped
     # 외부 포트 노출 없음 - 도커 내부 네트워크에서 redis:6379로 접근
-    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
     networks:
       - cotalk-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a $REDIS_PASSWORD --no-auth-warning ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -238,7 +238,7 @@ services:
     restart: unless-stopped
     ports:
       - "${MINIO_API_PORT:-19000}:9000"
-      - "${MINIO_CONSOLE_PORT:-19001}:9001"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-19001}:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
