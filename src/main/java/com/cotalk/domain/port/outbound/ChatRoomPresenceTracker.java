@@ -20,6 +20,24 @@ public interface ChatRoomPresenceTracker {
     void markActive(Long chatRoomId, Long userId, String sessionId);
 
     /**
+     * 여러 사용자의 활성 상태를 한 번에 조회한다.
+     * 구현체에서 배치 조회를 지원하여 N번의 개별 호출을 1-2번으로 줄인다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userIds    확인할 사용자 ID 목록
+     * @return 활성 상태인 사용자 ID의 Set
+     */
+    default java.util.Set<Long> getActiveUserIds(Long chatRoomId, java.util.List<Long> userIds) {
+        java.util.Set<Long> activeIds = new java.util.HashSet<>();
+        for (Long userId : userIds) {
+            if (isActive(chatRoomId, userId)) {
+                activeIds.add(userId);
+            }
+        }
+        return activeIds;
+    }
+
+    /**
      * 사용자가 채팅방 활성 상태에서 이탈(구독 해제)했음을 기록한다.
      *
      * @param chatRoomId 채팅방 ID
