@@ -9,10 +9,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("NoOpDistributedLockExecutor")
+@DisplayName("DistributedLockExecutor - NoOp 모드 (RedissonClient 없음)")
 class NoOpDistributedLockExecutorTest {
 
-    private final NoOpDistributedLockExecutor executor = new NoOpDistributedLockExecutor();
+    private final DistributedLockExecutor executor = new DistributedLockExecutor(null);
 
     @Nested
     @DisplayName("executeWithLock - Supplier")
