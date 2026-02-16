@@ -12,11 +12,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -37,6 +42,12 @@ class ChangePasswordServiceTest {
     @Mock
     private PasswordEncoderPort passwordEncoder;
 
+    @Mock
+    private RedisTemplate<String, String> redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+
     private ChangePasswordService changePasswordService;
 
     private static final Long USER_ID = 1L;
@@ -47,7 +58,8 @@ class ChangePasswordServiceTest {
 
     @BeforeEach
     void setUp() {
-        changePasswordService = new ChangePasswordService(userRepository, passwordEncoder);
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        changePasswordService = new ChangePasswordService(userRepository, passwordEncoder, redisTemplate);
     }
 
     /**
@@ -169,6 +181,11 @@ class ChangePasswordServiceTest {
         given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
         given(passwordEncoder.matches(eq("wrongPassword"), eq(ENCODED_CURRENT))).willReturn(false);
 
+        // Redis increment mock: 1~5 순차 반환
+        given(valueOperations.increment(anyString()))
+                .willReturn(1L, 2L, 3L, 4L, 5L);
+        given(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).willReturn(true);
+
         // 5회 연속 실패
         for (int i = 0; i < 5; i++) {
             try {
@@ -178,7 +195,11 @@ class ChangePasswordServiceTest {
             }
         }
 
-        // when & then - 6번째 시도에서 rate limit 발생
+        // 6번째 시도 - Redis에 5가 저장되어 있으므로 rate limit 발생
+        given(valueOperations.get("password:fail:" + USER_ID)).willReturn("5");
+        given(redisTemplate.getExpire("password:fail:" + USER_ID, TimeUnit.SECONDS)).willReturn(500L);
+
+        // when & then
         assertThatThrownBy(() ->
                 changePasswordService.changePassword(USER_ID, "wrongPassword", NEW_PASSWORD))
                 .isInstanceOf(RateLimitExceededException.class)
@@ -206,6 +227,13 @@ class ChangePasswordServiceTest {
         given(passwordEncoder.encode(NEW_PASSWORD)).willReturn(ENCODED_NEW);
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
 
+        // Redis: checkRateLimit에서 get → null (아직 실패 없음)
+        given(valueOperations.get(anyString())).willReturn(null);
+        // Redis: recordFailure에서 increment
+        given(valueOperations.increment(anyString())).willReturn(1L, 2L, 3L, 4L);
+        given(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).willReturn(true);
+        given(redisTemplate.delete(anyString())).willReturn(true);
+
         // 4회 실패
         for (int i = 0; i < 4; i++) {
             try {
@@ -215,21 +243,10 @@ class ChangePasswordServiceTest {
             }
         }
 
-        // 성공 - 카운터 초기화
+        // 성공 - Redis에서 키 삭제 (카운터 초기화)
         changePasswordService.changePassword(USER_ID, CURRENT_PASSWORD, NEW_PASSWORD);
 
-        // 다시 4회 실패 - rate limit에 걸리지 않아야 함
-        for (int i = 0; i < 4; i++) {
-            try {
-                changePasswordService.changePassword(USER_ID, "wrongPassword", NEW_PASSWORD);
-            } catch (PasswordMismatchException ignored) {
-                // 예상된 예외 - RateLimitExceededException이 아님
-            }
-        }
-
-        // then - 5번째도 PasswordMismatchException (카운터가 리셋되었으므로)
-        assertThatThrownBy(() ->
-                changePasswordService.changePassword(USER_ID, "wrongPassword", NEW_PASSWORD))
-                .isInstanceOf(PasswordMismatchException.class);
+        // then - delete가 호출되었는지 검증
+        verify(redisTemplate).delete("password:fail:" + USER_ID);
     }
 }

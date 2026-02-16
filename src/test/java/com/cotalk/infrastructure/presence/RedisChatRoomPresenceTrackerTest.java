@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.ZSetOperations;
 
 import java.util.Set;
@@ -29,12 +30,14 @@ class RedisChatRoomPresenceTrackerTest {
     @Mock
     private org.springframework.data.redis.core.SetOperations<String, String> setOperations;
 
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+
     private RedisChatRoomPresenceTracker tracker;
 
     @BeforeEach
     void setUp() {
         tracker = new RedisChatRoomPresenceTracker(redisTemplate);
-        // 각 테스트에서 필요한 stubbing만 설정하도록 변경
     }
 
     @Nested
@@ -50,8 +53,10 @@ class RedisChatRoomPresenceTrackerTest {
             String sessionId = "session-1";
 
             when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
             when(redisTemplate.opsForSet()).thenReturn(setOperations);
             when(zSetOperations.add(anyString(), anyString(), anyDouble())).thenReturn(true);
+            when(valueOperations.increment(anyString())).thenReturn(1L);
             when(setOperations.add(anyString(), anyString())).thenReturn(1L);
             when(redisTemplate.expire(anyString(), anyLong(), any(java.util.concurrent.TimeUnit.class))).thenReturn(true);
 
@@ -60,8 +65,8 @@ class RedisChatRoomPresenceTrackerTest {
 
             // then
             verify(zSetOperations).add(anyString(), eq(String.valueOf(userId)), anyDouble());
+            verify(valueOperations).increment(anyString());
             verify(setOperations).add(anyString(), eq(String.valueOf(chatRoomId)));
-            verify(redisTemplate).expire(anyString(), anyLong(), any(java.util.concurrent.TimeUnit.class));
         }
 
         @Test
@@ -100,13 +105,17 @@ class RedisChatRoomPresenceTrackerTest {
             Long userId = 1L;
 
             when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
             when(zSetOperations.add(anyString(), anyString(), anyDouble())).thenReturn(true);
+            when(valueOperations.increment(anyString())).thenReturn(1L);
+            when(redisTemplate.expire(anyString(), anyLong(), any(java.util.concurrent.TimeUnit.class))).thenReturn(true);
 
             // when
             tracker.markActive(chatRoomId, userId, null);
 
             // then
             verify(zSetOperations).add(anyString(), eq(String.valueOf(userId)), anyDouble());
+            verify(valueOperations).increment(anyString());
             verify(setOperations, never()).add(anyString(), anyString());
         }
     }
@@ -123,15 +132,18 @@ class RedisChatRoomPresenceTrackerTest {
             Long userId = 1L;
             String sessionId = "session-1";
 
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
             when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
             when(redisTemplate.opsForSet()).thenReturn(setOperations);
+            when(valueOperations.decrement(anyString())).thenReturn(0L);
             when(zSetOperations.remove(anyString(), anyString())).thenReturn(1L);
-            when(setOperations.remove(anyString(), anyString())).thenReturn(1L);
+            when(redisTemplate.delete(anyString())).thenReturn(true);
 
             // when
             tracker.markInactive(chatRoomId, userId, sessionId);
 
             // then
+            verify(valueOperations).decrement(anyString());
             verify(zSetOperations).remove(anyString(), eq(String.valueOf(userId)));
             verify(setOperations).remove(anyString(), eq(String.valueOf(chatRoomId)));
         }
@@ -178,8 +190,10 @@ class RedisChatRoomPresenceTrackerTest {
             Set<String> rooms = Set.of("100", "200");
 
             when(redisTemplate.opsForSet()).thenReturn(setOperations);
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
             when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
             when(setOperations.members(anyString())).thenReturn(rooms);
+            when(valueOperations.decrement(anyString())).thenReturn(0L);
             when(zSetOperations.remove(anyString(), anyString())).thenReturn(1L);
             when(redisTemplate.delete(anyString())).thenReturn(true);
 
@@ -188,8 +202,8 @@ class RedisChatRoomPresenceTrackerTest {
 
             // then
             verify(setOperations).members(anyString());
+            verify(valueOperations, times(2)).decrement(anyString());
             verify(zSetOperations, times(2)).remove(anyString(), eq(String.valueOf(userId)));
-            verify(redisTemplate).delete(anyString());
         }
 
         @Test

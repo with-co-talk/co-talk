@@ -2,6 +2,8 @@ package com.cotalk.infrastructure.ratelimit;
 
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,11 +48,14 @@ class RateLimitInterceptorTest {
     @Mock
     private HttpServletResponse response;
 
+    private MeterRegistry meterRegistry;
+
     private RateLimitInterceptor interceptor;
 
     @BeforeEach
     void setUp() {
-        interceptor = new RateLimitInterceptor(rateLimitProperties, proxyManager, jwtTokenProvider);
+        meterRegistry = new SimpleMeterRegistry();
+        interceptor = new RateLimitInterceptor(rateLimitProperties, proxyManager, jwtTokenProvider, meterRegistry);
     }
 
     @Nested
@@ -61,7 +66,6 @@ class RateLimitInterceptorTest {
         @DisplayName("Rate Limit이 비활성화되어 있으면 통과")
         void should_pass_when_rateLimitDisabled() {
             // given
-            given(request.getRequestURI()).willReturn("/api/v1/test");
             given(rateLimitProperties.isEnabled()).willReturn(false);
 
             // when
