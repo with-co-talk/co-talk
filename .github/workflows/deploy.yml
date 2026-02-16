@@ -91,7 +91,7 @@ jobs:
           port: ${{ secrets.NAS_SSH_PORT }}
           username: ${{ secrets.NAS_USER }}
           key: ${{ secrets.NAS_SSH_KEY }}
-          command_timeout: 5m
+          command_timeout: 10m
           script: |
             set -e
             # NAS에서 Docker PATH 로드 (비로그인 셸이면 PATH에 없을 수 있음)
@@ -110,6 +110,11 @@ jobs:
             else
               git pull --ff-only
             fi
+
+            # 이전 blue-green 배포의 고아 컨테이너 정리
+            for c in co-talk-app-green-1 cotalk-app cotalk-watchtower; do
+              docker rm -f "$c" 2>/dev/null || true
+            done
 
             # GHCR 로그인 (이미지 풀을 위해)
             echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.GHCR_USER }} --password-stdin
