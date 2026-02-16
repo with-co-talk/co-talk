@@ -1,5 +1,6 @@
 package com.cotalk.integration;
 
+import com.cotalk.config.TestRedisConfiguration;
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Import;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
@@ -39,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test") // application-test.yml: spring.data.redis.enabled=false -> InMemoryChatMessageBroker 사용
+@Import(TestRedisConfiguration.class)
 @DisplayName("WebSocket Chat Integration (InMemory broker)")
 class WebSocketChatInMemoryBrokerIntegrationTest {
 

@@ -1,6 +1,7 @@
 package com.cotalk.adapter.outbound.persistence;
 
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
+import com.cotalk.config.TestRedisConfiguration;
 import com.cotalk.domain.entity.User;
 import com.cotalk.infrastructure.config.CacheConfig;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
+@Import(TestRedisConfiguration.class)
 @DisplayName("UserRepositoryAdapter 캐싱")
 class UserRepositoryAdapterCacheTest {
 
