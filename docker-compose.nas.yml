@@ -32,6 +32,7 @@ services:
   app-1:
     image: ghcr.io/${GITHUB_REPO}:latest
     restart: unless-stopped
+    stop_grace_period: 35s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
@@ -89,6 +90,7 @@ services:
   app-2:
     image: ghcr.io/${GITHUB_REPO}:latest
     restart: unless-stopped
+    stop_grace_period: 35s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
@@ -145,6 +147,7 @@ services:
   app-3:
     image: ghcr.io/${GITHUB_REPO}:latest
     restart: unless-stopped
+    stop_grace_period: 35s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
@@ -283,6 +286,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=15d'
       - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'  # k6 부하 테스트 메트릭 수신
     volumes:
       - ./docker/prometheus:/etc/prometheus
       - prometheus-data:/prometheus

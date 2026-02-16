@@ -257,6 +257,7 @@ rollback_canary() {
         docker tag "${base_image}:${IMAGE_TAG_PREVIOUS}" "${base_image}:${IMAGE_TAG_LATEST}"
     fi
 
+    dc stop -t 35 "$CANARY_INSTANCE" 2>/dev/null || true
     dc up -d --no-deps "$CANARY_INSTANCE"
 
     if health_check "$CANARY_INSTANCE"; then
@@ -293,6 +294,7 @@ rollback() {
 
     for instance in "${ALL_INSTANCES[@]}"; do
         log_info "Rolling back ${instance}..."
+        dc stop -t 35 "$instance" 2>/dev/null || true
         dc up -d --no-deps "$instance"
 
         if ! health_check "$instance"; then
@@ -419,6 +421,7 @@ deploy() {
     # Phase 2: Canary deployment (app-1 only)
     # -----------------------------------------------
     log_info "Phase 2: Deploying canary (${CANARY_INSTANCE})..."
+    dc stop -t 35 "$CANARY_INSTANCE" 2>/dev/null || true
     dc up -d --no-deps "$CANARY_INSTANCE"
 
     if ! health_check "$CANARY_INSTANCE"; then
@@ -445,6 +448,7 @@ deploy() {
     log_info "Phase 4: Rolling out to remaining instances..."
     for instance in "${REMAINING_INSTANCES[@]}"; do
         log_info "Updating ${instance}..."
+        dc stop -t 35 "$instance" 2>/dev/null || true
         dc up -d --no-deps "$instance"
 
         if ! health_check "$instance"; then
