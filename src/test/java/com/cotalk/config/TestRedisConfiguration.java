@@ -99,6 +99,21 @@ public class TestRedisConfiguration {
     }
 
     /**
+     * 모킹된 RedisTemplate<String, String> 빈을 제공한다.
+     *
+     * @return 모킹된 RedisTemplate<String, String>
+     */
+    @Bean
+    @Primary
+    public RedisTemplate<String, String> stringRedisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer());
+        return template;
+    }
+
+    /**
      * 테스트용 SecurityContextHelper를 제공한다.
      * 요청 파라미터에서 userId를 읽어 반환한다.
      *

@@ -3,6 +3,7 @@ package com.cotalk.integration;
 import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.adapter.outbound.persistence.auth.EmailVerificationTokenJpaRepository;
+import com.cotalk.config.TestRedisConfiguration;
 import com.cotalk.domain.entity.EmailVerificationToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -26,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
+@Import(TestRedisConfiguration.class)
 class AuthIntegrationTest {
 
     @Autowired
