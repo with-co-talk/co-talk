@@ -16,29 +16,6 @@
 
 set -euo pipefail
 
-SKIP_SIGNUP=false
-while [[ "$1" == --* ]]; do
-    case "$1" in
-        --skip-signup) SKIP_SIGNUP=true; shift ;;
-        *) shift ;;
-    esac
-done
-
-BASE_URL="${1:-http://localhost:8080}"
-USER_COUNT="${2:-20}"
-EMAIL_PREFIX="${3:-loadtest}"
-DOMAIN="test.cotalk.com"
-PASSWORD="Test1234!@"
-
-# Rate limit bypass 토큰 (K6_TOKEN 환경변수로 전달)
-K6_TOKEN="${K6_TOKEN:-}"
-K6_HEADER=""
-if [ -n "$K6_TOKEN" ]; then
-    K6_HEADER="X-K6-Token: ${K6_TOKEN}"
-fi
-OUTPUT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/data"
-OUTPUT_FILE="${OUTPUT_DIR}/users.json"
-
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
@@ -49,6 +26,38 @@ log_info()    { echo -e "${BLUE}[INFO]${RESET} $*"; }
 log_success() { echo -e "${GREEN}[OK]${RESET} $*"; }
 log_warn()    { echo -e "${YELLOW}[WARN]${RESET} $*"; }
 log_error()   { echo -e "${RED}[ERROR]${RESET} $*"; }
+
+# ===========================================
+# 인자 파싱
+# ===========================================
+SKIP_SIGNUP=false
+while [[ $# -gt 0 && "$1" == --* ]]; do
+    case "$1" in
+        --skip-signup) SKIP_SIGNUP=true; shift ;;
+        *) log_error "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
+BASE_URL="${1:-http://localhost:8080}"
+USER_COUNT="${2:-20}"
+EMAIL_PREFIX="${3:-loadtest}"
+DOMAIN="test.cotalk.com"
+PASSWORD="${TEST_PASS:-Test1234!@}"
+
+# 입력값 검증 (SQL injection 방지)
+if [[ ! "$EMAIL_PREFIX" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    log_error "EMAIL_PREFIX는 영문/숫자/밑줄/하이픈만 허용됩니다: ${EMAIL_PREFIX}"
+    exit 1
+fi
+
+# Rate limit bypass 토큰 (K6_TOKEN 환경변수로 전달)
+K6_TOKEN="${K6_TOKEN:-}"
+K6_HEADER=""
+if [ -n "$K6_TOKEN" ]; then
+    K6_HEADER="X-K6-Token: ${K6_TOKEN}"
+fi
+OUTPUT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/data"
+OUTPUT_FILE="${OUTPUT_DIR}/users.json"
 
 # ===========================================
 # 서버 상태 확인

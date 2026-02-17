@@ -80,14 +80,44 @@ K6_FLAGS=(
 )
 
 # Prometheus 설정
+# --prometheus 플래그 사용 시 k6 → nginx → Prometheus로 메트릭 전송
+# nginx에서 K6 토큰을 쿼리 파라미터로 인증
+# PROMETHEUS_URL 환경변수로 직접 지정 가능
 if [[ "$PROMETHEUS_FLAG" == true ]]; then
-  PROMETHEUS_URL="${PROMETHEUS_URL:-http://localhost:9090/api/v1/write}"
-  export K6_PROMETHEUS_RW_SERVER_URL="$PROMETHEUS_URL"
+  if [[ -n "${PROMETHEUS_URL:-}" ]]; then
+    PROM_URL="$PROMETHEUS_URL"
+  else
+    # K6_ARGS에서 BASE_URL 추출 시도
+    DETECTED_BASE=""
+    if [[ ${#K6_ARGS[@]} -gt 0 ]]; then
+      for i in "${!K6_ARGS[@]}"; do
+        if [[ "${K6_ARGS[$i]}" == "BASE_URL="* ]]; then
+          DETECTED_BASE="${K6_ARGS[$i]#BASE_URL=}"
+        fi
+      done
+    fi
+    if [[ -n "$DETECTED_BASE" ]]; then
+      PROM_URL="${DETECTED_BASE}/prometheus/api/v1/write"
+    else
+      PROM_URL="http://localhost:9090/api/v1/write"
+    fi
+  fi
+  # K6 토큰을 쿼리 파라미터로 추가 (nginx 인증용)
+  if [[ -n "${K6_TOKEN:-}" ]]; then
+    PROM_URL="${PROM_URL}?k6token=${K6_TOKEN}"
+  fi
+  export K6_PROMETHEUS_RW_SERVER_URL="$PROM_URL"
+  export K6_PROMETHEUS_RW_PUSH_INTERVAL="5s"
   K6_FLAGS+=("--out" "experimental-prometheus-rw")
-  echo -e "${BLUE}[INFO] Prometheus Remote Write enabled: ${PROMETHEUS_URL}${NC}"
+  echo -e "${BLUE}[INFO] Prometheus Remote Write: ${PROM_URL%%\?*}${NC}"
 fi
 
-K6_CMD=("k6" "run" "${K6_FLAGS[@]}" "${K6_ARGS[@]}" "$K6_SCRIPT")
+# k6 실행 명령어 구성 (macOS Bash 3.2 호환)
+if [[ ${#K6_ARGS[@]} -gt 0 ]]; then
+  K6_CMD=("k6" "run" "${K6_FLAGS[@]}" "${K6_ARGS[@]}" "$K6_SCRIPT")
+else
+  K6_CMD=("k6" "run" "${K6_FLAGS[@]}" "$K6_SCRIPT")
+fi
 
 # 실행 정보 출력
 echo -e "${GREEN}========================================${NC}"

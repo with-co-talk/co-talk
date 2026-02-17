@@ -8,6 +8,7 @@ import {
   THRESHOLDS,
   authHeaders,
   getSeededUsers,
+  safeParseBigInts,
 } from '../config.js';
 
 /**
@@ -92,7 +93,7 @@ export default function (data) {
     });
     if (res.status === 200) {
       try {
-        chatRooms = JSON.parse(res.body);
+        chatRooms = safeParseBigInts(res.body);
       } catch {
         chatRooms = [];
       }

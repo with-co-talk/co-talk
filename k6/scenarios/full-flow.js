@@ -10,6 +10,7 @@ import {
   authHeaders,
   getSeededUsers,
   getSeededUser,
+  safeParseBigInts,
 } from '../config.js';
 import {
   connectStomp,
@@ -94,7 +95,7 @@ export default function (data) {
 
     if (roomsRes.status === 200) {
       try {
-        const rooms = JSON.parse(roomsRes.body);
+        const rooms = safeParseBigInts(roomsRes.body);
         if (Array.isArray(rooms) && rooms.length > 0) {
           chatRoomId = rooms[0].id || rooms[0].chatRoomId;
         }
@@ -122,7 +123,7 @@ export default function (data) {
 
       if (createRes.status === 200 || createRes.status === 201) {
         try {
-          const room = JSON.parse(createRes.body);
+          const room = safeParseBigInts(createRes.body);
           chatRoomId = room.id || room.chatRoomId;
         } catch {
           // ignore
@@ -149,14 +150,14 @@ export default function (data) {
       WS_URL,
       token,
       function onConnected(socket) {
-        socket.send(stompSubscribe(`/topic/chat/${chatRoomId}`, `room-${chatRoomId}`));
+        socket.send(stompSubscribe(`/topic/chat/room/${chatRoomId}`, `room-${chatRoomId}`));
         socket.send(stompSubscribe('/user/queue/notifications', 'notif'));
 
         socket.send(
           stompSend('/app/chat/presence', { roomId: chatRoomId })
         );
 
-        const interval = setInterval(function () {
+        socket.setInterval(function () {
           msgCount++;
           socket.send(
             stompSend('/app/chat/message', {
@@ -166,10 +167,6 @@ export default function (data) {
           );
           wsMessages.add(1);
         }, 5000);
-
-        socket.on('close', function () {
-          clearInterval(interval);
-        });
       },
       wsSessionMs
     );
