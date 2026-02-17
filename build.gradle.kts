@@ -86,6 +86,9 @@ dependencies {
     // Logging - Loki (Logback appender)
     implementation("com.github.loki4j:loki-logback-appender:1.4.2")
 
+    // Logging - JSON format (prod 프로필에서 사용)
+    implementation("net.logstash.logback:logstash-logback-encoder:8.0")
+
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
