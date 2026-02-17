@@ -199,6 +199,33 @@ public class MessageRepositoryAdapter implements MessageRepository {
     }
 
     /**
+     * 여러 채팅방에서 특정 사용자를 제외한 다른 발신자 ID를 한 번에 조회한다.
+     * 1:1 채팅방에서 상대방이 나갔을 때 상대방 ID를 배치로 찾는 데 사용한다. (N+1 쿼리 방지)
+     *
+     * @param chatRoomIds 채팅방 ID 목록
+     * @param excludeUserId 제외할 사용자 ID
+     * @return 채팅방 ID를 키로, 첫 번째 다른 발신자 ID를 값으로 하는 Map
+     */
+    @Override
+    public Map<Long, Long> findDistinctSenderIdsByChatRoomIdsExcludingUser(List<Long> chatRoomIds, Long excludeUserId) {
+        if (chatRoomIds == null || chatRoomIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        List<Object[]> results = messageJpaRepository.findDistinctSenderIdsByChatRoomIdsExcludingUser(chatRoomIds, excludeUserId);
+        Map<Long, Long> senderIdMap = new HashMap<>();
+
+        for (Object[] row : results) {
+            Long chatRoomId = ((Number) row[0]).longValue();
+            Long senderId = ((Number) row[1]).longValue();
+            // 1:1 채팅방이므로 첫 번째 발신자만 사용 (putIfAbsent)
+            senderIdMap.putIfAbsent(chatRoomId, senderId);
+        }
+
+        return senderIdMap;
+    }
+
+    /**
      * 채팅방의 모든 멤버에 대해 읽지 않은 메시지 수를 한 번에 조회한다.
      * (N+1 쿼리 방지용 배치 조회)
      *

@@ -187,6 +187,19 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
             @Param("excludeUserId") Long excludeUserId);
 
     /**
+     * 여러 채팅방에서 특정 사용자를 제외한 다른 발신자 ID를 한 번에 조회한다.
+     * 1:1 채팅방에서 상대방이 나갔을 때 상대방 ID를 배치로 찾는 데 사용한다. (N+1 쿼리 방지)
+     *
+     * @param chatRoomIds 채팅방 ID 목록
+     * @param excludeUserId 제외할 사용자 ID
+     * @return 채팅방 ID와 발신자 ID 배열의 목록 (Object[0]=chatRoomId, Object[1]=senderId)
+     */
+    @Query("SELECT DISTINCT m.chatRoomId, m.senderId FROM Message m WHERE m.chatRoomId IN :chatRoomIds AND m.senderId <> :excludeUserId AND m.deleted = false")
+    List<Object[]> findDistinctSenderIdsByChatRoomIdsExcludingUser(
+            @Param("chatRoomIds") List<Long> chatRoomIds,
+            @Param("excludeUserId") Long excludeUserId);
+
+    /**
      * 채팅방의 모든 멤버에 대해 읽지 않은 메시지 수를 한 번에 조회한다.
      * (N+1 쿼리 방지용 배치 조회)
      *

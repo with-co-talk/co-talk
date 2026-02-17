@@ -140,6 +140,19 @@ public interface MessageRepository {
     List<Long> findDistinctSenderIdsByChatRoomIdExcludingUser(Long chatRoomId, Long excludeUserId);
 
     /**
+     * 여러 채팅방에서 특정 사용자를 제외한 다른 발신자 ID를 한 번에 조회한다.
+     * 1:1 채팅방에서 상대방이 나갔을 때 상대방 ID를 배치로 찾는 데 사용한다. (N+1 쿼리 방지)
+     *
+     * <p>각 채팅방별로 첫 번째 발신자 ID를 맵으로 반환한다.
+     * 1:1 채팅방에서는 본인 외의 발신자가 1명이므로 첫 번째 값만 사용한다.
+     *
+     * @param chatRoomIds 채팅방 ID 목록
+     * @param excludeUserId 제외할 사용자 ID
+     * @return 채팅방 ID를 키로, 첫 번째 다른 발신자 ID를 값으로 하는 Map
+     */
+    Map<Long, Long> findDistinctSenderIdsByChatRoomIdsExcludingUser(List<Long> chatRoomIds, Long excludeUserId);
+
+    /**
      * 채팅방의 모든 멤버에 대해 읽지 않은 메시지 수를 한 번에 조회한다.
      * (N+1 쿼리 방지용 배치 조회)
      *

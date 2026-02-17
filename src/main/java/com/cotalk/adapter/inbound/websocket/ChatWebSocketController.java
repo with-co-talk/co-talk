@@ -21,6 +21,7 @@ import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase.Reaction
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase.FileMessageCommand;
+import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import com.cotalk.infrastructure.metrics.CustomMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -70,6 +71,7 @@ public class ChatWebSocketController {
     private final PublishTypingStatusUseCase publishTypingStatusUseCase;
     private final UpdatePresenceStatusUseCase updatePresenceStatusUseCase;
     private final PublishChatListUpdateUseCase publishChatListUpdateUseCase;
+    private final ChatRoomMemberValidator chatRoomMemberValidator;
     private final CustomMetrics customMetrics;
 
     /**
@@ -94,6 +96,9 @@ public class ChatWebSocketController {
             log.warn("Message content too long from user {}: {} chars", authenticatedUserId, request.content().length());
             return;
         }
+
+        // 채팅방 멤버십 검증
+        validateChatRoomMembership(request.roomId(), authenticatedUserId);
 
         customMetrics.incrementMessagesReceived();
         log.debug("Received message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
@@ -146,6 +151,9 @@ public class ChatWebSocketController {
             log.warn("Invalid file message validation failed from user {}: {}", authenticatedUserId, request);
             return;
         }
+
+        // 채팅방 멤버십 검증
+        validateChatRoomMembership(request.roomId(), authenticatedUserId);
 
         customMetrics.incrementMessagesReceived();
         log.debug("Received file message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
@@ -296,6 +304,10 @@ public class ChatWebSocketController {
             return;
         }
         Long authenticatedUserId = extractUserId(headerAccessor);
+
+        // 채팅방 멤버십 검증
+        validateChatRoomMembership(request.roomId(), authenticatedUserId);
+
         publishTypingStatusUseCase.publishTypingStatus(
                 request.roomId(), authenticatedUserId, Boolean.TRUE.equals(request.isTyping()));
     }
@@ -310,6 +322,10 @@ public class ChatWebSocketController {
             return;
         }
         Long authenticatedUserId = extractUserId(headerAccessor);
+
+        // 채팅방 멤버십 검증
+        validateChatRoomMembership(request.roomId(), authenticatedUserId);
+
         String sessionId = headerAccessor.getSessionId();
         updatePresenceStatusUseCase.markActive(request.roomId(), authenticatedUserId, sessionId);
     }
@@ -324,6 +340,10 @@ public class ChatWebSocketController {
             return;
         }
         Long authenticatedUserId = extractUserId(headerAccessor);
+
+        // 채팅방 멤버십 검증
+        validateChatRoomMembership(request.roomId(), authenticatedUserId);
+
         String sessionId = headerAccessor.getSessionId();
         updatePresenceStatusUseCase.markInactive(request.roomId(), authenticatedUserId, sessionId);
     }
@@ -373,5 +393,22 @@ public class ChatWebSocketController {
                contentType.equals("application/vnd.ms-excel") ||
                contentType.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") ||
                contentType.equals("text/plain");
+    }
+
+    /**
+     * 사용자가 채팅방의 멤버인지 검증합니다.
+     * 멤버가 아닌 경우 예외를 발생시키고 WebSocket 메시지 처리를 중단합니다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param userId 사용자 ID
+     * @throws com.cotalk.domain.exception.ChatRoomAccessDeniedException 사용자가 채팅방 멤버가 아닌 경우
+     */
+    private void validateChatRoomMembership(Long chatRoomId, Long userId) {
+        try {
+            chatRoomMemberValidator.validateMembership(chatRoomId, userId);
+        } catch (com.cotalk.domain.exception.ChatRoomAccessDeniedException e) {
+            log.warn("Unauthorized WebSocket operation attempt: userId={}, chatRoomId={}", userId, chatRoomId);
+            throw e;
+        }
     }
 }
