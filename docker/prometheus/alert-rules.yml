@@ -121,3 +121,58 @@ groups:
         annotations:
           summary: "WebSocket 연결 급증"
           description: "5분 내에 WebSocket 연결이 100개 이상 증가했습니다."
+
+      # ===========================================
+      # 메시지 전달 파이프라인 알림
+      # ===========================================
+      - alert: RedisPublishFailureRate
+        expr: |
+          sum(rate(cotalk_redis_publish_total{result="failure"}[5m]))
+          / (sum(rate(cotalk_redis_publish_total[5m])) > 0) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis Pub/Sub 발행 실패율 증가"
+          description: "Redis 메시지 발행 실패율이 1%를 초과합니다. 현재: {{ $value | printf \"%.2f\" }}%"
+
+      - alert: WebSocketDeliveryFailureRate
+        expr: |
+          sum(rate(cotalk_websocket_delivery_total{result="failure"}[5m]))
+          / (sum(rate(cotalk_websocket_delivery_total[5m])) > 0) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WebSocket 메시지 전달 실패율 증가"
+          description: "WebSocket 메시지 전달 실패율이 1%를 초과합니다. 현재: {{ $value | printf \"%.2f\" }}%"
+
+      - alert: MessageDeliveryPipelineDown
+        expr: |
+          sum(rate(cotalk_redis_publish_total{result="failure"}[5m]))
+          / (sum(rate(cotalk_redis_publish_total[5m])) > 0) > 0.1
+          or
+          sum(rate(cotalk_websocket_delivery_total{result="failure"}[5m]))
+          / (sum(rate(cotalk_websocket_delivery_total[5m])) > 0) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "메시지 전달 파이프라인 장애"
+          description: "Redis 발행 또는 WebSocket 전달 실패율이 10%를 초과합니다. 즉시 확인이 필요합니다."
+
+      - alert: MessageDeliveryImbalance
+        expr: |
+          abs(
+            sum by (instance) (rate(cotalk_websocket_delivery_total{type="message",result="success"}[5m]))
+            - ignoring(instance) group_left
+            avg(sum by (instance) (rate(cotalk_websocket_delivery_total{type="message",result="success"}[5m])))
+          )
+          / (avg(sum by (instance) (rate(cotalk_websocket_delivery_total{type="message",result="success"}[5m]))) > 0)
+          > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "인스턴스 간 메시지 전달 불균형"
+          description: "인스턴스 {{ $labels.instance }}의 메시지 전달량이 평균 대비 50% 이상 차이납니다. 단방향 전달 실패 가능성이 있습니다."
