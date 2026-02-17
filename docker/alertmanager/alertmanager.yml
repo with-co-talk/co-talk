@@ -14,12 +14,12 @@
 
 global:
   resolve_timeout: 5m
-  # SMTP 설정 (이메일 알림 사용 시 주석 해제 후 직접 값 입력)
-  # smtp_smarthost: 'smtp.gmail.com:587'
-  # smtp_from: 'alertmanager@cotalk.com'
-  # smtp_auth_username: 'your-email@gmail.com'
-  # smtp_auth_password: 'your-app-password'
-  # smtp_require_tls: true
+  # SMTP 설정 (Gmail 앱 비밀번호 생성: https://myaccount.google.com/apppasswords)
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'sgyjdev@gmail.com'
+  smtp_auth_username: 'sgyjdev@gmail.com'
+  smtp_auth_password: '__SMTP_AUTH_PASSWORD__'  # docker-compose에서 .env 값으로 자동 치환됨
+  smtp_require_tls: true
 
 route:
   group_by: ['alertname', 'severity']
@@ -31,14 +31,31 @@ route:
     - match:
         severity: critical
       receiver: 'critical-receiver'
+      repeat_interval: 30m  # Critical은 30분마다 재전송
       continue: true
     - match:
         severity: warning
       receiver: 'warning-receiver'
+      repeat_interval: 2h  # Warning은 2시간마다 재전송
 
 receivers:
-  # 기본 수신자 (로그만 - Slack 사용 시 slack_configs 주석 해제)
+  # 기본 수신자 (이메일 알림)
   - name: 'default-receiver'
+    email_configs:
+      - to: 'sgyjdev@gmail.com'
+        send_resolved: true
+        headers:
+          Subject: '[Co-Talk Alert] {{ .GroupLabels.alertname }}'
+        html: |
+          <h2>[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}</h2>
+          {{ range .Alerts }}
+          <ul>
+            <li><b>Alert:</b> {{ .Labels.alertname }}</li>
+            <li><b>Severity:</b> {{ .Labels.severity }}</li>
+            <li><b>Description:</b> {{ .Annotations.description }}</li>
+            {{ if .Labels.instance }}<li><b>Instance:</b> {{ .Labels.instance }}</li>{{ end }}
+          </ul>
+          {{ end }}
     # slack_configs:
     #   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
     #     channel: '#cotalk-alerts'
@@ -51,8 +68,25 @@ receivers:
     #       *Description:* {{ .Annotations.description }}
     #       {{ end }}
 
-  # Critical 알림
+  # Critical 알림 (우선순위 높음, 30분마다 재전송)
   - name: 'critical-receiver'
+    email_configs:
+      - to: 'sgyjdev@gmail.com'
+        send_resolved: true
+        headers:
+          Subject: '[CRITICAL] Co-Talk 긴급 알림: {{ .GroupLabels.alertname }}'
+          Priority: 'urgent'
+        html: |
+          <h1 style="color: red;">🚨 [CRITICAL] {{ .GroupLabels.alertname }}</h1>
+          {{ range .Alerts }}
+          <ul>
+            <li><b>Alert:</b> {{ .Labels.alertname }}</li>
+            <li><b>Instance:</b> {{ .Labels.instance }}</li>
+            <li><b>Severity:</b> {{ .Labels.severity }}</li>
+            <li><b>Description:</b> {{ .Annotations.description }}</li>
+            <li><b>Summary:</b> {{ .Annotations.summary }}</li>
+          </ul>
+          {{ end }}
     # slack_configs:
     #   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
     #     channel: '#cotalk-critical'
@@ -65,12 +99,24 @@ receivers:
     #       *Instance:* {{ .Labels.instance }}
     #       *Description:* {{ .Annotations.description }}
     #       {{ end }}
-    # email_configs:
-    #   - to: 'admin@cotalk.com'
-    #     send_resolved: true
 
-  # Warning 알림
+  # Warning 알림 (2시간마다 재전송)
   - name: 'warning-receiver'
+    email_configs:
+      - to: 'sgyjdev@gmail.com'
+        send_resolved: true
+        headers:
+          Subject: '[WARNING] Co-Talk 경고: {{ .GroupLabels.alertname }}'
+        html: |
+          <h2 style="color: orange;">⚠️ [WARNING] {{ .GroupLabels.alertname }}</h2>
+          {{ range .Alerts }}
+          <ul>
+            <li><b>Alert:</b> {{ .Labels.alertname }}</li>
+            <li><b>Severity:</b> {{ .Labels.severity }}</li>
+            <li><b>Description:</b> {{ .Annotations.description }}</li>
+            {{ if .Labels.instance }}<li><b>Instance:</b> {{ .Labels.instance }}</li>{{ end }}
+          </ul>
+          {{ end }}
     # slack_configs:
     #   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
     #     channel: '#cotalk-alerts'
