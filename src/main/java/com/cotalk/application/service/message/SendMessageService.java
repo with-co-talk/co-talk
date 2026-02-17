@@ -179,6 +179,11 @@ public class SendMessageService implements SendMessageUseCase {
             return new SendResult(savedMessage, senderNickname, senderAvatarUrl, members);
         });
 
+        // TransactionTemplate.execute()의 반환값이 null인 경우 예외 처리
+        if (result == null) {
+            throw new IllegalStateException("트랜잭션 실행 결과가 null입니다. chatRoomId=" + chatRoomId);
+        }
+
         // 트랜잭션 밖: 푸시 알림 전송 (Redis 호출 — DB 커넥션 미점유)
         sendPushNotificationsToOtherMembers(chatRoomId, senderId, notificationContent,
                 result.senderNickname(), result.senderAvatarUrl(), result.members());

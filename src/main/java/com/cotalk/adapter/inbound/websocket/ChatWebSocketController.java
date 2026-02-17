@@ -141,6 +141,12 @@ public class ChatWebSocketController {
             return;
         }
 
+        // 파일 메시지 추가 검증
+        if (!isValidFileMessage(request)) {
+            log.warn("Invalid file message validation failed from user {}: {}", authenticatedUserId, request);
+            return;
+        }
+
         customMetrics.incrementMessagesReceived();
         log.debug("Received file message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
 
@@ -206,6 +212,12 @@ public class ChatWebSocketController {
     @MessageMapping("/chat/reaction/add")
     public void addReaction(@Payload AddReactionRequest request, StompHeaderAccessor headerAccessor) {
         Long authenticatedUserId = extractUserId(headerAccessor);
+
+        if (request == null || request.messageId() == null || request.emoji() == null || request.emoji().isBlank()) {
+            log.warn("Invalid reaction add request from user {}: {}", authenticatedUserId, request);
+            return;
+        }
+
         log.debug("Received reaction add from authenticated user {} to message {}", authenticatedUserId, request.messageId());
 
         ReactionResult result = addMessageReactionUseCase.addReactionWithContext(
@@ -236,6 +248,12 @@ public class ChatWebSocketController {
     @MessageMapping("/chat/reaction/remove")
     public void removeReaction(@Payload RemoveReactionRequest request, StompHeaderAccessor headerAccessor) {
         Long authenticatedUserId = extractUserId(headerAccessor);
+
+        if (request == null || request.messageId() == null || request.emoji() == null || request.emoji().isBlank()) {
+            log.warn("Invalid reaction remove request from user {}: {}", authenticatedUserId, request);
+            return;
+        }
+
         log.debug("Received reaction remove from authenticated user {} to message {}", authenticatedUserId, request.messageId());
 
         Long chatRoomId = removeMessageReactionUseCase.removeReactionWithContext(
@@ -308,5 +326,52 @@ public class ChatWebSocketController {
         Long authenticatedUserId = extractUserId(headerAccessor);
         String sessionId = headerAccessor.getSessionId();
         updatePresenceStatusUseCase.markInactive(request.roomId(), authenticatedUserId, sessionId);
+    }
+
+    /**
+     * 파일 메시지 유효성을 검증합니다.
+     * fileName 길이 제한(255자)과 contentType 허용 목록을 확인합니다.
+     *
+     * @param request 파일 메시지 요청
+     * @return 유효하면 true, 그렇지 않으면 false
+     */
+    private boolean isValidFileMessage(FileMessageRequest request) {
+        // fileName 검증: null, 빈 문자열, 255자 초과 체크
+        if (request.fileName() == null || request.fileName().isBlank()) {
+            return false;
+        }
+        if (request.fileName().length() > 255) {
+            return false;
+        }
+
+        // contentType 검증: 허용 목록에 있는지 확인
+        if (request.contentType() == null) {
+            return false;
+        }
+        return isAllowedContentType(request.contentType());
+    }
+
+    /**
+     * contentType이 허용 목록에 포함되는지 확인합니다.
+     * UploadFileService의 ALLOWED_CONTENT_TYPES와 동일한 기준을 사용합니다.
+     *
+     * @param contentType 검증할 content type
+     * @return 허용되면 true, 그렇지 않으면 false
+     */
+    private boolean isAllowedContentType(String contentType) {
+        return contentType.equals("image/jpeg") ||
+               contentType.equals("image/png") ||
+               contentType.equals("image/gif") ||
+               contentType.equals("image/webp") ||
+               contentType.equals("image/heic") ||
+               contentType.equals("image/heif") ||
+               contentType.equals("video/mp4") ||
+               contentType.equals("video/quicktime") ||
+               contentType.equals("application/pdf") ||
+               contentType.equals("application/msword") ||
+               contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document") ||
+               contentType.equals("application/vnd.ms-excel") ||
+               contentType.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") ||
+               contentType.equals("text/plain");
     }
 }
