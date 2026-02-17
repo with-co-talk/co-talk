@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -15,7 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 타이핑 상태 발행 유스케이스 구현체.
  * 사용자의 타이핑 시작/중지 상태를 채팅방에 브로드캐스트한다.
  *
- * <p>닉네임 캐시를 사용하여 반복적인 DB 조회를 방지한다.</p>
+ * <p>닉네임 캐시를 사용하여 반복적인 DB 조회를 방지한다.
+ * 캐시 항목은 1시간 후 만료되어 메모리 누수를 방지한다.</p>
  *
  * @author seunggu.lee
  */
@@ -26,7 +29,14 @@ public class PublishTypingStatusService implements PublishTypingStatusUseCase {
 
     private final UserRepository userRepository;
     private final ChatMessageBroker chatMessageBroker;
-    private final Map<Long, String> userNicknameCache = new ConcurrentHashMap<>();
+    private final Map<Long, CachedNickname> userNicknameCache = new ConcurrentHashMap<>();
+
+    /** 캐시 TTL: 1시간 */
+    private static final long CACHE_TTL_MILLIS = 3_600_000L;
+
+    /** 캐시 정리 주기: 100회 호출마다 만료 항목 정리 */
+    private static final int EVICTION_INTERVAL = 100;
+    private int callCount = 0;
 
     /**
      * {@inheritDoc}
@@ -35,8 +45,7 @@ public class PublishTypingStatusService implements PublishTypingStatusUseCase {
      */
     @Override
     public void publishTypingStatus(Long chatRoomId, Long userId, boolean isTyping) {
-        String userNickname = userNicknameCache.computeIfAbsent(userId,
-                id -> userRepository.findById(id).map(User::getNickname).orElse(null));
+        String userNickname = getCachedNickname(userId);
 
         String eventType = isTyping ? "TYPING" : "STOP_TYPING";
         chatMessageBroker.publishRoomEvent(chatRoomId, new TypingBroadcastEvent(
@@ -49,6 +58,49 @@ public class PublishTypingStatusService implements PublishTypingStatusUseCase {
                 isTyping
         ));
         log.debug("[WS] publishTypingStatus roomId={}, userId={}, isTyping={}", chatRoomId, userId, isTyping);
+
+        // 주기적으로 만료된 캐시 항목 정리
+        if (++callCount % EVICTION_INTERVAL == 0) {
+            evictExpiredEntries();
+        }
+    }
+
+    /**
+     * TTL이 적용된 닉네임 캐시에서 조회한다.
+     * 캐시 미스 또는 만료 시 DB에서 조회하여 갱신한다.
+     */
+    private String getCachedNickname(Long userId) {
+        CachedNickname cached = userNicknameCache.get(userId);
+        if (cached != null && !cached.isExpired()) {
+            return cached.nickname;
+        }
+
+        String nickname = userRepository.findById(userId)
+                .map(User::getNickname)
+                .orElse(null);
+        userNicknameCache.put(userId, new CachedNickname(nickname, Instant.now()));
+        return nickname;
+    }
+
+    /**
+     * 만료된 캐시 항목을 제거한다.
+     */
+    private void evictExpiredEntries() {
+        Iterator<Map.Entry<Long, CachedNickname>> it = userNicknameCache.entrySet().iterator();
+        while (it.hasNext()) {
+            if (it.next().getValue().isExpired()) {
+                it.remove();
+            }
+        }
+    }
+
+    /**
+     * TTL이 적용된 닉네임 캐시 항목.
+     */
+    private record CachedNickname(String nickname, Instant cachedAt) {
+        boolean isExpired() {
+            return Instant.now().toEpochMilli() - cachedAt.toEpochMilli() > CACHE_TTL_MILLIS;
+        }
     }
 
     /**
