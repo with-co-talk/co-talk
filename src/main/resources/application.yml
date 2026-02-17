@@ -179,6 +179,10 @@ app:
         requests-per-second: 10
         requests-per-minute: 60
         per-user: true
+      # 링크 미리보기 - 사용자별 제한 (SSRF 증폭 방지)
+      - path: "/api/v1/link-preview"
+        requests-per-minute: 20
+        per-user: true
 
 # 로깅 설정
 # 주의: 프로덕션 환경에서는 application-prod.yml의 설정이 적용됨
