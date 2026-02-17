@@ -440,6 +440,29 @@ class SendMessageServiceTest {
     }
 
     @Nested
+    @DisplayName("TransactionTemplate 반환값 검증")
+    class TransactionResultValidation {
+
+        @Test
+        @DisplayName("트랜잭션 실행 결과가 null이면 예외가 발생한다")
+        void should_throwException_when_transactionReturnsNull() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+            String content = "테스트 메시지";
+
+            // TransactionTemplate이 null을 반환하도록 설정
+            given(transactionTemplate.execute(any(TransactionCallback.class)))
+                    .willReturn(null);
+
+            // when & then
+            assertThatThrownBy(() -> sendMessageService.sendMessage(chatRoomId, senderId, content))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("트랜잭션");
+        }
+    }
+
+    @Nested
     @DisplayName("푸시 알림 전송 시")
     class PushNotification {
 

@@ -17,18 +17,13 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSession.Subscription;
-import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.web.socket.WebSocketHttpHeaders;
-import org.springframework.web.socket.client.standard.StandardWebSocketClient;
-import org.springframework.web.socket.messaging.WebSocketStompClient;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -42,6 +37,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.cotalk.integration.WebSocketTestHelper.*;
+import static org.awaitility.Awaitility.await;
 
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(
@@ -108,8 +105,8 @@ class WebSocketChatIntegrationTest {
                 .build());
 
         // connect sessions
-        StompSession sessionA = connectWithToken(jwtTokenProvider.generateToken(1L));
-        StompSession sessionB = connectWithToken(jwtTokenProvider.generateToken(2L));
+        StompSession sessionA = connectWithToken(port, jwtTokenProvider.generateToken(1L));
+        StompSession sessionB = connectWithToken(port, jwtTokenProvider.generateToken(2L));
 
         try {
             CompletableFuture<Map<String, Object>> received = new CompletableFuture<>();
@@ -126,7 +123,7 @@ class WebSocketChatIntegrationTest {
                     received.complete((Map<String, Object>) payload);
                 }
             });
-            awaitSubscriptionReady();
+            awaitSubscriptionReady(sessionB);
 
             // when: A sends message
             sessionA.send("/app/chat/message", Map.of(
@@ -169,8 +166,8 @@ class WebSocketChatIntegrationTest {
                 .userId(2L)
                 .build());
 
-        StompSession sessionA = connectWithToken(jwtTokenProvider.generateToken(1L));
-        StompSession sessionB = connectWithToken(jwtTokenProvider.generateToken(2L));
+        StompSession sessionA = connectWithToken(port, jwtTokenProvider.generateToken(1L));
+        StompSession sessionB = connectWithToken(port, jwtTokenProvider.generateToken(2L));
 
         try {
             BlockingQueue<Map<String, Object>> chatListEvents = new LinkedBlockingQueue<>();
@@ -200,7 +197,7 @@ class WebSocketChatIntegrationTest {
                     // no-op
                 }
             });
-            awaitSubscriptionReady();
+            awaitSubscriptionReady(sessionB);
 
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -208,13 +205,13 @@ class WebSocketChatIntegrationTest {
                     "content", "m1"
             ));
 
-            Map<String, Object> e1 = pollChatListNewMessage(chatListEvents, "m1");
+            Map<String, Object> e1 = pollChatListNewMessage(chatListEvents, "m1", 15);
             assertThat(e1.get("eventType")).isEqualTo("NEW_MESSAGE");
             assertThat(((Number) e1.get("roomId")).longValue()).isEqualTo(roomId);
             assertThat(((Number) e1.get("unreadCount")).intValue()).isZero();
 
             // B 읽음 반영(REST) - 실제 앱과 동일하게 lastReadAt 업데이트
-            markAsReadViaRest(2L, roomId);
+            markAsReadViaRest(restTemplate, jwtTokenProvider, 2L, roomId);
 
             // 2) B가 구독 해제 후 메시지 전송 -> unreadCount 증가
             roomSub.unsubscribe();
@@ -225,7 +222,7 @@ class WebSocketChatIntegrationTest {
                     "content", "m2"
             ));
 
-            Map<String, Object> e2 = pollChatListNewMessage(chatListEvents, "m2");
+            Map<String, Object> e2 = pollChatListNewMessage(chatListEvents, "m2", 15);
             assertThat(e2.get("eventType")).isEqualTo("NEW_MESSAGE");
             assertThat(((Number) e2.get("roomId")).longValue()).isEqualTo(roomId);
             assertThat(((Number) e2.get("unreadCount")).intValue()).isEqualTo(1);
@@ -258,8 +255,8 @@ class WebSocketChatIntegrationTest {
                 .userId(2L)
                 .build());
 
-        StompSession sessionA = connectWithToken(jwtTokenProvider.generateToken(1L));
-        StompSession sessionB = connectWithToken(jwtTokenProvider.generateToken(2L));
+        StompSession sessionA = connectWithToken(port, jwtTokenProvider.generateToken(1L));
+        StompSession sessionB = connectWithToken(port, jwtTokenProvider.generateToken(2L));
 
         try {
             BlockingQueue<Map<String, Object>> aRoomEvents = new LinkedBlockingQueue<>();
@@ -289,7 +286,7 @@ class WebSocketChatIntegrationTest {
                     // no-op
                 }
             });
-            awaitSubscriptionReady();
+            awaitSubscriptionReady(sessionB);
 
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -297,14 +294,14 @@ class WebSocketChatIntegrationTest {
                     "content", "m1"
             ));
 
-            Map<String, Object> messagePayload = pollRoomMessage(aRoomEvents, "m1");
+            Map<String, Object> messagePayload = pollRoomMessage(aRoomEvents, "m1", 15);
             Long messageId = ((Number) messagePayload.get("messageId")).longValue();
 
             // when: B mark-as-read
-            markAsReadViaRest(2L, roomId);
+            markAsReadViaRest(restTemplate, jwtTokenProvider, 2L, roomId);
 
             // then: A receives READ room event with lastReadMessageId=messageId
-            Map<String, Object> readPayload = pollRoomRead(aRoomEvents, 2L, roomId);
+            Map<String, Object> readPayload = pollRoomRead(aRoomEvents, 2L, roomId, 15);
             assertThat(readPayload.get("eventType")).isEqualTo("READ");
             assertThat(((Number) readPayload.get("chatRoomId")).longValue()).isEqualTo(roomId);
             assertThat(((Number) readPayload.get("userId")).longValue()).isEqualTo(2L);
@@ -339,8 +336,8 @@ class WebSocketChatIntegrationTest {
                 .userId(2L)
                 .build());
 
-        StompSession sessionA = connectWithToken(jwtTokenProvider.generateToken(1L));
-        StompSession sessionB = connectWithToken(jwtTokenProvider.generateToken(2L));
+        StompSession sessionA = connectWithToken(port, jwtTokenProvider.generateToken(1L));
+        StompSession sessionB = connectWithToken(port, jwtTokenProvider.generateToken(2L));
 
         try {
             BlockingQueue<Map<String, Object>> aUserEvents = new LinkedBlockingQueue<>();
@@ -373,7 +370,7 @@ class WebSocketChatIntegrationTest {
                     bUserEvents.add((Map<String, Object>) payload);
                 }
             });
-            awaitSubscriptionReady();
+            awaitSubscriptionReady(sessionB);
 
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -381,20 +378,29 @@ class WebSocketChatIntegrationTest {
                     "content", "m1"
             ));
 
-            // 메시지 ID를 얻기 위해 잠시 대기
-            Thread.sleep(500);
+            // 메시지가 브로드캐스트되고 DB에 저장될 때까지 대기
+            // (메시지 ID를 얻기 위해 REST API로 조회하거나, 큐에서 메시지 수신을 기다림)
+            // 현재는 메시지가 처리될 시간을 주기 위해 최소 대기
+            await()
+                    .atMost(500, TimeUnit.MILLISECONDS)
+                    .pollInterval(50, TimeUnit.MILLISECONDS)
+                    .until(() -> {
+                        // 메시지가 처리되었는지 확인: aUserEvents나 bUserEvents에 메시지가 들어왔는지 확인
+                        // 또는 REST API로 메시지 조회 시도
+                        return !aUserEvents.isEmpty() || !bUserEvents.isEmpty();
+                    });
 
             // when: B mark-as-read
-            markAsReadViaRest(2L, roomId);
+            markAsReadViaRest(restTemplate, jwtTokenProvider, 2L, roomId);
 
             // then: A receives read-receipt event (B가 읽었음을 알림)
-            Map<String, Object> aReadReceipt = pollUserReadReceipt(aUserEvents, 2L, roomId);
+            Map<String, Object> aReadReceipt = pollUserReadReceipt(aUserEvents, 2L, roomId, 15);
             assertThat(((Number) aReadReceipt.get("chatRoomId")).longValue()).isEqualTo(roomId);
             assertThat(((Number) aReadReceipt.get("userId")).longValue()).isEqualTo(2L);
             assertThat(aReadReceipt.get("lastReadMessageId")).isNotNull();
 
             // then: B also receives read-receipt event (자신이 읽었음을 확인)
-            Map<String, Object> bReadReceipt = pollUserReadReceipt(bUserEvents, 2L, roomId);
+            Map<String, Object> bReadReceipt = pollUserReadReceipt(bUserEvents, 2L, roomId, 15);
             assertThat(((Number) bReadReceipt.get("chatRoomId")).longValue()).isEqualTo(roomId);
             assertThat(((Number) bReadReceipt.get("userId")).longValue()).isEqualTo(2L);
             assertThat(bReadReceipt.get("lastReadMessageId")).isNotNull();
@@ -410,113 +416,5 @@ class WebSocketChatIntegrationTest {
         }
     }
 
-    private Map<String, Object> pollUserReadReceipt(
-            BlockingQueue<Map<String, Object>> queue,
-            Long expectedReaderId,
-            Long expectedRoomId
-    ) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(15);
-        while (System.currentTimeMillis() < deadline) {
-            Map<String, Object> e = queue.poll(1, TimeUnit.SECONDS);
-            if (e == null) continue;
-            Object roomId = e.get("chatRoomId");
-            Object userId = e.get("userId");
-            if (roomId == null || userId == null) continue;
-            if (((Number) roomId).longValue() == expectedRoomId && ((Number) userId).longValue() == expectedReaderId) {
-                return e;
-            }
-        }
-        throw new AssertionError("Read receipt event not received for roomId=" + expectedRoomId + ", readerId=" + expectedReaderId);
-    }
-
-    private Map<String, Object> pollRoomMessage(
-            BlockingQueue<Map<String, Object>> queue,
-            String expectedContent
-    ) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(15);
-        while (System.currentTimeMillis() < deadline) {
-            Map<String, Object> e = queue.poll(1, TimeUnit.SECONDS);
-            if (e == null) continue;
-            Object content = e.get("content");
-            Object messageId = e.get("messageId");
-            Object eventType = e.get("eventType");
-            if (expectedContent.equals(content) && messageId != null && eventType == null) {
-                return e;
-            }
-        }
-        throw new AssertionError("Room message not received for content=" + expectedContent);
-    }
-
-    private Map<String, Object> pollRoomRead(
-            BlockingQueue<Map<String, Object>> queue,
-            Long expectedReaderId,
-            Long expectedRoomId
-    ) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(15);
-        while (System.currentTimeMillis() < deadline) {
-            Map<String, Object> e = queue.poll(1, TimeUnit.SECONDS);
-            if (e == null) continue;
-            Object eventType = e.get("eventType");
-            if (!"READ".equals(eventType)) continue;
-            Object roomId = e.get("chatRoomId");
-            Object userId = e.get("userId");
-            if (roomId == null || userId == null) continue;
-            if (((Number) roomId).longValue() == expectedRoomId && ((Number) userId).longValue() == expectedReaderId) {
-                return e;
-            }
-        }
-        throw new AssertionError("READ room event not received for roomId=" + expectedRoomId + ", readerId=" + expectedReaderId);
-    }
-
-    private Map<String, Object> pollChatListNewMessage(
-            BlockingQueue<Map<String, Object>> queue,
-            String expectedLastMessage
-    ) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(15);
-        while (System.currentTimeMillis() < deadline) {
-            Map<String, Object> e = queue.poll(1, TimeUnit.SECONDS);
-            if (e == null) continue;
-            Object eventType = e.get("eventType");
-            Object lastMessage = e.get("lastMessage");
-            if ("NEW_MESSAGE".equals(eventType) && expectedLastMessage.equals(lastMessage)) {
-                return e;
-            }
-        }
-        throw new AssertionError("NEW_MESSAGE chat-list event not received for lastMessage=" + expectedLastMessage);
-    }
-
-    private void markAsReadViaRest(Long userId, Long roomId) {
-        String token = jwtTokenProvider.generateToken(userId);
-        HttpHeaders headers = new HttpHeaders();
-        headers.add("Authorization", "Bearer " + token);
-
-        ResponseEntity<String> res = restTemplate.exchange(
-                "/api/v1/chat/rooms/" + roomId + "/read",
-                HttpMethod.POST,
-                new HttpEntity<>(headers),
-                String.class
-        );
-        assertThat(res.getStatusCode().is2xxSuccessful()).isTrue();
-    }
-
-    private StompSession connectWithToken(String token) throws Exception {
-        WebSocketStompClient stompClient = new WebSocketStompClient(new StandardWebSocketClient());
-        stompClient.setMessageConverter(new MappingJackson2MessageConverter());
-
-        StompHeaders connectHeaders = new StompHeaders();
-        connectHeaders.add("Authorization", "Bearer " + token);
-
-        return stompClient.connectAsync(
-                String.format("ws://localhost:%d/ws", port),
-                new WebSocketHttpHeaders(),
-                connectHeaders,
-                new StompSessionHandlerAdapter() {}
-        ).get(10, TimeUnit.SECONDS);
-    }
-
-    /** 구독이 브로커에 반영될 시간을 주어 CI/로컬 타이밍 불일치를 줄인다. */
-    private static void awaitSubscriptionReady() throws InterruptedException {
-        Thread.sleep(500);
-    }
 }
 

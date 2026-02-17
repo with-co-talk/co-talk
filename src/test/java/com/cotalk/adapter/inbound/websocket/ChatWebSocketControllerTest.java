@@ -303,4 +303,65 @@ class ChatWebSocketControllerTest {
         // then
         verify(broadcastReactionEventUseCase, never()).broadcastReactionEvent(any(), anyLong(), anyString());
     }
+
+    @Test
+    @DisplayName("파일 메시지 전송 시 fileName이 255자를 초과하면 거부된다")
+    void should_rejectFileMessage_when_fileNameTooLong() {
+        // given
+        String tooLongFileName = "a".repeat(256) + ".jpg";
+        FileMessageRequest request = new FileMessageRequest(
+                100L,
+                "https://storage.example.com/image.jpg",
+                tooLongFileName,
+                1024L,
+                "image/jpeg",
+                null
+        );
+
+        // when
+        chatWebSocketController.sendFileMessage(request, createMockHeaderAccessor(1L));
+
+        // then: 서비스 호출 안 함
+        verify(sendMessageUseCase, never()).sendFileMessageWithContext(anyLong(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("파일 메시지 전송 시 fileName이 빈 문자열이면 거부된다")
+    void should_rejectFileMessage_when_fileNameEmpty() {
+        // given
+        FileMessageRequest request = new FileMessageRequest(
+                100L,
+                "https://storage.example.com/image.jpg",
+                "",
+                1024L,
+                "image/jpeg",
+                null
+        );
+
+        // when
+        chatWebSocketController.sendFileMessage(request, createMockHeaderAccessor(1L));
+
+        // then
+        verify(sendMessageUseCase, never()).sendFileMessageWithContext(anyLong(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("파일 메시지 전송 시 contentType이 허용 목록에 없으면 거부된다")
+    void should_rejectFileMessage_when_contentTypeNotAllowed() {
+        // given
+        FileMessageRequest request = new FileMessageRequest(
+                100L,
+                "https://storage.example.com/malicious.exe",
+                "malicious.exe",
+                1024L,
+                "application/x-msdownload",
+                null
+        );
+
+        // when
+        chatWebSocketController.sendFileMessage(request, createMockHeaderAccessor(1L));
+
+        // then
+        verify(sendMessageUseCase, never()).sendFileMessageWithContext(anyLong(), anyLong(), any());
+    }
 }
