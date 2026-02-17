@@ -48,12 +48,11 @@ export function stompSubscribe(destination, id) {
 export function stompSend(destination, body) {
   // JSON.stringify 후, 16자리 이상 숫자 문자열을 JSON 숫자로 복원
   // "roomId":"281840969769287680" → "roomId":281840969769287680
-  const jsonBody = JSON.stringify(body).replace(/"(\d{16,})"/g, '$1');
+  const jsonBody = JSON.stringify(body).replace(/:\s*"(\d{16,})"/g, (match, num) => `:${num}`);
   return (
     'SEND\n' +
     `destination:${destination}\n` +
     'content-type:application/json\n' +
-    `content-length:${jsonBody.length}\n` +
     '\n' +
     jsonBody +
     NULL_CHAR

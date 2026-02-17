@@ -25,9 +25,9 @@ import {
  * 10 → 50 → 100 → 150 → 200 (각 단계 40초 유지)
  *
  * 실행:
- *   K6_TOKEN=cotalk-k6-bypass-2026 k6 run \
- *     --env BASE_URL=https://co-talk.sgyj-dev.synology.me \
- *     --env K6_TOKEN=cotalk-k6-bypass-2026 \
+ *   K6_TOKEN=<your-k6-token> k6 run \
+ *     --env BASE_URL=https://<your-server> \
+ *     --env K6_TOKEN=<your-k6-token> \
  *     k6/scenarios/breakpoint.js
  */
 
@@ -167,7 +167,7 @@ export default function (data) {
   const vuIndex = (__VU - 1) % data.users.length;
   const user = data.users[vuIndex];
 
-  // 방 매핑 (멤버인 방 우선, 없으면 아무 방)
+  // 방 매핑 (멤버인 방 우선, 없으면 스킵)
   let roomId = null;
   for (let r = 0; r < data.rooms.length; r++) {
     const rm = data.rooms[r];
@@ -178,7 +178,9 @@ export default function (data) {
     }
   }
   if (!roomId) {
-    roomId = data.rooms[vuIndex % data.rooms.length].roomId;
+    console.warn(`VU-${__VU}: No room membership found (userId=${user.userId}), skipping`);
+    sleep(SESSION_MS / 1000);
+    return;
   }
 
   runSession(user, roomId);

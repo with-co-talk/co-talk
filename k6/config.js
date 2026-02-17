@@ -45,7 +45,13 @@ export const THRESHOLDS = {
  * 예: {"roomId": 281840969769287680} → {"roomId": "281840969769287680"}
  */
 export function safeParseBigInts(jsonStr) {
-  return JSON.parse(jsonStr.replace(/(:\s*)(\d{16,})/g, '$1"$2"'));
+  // 문자열 내부의 숫자는 건너뛰고, JSON 값 위치의 16자리+ 숫자만 문자열로 변환
+  return JSON.parse(
+    jsonStr.replace(/("(?:[^"\\]|\\.)*")|(\b\d{16,}\b)/g, (match, str, num) => {
+      if (str) return str;
+      return `"${num}"`;
+    })
+  );
 }
 
 // seed.sh로 미리 생성된 사용자 로드 (SharedArray: VU간 메모리 공유)
