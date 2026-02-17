@@ -16,6 +16,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Import;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
+import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
@@ -103,6 +104,7 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
                     received.complete((Map<String, Object>) payload);
                 }
             });
+            awaitSubscriptionReady();
 
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -110,7 +112,7 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
                     "content", "hi"
             ));
 
-            Map<String, Object> payload = received.get(10, TimeUnit.SECONDS);
+            Map<String, Object> payload = received.get(15, TimeUnit.SECONDS);
             assertThat(payload.get("content")).isEqualTo("hi");
             assertThat(payload).containsKeys("schemaVersion", "eventId");
         } finally {
@@ -291,6 +293,160 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
         }
     }
 
+    @Test
+    @Timeout(value = 15)
+    @DisplayName("A가 타이핑 상태를 보내면, B는 방 토픽에서 TYPING 이벤트를 수신한다")
+    void should_broadcastTypingEvent_toRoomTopic() throws Exception {
+        Long roomId = idGenerator.nextId();
+        chatRoomRepository.save(ChatRoom.builder().id(roomId).type(ChatRoom.ChatRoomType.DIRECT).build());
+        chatRoomMemberRepository.save(ChatRoomMember.builder().id(idGenerator.nextId()).chatRoomId(roomId).userId(1L).build());
+        chatRoomMemberRepository.save(ChatRoomMember.builder().id(idGenerator.nextId()).chatRoomId(roomId).userId(2L).build());
+
+        StompSession sessionA = connectWithToken(jwtTokenProvider.generateToken(1L));
+        StompSession sessionB = connectWithToken(jwtTokenProvider.generateToken(2L));
+
+        try {
+            BlockingQueue<Map<String, Object>> roomEvents = new LinkedBlockingQueue<>();
+            sessionB.subscribe("/topic/chat/room/" + roomId, new StompFrameHandler() {
+                @Override
+                public Type getPayloadType(StompHeaders headers) {
+                    return Map.class;
+                }
+
+                @SuppressWarnings("unchecked")
+                @Override
+                public void handleFrame(StompHeaders headers, Object payload) {
+                    roomEvents.add((Map<String, Object>) payload);
+                }
+            });
+            awaitSubscriptionReady();
+
+            sessionA.send("/app/chat/typing", Map.of("roomId", roomId, "isTyping", true));
+
+            Map<String, Object> typing = pollEventByType(roomEvents, "TYPING", 10);
+            assertThat(typing.get("eventType")).isEqualTo("TYPING");
+            assertThat(((Number) typing.get("chatRoomId")).longValue()).isEqualTo(roomId);
+            assertThat(((Number) typing.get("userId")).longValue()).isEqualTo(1L);
+        } finally {
+            sessionA.disconnect();
+            sessionB.disconnect();
+        }
+    }
+
+    @Test
+    @Timeout(value = 10)
+    @DisplayName("멤버가 /app/chat/presence를 보내면 정상 처리된다 (에러 없음)")
+    void should_acceptPresencePing_when_member() throws Exception {
+        Long roomId = idGenerator.nextId();
+        chatRoomRepository.save(ChatRoom.builder().id(roomId).type(ChatRoom.ChatRoomType.DIRECT).build());
+        chatRoomMemberRepository.save(ChatRoomMember.builder().id(idGenerator.nextId()).chatRoomId(roomId).userId(1L).build());
+        chatRoomMemberRepository.save(ChatRoomMember.builder().id(idGenerator.nextId()).chatRoomId(roomId).userId(2L).build());
+
+        StompSession session = connectWithToken(jwtTokenProvider.generateToken(1L));
+        try {
+            session.send("/app/chat/presence", Map.of("roomId", roomId));
+            assertThat(session.isConnected()).as("presence 전송 후에도 세션 유지").isTrue();
+        } finally {
+            session.disconnect();
+        }
+    }
+
+    @Test
+    @Timeout(value = 10)
+    @DisplayName("비멤버가 /topic/chat/room/{roomId} 구독 시 접근 거부된다")
+    void should_rejectSubscribe_when_nonMember() throws Exception {
+        Long roomId = idGenerator.nextId();
+        chatRoomRepository.save(ChatRoom.builder().id(roomId).type(ChatRoom.ChatRoomType.DIRECT).build());
+        chatRoomMemberRepository.save(ChatRoomMember.builder().id(idGenerator.nextId()).chatRoomId(roomId).userId(1L).build());
+        chatRoomMemberRepository.save(ChatRoomMember.builder().id(idGenerator.nextId()).chatRoomId(roomId).userId(2L).build());
+
+        CompletableFuture<Throwable> errorHolder = new CompletableFuture<>();
+        StompSession session3 = connectWithTokenAndErrorCapture(jwtTokenProvider.generateToken(3L), errorHolder);
+        try {
+            session3.subscribe("/topic/chat/room/" + roomId, new StompFrameHandler() {
+                @Override
+                public Type getPayloadType(StompHeaders headers) {
+                    return String.class;
+                }
+
+                @Override
+                public void handleFrame(StompHeaders headers, Object payload) {
+                    // no-op: 이 테스트는 구독 거부(에러)만 검증함
+                }
+            });
+        } catch (Exception e) {
+            errorHolder.complete(e);
+        }
+
+        Throwable t = errorHolder.get(5, TimeUnit.SECONDS);
+        assertThat(t).isNotNull();
+        String msg = t.getMessage() != null ? t.getMessage() : "";
+        assertThat(msg.contains("접근 권한") || msg.contains("Connection closed")).isTrue();
+        if (session3.isConnected()) {
+            session3.disconnect();
+        }
+    }
+
+    @Test
+    @Timeout(value = 15)
+    @DisplayName("비멤버가 /app/chat/message로 메시지 전송 시 /user/queue/errors에 ACCESS_DENIED 수신")
+    void should_receiveAccessDeniedOnErrorsQueue_when_sendMessageAsNonMember() throws Exception {
+        Long roomId = idGenerator.nextId();
+        chatRoomRepository.save(ChatRoom.builder().id(roomId).type(ChatRoom.ChatRoomType.DIRECT).build());
+        chatRoomMemberRepository.save(ChatRoomMember.builder().id(idGenerator.nextId()).chatRoomId(roomId).userId(2L).build());
+        chatRoomMemberRepository.save(ChatRoomMember.builder().id(idGenerator.nextId()).chatRoomId(roomId).userId(3L).build());
+
+        StompSession session1 = connectWithToken(jwtTokenProvider.generateToken(1L));
+        BlockingQueue<Map<String, Object>> errors = new LinkedBlockingQueue<>();
+        session1.subscribe("/user/queue/errors", new StompFrameHandler() {
+            @Override
+            public Type getPayloadType(StompHeaders headers) {
+                return Map.class;
+            }
+
+            @SuppressWarnings("unchecked")
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                errors.add((Map<String, Object>) payload);
+            }
+        });
+        awaitSubscriptionReady();
+
+        session1.send("/app/chat/message", Map.of("senderId", 1L, "roomId", roomId, "content", "forbidden"));
+
+        Map<String, Object> err = pollErrorPayload(errors, 10);
+        assertThat(err.get("code")).isEqualTo("ACCESS_DENIED");
+        session1.disconnect();
+    }
+
+    private Map<String, Object> pollEventByType(
+            BlockingQueue<Map<String, Object>> queue,
+            String eventType,
+            int timeoutSeconds
+    ) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutSeconds);
+        while (System.currentTimeMillis() < deadline) {
+            Map<String, Object> e = queue.poll(1, TimeUnit.SECONDS);
+            if (e == null) continue;
+            if (eventType.equals(e.get("eventType"))) return e;
+        }
+        throw new AssertionError("Event type " + eventType + " not received");
+    }
+
+    private Map<String, Object> pollErrorPayload(BlockingQueue<Map<String, Object>> queue, int timeoutSeconds) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutSeconds);
+        while (System.currentTimeMillis() < deadline) {
+            Map<String, Object> e = queue.poll(1, TimeUnit.SECONDS);
+            if (e != null && e.get("code") != null) return e;
+        }
+        throw new AssertionError("Error payload not received");
+    }
+
+    /** 구독이 브로커에 반영될 시간을 둠. CI/로컬 타이밍 차이 완화. */
+    private static void awaitSubscriptionReady() throws InterruptedException {
+        Thread.sleep(500);
+    }
+
     private Map<String, Object> pollRoomMessage(
             BlockingQueue<Map<String, Object>> queue,
             String expectedContent
@@ -363,18 +519,38 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
     }
 
     private StompSession connectWithToken(String token) throws Exception {
+        return connectWithTokenAndErrorCapture(token, null);
+    }
+
+    private StompSession connectWithTokenAndErrorCapture(String token, CompletableFuture<Throwable> errorHolder) throws Exception {
         WebSocketStompClient stompClient = new WebSocketStompClient(new StandardWebSocketClient());
         stompClient.setMessageConverter(new MappingJackson2MessageConverter());
 
         StompHeaders connectHeaders = new StompHeaders();
         connectHeaders.add("Authorization", "Bearer " + token);
 
+        StompSessionHandlerAdapter handler = new StompSessionHandlerAdapter() {
+            @Override
+            public void handleException(StompSession session, StompCommand command, StompHeaders headers, byte[] payload, Throwable exception) {
+                if (errorHolder != null) {
+                    errorHolder.complete(exception);
+                }
+            }
+
+            @Override
+            public void handleTransportError(StompSession session, Throwable exception) {
+                if (errorHolder != null && !errorHolder.isDone()) {
+                    errorHolder.complete(exception);
+                }
+            }
+        };
+
         return stompClient.connectAsync(
                 String.format("ws://localhost:%d/ws", port),
                 new WebSocketHttpHeaders(),
                 connectHeaders,
-                new StompSessionHandlerAdapter() {}
-        ).get(5, TimeUnit.SECONDS);
+                handler
+        ).get(10, TimeUnit.SECONDS);
     }
 }
 

@@ -4,6 +4,7 @@ import com.cotalk.domain.exception.MessageBrokerException;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ReactionBroadcastEvent;
 import com.cotalk.infrastructure.config.properties.AppProperties;
+import com.cotalk.infrastructure.metrics.CustomMetrics;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -35,6 +36,9 @@ class RedisChatMessageBrokerTest {
     @Mock
     private RedisTemplate<String, String> redisTemplate;
 
+    @Mock
+    private CustomMetrics customMetrics;
+
     private ObjectMapper objectMapper;
     private RedisChatMessageBroker broker;
     private AppProperties appProperties;
@@ -44,7 +48,7 @@ class RedisChatMessageBrokerTest {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         appProperties = createTestAppProperties();
-        broker = new RedisChatMessageBroker(redisTemplate, objectMapper, appProperties);
+        broker = new RedisChatMessageBroker(redisTemplate, objectMapper, appProperties, customMetrics);
     }
 
     private AppProperties createTestAppProperties() {
@@ -136,7 +140,7 @@ class RedisChatMessageBrokerTest {
         void should_throwException_when_serializationFails() throws Exception {
             // given
             ObjectMapper mockMapper = mock(ObjectMapper.class);
-            RedisChatMessageBroker brokerWithMockMapper = new RedisChatMessageBroker(redisTemplate, mockMapper, appProperties);
+            RedisChatMessageBroker brokerWithMockMapper = new RedisChatMessageBroker(redisTemplate, mockMapper, appProperties, customMetrics);
 
             Long roomId = 1L;
             ChatBroadcastMessage message = new ChatBroadcastMessage(
@@ -184,7 +188,7 @@ class RedisChatMessageBrokerTest {
         void should_throwException_when_reactionSerializationFails() throws Exception {
             // given
             ObjectMapper mockMapper = mock(ObjectMapper.class);
-            RedisChatMessageBroker brokerWithMockMapper = new RedisChatMessageBroker(redisTemplate, mockMapper, appProperties);
+            RedisChatMessageBroker brokerWithMockMapper = new RedisChatMessageBroker(redisTemplate, mockMapper, appProperties, customMetrics);
 
             Long roomId = 1L;
             ReactionBroadcastEvent reactionEvent = new ReactionBroadcastEvent(
