@@ -4,6 +4,7 @@ import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ReactionBroadcastEvent;
 import com.cotalk.domain.util.HtmlSanitizer;
 import com.cotalk.infrastructure.config.properties.AppProperties;
+import com.cotalk.infrastructure.metrics.CustomMetrics;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,16 +34,19 @@ public class RedisChatMessageSubscriber implements MessageListener {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+    private final CustomMetrics customMetrics;
     private final String channelPrefix;
     private static final String ROOM_TOPIC_PREFIX = "/topic/chat/room/";
 
     public RedisChatMessageSubscriber(
             SimpMessagingTemplate messagingTemplate,
             ObjectMapper objectMapper,
-            AppProperties appProperties) {
+            AppProperties appProperties,
+            CustomMetrics customMetrics) {
         this.messagingTemplate = messagingTemplate;
         this.objectMapper = objectMapper;
         this.channelPrefix = appProperties.redis().channelPrefix();
+        this.customMetrics = customMetrics;
     }
 
     /**
@@ -81,57 +85,72 @@ public class RedisChatMessageSubscriber implements MessageListener {
             WebSocketChatMessage wsMessage = toWebSocketMessage(chatMessage);
             String destination = ROOM_TOPIC_PREFIX + chatMessage.roomId();
             messagingTemplate.convertAndSend(destination, wsMessage);
+            customMetrics.recordWebsocketDelivery("message", true);
             log.debug("Broadcasted message to WebSocket: destination={}, messageId={}",
                     destination, chatMessage.messageId());
 
         } catch (JsonProcessingException e) {
+            customMetrics.recordWebsocketDelivery("message", false);
             log.error("Failed to deserialize chat message from Redis", e);
         } catch (Exception e) {
+            customMetrics.recordWebsocketDelivery("message", false);
             log.error("Failed to process chat message from Redis", e);
         }
     }
 
     private void handleReaction(Long roomId, String jsonMessage) throws JsonProcessingException {
-        ReactionBroadcastEvent reactionEvent = objectMapper.readValue(jsonMessage, ReactionBroadcastEvent.class);
-        String destination = ROOM_TOPIC_PREFIX + roomId;
-        messagingTemplate.convertAndSend(destination, reactionEvent);
-        log.debug("Broadcasted reaction to WebSocket: destination={}, messageId={}",
-                destination, reactionEvent.messageId());
+        try {
+            ReactionBroadcastEvent reactionEvent = objectMapper.readValue(jsonMessage, ReactionBroadcastEvent.class);
+            String destination = ROOM_TOPIC_PREFIX + roomId;
+            messagingTemplate.convertAndSend(destination, reactionEvent);
+            customMetrics.recordWebsocketDelivery("reaction", true);
+            log.debug("Broadcasted reaction to WebSocket: destination={}, messageId={}",
+                    destination, reactionEvent.messageId());
+        } catch (Exception e) {
+            customMetrics.recordWebsocketDelivery("reaction", false);
+            throw e;
+        }
     }
 
     private void handleRoomEvent(Long roomId, String jsonMessage) throws JsonProcessingException {
-        JsonNode root = objectMapper.readTree(jsonMessage);
-        String eventType = root.has("eventType") ? root.get("eventType").asText() : null;
+        try {
+            JsonNode root = objectMapper.readTree(jsonMessage);
+            String eventType = root.has("eventType") ? root.get("eventType").asText() : null;
 
-        String destination = ROOM_TOPIC_PREFIX + roomId;
-        if ("MESSAGE_DELETED".equals(eventType)) {
-            MessageDeletedEventMessage event =
-                    objectMapper.treeToValue(root, MessageDeletedEventMessage.class);
-            messagingTemplate.convertAndSend(destination, event);
-            log.debug("Broadcasted message deleted event to WebSocket: destination={}, messageId={}",
-                    destination, event.messageId());
-        } else if ("MESSAGE_UPDATED".equals(eventType)) {
-            MessageUpdatedEventMessage event =
-                    objectMapper.treeToValue(root, MessageUpdatedEventMessage.class);
-            messagingTemplate.convertAndSend(destination, event);
-            log.debug("Broadcasted message updated event to WebSocket: destination={}, messageId={}",
-                    destination, event.messageId());
-        } else if ("TYPING".equals(eventType) || "STOP_TYPING".equals(eventType)) {
-            TypingEventMessage event = objectMapper.treeToValue(root, TypingEventMessage.class);
-            messagingTemplate.convertAndSend(destination, event);
-            log.debug("Broadcasted typing event to WebSocket: destination={}, userId={}",
-                    destination, event.userId());
-        } else if ("LINK_PREVIEW_UPDATED".equals(eventType)) {
-            LinkPreviewUpdatedEventMessage event =
-                    objectMapper.treeToValue(root, LinkPreviewUpdatedEventMessage.class);
-            messagingTemplate.convertAndSend(destination, event);
-            log.debug("Broadcasted link preview updated event to WebSocket: destination={}, messageId={}",
-                    destination, event.messageId());
-        } else {
-            ChatRoomEventMessage event = objectMapper.treeToValue(root, ChatRoomEventMessage.class);
-            messagingTemplate.convertAndSend(destination, event);
-            log.debug("Broadcasted room event to WebSocket: destination={}, eventType={}",
-                    destination, event.eventType());
+            String destination = ROOM_TOPIC_PREFIX + roomId;
+            if ("MESSAGE_DELETED".equals(eventType)) {
+                MessageDeletedEventMessage event =
+                        objectMapper.treeToValue(root, MessageDeletedEventMessage.class);
+                messagingTemplate.convertAndSend(destination, event);
+                log.debug("Broadcasted message deleted event to WebSocket: destination={}, messageId={}",
+                        destination, event.messageId());
+            } else if ("MESSAGE_UPDATED".equals(eventType)) {
+                MessageUpdatedEventMessage event =
+                        objectMapper.treeToValue(root, MessageUpdatedEventMessage.class);
+                messagingTemplate.convertAndSend(destination, event);
+                log.debug("Broadcasted message updated event to WebSocket: destination={}, messageId={}",
+                        destination, event.messageId());
+            } else if ("TYPING".equals(eventType) || "STOP_TYPING".equals(eventType)) {
+                TypingEventMessage event = objectMapper.treeToValue(root, TypingEventMessage.class);
+                messagingTemplate.convertAndSend(destination, event);
+                log.debug("Broadcasted typing event to WebSocket: destination={}, userId={}",
+                        destination, event.userId());
+            } else if ("LINK_PREVIEW_UPDATED".equals(eventType)) {
+                LinkPreviewUpdatedEventMessage event =
+                        objectMapper.treeToValue(root, LinkPreviewUpdatedEventMessage.class);
+                messagingTemplate.convertAndSend(destination, event);
+                log.debug("Broadcasted link preview updated event to WebSocket: destination={}, messageId={}",
+                        destination, event.messageId());
+            } else {
+                ChatRoomEventMessage event = objectMapper.treeToValue(root, ChatRoomEventMessage.class);
+                messagingTemplate.convertAndSend(destination, event);
+                log.debug("Broadcasted room event to WebSocket: destination={}, eventType={}",
+                        destination, event.eventType());
+            }
+            customMetrics.recordWebsocketDelivery("event", true);
+        } catch (Exception e) {
+            customMetrics.recordWebsocketDelivery("event", false);
+            throw e;
         }
     }
 

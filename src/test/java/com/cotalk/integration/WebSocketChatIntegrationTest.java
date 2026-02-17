@@ -9,7 +9,6 @@ import com.cotalk.infrastructure.security.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -53,7 +52,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 )
 @ActiveProfiles("test")
 @DisplayName("WebSocket Chat Integration")
-@DisabledIfEnvironmentVariable(named = "CI", matches = "true", disabledReason = "WebSocket tests are flaky in CI due to timing issues")
 class WebSocketChatIntegrationTest {
 
     @Container
@@ -128,6 +126,7 @@ class WebSocketChatIntegrationTest {
                     received.complete((Map<String, Object>) payload);
                 }
             });
+            awaitSubscriptionReady();
 
             // when: A sends message
             sessionA.send("/app/chat/message", Map.of(
@@ -137,9 +136,9 @@ class WebSocketChatIntegrationTest {
             ));
 
             // then
-            Map<String, Object> payload = received.get(10, TimeUnit.SECONDS);
-            assertThat(payload.get("roomId")).isEqualTo(roomId.intValue());
-            assertThat(payload.get("senderId")).isEqualTo(1);
+            Map<String, Object> payload = received.get(15, TimeUnit.SECONDS);
+            assertThat(((Number) payload.get("roomId")).longValue()).isEqualTo(roomId);
+            assertThat(((Number) payload.get("senderId")).longValue()).isEqualTo(1L);
             assertThat(payload.get("content")).isEqualTo("hi");
             assertThat(payload).containsKeys("schemaVersion", "eventId");
         } finally {
@@ -201,6 +200,7 @@ class WebSocketChatIntegrationTest {
                     // no-op
                 }
             });
+            awaitSubscriptionReady();
 
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -289,6 +289,7 @@ class WebSocketChatIntegrationTest {
                     // no-op
                 }
             });
+            awaitSubscriptionReady();
 
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -372,6 +373,7 @@ class WebSocketChatIntegrationTest {
                     bUserEvents.add((Map<String, Object>) payload);
                 }
             });
+            awaitSubscriptionReady();
 
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -413,7 +415,7 @@ class WebSocketChatIntegrationTest {
             Long expectedReaderId,
             Long expectedRoomId
     ) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10);
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(15);
         while (System.currentTimeMillis() < deadline) {
             Map<String, Object> e = queue.poll(1, TimeUnit.SECONDS);
             if (e == null) continue;
@@ -431,7 +433,7 @@ class WebSocketChatIntegrationTest {
             BlockingQueue<Map<String, Object>> queue,
             String expectedContent
     ) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10);
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(15);
         while (System.currentTimeMillis() < deadline) {
             Map<String, Object> e = queue.poll(1, TimeUnit.SECONDS);
             if (e == null) continue;
@@ -450,7 +452,7 @@ class WebSocketChatIntegrationTest {
             Long expectedReaderId,
             Long expectedRoomId
     ) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10);
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(15);
         while (System.currentTimeMillis() < deadline) {
             Map<String, Object> e = queue.poll(1, TimeUnit.SECONDS);
             if (e == null) continue;
@@ -470,7 +472,7 @@ class WebSocketChatIntegrationTest {
             BlockingQueue<Map<String, Object>> queue,
             String expectedLastMessage
     ) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10);
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(15);
         while (System.currentTimeMillis() < deadline) {
             Map<String, Object> e = queue.poll(1, TimeUnit.SECONDS);
             if (e == null) continue;
@@ -509,7 +511,12 @@ class WebSocketChatIntegrationTest {
                 new WebSocketHttpHeaders(),
                 connectHeaders,
                 new StompSessionHandlerAdapter() {}
-        ).get(5, TimeUnit.SECONDS);
+        ).get(10, TimeUnit.SECONDS);
+    }
+
+    /** 구독이 브로커에 반영될 시간을 주어 CI/로컬 타이밍 불일치를 줄인다. */
+    private static void awaitSubscriptionReady() throws InterruptedException {
+        Thread.sleep(500);
     }
 }
 

@@ -2,6 +2,7 @@ package com.cotalk.infrastructure.messaging;
 
 import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.cotalk.infrastructure.messaging.RedisChatMessageSubscriber.WebSocketChatMessage;
+import com.cotalk.infrastructure.metrics.CustomMetrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,9 @@ class RedisChatMessageSubscriberTest {
     @Mock
     private SimpMessagingTemplate messagingTemplate;
 
+    @Mock
+    private CustomMetrics customMetrics;
+
     @Captor
     private ArgumentCaptor<WebSocketChatMessage> messageCaptor;
 
@@ -46,7 +50,7 @@ class RedisChatMessageSubscriberTest {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         appProperties = createTestAppProperties();
-        subscriber = new RedisChatMessageSubscriber(messagingTemplate, objectMapper, appProperties);
+        subscriber = new RedisChatMessageSubscriber(messagingTemplate, objectMapper, appProperties, customMetrics);
     }
 
     private AppProperties createTestAppProperties() {

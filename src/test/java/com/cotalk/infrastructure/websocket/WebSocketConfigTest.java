@@ -26,7 +26,11 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
-import org.springframework.messaging.simp.stomp.*;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompFrameHandler;
+import org.springframework.messaging.simp.stomp.StompHeaders;
+import org.springframework.messaging.simp.stomp.StompSession;
+import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 
 import java.lang.reflect.Type;
@@ -37,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -141,11 +146,48 @@ class WebSocketConfigTest {
     }
 
     @Test
+    @DisplayName("유효하지 않은 토큰으로 WebSocket 연결 시 실패한다")
+    void should_failConnection_when_invalidToken() throws Exception {
+        String invalidToken = "invalid.jwt.token";
+
+        WebSocketStompClient stompClient = new WebSocketStompClient(new StandardWebSocketClient());
+        stompClient.setMessageConverter(new MappingJackson2MessageConverter());
+        StompHeaders connectHeaders = new StompHeaders();
+        connectHeaders.add("Authorization", "Bearer " + invalidToken);
+
+        CompletableFuture<Throwable> errorFuture = new CompletableFuture<>();
+        stompClient.connectAsync(
+                String.format("ws://localhost:%d/ws", port),
+                new WebSocketHttpHeaders(),
+                connectHeaders,
+                new StompSessionHandlerAdapter() {
+                    @Override
+                    public void handleTransportError(StompSession session, Throwable exception) {
+                        errorFuture.complete(exception);
+                    }
+
+                    @Override
+                    public void handleException(StompSession session, StompCommand command,
+                                                StompHeaders headers, byte[] payload, Throwable exception) {
+                        errorFuture.complete(exception);
+                    }
+                }
+        );
+
+        Throwable t = errorFuture.get(5, TimeUnit.SECONDS);
+        assertThat(t).isNotNull();
+        String message = t.getMessage() != null ? t.getMessage() : (t.getCause() != null ? t.getCause().getMessage() : "");
+        assertThat(message.contains("유효하지 않은") || message.contains("Connection closed")).isTrue();
+    }
+
+    @Test
     @DisplayName("유효한 토큰으로 채팅방 구독 성공")
     void should_subscribeSuccessfully_when_validToken() throws Exception {
-        // given
+        // given: room 1 멤버로 user 1 허용 (인터셉터 권한 검사)
+        given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(1L, 1L)).willReturn(true);
+
         String token = jwtTokenProvider.generateToken(1L);
-        
+
         WebSocketStompClient stompClient = new WebSocketStompClient(new StandardWebSocketClient());
         stompClient.setMessageConverter(new MappingJackson2MessageConverter());
 
