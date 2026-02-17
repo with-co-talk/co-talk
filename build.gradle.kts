@@ -92,6 +92,7 @@ dependencies {
     testImplementation(platform("org.testcontainers:testcontainers-bom:1.20.1"))
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.awaitility:awaitility:4.2.0") // 비동기 테스트 대기
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // ArchUnit (Architecture Testing)
