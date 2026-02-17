@@ -3,12 +3,15 @@ package com.cotalk.adapter.inbound.websocket;
 import com.cotalk.adapter.inbound.websocket.dto.AddReactionRequest;
 import com.cotalk.adapter.inbound.websocket.dto.ChatMessageRequest;
 import com.cotalk.adapter.inbound.websocket.dto.FileMessageRequest;
+import com.cotalk.adapter.inbound.websocket.dto.PresencePingRequest;
 import com.cotalk.adapter.inbound.websocket.dto.RemoveReactionRequest;
+import com.cotalk.adapter.inbound.websocket.dto.TypingStatusRequest;
 import com.cotalk.domain.entity.BaseEntity;
 import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.entity.ChatRoomMember;
+import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.inbound.chat.BroadcastChatMessageUseCase;
 import com.cotalk.domain.port.inbound.chat.BroadcastReactionEventUseCase;
 import com.cotalk.domain.port.inbound.chat.PublishChatListUpdateUseCase;
@@ -19,6 +22,7 @@ import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase.Reaction
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase.FileMessageCommand;
+import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import com.cotalk.infrastructure.metrics.CustomMetrics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,8 +38,10 @@ import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -66,6 +72,9 @@ class ChatWebSocketControllerTest {
 
     @Mock
     private PublishChatListUpdateUseCase publishChatListUpdateUseCase;
+
+    @Mock
+    private ChatRoomMemberValidator chatRoomMemberValidator;
 
     @Mock
     private CustomMetrics customMetrics;
@@ -363,5 +372,91 @@ class ChatWebSocketControllerTest {
 
         // then
         verify(sendMessageUseCase, never()).sendFileMessageWithContext(anyLong(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("채팅방 멤버가 아닌 사용자의 메시지 전송은 거부된다")
+    void should_rejectMessage_when_userNotMember() {
+        // given
+        ChatMessageRequest request = new ChatMessageRequest(100L, "테스트 메시지");
+        Long unauthorizedUserId = 999L;
+
+        doThrow(new ChatRoomAccessDeniedException(100L, unauthorizedUserId))
+                .when(chatRoomMemberValidator).validateMembership(100L, unauthorizedUserId);
+
+        // when & then
+        assertThrows(
+                ChatRoomAccessDeniedException.class,
+                () -> chatWebSocketController.sendMessage(request, createMockHeaderAccessor(unauthorizedUserId))
+        );
+
+        verify(sendMessageUseCase, never()).sendMessageWithContext(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("채팅방 멤버가 아닌 사용자의 파일 메시지 전송은 거부된다")
+    void should_rejectFileMessage_when_userNotMember() {
+        // given
+        FileMessageRequest request = new FileMessageRequest(
+                100L,
+                "https://storage.example.com/file.pdf",
+                "document.pdf",
+                1024L,
+                "application/pdf",
+                null
+        );
+        Long unauthorizedUserId = 999L;
+
+        doThrow(new ChatRoomAccessDeniedException(100L, unauthorizedUserId))
+                .when(chatRoomMemberValidator).validateMembership(100L, unauthorizedUserId);
+
+        // when & then
+        assertThrows(
+                ChatRoomAccessDeniedException.class,
+                () -> chatWebSocketController.sendFileMessage(request, createMockHeaderAccessor(unauthorizedUserId))
+        );
+
+        verify(sendMessageUseCase, never()).sendFileMessageWithContext(anyLong(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("채팅방 멤버가 아닌 사용자의 타이핑 상태 전송은 거부된다")
+    void should_rejectTypingStatus_when_userNotMember() {
+        // given
+        TypingStatusRequest request = new TypingStatusRequest(100L, true);
+        Long unauthorizedUserId = 999L;
+
+        doThrow(new ChatRoomAccessDeniedException(100L, unauthorizedUserId))
+                .when(chatRoomMemberValidator).validateMembership(100L, unauthorizedUserId);
+
+        // when & then
+        assertThrows(
+                ChatRoomAccessDeniedException.class,
+                () -> chatWebSocketController.typingStatus(request, createMockHeaderAccessor(unauthorizedUserId))
+        );
+
+        verify(publishTypingStatusUseCase, never()).publishTypingStatus(anyLong(), anyLong(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("채팅방 멤버가 아닌 사용자의 presence ping은 거부된다")
+    void should_rejectPresencePing_when_userNotMember() {
+        // given
+        PresencePingRequest request = new PresencePingRequest(100L);
+        Long unauthorizedUserId = 999L;
+
+        doThrow(new ChatRoomAccessDeniedException(100L, unauthorizedUserId))
+                .when(chatRoomMemberValidator).validateMembership(100L, unauthorizedUserId);
+
+        StompHeaderAccessor headerAccessor = createMockHeaderAccessor(unauthorizedUserId);
+        headerAccessor.setSessionId("test-session");
+
+        // when & then
+        assertThrows(
+                ChatRoomAccessDeniedException.class,
+                () -> chatWebSocketController.presencePing(request, headerAccessor)
+        );
+
+        verify(updatePresenceStatusUseCase, never()).markActive(anyLong(), anyLong(), anyString());
     }
 }

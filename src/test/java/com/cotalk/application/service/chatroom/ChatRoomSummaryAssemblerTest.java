@@ -25,6 +25,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * ChatRoomSummaryAssembler 단위 테스트.
@@ -241,5 +243,114 @@ class ChatRoomSummaryAssemblerTest {
         assertThat(summary.lastMessageType()).isNull();
         assertThat(summary.lastMessageAt()).isNull();
         assertThat(summary.unreadCount()).isEqualTo(0L);
+    }
+
+    @Test
+    void should_useBatchQuery_when_multipleDirectRoomsHaveLeftUsers() {
+        // given
+        Long userId = 1L;
+        // 3개의 DIRECT 채팅방: room1(상대방 존재), room2(상대방 나감), room3(상대방 나감)
+        ChatRoom room1 = ChatRoomTestFixture.createDirectChatRoom(10L);
+        ChatRoom room2 = ChatRoomTestFixture.createDirectChatRoom(20L);
+        ChatRoom room3 = ChatRoomTestFixture.createDirectChatRoom(30L);
+        List<ChatRoom> chatRooms = List.of(room1, room2, room3);
+        List<Long> chatRoomIds = List.of(10L, 20L, 30L);
+
+        ChatRoomMember myMember1 = ChatRoomTestFixture.createChatRoomMember(1L, 10L, userId);
+        ChatRoomMember myMember2 = ChatRoomTestFixture.createChatRoomMember(2L, 20L, userId);
+        ChatRoomMember myMember3 = ChatRoomTestFixture.createChatRoomMember(3L, 30L, userId);
+
+        Message lastMessage1 = MessageTestFixture.createMessage(101L, 10L, 2L, "메시지1");
+        Message lastMessage2 = MessageTestFixture.createMessage(102L, 20L, 3L, "메시지2");
+        Message lastMessage3 = MessageTestFixture.createMessage(103L, 30L, 4L, "메시지3");
+
+        // room1에만 상대방 멤버가 있음 (room2, room3은 상대방이 나간 상태)
+        ChatRoomMember otherMember1 = ChatRoomTestFixture.createChatRoomMember(4L, 10L, 2L);
+
+        User user2 = User.builder().id(2L).nickname("사용자2").onlineStatus(User.OnlineStatus.ONLINE).build();
+        User user3 = User.builder().id(3L).nickname("나간사용자3").onlineStatus(User.OnlineStatus.OFFLINE).build();
+        User user4 = User.builder().id(4L).nickname("나간사용자4").onlineStatus(User.OnlineStatus.OFFLINE).build();
+
+        Map<Long, Long> unreadCountMap = Map.of(10L, 1L, 20L, 2L, 30L, 3L);
+
+        // 배치 쿼리로 나간 채팅방(20L, 30L)의 발신자 ID를 한 번에 조회
+        Map<Long, Long> leftSenderMap = Map.of(20L, 3L, 30L, 4L);
+
+        given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(eq(userId), eq(chatRoomIds)))
+                .willReturn(List.of(myMember1, myMember2, myMember3));
+        given(messageRepository.findLastMessagesByRoomIds(eq(chatRoomIds)))
+                .willReturn(List.of(lastMessage1, lastMessage2, lastMessage3));
+        given(messageRepository.batchCountUnreadMessages(eq(userId), eq(chatRoomIds)))
+                .willReturn(unreadCountMap);
+        given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(eq(userId), eq(chatRoomIds)))
+                .willReturn(List.of(otherMember1));
+        given(messageRepository.findDistinctSenderIdsByChatRoomIdsExcludingUser(eq(List.of(20L, 30L)), eq(userId)))
+                .willReturn(leftSenderMap);
+        given(userRepository.findAllById(any()))
+                .willReturn(List.of(user2, user3, user4));
+
+        // when
+        ChatRoomSummaryAssembler.BatchData batchData = assembler.loadBatchData(userId, chatRooms);
+
+        // then
+        // 배치 쿼리가 한 번만 호출되었는지 확인 (N+1 대신 1회)
+        verify(messageRepository).findDistinctSenderIdsByChatRoomIdsExcludingUser(eq(List.of(20L, 30L)), eq(userId));
+        // 개별 쿼리(findDistinctSenderIdsByChatRoomIdExcludingUser)는 호출되지 않아야 함
+        verify(messageRepository, never()).findDistinctSenderIdsByChatRoomIdExcludingUser(any(), any());
+
+        // 나간 사용자 ID가 올바르게 맵핑되었는지 확인
+        assertThat(batchData.leftUserIdMap()).hasSize(2);
+        assertThat(batchData.leftUserIdMap().get(20L)).isEqualTo(3L);
+        assertThat(batchData.leftUserIdMap().get(30L)).isEqualTo(4L);
+
+        // 상대방 사용자 정보에 나간 사용자도 포함되었는지 확인
+        assertThat(batchData.otherUserMap()).hasSize(3);
+        assertThat(batchData.otherUserMap()).containsKeys(2L, 3L, 4L);
+    }
+
+    @Test
+    void should_skipBatchQuery_when_noLeftUserRooms() {
+        // given
+        Long userId = 1L;
+        // 모든 DIRECT 채팅방에 상대방이 존재하는 경우
+        ChatRoom room1 = ChatRoomTestFixture.createDirectChatRoom(10L);
+        ChatRoom room2 = ChatRoomTestFixture.createDirectChatRoom(20L);
+        List<ChatRoom> chatRooms = List.of(room1, room2);
+        List<Long> chatRoomIds = List.of(10L, 20L);
+
+        ChatRoomMember myMember1 = ChatRoomTestFixture.createChatRoomMember(1L, 10L, userId);
+        ChatRoomMember myMember2 = ChatRoomTestFixture.createChatRoomMember(2L, 20L, userId);
+
+        Message lastMessage1 = MessageTestFixture.createMessage(101L, 10L, 2L, "메시지1");
+        Message lastMessage2 = MessageTestFixture.createMessage(102L, 20L, 3L, "메시지2");
+
+        ChatRoomMember otherMember1 = ChatRoomTestFixture.createChatRoomMember(3L, 10L, 2L);
+        ChatRoomMember otherMember2 = ChatRoomTestFixture.createChatRoomMember(4L, 20L, 3L);
+
+        User user2 = User.builder().id(2L).nickname("사용자2").onlineStatus(User.OnlineStatus.ONLINE).build();
+        User user3 = User.builder().id(3L).nickname("사용자3").onlineStatus(User.OnlineStatus.ONLINE).build();
+
+        Map<Long, Long> unreadCountMap = Map.of(10L, 1L, 20L, 0L);
+
+        given(chatRoomMemberRepository.findByUserIdAndChatRoomIds(eq(userId), eq(chatRoomIds)))
+                .willReturn(List.of(myMember1, myMember2));
+        given(messageRepository.findLastMessagesByRoomIds(eq(chatRoomIds)))
+                .willReturn(List.of(lastMessage1, lastMessage2));
+        given(messageRepository.batchCountUnreadMessages(eq(userId), eq(chatRoomIds)))
+                .willReturn(unreadCountMap);
+        given(chatRoomMemberRepository.findOtherMembersByChatRoomIds(eq(userId), eq(chatRoomIds)))
+                .willReturn(List.of(otherMember1, otherMember2));
+        given(userRepository.findAllById(any()))
+                .willReturn(List.of(user2, user3));
+
+        // when
+        ChatRoomSummaryAssembler.BatchData batchData = assembler.loadBatchData(userId, chatRooms);
+
+        // then
+        // 나간 채팅방이 없으므로 배치 쿼리가 호출되지 않아야 함
+        verify(messageRepository, never()).findDistinctSenderIdsByChatRoomIdsExcludingUser(any(), any());
+        verify(messageRepository, never()).findDistinctSenderIdsByChatRoomIdExcludingUser(any(), any());
+
+        assertThat(batchData.leftUserIdMap()).isEmpty();
     }
 }
