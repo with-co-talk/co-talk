@@ -98,17 +98,17 @@ public class ChatRoomSummaryAssembler {
                 .stream()
                 .collect(Collectors.toMap(ChatRoomMember::getChatRoomId, Function.identity(), (a, b) -> a));
 
-        // 6. 상대방이 나간 채팅방의 경우 메시지 기록에서 상대방 ID 복구
+        // 6. 상대방이 나간 채팅방의 경우 메시지 기록에서 상대방 ID 복구 (1 query)
         // otherMemberMap에 없는 DIRECT 채팅방은 상대방이 나간 것
-        Map<Long, Long> leftUserIdMap = new HashMap<>();
-        for (Long directRoomId : directChatRoomIds) {
-            if (!otherMemberMap.containsKey(directRoomId)) {
-                // 상대방이 나간 채팅방 - 메시지 기록에서 상대방 ID 찾기
-                List<Long> senderIds = messageRepository.findDistinctSenderIdsByChatRoomIdExcludingUser(directRoomId, userId);
-                if (!senderIds.isEmpty()) {
-                    leftUserIdMap.put(directRoomId, senderIds.get(0));
-                }
-            }
+        List<Long> leftRoomIds = directChatRoomIds.stream()
+                .filter(roomId -> !otherMemberMap.containsKey(roomId))
+                .toList();
+
+        Map<Long, Long> leftUserIdMap;
+        if (leftRoomIds.isEmpty()) {
+            leftUserIdMap = new HashMap<>();
+        } else {
+            leftUserIdMap = messageRepository.findDistinctSenderIdsByChatRoomIdsExcludingUser(leftRoomIds, userId);
         }
 
         // 7. 상대방 사용자 정보 배치 조회 (1 query)

@@ -1,10 +1,13 @@
 package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.Emoji;
+import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.MessageReaction;
+import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.MessageReactionNotFoundException;
 import com.cotalk.domain.port.outbound.MessageReactionRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import com.cotalk.domain.validator.MessageValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,11 +34,14 @@ class RemoveMessageReactionServiceTest {
     @Mock
     private MessageValidator messageValidator;
 
+    @Mock
+    private ChatRoomMemberValidator chatRoomMemberValidator;
+
     private RemoveMessageReactionService service;
 
     @BeforeEach
     void setUp() {
-        service = new RemoveMessageReactionService(reactionRepository, messageRepository, messageValidator);
+        service = new RemoveMessageReactionService(reactionRepository, messageRepository, messageValidator, chatRoomMemberValidator);
     }
 
     @Test
@@ -81,5 +87,33 @@ class RemoveMessageReactionServiceTest {
         // when & then
         assertThatThrownBy(() -> service.removeReaction(messageId, userId, emojiString))
                 .isInstanceOf(MessageReactionNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("채팅방 멤버가 아닌 사용자의 반응 제거는 거부된다")
+    void should_rejectReactionRemoval_when_userNotMember() {
+        // given
+        Long messageId = 100L;
+        Long chatRoomId = 10L;
+        Long unauthorizedUserId = 999L;
+        String emojiString = "👍";
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(chatRoomId)
+                .senderId(2L)
+                .content("테스트 메시지")
+                .type(Message.MessageType.TEXT)
+                .build();
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        org.mockito.Mockito.doThrow(new ChatRoomAccessDeniedException(chatRoomId, unauthorizedUserId))
+                .when(chatRoomMemberValidator).validateMembership(chatRoomId, unauthorizedUserId);
+
+        // when & then
+        assertThatThrownBy(() -> service.removeReactionWithContext(messageId, unauthorizedUserId, emojiString))
+                .isInstanceOf(ChatRoomAccessDeniedException.class);
+
+        verify(reactionRepository, org.mockito.Mockito.never()).delete(org.mockito.ArgumentMatchers.any());
     }
 }

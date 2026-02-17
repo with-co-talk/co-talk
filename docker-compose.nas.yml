@@ -37,7 +37,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 35s
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=docker,prod
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
       - DB_USERNAME=${DB_USERNAME:-cotalk}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -95,7 +95,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 35s
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=docker,prod
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
       - DB_USERNAME=${DB_USERNAME:-cotalk}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -152,7 +152,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 35s
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=docker,prod
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
       - DB_USERNAME=${DB_USERNAME:-cotalk}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -403,13 +403,18 @@ services:
     container_name: cotalk-alertmanager
     restart: unless-stopped
     user: root
+    environment:
+      - SMTP_AUTH_PASSWORD=${SMTP_AUTH_PASSWORD}
     # 외부 포트 불필요 - Prometheus가 내부에서 접근
     volumes:
-      - ./docker/alertmanager:/etc/alertmanager
+      - ./docker/alertmanager:/etc/alertmanager:ro
       - alertmanager-data:/alertmanager
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
+      - |
+        cp /etc/alertmanager/alertmanager.yml /tmp/alertmanager.yml
+        sed -i "s|__SMTP_AUTH_PASSWORD__|$$SMTP_AUTH_PASSWORD|g" /tmp/alertmanager.yml
+        exec /bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
     networks:
       - cotalk-network
     deploy:

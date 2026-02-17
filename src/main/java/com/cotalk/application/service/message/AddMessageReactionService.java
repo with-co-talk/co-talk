@@ -1,11 +1,13 @@
 package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.Emoji;
+import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
 import com.cotalk.domain.port.outbound.MessageReactionRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import com.cotalk.domain.validator.MessageValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,7 @@ public class AddMessageReactionService implements AddMessageReactionUseCase {
     private final MessageRepository messageRepository;
     private final MessageReactionRepository reactionRepository;
     private final MessageValidator messageValidator;
+    private final ChatRoomMemberValidator chatRoomMemberValidator;
 
     /**
      * 메시지에 이모지 반응을 추가한다.
@@ -77,8 +80,11 @@ public class AddMessageReactionService implements AddMessageReactionUseCase {
     @Override
     public ReactionResult addReactionWithContext(Long messageId, Long userId, String emojiString) {
         // 메시지 존재 확인 및 chatRoomId 조회
-        com.cotalk.domain.entity.Message message = messageRepository.findById(messageId)
+        Message message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new MessageNotFoundException(messageId));
+
+        // 채팅방 멤버십 검증
+        chatRoomMemberValidator.validateMembership(message.getChatRoomId(), userId);
 
         // 이모지 유효성 검증 및 변환
         Emoji emoji = messageValidator.validateAndParseEmoji(emojiString);

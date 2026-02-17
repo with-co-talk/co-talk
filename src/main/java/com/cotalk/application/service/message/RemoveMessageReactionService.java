@@ -7,6 +7,7 @@ import com.cotalk.domain.exception.MessageReactionNotFoundException;
 import com.cotalk.domain.port.inbound.message.RemoveMessageReactionUseCase;
 import com.cotalk.domain.port.outbound.MessageReactionRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import com.cotalk.domain.validator.MessageValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ public class RemoveMessageReactionService implements RemoveMessageReactionUseCas
     private final MessageReactionRepository reactionRepository;
     private final MessageRepository messageRepository;
     private final MessageValidator messageValidator;
+    private final ChatRoomMemberValidator chatRoomMemberValidator;
 
     /**
      * 메시지에서 이모지 반응을 삭제한다.
@@ -60,9 +62,20 @@ public class RemoveMessageReactionService implements RemoveMessageReactionUseCas
      */
     @Override
     public Long removeReactionWithContext(Long messageId, Long userId, String emojiString) {
-        removeReaction(messageId, userId, emojiString);
-        return messageRepository.findById(messageId)
-                .map(Message::getChatRoomId)
+        // 메시지 존재 확인 및 chatRoomId 조회
+        Message message = messageRepository.findById(messageId)
                 .orElse(null);
+
+        if (message == null) {
+            return null;
+        }
+
+        // 채팅방 멤버십 검증
+        chatRoomMemberValidator.validateMembership(message.getChatRoomId(), userId);
+
+        // 반응 제거
+        removeReaction(messageId, userId, emojiString);
+
+        return message.getChatRoomId();
     }
 }
