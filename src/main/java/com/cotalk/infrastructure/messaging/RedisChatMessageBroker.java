@@ -3,6 +3,7 @@ package com.cotalk.infrastructure.messaging;
 import com.cotalk.domain.exception.MessageBrokerException;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.infrastructure.config.properties.AppProperties;
+import com.cotalk.infrastructure.metrics.CustomMetrics;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final CustomMetrics customMetrics;
     private final String channelPrefix;
 
     /**
@@ -36,14 +38,17 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
      * @param redisTemplate Redis 템플릿
      * @param objectMapper  JSON 직렬화용 ObjectMapper
      * @param appProperties 앱 설정 프로퍼티
+     * @param customMetrics 커스텀 메트릭
      */
     public RedisChatMessageBroker(
             RedisTemplate<String, String> redisTemplate,
             ObjectMapper objectMapper,
-            AppProperties appProperties) {
+            AppProperties appProperties,
+            CustomMetrics customMetrics) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.channelPrefix = appProperties.redis().channelPrefix();
+        this.customMetrics = customMetrics;
     }
 
     /**
@@ -60,10 +65,16 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
         try {
             String jsonMessage = objectMapper.writeValueAsString(message);
             redisTemplate.convertAndSend(channel, jsonMessage);
+            customMetrics.recordRedisPublish("message", true);
             log.debug("Published message to channel {}: messageId={}", channel, message.messageId());
         } catch (JsonProcessingException e) {
+            customMetrics.recordRedisPublish("message", false);
             log.error("Failed to serialize chat message: {}", message, e);
             throw MessageBrokerException.serializationFailed(e);
+        } catch (Exception e) {
+            customMetrics.recordRedisPublish("message", false);
+            log.error("Failed to publish message to Redis channel {}: messageId={}", channel, message.messageId(), e);
+            throw e;
         }
     }
 
@@ -81,10 +92,16 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
         try {
             String jsonMessage = objectMapper.writeValueAsString(reactionEvent);
             redisTemplate.convertAndSend(channel, jsonMessage);
+            customMetrics.recordRedisPublish("reaction", true);
             log.debug("Published reaction event to channel {}: {}", channel, reactionEvent);
         } catch (JsonProcessingException e) {
+            customMetrics.recordRedisPublish("reaction", false);
             log.error("Failed to serialize reaction event: {}", reactionEvent, e);
             throw MessageBrokerException.reactionSerializationFailed(e);
+        } catch (Exception e) {
+            customMetrics.recordRedisPublish("reaction", false);
+            log.error("Failed to publish reaction to Redis channel {}", channel, e);
+            throw e;
         }
     }
 
@@ -101,10 +118,16 @@ public class RedisChatMessageBroker implements ChatMessageBroker {
         try {
             String jsonMessage = objectMapper.writeValueAsString(event);
             redisTemplate.convertAndSend(channel, jsonMessage);
+            customMetrics.recordRedisPublish("event", true);
             log.debug("Published room event to channel {}: {}", channel, event);
         } catch (JsonProcessingException e) {
+            customMetrics.recordRedisPublish("event", false);
             log.error("Failed to serialize room event: {}", event, e);
             throw MessageBrokerException.serializationFailed(e);
+        } catch (Exception e) {
+            customMetrics.recordRedisPublish("event", false);
+            log.error("Failed to publish room event to Redis channel {}", channel, e);
+            throw e;
         }
     }
 }

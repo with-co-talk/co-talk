@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicLong;
  *   <li>cotalk.auth.login.failure - 로그인 실패 수</li>
  *   <li>cotalk.websocket.connections - 활성 WebSocket 연결 수</li>
  *   <li>cotalk.chatrooms.active - 활성 채팅방 수</li>
+ *   <li>cotalk.redis.publish{type,result} - Redis Pub/Sub 발행 성공/실패 (태그: type=message|reaction|event, result=success|failure)</li>
+ *   <li>cotalk.websocket.delivery{type,result} - WebSocket 전달 성공/실패 (태그: type=message|reaction|event, result=success|failure)</li>
  * </ul>
  *
  * @author seunggu.lee
@@ -31,6 +33,8 @@ import java.util.concurrent.atomic.AtomicLong;
 @Component
 @Getter
 public class CustomMetrics implements MetricsPort {
+
+    private final MeterRegistry meterRegistry;
 
     /** 전송된 메시지 카운터 */
     private final Counter messagesSentCounter;
@@ -56,6 +60,8 @@ public class CustomMetrics implements MetricsPort {
      * @param meterRegistry Micrometer 메트릭 레지스트리
      */
     public CustomMetrics(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+
         // 메시지 관련 메트릭
         this.messagesSentCounter = Counter.builder("cotalk.messages.sent")
                 .description("Total number of messages sent")
@@ -174,5 +180,32 @@ public class CustomMetrics implements MetricsPort {
     @Override
     public void stopMessageProcessingTimer(Object sample) {
         ((Timer.Sample) sample).stop(messageProcessingTimer);
+    }
+
+    /**
+     * Redis Pub/Sub 발행 결과를 기록한다.
+     *
+     * @param type    메시지 유형 (message, reaction, event)
+     * @param success 발행 성공 여부
+     */
+    public void recordRedisPublish(String type, boolean success) {
+        meterRegistry.counter("cotalk.redis.publish",
+                "type", type,
+                "result", success ? "success" : "failure"
+        ).increment();
+    }
+
+    /**
+     * WebSocket 전달 결과를 기록한다.
+     * Redis에서 수신한 메시지를 WebSocket으로 클라이언트에게 전달한 결과를 추적한다.
+     *
+     * @param type    메시지 유형 (message, reaction, event)
+     * @param success 전달 성공 여부
+     */
+    public void recordWebsocketDelivery(String type, boolean success) {
+        meterRegistry.counter("cotalk.websocket.delivery",
+                "type", type,
+                "result", success ? "success" : "failure"
+        ).increment();
     }
 }

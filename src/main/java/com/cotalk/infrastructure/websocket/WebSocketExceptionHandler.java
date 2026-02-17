@@ -118,6 +118,20 @@ public class WebSocketExceptionHandler {
     }
 
     /**
+     * 인증/권한 등으로 인한 IllegalArgumentException을 처리한다.
+     * (예: WebSocketAuthInterceptor에서 토큰 없음, 접근 권한 없음)
+     *
+     * @param e IllegalArgumentException
+     * @return 에러 응답
+     */
+    @MessageExceptionHandler(IllegalArgumentException.class)
+    @SendToUser("/queue/errors")
+    public WebSocketErrorResponse handleIllegalArgumentException(IllegalArgumentException e) {
+        log.warn("WebSocket validation/authorization error: {}", e.getMessage());
+        return new WebSocketErrorResponse("BAD_REQUEST", e.getMessage(), LocalDateTime.now());
+    }
+
+    /**
      * 예상하지 못한 예외를 처리한다.
      *
      * @param e 예외
