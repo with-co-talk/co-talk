@@ -1,5 +1,7 @@
 # 기능 점검 요약 (2026-01-26)
 
+> **관련 문서**: 상세 스펙·클라이언트 가이드는 [READ_FEATURE.md](./READ_FEATURE.md), 문서 목차는 [README.md](./README.md) 참고.
+
 ## 📋 점검 범위
 
 1. 읽기 기능 (Read Feature) 전반적인 동작 확인

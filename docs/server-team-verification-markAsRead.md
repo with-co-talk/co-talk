@@ -1,5 +1,7 @@
 # 서버팀 확인 사항: markAsRead 후 WebSocket 메시지 전송
 
+> **역할**: 읽기 기능 검증 시점의 Q&A·확인 사항. 동작 스펙·가이드는 [READ_FEATURE.md](./READ_FEATURE.md) 참고.
+
 ## 📋 확인 요청 사항
 
 ### 1. markAsRead 호출 후 서버가 업데이트된 메시지를 WebSocket으로 보내주는지
