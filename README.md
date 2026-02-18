@@ -35,7 +35,7 @@ src/main/java/com/cotalk/
 
 ### 사전 요구사항
 
-- Java 25+
+- Java 25
 - Docker & Docker Compose
 - Gradle 8+
 

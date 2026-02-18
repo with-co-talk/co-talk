@@ -32,7 +32,7 @@ public class UploadFileService implements UploadFileUseCase {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UploadFileService.class);
 
-    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+    public static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "image/jpeg",
             "image/png",
             "image/gif",

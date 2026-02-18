@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 타이핑 상태 발행 유스케이스 구현체.
@@ -36,7 +37,7 @@ public class PublishTypingStatusService implements PublishTypingStatusUseCase {
 
     /** 캐시 정리 주기: 100회 호출마다 만료 항목 정리 */
     private static final int EVICTION_INTERVAL = 100;
-    private int callCount = 0;
+    private final AtomicInteger callCount = new AtomicInteger(0);
 
     /**
      * {@inheritDoc}
@@ -60,7 +61,7 @@ public class PublishTypingStatusService implements PublishTypingStatusUseCase {
         log.debug("[WS] publishTypingStatus roomId={}, userId={}, isTyping={}", chatRoomId, userId, isTyping);
 
         // 주기적으로 만료된 캐시 항목 정리
-        if (++callCount % EVICTION_INTERVAL == 0) {
+        if (callCount.incrementAndGet() % EVICTION_INTERVAL == 0) {
             evictExpiredEntries();
         }
     }
