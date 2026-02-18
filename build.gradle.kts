@@ -1,8 +1,8 @@
 plugins {
     java
     jacoco
-    id("org.springframework.boot") version "3.3.0"
-    id("io.spring.dependency-management") version "1.1.5"
+    id("org.springframework.boot") version "3.5.6"
+    id("io.spring.dependency-management") version "1.1.7"
 }
 
 group = "com.cotalk"
@@ -10,7 +10,7 @@ version = "0.0.1-SNAPSHOT"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
@@ -59,7 +59,7 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok")
 
     // API Documentation (Swagger / OpenAPI)
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14")
 
     // Firebase Admin SDK (FCM)
     implementation("com.google.firebase:firebase-admin:9.2.0")
@@ -76,7 +76,7 @@ dependencies {
     implementation("com.bucket4j:bucket4j-core:8.10.1")
 
     // Redisson (Distributed Lock)
-    implementation("org.redisson:redisson-spring-boot-starter:3.27.0")
+    implementation("org.redisson:redisson-spring-boot-starter:3.51.0")
 
     // Observability - Micrometer & Tracing
     implementation("io.micrometer:micrometer-registry-prometheus")
@@ -99,7 +99,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // ArchUnit (Architecture Testing)
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
 }
 
 tasks.withType<Test> {
@@ -129,7 +129,7 @@ tasks.named("clean") {
 
 // JaCoCo 설정
 jacoco {
-    toolVersion = "0.8.11"
+    toolVersion = "0.8.14"
 }
 
 tasks.test {
