@@ -278,9 +278,9 @@ chatList.updateUnreadCount(roomId, event.unreadCount);
 
 ## 🔗 관련 문서
 
-- [API 문서 - 채팅방](./api/API_CHATROOM.md)
-- [서버팀 확인 사항](./server-team-verification-markAsRead.md)
-- [아키텍처 문서](../co-talk-docs/architecture/backend.md)
+- [기능 점검 요약](./FEATURE_CHECK_SUMMARY.md) — 읽기 기능 검증 결과
+- [서버팀 확인 사항 (markAsRead Q&A)](./server-team-verification-markAsRead.md)
+- [문서 목차](./README.md)
 
 ## 📝 변경 이력
 

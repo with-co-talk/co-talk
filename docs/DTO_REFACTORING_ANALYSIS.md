@@ -1,5 +1,7 @@
 # DTO 리팩토링 분석
 
+> **역할**: WebSocket/REST DTO 분리·중복 분석. 전체 리팩토링 계획은 [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md) 참고.
+
 ## 현재 상태
 
 ### 1. DTO 분리 현황

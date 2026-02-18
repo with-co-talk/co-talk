@@ -1,5 +1,7 @@
 # Co-Talk 리팩토링 가이드
 
+> **관련 문서**: DTO 분리·중복 분석은 [DTO_REFACTORING_ANALYSIS.md](./DTO_REFACTORING_ANALYSIS.md), 문서 목차는 [README.md](./README.md) 참고.
+
 ## 프로젝트 현황 요약
 
 | 항목 | 현재 상태 |
