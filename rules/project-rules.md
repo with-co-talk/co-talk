@@ -13,7 +13,7 @@ Co-Talk은 Java/Spring Boot 기반의 백엔드 프로젝트입니다.
 ## Code Conventions
 
 ### Java
-- Java 17+ 사용
+- Java 25+ 사용
 - **Effective Java 준수**: Joshua Bloch의 Effective Java (3rd Edition) 가이드라인 전반을 따르기
 - 변수명, 메서드명: camelCase
 - 클래스명: PascalCase

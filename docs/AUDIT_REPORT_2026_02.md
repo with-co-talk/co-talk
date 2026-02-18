@@ -15,7 +15,7 @@
 
 | 항목 | 범위 | 결과 |
 |------|------|------|
-| **백엔드** | Java 21 + Spring Boot 3.3, Hexagonal Architecture | 9개 P0 + 15개 P1 수정 |
+| **백엔드** | Java 25 + Spring Boot 3.5, Hexagonal Architecture | 9개 P0 + 15개 P1 수정 |
 | **프론트엔드** | Flutter 3.8+, BLoC Pattern | 4개 P0 + 1개 P1 수정 |
 | **DB/Infra** | PostgreSQL 16, Redis 7, MinIO | 설정 최적화 |
 | **API 계약** | REST + WebSocket (STOMP) | 기능 동등성 검증 |

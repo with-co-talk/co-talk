@@ -64,8 +64,8 @@
 - ✅ TODO/FIXME 주석 없음 (문서 파일 제외)
 
 ### 8. 의존성 관리
-- ✅ Spring Boot 3.3.0 사용
-- ✅ Java 21 사용
+- ✅ Spring Boot 3.5.6 사용
+- ✅ Java 25 사용
 - ✅ 필수 라이브러리 포함 (JWT, Redis, Rate Limiting 등)
 
 ---
