@@ -9,6 +9,7 @@ import com.cotalk.adapter.inbound.websocket.dto.RemoveReactionRequest;
 import com.cotalk.adapter.inbound.websocket.dto.TypingStatusRequest;
 import com.cotalk.domain.constants.MessageConstants;
 import com.cotalk.domain.entity.Emoji;
+import com.cotalk.domain.service.UploadFileService;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.exception.InvalidEmojiException;
 import com.cotalk.domain.port.inbound.chat.BroadcastChatMessageUseCase;
@@ -373,26 +374,12 @@ public class ChatWebSocketController {
 
     /**
      * contentType이 허용 목록에 포함되는지 확인합니다.
-     * UploadFileService의 ALLOWED_CONTENT_TYPES와 동일한 기준을 사용합니다.
      *
      * @param contentType 검증할 content type
      * @return 허용되면 true, 그렇지 않으면 false
      */
     private boolean isAllowedContentType(String contentType) {
-        return contentType.equals("image/jpeg") ||
-               contentType.equals("image/png") ||
-               contentType.equals("image/gif") ||
-               contentType.equals("image/webp") ||
-               contentType.equals("image/heic") ||
-               contentType.equals("image/heif") ||
-               contentType.equals("video/mp4") ||
-               contentType.equals("video/quicktime") ||
-               contentType.equals("application/pdf") ||
-               contentType.equals("application/msword") ||
-               contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document") ||
-               contentType.equals("application/vnd.ms-excel") ||
-               contentType.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") ||
-               contentType.equals("text/plain");
+        return UploadFileService.ALLOWED_CONTENT_TYPES.contains(contentType);
     }
 
     /**
@@ -404,11 +391,6 @@ public class ChatWebSocketController {
      * @throws com.cotalk.domain.exception.ChatRoomAccessDeniedException 사용자가 채팅방 멤버가 아닌 경우
      */
     private void validateChatRoomMembership(Long chatRoomId, Long userId) {
-        try {
-            chatRoomMemberValidator.validateMembership(chatRoomId, userId);
-        } catch (com.cotalk.domain.exception.ChatRoomAccessDeniedException e) {
-            log.warn("Unauthorized WebSocket operation attempt: userId={}, chatRoomId={}", userId, chatRoomId);
-            throw e;
-        }
+        chatRoomMemberValidator.validateMembership(chatRoomId, userId);
     }
 }

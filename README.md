@@ -6,8 +6,8 @@
 
 | 영역 | 기술 |
 |------|------|
-| Language | Java 21 (Virtual Threads) |
-| Framework | Spring Boot 3.3 |
+| Language | Java 25 (Virtual Threads) |
+| Framework | Spring Boot 3.5 |
 | Database | PostgreSQL, Redis |
 | Messaging | WebSocket (STOMP), Redis Pub/Sub |
 | Storage | MinIO (S3 호환) |
@@ -35,7 +35,7 @@ src/main/java/com/cotalk/
 
 ### 사전 요구사항
 
-- Java 21+
+- Java 25
 - Docker & Docker Compose
 - Gradle 8+
 
