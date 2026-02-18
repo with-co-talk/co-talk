@@ -79,6 +79,8 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
         Map<String, String> data = new HashMap<>();
         data.put("type", "NEW_MESSAGE");
         data.put("chatRoomId", chatRoomId.toString());
+        data.put("title", title);
+        data.put("body", body);
         if (senderAvatarUrl != null) {
             data.put("avatarUrl", senderAvatarUrl);
         }
@@ -130,13 +132,6 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
                 }));
 
         // 각 미리보기 모드 그룹별로 알림 전송
-        Map<String, String> data = new HashMap<>();
-        data.put("type", "NEW_MESSAGE");
-        data.put("chatRoomId", chatRoomId.toString());
-        if (senderAvatarUrl != null) {
-            data.put("avatarUrl", senderAvatarUrl);
-        }
-
         int totalSentCount = 0;
         int totalTokenCount = 0;
 
@@ -156,6 +151,17 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
 
             String title = resolveTitle(senderNickname, previewMode);
             String body = resolveBody(messageContent, previewMode);
+
+            // data에 title/body도 포함하여 클라이언트가 notification 필드 없이도
+            // 포그라운드 알림을 구성할 수 있도록 함 (일부 기기에서 notification이 null일 수 있음)
+            Map<String, String> data = new HashMap<>();
+            data.put("type", "NEW_MESSAGE");
+            data.put("chatRoomId", chatRoomId.toString());
+            data.put("title", title);
+            data.put("body", body);
+            if (senderAvatarUrl != null) {
+                data.put("avatarUrl", senderAvatarUrl);
+            }
 
             int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data, senderAvatarUrl);
             totalSentCount += sentCount;
