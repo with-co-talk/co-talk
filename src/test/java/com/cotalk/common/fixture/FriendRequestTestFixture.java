@@ -66,4 +66,81 @@ public class FriendRequestTestFixture {
                 .status(FriendRequest.RequestStatus.REJECTED)
                 .build();
     }
+
+    /**
+     * 빌더 스타일로 FriendRequest 생성을 시작합니다.
+     *
+     * @return FriendRequestBuilder 인스턴스
+     */
+    public static FriendRequestBuilder builder() {
+        return new FriendRequestBuilder();
+    }
+
+    /**
+     * FriendRequest 테스트 빌더.
+     */
+    public static class FriendRequestBuilder {
+        private Long id = 1L;
+        private Long requesterId = 1L;
+        private Long receiverId = 2L;
+        private FriendRequest.RequestStatus status = FriendRequest.RequestStatus.PENDING;
+
+        /**
+         * 요청 ID를 설정한다.
+         *
+         * @param id 요청 ID
+         * @return 빌더
+         */
+        public FriendRequestBuilder id(Long id) {
+            this.id = id;
+            return this;
+        }
+
+        /**
+         * 요청자 ID를 설정한다.
+         *
+         * @param requesterId 요청자 ID
+         * @return 빌더
+         */
+        public FriendRequestBuilder requesterId(Long requesterId) {
+            this.requesterId = requesterId;
+            return this;
+        }
+
+        /**
+         * 수신자 ID를 설정한다.
+         *
+         * @param receiverId 수신자 ID
+         * @return 빌더
+         */
+        public FriendRequestBuilder receiverId(Long receiverId) {
+            this.receiverId = receiverId;
+            return this;
+        }
+
+        /**
+         * 요청 상태를 설정한다.
+         *
+         * @param status 요청 상태
+         * @return 빌더
+         */
+        public FriendRequestBuilder status(FriendRequest.RequestStatus status) {
+            this.status = status;
+            return this;
+        }
+
+        /**
+         * FriendRequest 객체를 생성한다.
+         *
+         * @return 생성된 FriendRequest 엔티티
+         */
+        public FriendRequest build() {
+            return FriendRequest.builder()
+                    .id(id)
+                    .requesterId(requesterId)
+                    .receiverId(receiverId)
+                    .status(status)
+                    .build();
+        }
+    }
 }

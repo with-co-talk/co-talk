@@ -1,6 +1,7 @@
 package com.cotalk.application.service.friend;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,14 +36,14 @@ class GetFriendListServiceTest {
 
         User friend1 = User.builder()
                 .id(2L)
-                .email("friend1@example.com")
+                .email(new Email("friend1@example.com"))
                 .nickname("친구1")
                 .passwordHash("hash")
                 .build();
 
         User friend2 = User.builder()
                 .id(3L)
-                .email("friend2@example.com")
+                .email(new Email("friend2@example.com"))
                 .nickname("친구2")
                 .passwordHash("hash")
                 .build();
@@ -82,7 +83,7 @@ class GetFriendListServiceTest {
 
         User friend1 = User.builder()
                 .id(2L)
-                .email("friend1@example.com")
+                .email(new Email("friend1@example.com"))
                 .nickname("친구1")
                 .passwordHash("hash")
                 .build();
@@ -108,7 +109,7 @@ class GetFriendListServiceTest {
 
         User friend = User.builder()
                 .id(10L)
-                .email("friend10@example.com")
+                .email(new Email("friend10@example.com"))
                 .nickname("친구10")
                 .passwordHash("hash")
                 .build();

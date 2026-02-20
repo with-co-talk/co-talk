@@ -1,6 +1,7 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
@@ -71,7 +72,7 @@ class OAuthLoginServiceTest {
         User savedUser = userCaptor.getValue();
         assertThat(savedUser.getOauthProvider()).isEqualTo(provider);
         assertThat(savedUser.getOauthId()).isEqualTo(oauthId);
-        assertThat(savedUser.getEmail()).isEqualTo(email);
+        assertThat(savedUser.getEmail()).isEqualTo(new Email(email));
         assertThat(savedUser.getNickname()).isEqualTo(nickname);
         assertThat(savedUser.getPasswordHash()).isNull();
     }
@@ -85,7 +86,7 @@ class OAuthLoginServiceTest {
 
         User existingUser = User.builder()
                 .id(100L)
-                .email("oauth@kakao.com")
+                .email(new Email("oauth@kakao.com"))
                 .nickname("카카오유저")
                 .oauthProvider(provider)
                 .oauthId(oauthId)
@@ -196,7 +197,7 @@ class OAuthLoginServiceTest {
 
         User existingUser = User.builder()
                 .id(100L)
-                .email("oauth@kakao.com")
+                .email(new Email("oauth@kakao.com"))
                 .nickname("카카오유저")
                 .oauthProvider(provider)
                 .oauthId(oauthId)

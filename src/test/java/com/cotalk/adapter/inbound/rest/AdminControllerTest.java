@@ -4,6 +4,7 @@ import com.cotalk.adapter.inbound.rest.dto.admin.ProcessReportRequest;
 import com.cotalk.adapter.inbound.rest.dto.admin.SuspendUserRequest;
 import com.cotalk.domain.entity.Report;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.inbound.admin.AdminUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
@@ -16,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -48,13 +49,13 @@ class AdminControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private AdminUseCase adminUseCase;
 
-    @MockBean
+    @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
-    @MockBean
+    @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Nested
@@ -138,13 +139,13 @@ class AdminControllerTest {
             List<User> users = List.of(
                     User.builder()
                             .id(1L)
-                            .email("user1@test.com")
+                            .email(new Email("user1@test.com"))
                             .nickname("user1")
                             .status(User.UserStatus.ACTIVE)
                             .build(),
                     User.builder()
                             .id(2L)
-                            .email("user2@test.com")
+                            .email(new Email("user2@test.com"))
                             .nickname("user2")
                             .status(User.UserStatus.SUSPENDED)
                             .build()
@@ -177,7 +178,7 @@ class AdminControllerTest {
 
             User suspendedUser = User.builder()
                     .id(userId)
-                    .email("user@test.com")
+                    .email(new Email("user@test.com"))
                     .nickname("user")
                     .status(User.UserStatus.SUSPENDED)
                     .build();
@@ -203,7 +204,7 @@ class AdminControllerTest {
 
             User activatedUser = User.builder()
                     .id(userId)
-                    .email("user@test.com")
+                    .email(new Email("user@test.com"))
                     .nickname("user")
                     .status(User.UserStatus.ACTIVE)
                     .build();

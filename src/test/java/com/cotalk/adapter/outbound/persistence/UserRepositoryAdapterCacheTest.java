@@ -3,6 +3,7 @@ package com.cotalk.adapter.outbound.persistence;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.config.TestRedisConfiguration;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.infrastructure.config.CacheConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,7 +48,7 @@ class UserRepositoryAdapterCacheTest {
         // 테스트 사용자 생성 (어댑터를 통해 도메인 User 저장)
         savedUser = userRepository.save(User.builder()
                 .id(1000L)
-                .email("cache-test@example.com")
+                .email(new Email("cache-test@example.com"))
                 .passwordHash("hash")
                 .nickname("cacheTestUser")
                 .status(User.UserStatus.ACTIVE)
@@ -69,7 +70,7 @@ class UserRepositoryAdapterCacheTest {
 
             // then
             assertThat(result).isPresent();
-            assertThat(result.get().getEmail()).isEqualTo("cache-test@example.com");
+            assertThat(result.get().getEmail()).isEqualTo(new Email("cache-test@example.com"));
 
             // 캐시 확인
             Object cachedValue = cacheManager.getCache(CacheConfig.USER_CACHE).get(userId);
@@ -90,7 +91,7 @@ class UserRepositoryAdapterCacheTest {
 
             // then
             assertThat(result).isPresent();
-            assertThat(result.get().getEmail()).isEqualTo("cache-test@example.com");
+            assertThat(result.get().getEmail()).isEqualTo(new Email("cache-test@example.com"));
         }
 
         @Test

@@ -3,10 +3,11 @@ package com.cotalk.application.service.chatroom;
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.User;
-import com.cotalk.domain.exception.InvalidGroupChatException;
+import com.cotalk.domain.exception.InvalidChatRoomException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.validator.UserValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
@@ -44,6 +45,9 @@ class CreateGroupChatRoomServiceTest {
 
     @Mock
     private SnowflakeIdGenerator idGenerator;
+
+    @Mock
+    private TimeProvider timeProvider;
 
     @Mock
     private UserEventBroker userEventBroker;
@@ -95,7 +99,7 @@ class CreateGroupChatRoomServiceTest {
 
         // when & then
         assertThatThrownBy(() -> createGroupChatRoomService.createGroupChatRoom(creatorId, roomName, memberIds))
-                .isInstanceOf(InvalidGroupChatException.class)
+                .isInstanceOf(InvalidChatRoomException.class)
                 .hasMessageContaining("그룹 채팅방 이름은 필수입니다");
     }
 
@@ -108,7 +112,7 @@ class CreateGroupChatRoomServiceTest {
 
         // when & then
         assertThatThrownBy(() -> createGroupChatRoomService.createGroupChatRoom(creatorId, null, memberIds))
-                .isInstanceOf(InvalidGroupChatException.class)
+                .isInstanceOf(InvalidChatRoomException.class)
                 .hasMessageContaining("그룹 채팅방 이름은 필수입니다");
     }
 
@@ -122,7 +126,7 @@ class CreateGroupChatRoomServiceTest {
 
         // when & then
         assertThatThrownBy(() -> createGroupChatRoomService.createGroupChatRoom(creatorId, roomName, memberIds))
-                .isInstanceOf(InvalidGroupChatException.class)
+                .isInstanceOf(InvalidChatRoomException.class)
                 .hasMessageContaining("그룹 채팅방은 최소 3명 이상이어야 합니다");
     }
 
@@ -168,7 +172,7 @@ class CreateGroupChatRoomServiceTest {
 
         // when & then
         assertThatThrownBy(() -> createGroupChatRoomService.createGroupChatRoom(creatorId, roomName, memberIds))
-                .isInstanceOf(InvalidGroupChatException.class)
+                .isInstanceOf(InvalidChatRoomException.class)
                 .hasMessageContaining("그룹 채팅방 이름은 50자를 초과할 수 없습니다");
     }
 

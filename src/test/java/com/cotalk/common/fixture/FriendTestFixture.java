@@ -67,4 +67,81 @@ public class FriendTestFixture {
                 .status(Friend.FriendStatus.BLOCKED)
                 .build();
     }
+
+    /**
+     * 빌더 스타일로 Friend 생성을 시작합니다.
+     *
+     * @return FriendBuilder 인스턴스
+     */
+    public static FriendBuilder builder() {
+        return new FriendBuilder();
+    }
+
+    /**
+     * Friend 테스트 빌더.
+     */
+    public static class FriendBuilder {
+        private Long id = 1L;
+        private Long userId = 1L;
+        private Long friendId = 2L;
+        private Friend.FriendStatus status = Friend.FriendStatus.ACCEPTED;
+
+        /**
+         * 친구 관계 ID를 설정한다.
+         *
+         * @param id 친구 관계 ID
+         * @return 빌더
+         */
+        public FriendBuilder id(Long id) {
+            this.id = id;
+            return this;
+        }
+
+        /**
+         * 사용자 ID를 설정한다.
+         *
+         * @param userId 사용자 ID
+         * @return 빌더
+         */
+        public FriendBuilder userId(Long userId) {
+            this.userId = userId;
+            return this;
+        }
+
+        /**
+         * 친구 ID를 설정한다.
+         *
+         * @param friendId 친구 ID
+         * @return 빌더
+         */
+        public FriendBuilder friendId(Long friendId) {
+            this.friendId = friendId;
+            return this;
+        }
+
+        /**
+         * 친구 관계 상태를 설정한다.
+         *
+         * @param status 친구 관계 상태
+         * @return 빌더
+         */
+        public FriendBuilder status(Friend.FriendStatus status) {
+            this.status = status;
+            return this;
+        }
+
+        /**
+         * Friend 객체를 생성한다.
+         *
+         * @return 생성된 Friend 엔티티
+         */
+        public Friend build() {
+            return Friend.builder()
+                    .id(id)
+                    .userId(userId)
+                    .friendId(friendId)
+                    .status(status)
+                    .build();
+        }
+    }
 }

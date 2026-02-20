@@ -1,6 +1,7 @@
 package com.cotalk.application.service.user;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,13 +35,13 @@ class SearchUserServiceTest {
         List<User> expectedUsers = List.of(
                 User.builder()
                         .id(1L)
-                        .email("user1@example.com")
+                        .email(new Email("user1@example.com"))
                         .nickname("테스트유저1")
                         .passwordHash("hash")
                         .build(),
                 User.builder()
                         .id(2L)
-                        .email("user2@example.com")
+                        .email(new Email("user2@example.com"))
                         .nickname("테스트유저2")
                         .passwordHash("hash")
                         .build()

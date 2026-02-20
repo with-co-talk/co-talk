@@ -3,6 +3,7 @@ package com.cotalk.application.service.profile;
 import com.cotalk.domain.entity.ProfileHistory;
 import com.cotalk.domain.entity.ProfileHistoryType;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.outbound.ProfileHistoryRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -229,7 +230,7 @@ class GetProfileHistoryServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("test@test.com")
+                    .email(new Email("test@test.com"))
                     .nickname("테스트")
                     .passwordHash("hash")
                     .avatarUrl(avatarUrl)
@@ -270,7 +271,7 @@ class GetProfileHistoryServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("test@test.com")
+                    .email(new Email("test@test.com"))
                     .nickname("테스트")
                     .passwordHash("hash")
                     .backgroundUrl(backgroundUrl)
@@ -311,7 +312,7 @@ class GetProfileHistoryServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("test@test.com")
+                    .email(new Email("test@test.com"))
                     .nickname("테스트")
                     .passwordHash("hash")
                     .statusMessage(statusMessage)
@@ -364,7 +365,7 @@ class GetProfileHistoryServiceTest {
             // User의 avatarUrl이 기존 이력과 동일
             User user = User.builder()
                     .id(userId)
-                    .email("test@test.com")
+                    .email(new Email("test@test.com"))
                     .nickname("테스트")
                     .passwordHash("hash")
                     .avatarUrl(avatarUrl)
@@ -393,7 +394,7 @@ class GetProfileHistoryServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("test@test.com")
+                    .email(new Email("test@test.com"))
                     .nickname("테스트")
                     .passwordHash("hash")
                     .avatarUrl(null)  // 아바타 URL 없음
@@ -455,7 +456,7 @@ class GetProfileHistoryServiceTest {
             // User의 avatarUrl이 기존 이력과 다름
             User user = User.builder()
                     .id(userId)
-                    .email("test@test.com")
+                    .email(new Email("test@test.com"))
                     .nickname("테스트")
                     .passwordHash("hash")
                     .avatarUrl(newAvatarUrl)

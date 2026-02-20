@@ -2,6 +2,7 @@ package com.cotalk.application.service.friend;
 
 import com.cotalk.domain.entity.FriendRequest;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.exception.SelfActionNotAllowedException;
 import com.cotalk.domain.exception.UserNotFoundException;
@@ -82,7 +83,7 @@ class SendFriendRequestServiceTest {
 
         doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
         given(userValidator.validateUserExists(receiverId)).willReturn(
-                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+                User.builder().id(receiverId).email(new Email("test@example.com")).nickname("test").passwordHash("hash").build()
         );
         given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(false);
         given(friendRequestRepository.existsByRequesterIdAndReceiverId(requesterId, receiverId)).willReturn(false);
@@ -143,7 +144,7 @@ class SendFriendRequestServiceTest {
 
         doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
         given(userValidator.validateUserExists(receiverId)).willReturn(
-                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+                User.builder().id(receiverId).email(new Email("test@example.com")).nickname("test").passwordHash("hash").build()
         );
         given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(true);
 
@@ -161,7 +162,7 @@ class SendFriendRequestServiceTest {
 
         doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
         given(userValidator.validateUserExists(receiverId)).willReturn(
-                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+                User.builder().id(receiverId).email(new Email("test@example.com")).nickname("test").passwordHash("hash").build()
         );
         given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(false);
         given(friendRequestRepository.existsByRequesterIdAndReceiverId(requesterId, receiverId)).willReturn(true);
@@ -182,14 +183,14 @@ class SendFriendRequestServiceTest {
 
         User requester = User.builder()
                 .id(requesterId)
-                .email("requester@example.com")
+                .email(new Email("requester@example.com"))
                 .nickname(requesterNickname)
                 .passwordHash("hash")
                 .build();
 
         User receiver = User.builder()
                 .id(receiverId)
-                .email("receiver@example.com")
+                .email(new Email("receiver@example.com"))
                 .nickname("수신자닉네임")
                 .passwordHash("hash")
                 .build();
@@ -221,7 +222,7 @@ class SendFriendRequestServiceTest {
 
         doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
         given(userValidator.validateUserExists(receiverId)).willReturn(
-                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+                User.builder().id(receiverId).email(new Email("test@example.com")).nickname("test").passwordHash("hash").build()
         );
         given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(false);
         given(friendRequestRepository.existsByRequesterIdAndReceiverIdAndStatus(
@@ -243,7 +244,7 @@ class SendFriendRequestServiceTest {
 
         doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
         given(userValidator.validateUserExists(receiverId)).willReturn(
-                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+                User.builder().id(receiverId).email(new Email("test@example.com")).nickname("test").passwordHash("hash").build()
         );
         given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(false);
         given(friendRequestRepository.existsByRequesterIdAndReceiverId(requesterId, receiverId)).willReturn(false);
@@ -269,14 +270,14 @@ class SendFriendRequestServiceTest {
 
         User requester = User.builder()
                 .id(requesterId)
-                .email("requester@example.com")
+                .email(new Email("requester@example.com"))
                 .nickname("요청자닉네임")
                 .passwordHash("hash")
                 .build();
 
         doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
         given(userValidator.validateUserExists(receiverId)).willReturn(
-                User.builder().id(receiverId).email("test@example.com").nickname("test").passwordHash("hash").build()
+                User.builder().id(receiverId).email(new Email("test@example.com")).nickname("test").passwordHash("hash").build()
         );
         given(userValidator.validateUserExists(requesterId)).willReturn(requester);
         given(friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)).willReturn(false);

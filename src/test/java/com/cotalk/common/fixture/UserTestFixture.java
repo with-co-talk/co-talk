@@ -1,6 +1,7 @@
 package com.cotalk.common.fixture;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 
 import java.time.LocalDateTime;
 
@@ -35,7 +36,7 @@ public class UserTestFixture {
     public static User createUser(Long userId, String email, String nickname) {
         return User.builder()
                 .id(userId)
-                .email(email)
+                .email(new Email(email))
                 .passwordHash(DEFAULT_PASSWORD_HASH)
                 .nickname(nickname)
                 .avatarUrl(DEFAULT_AVATAR_URL)
@@ -48,7 +49,7 @@ public class UserTestFixture {
     public static User createUserWithProfile(Long userId, String nickname, String avatarUrl) {
         return User.builder()
                 .id(userId)
-                .email(DEFAULT_EMAIL)
+                .email(new Email(DEFAULT_EMAIL))
                 .passwordHash(DEFAULT_PASSWORD_HASH)
                 .nickname(nickname)
                 .avatarUrl(avatarUrl)
@@ -118,7 +119,7 @@ public class UserTestFixture {
         public User build() {
             return User.builder()
                     .id(id)
-                    .email(email)
+                    .email(new Email(email))
                     .passwordHash(passwordHash)
                     .nickname(nickname)
                     .avatarUrl(avatarUrl)

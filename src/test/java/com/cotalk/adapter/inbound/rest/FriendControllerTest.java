@@ -3,6 +3,7 @@ package com.cotalk.adapter.inbound.rest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.domain.entity.FriendRequest;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.inbound.friend.AcceptFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.GetFriendListUseCase;
 import com.cotalk.domain.port.inbound.friend.GetReceivedFriendRequestsUseCase;
@@ -23,7 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -58,34 +59,34 @@ class FriendControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private SendFriendRequestUseCase sendFriendRequestUseCase;
 
-    @MockBean
+    @MockitoBean
     private AcceptFriendRequestUseCase acceptFriendRequestUseCase;
 
-    @MockBean
+    @MockitoBean
     private GetFriendListUseCase getFriendListUseCase;
 
-    @MockBean
+    @MockitoBean
     private RejectFriendRequestUseCase rejectFriendRequestUseCase;
 
-    @MockBean
+    @MockitoBean
     private RemoveFriendUseCase removeFriendUseCase;
 
-    @MockBean
+    @MockitoBean
     private GetReceivedFriendRequestsUseCase getReceivedFriendRequestsUseCase;
 
-    @MockBean
+    @MockitoBean
     private GetSentFriendRequestsUseCase getSentFriendRequestsUseCase;
 
-    @MockBean
+    @MockitoBean
     private UserRepository userRepository;
 
-    @MockBean
+    @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
-    @MockBean
+    @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Nested
@@ -144,13 +145,13 @@ class FriendControllerTest {
             List<User> friends = List.of(
                     User.builder()
                             .id(2L)
-                            .email("friend1@example.com")
+                            .email(new Email("friend1@example.com"))
                             .nickname("친구1")
                             .passwordHash("hash")
                             .build(),
                     User.builder()
                             .id(3L)
-                            .email("friend2@example.com")
+                            .email(new Email("friend2@example.com"))
                             .nickname("친구2")
                             .passwordHash("hash")
                             .build()
@@ -181,7 +182,7 @@ class FriendControllerTest {
             Long userId = 1L;
             User friend = User.builder()
                     .id(22L)
-                    .email("friend22@example.com")
+                    .email(new Email("friend22@example.com"))
                     .nickname("친구22")
                     .passwordHash("hash")
                     .build();
@@ -255,14 +256,14 @@ class FriendControllerTest {
 
             User requester = User.builder()
                     .id(2L)
-                    .email("requester@example.com")
+                    .email(new Email("requester@example.com"))
                     .nickname("요청자")
                     .passwordHash("hash")
                     .build();
 
             User receiver = User.builder()
                     .id(userId)
-                    .email("receiver@example.com")
+                    .email(new Email("receiver@example.com"))
                     .nickname("수신자")
                     .passwordHash("hash")
                     .build();
@@ -329,14 +330,14 @@ class FriendControllerTest {
 
             User requester = User.builder()
                     .id(userId)
-                    .email("requester@example.com")
+                    .email(new Email("requester@example.com"))
                     .nickname("요청자")
                     .passwordHash("hash")
                     .build();
 
             User receiver = User.builder()
                     .id(2L)
-                    .email("receiver@example.com")
+                    .email(new Email("receiver@example.com"))
                     .nickname("수신자")
                     .passwordHash("hash")
                     .build();

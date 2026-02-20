@@ -4,7 +4,7 @@ import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.ChatRoomNotFoundException;
-import com.cotalk.domain.exception.InvalidGroupChatException;
+import com.cotalk.domain.exception.InvalidChatRoomException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
@@ -112,7 +112,7 @@ class InviteGroupChatMemberServiceTest {
 
         // when & then
         assertThatThrownBy(() -> inviteGroupChatMemberService.inviteMembers(roomId, inviterId, inviteeIds))
-                .isInstanceOf(InvalidGroupChatException.class)
+                .isInstanceOf(InvalidChatRoomException.class)
                 .hasMessageContaining("멤버를 초대할 수 없습니다");
     }
 

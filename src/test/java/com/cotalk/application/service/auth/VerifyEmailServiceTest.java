@@ -2,9 +2,11 @@ package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.EmailVerificationToken;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.InvalidEmailVerificationTokenException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,11 +40,16 @@ class VerifyEmailServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private VerifyEmailService service;
+
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @BeforeEach
     void setUp() {
-        service = new VerifyEmailService(tokenRepository, userRepository);
+        service = new VerifyEmailService(tokenRepository, userRepository, timeProvider);
     }
 
     @Test
@@ -55,13 +62,13 @@ class VerifyEmailServiceTest {
                 .id(1L)
                 .token(token)
                 .userId(10L)
-                .email("user@example.com")
-                .expiresAt(LocalDateTime.now().plusHours(24))
+                .email(new Email("user@example.com"))
+                .expiresAt(FIXED_NOW.plusHours(24))
                 .build();
 
         User user = User.builder()
                 .id(10L)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash("hash")
                 .emailVerified(false)
@@ -71,6 +78,7 @@ class VerifyEmailServiceTest {
         given(userRepository.findById(10L)).willReturn(Optional.of(user));
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
         given(tokenRepository.save(any(EmailVerificationToken.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         service.verifyEmail(token);
@@ -108,11 +116,12 @@ class VerifyEmailServiceTest {
                 .id(1L)
                 .token(token)
                 .userId(10L)
-                .email("user@example.com")
-                .expiresAt(LocalDateTime.now().minusMinutes(1)) // 만료됨
+                .email(new Email("user@example.com"))
+                .expiresAt(FIXED_NOW.minusMinutes(1)) // 만료됨
                 .build();
 
         given(tokenRepository.findByToken(token)).willReturn(Optional.of(verificationToken));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when & then
         assertThatThrownBy(() -> service.verifyEmail(token))
@@ -130,12 +139,13 @@ class VerifyEmailServiceTest {
                 .id(1L)
                 .token(token)
                 .userId(10L)
-                .email("user@example.com")
-                .expiresAt(LocalDateTime.now().plusHours(24))
-                .verifiedAt(LocalDateTime.now().minusMinutes(5)) // 이미 인증됨
+                .email(new Email("user@example.com"))
+                .expiresAt(FIXED_NOW.plusHours(24))
+                .verifiedAt(FIXED_NOW.minusMinutes(5)) // 이미 인증됨
                 .build();
 
         given(tokenRepository.findByToken(token)).willReturn(Optional.of(verificationToken));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when & then
         assertThatThrownBy(() -> service.verifyEmail(token))

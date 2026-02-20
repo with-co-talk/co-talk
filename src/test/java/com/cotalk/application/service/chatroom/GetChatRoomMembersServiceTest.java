@@ -3,6 +3,7 @@ package com.cotalk.application.service.chatroom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomMembersUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -83,7 +84,7 @@ class GetChatRoomMembersServiceTest {
 
             User user1 = User.builder()
                     .id(200L)
-                    .email("user1@example.com")
+                    .email(new Email("user1@example.com"))
                     .nickname("사용자1")
                     .passwordHash("hash")
                     .avatarUrl("https://example.com/avatar1.png")
@@ -91,14 +92,14 @@ class GetChatRoomMembersServiceTest {
 
             User user2 = User.builder()
                     .id(300L)
-                    .email("user2@example.com")
+                    .email(new Email("user2@example.com"))
                     .nickname("사용자2")
                     .passwordHash("hash")
                     .build();
 
             User requestUser = User.builder()
                     .id(requestUserId)
-                    .email("requester@example.com")
+                    .email(new Email("requester@example.com"))
                     .nickname("요청자")
                     .passwordHash("hash")
                     .build();
@@ -153,14 +154,14 @@ class GetChatRoomMembersServiceTest {
 
             User user = User.builder()
                     .id(requestUserId)
-                    .email("user@example.com")
+                    .email(new Email("user@example.com"))
                     .nickname("일반멤버")
                     .passwordHash("hash")
                     .build();
 
             User adminUser = User.builder()
                     .id(200L)
-                    .email("admin@example.com")
+                    .email(new Email("admin@example.com"))
                     .nickname("관리자")
                     .passwordHash("hash")
                     .build();
@@ -202,7 +203,7 @@ class GetChatRoomMembersServiceTest {
 
             User user = User.builder()
                     .id(requestUserId)
-                    .email("user@example.com")
+                    .email(new Email("user@example.com"))
                     .nickname("일반멤버")
                     .passwordHash("hash")
                     .build();

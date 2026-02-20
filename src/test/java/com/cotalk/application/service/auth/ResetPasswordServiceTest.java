@@ -2,9 +2,11 @@ package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.PasswordResetToken;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.SpringPasswordEncoderAdapter;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,13 +36,18 @@ class ResetPasswordServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private PasswordEncoderPort passwordEncoder;
     private ResetPasswordService service;
+
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @BeforeEach
     void setUp() {
         passwordEncoder = new SpringPasswordEncoderAdapter(new BCryptPasswordEncoder());
-        service = new ResetPasswordService(tokenRepository, userRepository, passwordEncoder);
+        service = new ResetPasswordService(tokenRepository, userRepository, passwordEncoder, timeProvider);
     }
 
     @Test
@@ -54,13 +61,13 @@ class ResetPasswordServiceTest {
                 .id(1L)
                 .token(token)
                 .userId(10L)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .expiresAt(LocalDateTime.now().plusMinutes(30))
                 .build();
 
         User user = User.builder()
                 .id(10L)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash("oldHash")
                 .build();
@@ -68,6 +75,7 @@ class ResetPasswordServiceTest {
         given(tokenRepository.findByToken(token)).willReturn(Optional.of(resetToken));
         given(userRepository.findById(10L)).willReturn(Optional.of(user));
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         service.resetPassword(token, newPassword);
@@ -94,11 +102,12 @@ class ResetPasswordServiceTest {
                 .id(1L)
                 .token(token)
                 .userId(10L)
-                .email("user@example.com")
-                .expiresAt(LocalDateTime.now().minusMinutes(1)) // 만료됨
+                .email(new Email("user@example.com"))
+                .expiresAt(FIXED_NOW.minusMinutes(1)) // 만료됨
                 .build();
 
         given(tokenRepository.findByToken(token)).willReturn(Optional.of(resetToken));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when & then
         assertThatThrownBy(() -> service.resetPassword(token, "newPassword"))
@@ -116,12 +125,13 @@ class ResetPasswordServiceTest {
                 .id(1L)
                 .token(token)
                 .userId(10L)
-                .email("user@example.com")
-                .expiresAt(LocalDateTime.now().plusMinutes(30))
-                .usedAt(LocalDateTime.now().minusMinutes(5)) // 이미 사용됨
+                .email(new Email("user@example.com"))
+                .expiresAt(FIXED_NOW.plusMinutes(30))
+                .usedAt(FIXED_NOW.minusMinutes(5)) // 이미 사용됨
                 .build();
 
         given(tokenRepository.findByToken(token)).willReturn(Optional.of(resetToken));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when & then
         assertThatThrownBy(() -> service.resetPassword(token, "newPassword"))
@@ -151,11 +161,12 @@ class ResetPasswordServiceTest {
         PasswordResetToken resetToken = PasswordResetToken.builder()
                 .token(token)
                 .userId(10L)
-                .email("user@example.com")
-                .expiresAt(LocalDateTime.now().plusMinutes(30))
+                .email(new Email("user@example.com"))
+                .expiresAt(FIXED_NOW.plusMinutes(30))
                 .build();
 
         given(tokenRepository.findByToken(token)).willReturn(Optional.of(resetToken));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         boolean result = service.validateToken(token);
@@ -173,11 +184,12 @@ class ResetPasswordServiceTest {
         PasswordResetToken resetToken = PasswordResetToken.builder()
                 .token(token)
                 .userId(10L)
-                .email("user@example.com")
-                .expiresAt(LocalDateTime.now().minusMinutes(1))
+                .email(new Email("user@example.com"))
+                .expiresAt(FIXED_NOW.minusMinutes(1))
                 .build();
 
         given(tokenRepository.findByToken(token)).willReturn(Optional.of(resetToken));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         boolean result = service.validateToken(token);

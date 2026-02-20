@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
@@ -53,52 +53,52 @@ class SecurityConfigTest {
     private MockMvc mockMvc;
 
     // Inbound ports
-    @MockBean
+    @MockitoBean
     private SignUpUseCase signUpUseCase;
 
-    @MockBean
+    @MockitoBean
     private LoginUseCase loginUseCase;
 
-    @MockBean
+    @MockitoBean
     private RefreshTokenUseCase refreshTokenUseCase;
 
-    @MockBean
+    @MockitoBean
     private SecurityContextHelper securityContextHelper;
 
-    @MockBean
+    @MockitoBean
     private SendFriendRequestUseCase sendFriendRequestUseCase;
 
-    @MockBean
+    @MockitoBean
     private AcceptFriendRequestUseCase acceptFriendRequestUseCase;
 
-    @MockBean
+    @MockitoBean
     private RejectFriendRequestUseCase rejectFriendRequestUseCase;
 
-    @MockBean
+    @MockitoBean
     private RemoveFriendUseCase removeFriendUseCase;
 
-    @MockBean
+    @MockitoBean
     private GetFriendListUseCase getFriendListUseCase;
 
-    @MockBean
+    @MockitoBean
     private GetReceivedFriendRequestsUseCase getReceivedFriendRequestsUseCase;
 
-    @MockBean
+    @MockitoBean
     private GetSentFriendRequestsUseCase getSentFriendRequestsUseCase;
 
-    @MockBean
+    @MockitoBean
     private HideFriendUseCase hideFriendUseCase;
 
-    @MockBean
+    @MockitoBean
     private UnhideFriendUseCase unhideFriendUseCase;
 
-    @MockBean
+    @MockitoBean
     private GetHiddenFriendsUseCase getHiddenFriendsUseCase;
 
-    @MockBean
+    @MockitoBean
     private UserRepository userRepository;
 
-    @MockBean
+    @MockitoBean
     private FindEmailUseCase findEmailUseCase;
 
     @Test
@@ -126,7 +126,7 @@ class SecurityConfigTest {
     @DisplayName("인증 없이 로그인 API 접근 가능")
     void should_allowAccess_when_loginWithoutAuth() throws Exception {
         // given
-        given(loginUseCase.login(anyString(), anyString())).willReturn(new LoginResult("jwt-token", 1L));
+        given(loginUseCase.login(anyString(), anyString())).willReturn(new LoginResult("jwt-token", 1L, 3600L));
         given(refreshTokenUseCase.createRefreshToken(1L)).willReturn("refresh-token");
 
         String requestBody = """

@@ -1,6 +1,7 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.PasswordMismatchException;
 import com.cotalk.domain.exception.RateLimitExceededException;
 import com.cotalk.domain.exception.UserNotFoundException;
@@ -73,7 +74,7 @@ class ChangePasswordServiceTest {
         // given
         User user = User.builder()
                 .id(USER_ID)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash(ENCODED_CURRENT)
                 .build();
@@ -119,7 +120,7 @@ class ChangePasswordServiceTest {
         // given
         User user = User.builder()
                 .id(USER_ID)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash(ENCODED_CURRENT)
                 .build();
@@ -146,7 +147,7 @@ class ChangePasswordServiceTest {
         // given
         User user = User.builder()
                 .id(USER_ID)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash(ENCODED_CURRENT)
                 .build();
@@ -173,7 +174,7 @@ class ChangePasswordServiceTest {
         // given
         User user = User.builder()
                 .id(USER_ID)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash(ENCODED_CURRENT)
                 .build();
@@ -216,7 +217,7 @@ class ChangePasswordServiceTest {
         // given
         User user = User.builder()
                 .id(USER_ID)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash(ENCODED_CURRENT)
                 .build();

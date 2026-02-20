@@ -12,7 +12,6 @@ import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
 import com.cotalk.domain.port.inbound.user.FindEmailUseCase;
 import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
-import com.cotalk.infrastructure.config.properties.JwtProperties;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
@@ -25,7 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -50,28 +49,25 @@ class AuthControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private SignUpUseCase signUpUseCase;
 
-    @MockBean
+    @MockitoBean
     private LoginUseCase loginUseCase;
 
-    @MockBean
+    @MockitoBean
     private RefreshTokenUseCase refreshTokenUseCase;
 
-    @MockBean
+    @MockitoBean
     private SecurityContextHelper securityContextHelper;
 
-    @MockBean
+    @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
-    @MockBean
+    @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @MockBean
-    private JwtProperties jwtProperties;
-
-    @MockBean
+    @MockitoBean
     private FindEmailUseCase findEmailUseCase;
 
     @Nested
@@ -146,7 +142,7 @@ class AuthControllerTest {
         void should_returnOkWithToken_when_validLoginRequest() throws Exception {
             // given
             LoginRequest request = new LoginRequest("test@example.com", "Password123!");
-            LoginResult loginResult = new LoginResult("jwt-token-12345", 1L);
+            LoginResult loginResult = new LoginResult("jwt-token-12345", 1L, 3600L);
             given(loginUseCase.login(anyString(), anyString())).willReturn(loginResult);
             given(refreshTokenUseCase.createRefreshToken(1L)).willReturn("refresh-token-12345");
 
@@ -182,14 +178,16 @@ class AuthControllerTest {
     class RefreshTokenApi {
 
         @Test
-        @DisplayName("유효한 Refresh Token으로 토큰 갱신 성공")
+        @DisplayName("유효한 Refresh Token으로 토큰 갱신 성공 (Token Rotation)")
         void should_returnNewAccessToken_when_validRefreshToken() throws Exception {
             // given
             String refreshToken = "valid-refresh-token";
             String newAccessToken = "new-access-token";
+            String newRefreshToken = "new-refresh-token";
             TokenRefreshRequest request = new TokenRefreshRequest(refreshToken);
 
-            given(refreshTokenUseCase.refreshAccessToken(refreshToken)).willReturn(newAccessToken);
+            given(refreshTokenUseCase.refreshAccessToken(refreshToken))
+                    .willReturn(new RefreshTokenUseCase.RefreshResult(newAccessToken, newRefreshToken));
 
             // when & then
             mockMvc.perform(post("/api/v1/auth/refresh")
@@ -197,7 +195,7 @@ class AuthControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.accessToken").value(newAccessToken))
-                    .andExpect(jsonPath("$.refreshToken").value(refreshToken));
+                    .andExpect(jsonPath("$.refreshToken").value(newRefreshToken));
         }
 
         @Test

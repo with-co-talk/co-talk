@@ -3,6 +3,7 @@ package com.cotalk.application.service.auth;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.exception.UserNotFoundException;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
@@ -64,7 +65,7 @@ class LoginServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email(email)
+                    .email(new Email(email))
                     .passwordHash("hashedPassword")
                     .nickname("testUser")
                     .build();
@@ -72,6 +73,7 @@ class LoginServiceTest {
             given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
             given(passwordEncoder.matches(password, "hashedPassword")).willReturn(true);
             given(authTokenPort.generateAccessToken(userId)).willReturn(expectedToken);
+            given(authTokenPort.getAccessTokenExpiresInSeconds()).willReturn(3600L);
 
             // when
             LoginResult result = loginService.login(email, password);
@@ -79,6 +81,7 @@ class LoginServiceTest {
             // then
             assertThat(result.accessToken()).isEqualTo(expectedToken);
             assertThat(result.userId()).isEqualTo(userId);
+            assertThat(result.expiresInSeconds()).isEqualTo(3600L);
             // 로그인 시 온라인 상태로 변경되는지 확인
             org.mockito.Mockito.verify(updateUserOnlineStatusUseCase).setOnline(userId);
         }
@@ -110,7 +113,7 @@ class LoginServiceTest {
 
             User user = User.builder()
                     .id(1L)
-                    .email(email)
+                    .email(new Email(email))
                     .passwordHash("hashedPassword")
                     .nickname("testUser")
                     .build();
@@ -138,7 +141,7 @@ class LoginServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email(email)
+                    .email(new Email(email))
                     .passwordHash("hash")
                     .nickname("testUser")
                     .build();

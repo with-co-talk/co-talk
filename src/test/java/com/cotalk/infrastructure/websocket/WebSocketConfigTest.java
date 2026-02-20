@@ -21,7 +21,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
@@ -55,51 +55,51 @@ class WebSocketConfigTest {
     private JwtTokenProvider jwtTokenProvider;
 
     // Inbound ports
-    @MockBean
+    @MockitoBean
     private SignUpUseCase signUpUseCase;
 
-    @MockBean
+    @MockitoBean
     private LoginUseCase loginUseCase;
 
-    @MockBean
+    @MockitoBean
     private SendMessageUseCase sendMessageUseCase;
 
-    @MockBean
+    @MockitoBean
     private GetMessageHistoryUseCase getMessageHistoryUseCase;
 
-    @MockBean
+    @MockitoBean
     private CreateChatRoomUseCase createChatRoomUseCase;
 
-    @MockBean
+    @MockitoBean
     private SendFriendRequestUseCase sendFriendRequestUseCase;
 
-    @MockBean
+    @MockitoBean
     private AcceptFriendRequestUseCase acceptFriendRequestUseCase;
 
-    @MockBean
+    @MockitoBean
     private GetFriendListUseCase getFriendListUseCase;
 
     // Outbound ports
-    @MockBean
+    @MockitoBean
     private UserRepository userRepository;
 
-    @MockBean
+    @MockitoBean
     private MessageRepository messageRepository;
 
-    @MockBean
+    @MockitoBean
     private ChatRoomRepository chatRoomRepository;
 
-    @MockBean
+    @MockitoBean
     private ChatRoomMemberRepository chatRoomMemberRepository;
 
-    @MockBean
+    @MockitoBean
     private FriendRepository friendRepository;
 
-    @MockBean
+    @MockitoBean
     private FriendRequestRepository friendRequestRepository;
 
     // Infrastructure
-    @MockBean
+    @MockitoBean
     private SnowflakeIdGenerator snowflakeIdGenerator;
 
     @Test

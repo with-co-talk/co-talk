@@ -5,6 +5,7 @@ import com.cotalk.domain.entity.TermsAgreement.TermsType;
 import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.port.inbound.auth.AgreeToTermsUseCase.*;
 import com.cotalk.domain.port.outbound.TermsAgreementRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,13 +33,18 @@ class AgreeToTermsServiceTest {
     @Mock
     private TermsAgreementRepository termsAgreementRepository;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private AgreeToTermsService service;
+
+    private static final java.time.LocalDateTime FIXED_NOW = java.time.LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @BeforeEach
     void setUp() {
         String termsServiceVersion = "1.0";
         String termsPrivacyVersion = "1.0";
-        service = new AgreeToTermsService(termsAgreementRepository, termsServiceVersion, termsPrivacyVersion);
+        service = new AgreeToTermsService(termsAgreementRepository, timeProvider, termsServiceVersion, termsPrivacyVersion);
     }
 
     @Test
@@ -54,6 +60,7 @@ class AgreeToTermsServiceTest {
         TermsAgreementCommand command = new TermsAgreementCommand(userId, items, "127.0.0.1");
 
         given(termsAgreementRepository.saveAll(anyList())).willReturn(Collections.emptyList());
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         service.agreeToTerms(command);
@@ -101,11 +108,12 @@ class AgreeToTermsServiceTest {
     void should_withdrawMarketingAgreement_when_requested() {
         // given
         Long userId = 1L;
-        TermsAgreement agreement = TermsAgreement.create(userId, TermsType.MARKETING, "1.0", true, "127.0.0.1");
-        
+        TermsAgreement agreement = TermsAgreement.create(userId, TermsType.MARKETING, "1.0", true, "127.0.0.1", FIXED_NOW);
+
         given(termsAgreementRepository.findByUserIdAndTermsType(userId, TermsType.MARKETING))
                 .willReturn(Optional.of(agreement));
         given(termsAgreementRepository.save(any(TermsAgreement.class))).willReturn(agreement);
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         service.withdrawMarketingAgreement(userId);
@@ -150,8 +158,8 @@ class AgreeToTermsServiceTest {
         // given
         Long userId = 1L;
         List<TermsAgreement> agreements = Arrays.asList(
-                TermsAgreement.create(userId, TermsType.SERVICE, "1.0", true, "127.0.0.1"),
-                TermsAgreement.create(userId, TermsType.PRIVACY, "1.0", true, "127.0.0.1")
+                TermsAgreement.create(userId, TermsType.SERVICE, "1.0", true, "127.0.0.1", FIXED_NOW),
+                TermsAgreement.create(userId, TermsType.PRIVACY, "1.0", true, "127.0.0.1", FIXED_NOW)
         );
         given(termsAgreementRepository.findByUserId(userId)).willReturn(agreements);
 

@@ -7,6 +7,7 @@ import com.cotalk.domain.port.outbound.EmailSender;
 import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.UserValidator;
 
@@ -50,13 +51,18 @@ class SignUpServiceTest {
     @Mock
     private EmailSender emailSender;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private SignUpService signUpService;
+
+    private static final java.time.LocalDateTime FIXED_NOW = java.time.LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @BeforeEach
     void setUp() {
         String frontendUrl = "http://localhost:3000";
         signUpService = new SignUpService(userRepository, passwordEncoder, idGenerator, userValidator,
-                emailVerificationTokenRepository, emailSender, frontendUrl);
+                emailVerificationTokenRepository, emailSender, timeProvider, frontendUrl);
     }
 
     @Nested
@@ -80,6 +86,7 @@ class SignUpServiceTest {
             given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
             given(emailVerificationTokenRepository.save(any(EmailVerificationToken.class)))
                     .willAnswer(invocation -> invocation.getArgument(0));
+            given(timeProvider.now()).willReturn(FIXED_NOW);
 
             // when
             Long result = signUpService.signUp(email, password, nickname);
@@ -104,6 +111,7 @@ class SignUpServiceTest {
             given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
             given(emailVerificationTokenRepository.save(any(EmailVerificationToken.class)))
                     .willAnswer(invocation -> invocation.getArgument(0));
+            given(timeProvider.now()).willReturn(FIXED_NOW);
 
             // when
             signUpService.signUp(email, password, nickname);
@@ -130,6 +138,7 @@ class SignUpServiceTest {
             given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
             given(emailVerificationTokenRepository.save(any(EmailVerificationToken.class)))
                     .willAnswer(invocation -> invocation.getArgument(0));
+            given(timeProvider.now()).willReturn(FIXED_NOW);
 
             // when
             signUpService.signUp(email, password, nickname);
@@ -178,10 +187,8 @@ class SignUpServiceTest {
         void should_ThrowException_when_InvalidEmailFormat() {
             // given
             String invalidEmail = "invalid-email";
-            willThrow(new IllegalArgumentException("올바른 이메일 형식이 아닙니다."))
-                    .given(userValidator).validateEmail(invalidEmail);
 
-            // when & then
+            // when & then - Email VO 생성 시 IllegalArgumentException 발생
             assertThatThrownBy(() -> signUpService.signUp(invalidEmail, "password123", "nickname"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("이메일");
@@ -192,7 +199,6 @@ class SignUpServiceTest {
         void should_ThrowException_when_PasswordTooShort() {
             // given
             String shortPassword = "short";
-            doNothing().when(userValidator).validateEmail(anyString());
             willThrow(new IllegalArgumentException("비밀번호는 최소 8자 이상이어야 합니다."))
                     .given(userValidator).validatePassword(shortPassword);
 

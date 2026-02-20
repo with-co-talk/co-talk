@@ -1,6 +1,7 @@
 package com.cotalk.application.service.user;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.PasswordMismatchException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.BlockRepository;
@@ -114,7 +115,7 @@ class DeleteAccountServiceTest {
 
         User user = User.builder()
                 .id(userId)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash(encodedPassword)
                 .build();
@@ -144,7 +145,7 @@ class DeleteAccountServiceTest {
 
         User user = User.builder()
                 .id(userId)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash(encodedPassword)
                 .build();
@@ -176,7 +177,7 @@ class DeleteAccountServiceTest {
 
         User user = User.builder()
                 .id(userId)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash("hash")
                 .build();

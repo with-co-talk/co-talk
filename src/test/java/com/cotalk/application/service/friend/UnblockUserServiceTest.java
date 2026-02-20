@@ -1,5 +1,6 @@
 package com.cotalk.application.service.friend;
 
+import com.cotalk.common.fixture.BlockTestFixture;
 import com.cotalk.domain.entity.Block;
 import com.cotalk.domain.exception.BlockNotFoundException;
 import com.cotalk.domain.port.outbound.BlockRepository;
@@ -32,11 +33,7 @@ class UnblockUserServiceTest {
         Long blockerId = 1L;
         Long blockedId = 2L;
 
-        Block block = Block.builder()
-                .id(100L)
-                .blockerId(blockerId)
-                .blockedId(blockedId)
-                .build();
+        Block block = BlockTestFixture.createBlock(100L, blockerId, blockedId);
 
         given(blockRepository.findByBlockerIdAndBlockedId(blockerId, blockedId))
                 .willReturn(Optional.of(block));

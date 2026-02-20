@@ -1,5 +1,6 @@
 package com.cotalk.domain.entity;
 
+import com.cotalk.common.fixture.ReportTestFixture;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,14 +24,7 @@ class ReportTest {
             Long reportedUserId = 2L;
 
             // when
-            Report report = Report.builder()
-                    .id(1L)
-                    .reporterId(reporterId)
-                    .reportedUserId(reportedUserId)
-                    .type(Report.ReportType.USER)
-                    .reason(Report.ReportReason.HARASSMENT)
-                    .description("괴롭힘 신고")
-                    .build();
+            Report report = ReportTestFixture.createUserReport(1L, reporterId, reportedUserId);
 
             // then
             assertThat(report.getReporterId()).isEqualTo(reporterId);
@@ -48,13 +42,7 @@ class ReportTest {
             Long reportedMessageId = 100L;
 
             // when
-            Report report = Report.builder()
-                    .id(2L)
-                    .reporterId(reporterId)
-                    .reportedMessageId(reportedMessageId)
-                    .type(Report.ReportType.MESSAGE)
-                    .reason(Report.ReportReason.SPAM)
-                    .build();
+            Report report = ReportTestFixture.createMessageReport(2L, reporterId, reportedMessageId);
 
             // then
             assertThat(report.getReportedMessageId()).isEqualTo(reportedMessageId);
@@ -70,13 +58,7 @@ class ReportTest {
             Long reportedChatRoomId = 50L;
 
             // when
-            Report report = Report.builder()
-                    .id(3L)
-                    .reporterId(reporterId)
-                    .reportedChatRoomId(reportedChatRoomId)
-                    .type(Report.ReportType.CHAT_ROOM)
-                    .reason(Report.ReportReason.INAPPROPRIATE_CONTENT)
-                    .build();
+            Report report = ReportTestFixture.createChatRoomReport(3L, reporterId, reportedChatRoomId);
 
             // then
             assertThat(report.getReportedChatRoomId()).isEqualTo(reportedChatRoomId);
@@ -87,11 +69,8 @@ class ReportTest {
         @DisplayName("기본 상태는 PENDING이다")
         void should_haveDefaultStatusPending_when_created() {
             // when
-            Report report = Report.builder()
-                    .id(1L)
-                    .reporterId(1L)
+            Report report = ReportTestFixture.builder()
                     .reportedUserId(2L)
-                    .type(Report.ReportType.USER)
                     .reason(Report.ReportReason.SPAM)
                     .build();
 
@@ -108,19 +87,13 @@ class ReportTest {
         @DisplayName("신고를 처리 완료 상태로 변경할 수 있다")
         void should_changeStatusToResolved_when_processed() {
             // given
-            Report report = Report.builder()
-                    .id(1L)
-                    .reporterId(1L)
-                    .reportedUserId(2L)
-                    .type(Report.ReportType.USER)
-                    .reason(Report.ReportReason.HARASSMENT)
-                    .build();
+            Report report = ReportTestFixture.createUserReport();
 
             Long adminId = 100L;
             String adminNote = "확인 결과 신고 내용이 사실로 확인됨";
 
             // when
-            report.process(Report.ReportStatus.RESOLVED, adminNote, adminId);
+            report.process(Report.ReportStatus.RESOLVED, adminNote, adminId, LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // then
             assertThat(report.getStatus()).isEqualTo(Report.ReportStatus.RESOLVED);
@@ -133,11 +106,8 @@ class ReportTest {
         @DisplayName("신고를 기각 상태로 변경할 수 있다")
         void should_changeStatusToDismissed_when_dismissed() {
             // given
-            Report report = Report.builder()
-                    .id(1L)
-                    .reporterId(1L)
+            Report report = ReportTestFixture.builder()
                     .reportedUserId(2L)
-                    .type(Report.ReportType.USER)
                     .reason(Report.ReportReason.FAKE_PROFILE)
                     .build();
 
@@ -145,7 +115,7 @@ class ReportTest {
             String adminNote = "허위 신고로 판단됨";
 
             // when
-            report.process(Report.ReportStatus.DISMISSED, adminNote, adminId);
+            report.process(Report.ReportStatus.DISMISSED, adminNote, adminId, LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // then
             assertThat(report.getStatus()).isEqualTo(Report.ReportStatus.DISMISSED);
@@ -156,11 +126,8 @@ class ReportTest {
         @DisplayName("신고를 검토 중 상태로 변경할 수 있다")
         void should_changeStatusToReviewing_when_underReview() {
             // given
-            Report report = Report.builder()
-                    .id(1L)
-                    .reporterId(1L)
+            Report report = ReportTestFixture.builder()
                     .reportedUserId(2L)
-                    .type(Report.ReportType.USER)
                     .reason(Report.ReportReason.SCAM)
                     .build();
 
@@ -168,7 +135,7 @@ class ReportTest {
             String adminNote = "추가 조사 필요";
 
             // when
-            report.process(Report.ReportStatus.REVIEWING, adminNote, adminId);
+            report.process(Report.ReportStatus.REVIEWING, adminNote, adminId, LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // then
             assertThat(report.getStatus()).isEqualTo(Report.ReportStatus.REVIEWING);
@@ -178,23 +145,15 @@ class ReportTest {
         @DisplayName("처리 시간이 현재 시간으로 설정된다")
         void should_setProcessedAtToCurrentTime_when_processed() {
             // given
-            Report report = Report.builder()
-                    .id(1L)
-                    .reporterId(1L)
-                    .reportedUserId(2L)
-                    .type(Report.ReportType.USER)
-                    .reason(Report.ReportReason.HARASSMENT)
-                    .build();
+            Report report = ReportTestFixture.createUserReport();
 
-            LocalDateTime beforeProcess = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.of(2026, 1, 1, 12, 0);
 
             // when
-            report.process(Report.ReportStatus.RESOLVED, "처리 완료", 100L);
+            report.process(Report.ReportStatus.RESOLVED, "처리 완료", 100L, now);
 
             // then
-            assertThat(report.getProcessedAt())
-                    .isAfterOrEqualTo(beforeProcess)
-                    .isBeforeOrEqualTo(LocalDateTime.now());
+            assertThat(report.getProcessedAt()).isEqualTo(now);
         }
     }
 
@@ -206,11 +165,8 @@ class ReportTest {
         @DisplayName("상태가 PENDING이면 true를 반환한다")
         void should_returnTrue_when_statusIsPending() {
             // given
-            Report report = Report.builder()
-                    .id(1L)
-                    .reporterId(1L)
+            Report report = ReportTestFixture.builder()
                     .reportedUserId(2L)
-                    .type(Report.ReportType.USER)
                     .reason(Report.ReportReason.SPAM)
                     .build();
 
@@ -225,15 +181,12 @@ class ReportTest {
         @DisplayName("상태가 PENDING이 아니면 false를 반환한다")
         void should_returnFalse_when_statusIsNotPending() {
             // given
-            Report report = Report.builder()
-                    .id(1L)
-                    .reporterId(1L)
+            Report report = ReportTestFixture.builder()
                     .reportedUserId(2L)
-                    .type(Report.ReportType.USER)
                     .reason(Report.ReportReason.SPAM)
                     .build();
 
-            report.process(Report.ReportStatus.RESOLVED, "처리 완료", 100L);
+            report.process(Report.ReportStatus.RESOLVED, "처리 완료", 100L, LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // when
             boolean result = report.isPending();
@@ -251,15 +204,9 @@ class ReportTest {
         @DisplayName("상태가 RESOLVED이면 true를 반환한다")
         void should_returnTrue_when_statusIsResolved() {
             // given
-            Report report = Report.builder()
-                    .id(1L)
-                    .reporterId(1L)
-                    .reportedUserId(2L)
-                    .type(Report.ReportType.USER)
-                    .reason(Report.ReportReason.HARASSMENT)
-                    .build();
+            Report report = ReportTestFixture.createUserReport();
 
-            report.process(Report.ReportStatus.RESOLVED, "처리 완료", 100L);
+            report.process(Report.ReportStatus.RESOLVED, "처리 완료", 100L, LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // when
             boolean result = report.isResolved();
@@ -272,11 +219,8 @@ class ReportTest {
         @DisplayName("상태가 RESOLVED가 아니면 false를 반환한다")
         void should_returnFalse_when_statusIsNotResolved() {
             // given
-            Report report = Report.builder()
-                    .id(1L)
-                    .reporterId(1L)
+            Report report = ReportTestFixture.builder()
                     .reportedUserId(2L)
-                    .type(Report.ReportType.USER)
                     .reason(Report.ReportReason.SPAM)
                     .build();
 
@@ -291,15 +235,12 @@ class ReportTest {
         @DisplayName("상태가 DISMISSED이면 false를 반환한다")
         void should_returnFalse_when_statusIsDismissed() {
             // given
-            Report report = Report.builder()
-                    .id(1L)
-                    .reporterId(1L)
+            Report report = ReportTestFixture.builder()
                     .reportedUserId(2L)
-                    .type(Report.ReportType.USER)
                     .reason(Report.ReportReason.SPAM)
                     .build();
 
-            report.process(Report.ReportStatus.DISMISSED, "기각됨", 100L);
+            report.process(Report.ReportStatus.DISMISSED, "기각됨", 100L, LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // when
             boolean result = report.isResolved();

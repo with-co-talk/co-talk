@@ -3,6 +3,7 @@ package com.cotalk.adapter.inbound.rest;
 import com.cotalk.adapter.inbound.rest.dto.user.UpdateOnlineStatusRequest;
 import com.cotalk.adapter.inbound.rest.dto.user.UpdateProfileRequest;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.entity.User.OnlineStatus;
 import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.exception.UserNotFoundException;
@@ -22,7 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -54,22 +55,22 @@ class UserControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private SearchUserUseCase searchUserUseCase;
 
-    @MockBean
+    @MockitoBean
     private UpdateProfileUseCase updateProfileUseCase;
 
-    @MockBean
+    @MockitoBean
     private UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
 
-    @MockBean
+    @MockitoBean
     private UserRepository userRepository;
 
-    @MockBean
+    @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
-    @MockBean
+    @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Nested
@@ -83,14 +84,14 @@ class UserControllerTest {
             List<User> users = List.of(
                     User.builder()
                             .id(1L)
-                            .email("user1@example.com")
+                            .email(new Email("user1@example.com"))
                             .nickname("테스트유저1")
                             .passwordHash("hash")
                             .avatarUrl("https://example.com/avatar1.png")
                             .build(),
                     User.builder()
                             .id(2L)
-                            .email("user2@example.com")
+                            .email(new Email("user2@example.com"))
                             .nickname("테스트유저2")
                             .passwordHash("hash")
                             .avatarUrl("https://example.com/avatar2.png")
@@ -117,7 +118,7 @@ class UserControllerTest {
             List<User> users = List.of(
                     User.builder()
                             .id(1L)
-                            .email("user1@example.com")
+                            .email(new Email("user1@example.com"))
                             .nickname("테스트유저1")
                             .passwordHash("hash")
                             .avatarUrl("https://example.com/avatar1.png")
@@ -142,7 +143,7 @@ class UserControllerTest {
             List<User> users = List.of(
                     User.builder()
                             .id(1L)
-                            .email("user1@example.com")
+                            .email(new Email("user1@example.com"))
                             .nickname("테스트유저1")
                             .passwordHash("hash")
                             .avatarUrl("https://example.com/avatar1.png")
@@ -189,7 +190,7 @@ class UserControllerTest {
             List<User> users = List.of(
                     User.builder()
                             .id(1L)
-                            .email("user1@example.com")
+                            .email(new Email("user1@example.com"))
                             .nickname("테스트유저1")
                             .passwordHash("hash")
                             .build()
@@ -227,7 +228,7 @@ class UserControllerTest {
             Long userId = 1L;
             User user = User.builder()
                     .id(userId)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .nickname("테스트유저")
                     .passwordHash("hash")
                     .avatarUrl("https://example.com/avatar.png")

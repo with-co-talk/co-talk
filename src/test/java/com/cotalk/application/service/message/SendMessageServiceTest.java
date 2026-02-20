@@ -3,6 +3,7 @@ package com.cotalk.application.service.message;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 
@@ -128,7 +129,7 @@ class SendMessageServiceTest {
 
             User sender = User.builder()
                     .id(senderId)
-                    .email("sender@test.com")
+                    .email(new Email("sender@test.com"))
                     .nickname("발신자")
                     .passwordHash("hash")
                     .build();
@@ -169,7 +170,7 @@ class SendMessageServiceTest {
 
             User sender = User.builder()
                     .id(senderId)
-                    .email("sender@test.com")
+                    .email(new Email("sender@test.com"))
                     .nickname("발신자")
                     .passwordHash("hash")
                     .build();
@@ -225,7 +226,7 @@ class SendMessageServiceTest {
 
             User sender = User.builder()
                     .id(senderId)
-                    .email("sender@test.com")
+                    .email(new Email("sender@test.com"))
                     .nickname("발신자")
                     .passwordHash("hash")
                     .build();
@@ -260,7 +261,7 @@ class SendMessageServiceTest {
 
             User sender = User.builder()
                     .id(senderId)
-                    .email("sender@test.com")
+                    .email(new Email("sender@test.com"))
                     .nickname("발신자")
                     .passwordHash("hash")
                     .build();
@@ -305,7 +306,7 @@ class SendMessageServiceTest {
 
             User sender = User.builder()
                     .id(senderId)
-                    .email("sender@test.com")
+                    .email(new Email("sender@test.com"))
                     .nickname("발신자")
                     .passwordHash("hash")
                     .build();
@@ -349,7 +350,7 @@ class SendMessageServiceTest {
 
             User sender = User.builder()
                     .id(senderId)
-                    .email("sender@test.com")
+                    .email(new Email("sender@test.com"))
                     .nickname("발신자")
                     .passwordHash("hash")
                     .build();
@@ -390,7 +391,7 @@ class SendMessageServiceTest {
                     .id(11L).chatRoomId(chatRoomId).userId(receiverId).build();
 
             User sender = User.builder()
-                    .id(senderId).email("sender@test.com").nickname("발신자").passwordHash("hash").build();
+                    .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
 
             SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
                     "https://storage.example.com/image.jpg",
@@ -484,7 +485,7 @@ class SendMessageServiceTest {
                     .id(12L).chatRoomId(chatRoomId).userId(receiver2Id).build();
 
             User sender = User.builder()
-                    .id(senderId).email("sender@test.com").nickname("발신자").passwordHash("hash").build();
+                    .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
 
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                     .willReturn(List.of(senderMember, receiver1Member, receiver2Member));
@@ -549,7 +550,7 @@ class SendMessageServiceTest {
                     .id(10L).chatRoomId(chatRoomId).userId(senderId).build();
 
             User sender = User.builder()
-                    .id(senderId).email("sender@test.com").nickname("발신자").passwordHash("hash").build();
+                    .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
 
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                     .willReturn(List.of(senderMember)); // 발신자만 있음

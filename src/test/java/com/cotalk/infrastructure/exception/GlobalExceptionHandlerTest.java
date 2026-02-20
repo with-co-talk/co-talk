@@ -8,7 +8,6 @@ import com.cotalk.domain.exception.DuplicateEmailException;
 import com.cotalk.domain.exception.DuplicateNicknameException;
 import com.cotalk.domain.exception.FileUploadException;
 import com.cotalk.domain.exception.FriendNotFoundException;
-import com.cotalk.domain.exception.FriendRequestAccessDeniedException;
 import com.cotalk.domain.exception.FriendRequestNotFoundException;
 import com.cotalk.domain.exception.InvalidBlockException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
@@ -17,7 +16,6 @@ import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.exception.InvalidPasswordResetTokenException;
 import com.cotalk.domain.exception.InvalidRefreshTokenException;
 import com.cotalk.domain.exception.InvalidReportException;
-import com.cotalk.domain.exception.MessageAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.exception.MessageReactionNotFoundException;
 import com.cotalk.domain.exception.RateLimitExceededException;
@@ -86,7 +84,7 @@ class GlobalExceptionHandlerTest {
             UserNotFoundException exception = new UserNotFoundException(1L);
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleUserNotFoundException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -106,7 +104,7 @@ class GlobalExceptionHandlerTest {
             ChatRoomNotFoundException exception = new ChatRoomNotFoundException(100L);
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleChatRoomNotFoundException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -126,12 +124,12 @@ class GlobalExceptionHandlerTest {
             ChatRoomAccessDeniedException exception = new ChatRoomAccessDeniedException(100L, 1L);
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleChatRoomAccessDeniedException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
             assertThat(response.getBody()).isNotNull();
-            assertThat(response.getBody().code()).isEqualTo("ACCESS_DENIED");
+            assertThat(response.getBody().code()).isEqualTo("CHAT_ROOM_ACCESS_DENIED");
         }
     }
 
@@ -146,7 +144,7 @@ class GlobalExceptionHandlerTest {
             FriendNotFoundException exception = new FriendNotFoundException(1L);
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleFriendNotFoundException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -166,7 +164,7 @@ class GlobalExceptionHandlerTest {
             InvalidFriendRequestException exception = new InvalidFriendRequestException("잘못된 친구 요청입니다.");
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleInvalidFriendRequestException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -207,7 +205,7 @@ class GlobalExceptionHandlerTest {
             BlockNotFoundException exception = new BlockNotFoundException("차단 정보를 찾을 수 없습니다.");
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleBlockNotFoundException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -227,7 +225,7 @@ class GlobalExceptionHandlerTest {
             InvalidBlockException exception = new InvalidBlockException("이미 차단한 사용자입니다.");
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleInvalidBlockException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -247,7 +245,7 @@ class GlobalExceptionHandlerTest {
             ReportNotFoundException exception = new ReportNotFoundException(1L);
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleReportNotFoundException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -267,7 +265,7 @@ class GlobalExceptionHandlerTest {
             InvalidReportException exception = new InvalidReportException("유효하지 않은 신고입니다.");
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleInvalidReportException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -308,7 +306,7 @@ class GlobalExceptionHandlerTest {
             DuplicateEmailException exception = new DuplicateEmailException("test@example.com");
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDuplicateEmailException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
@@ -348,7 +346,7 @@ class GlobalExceptionHandlerTest {
             ResourceAccessDeniedException exception = new ResourceAccessDeniedException();
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleResourceAccessDeniedException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -368,7 +366,7 @@ class GlobalExceptionHandlerTest {
             UnauthorizedException exception = new UnauthorizedException("인증이 필요합니다.");
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleUnauthorizedException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -388,7 +386,7 @@ class GlobalExceptionHandlerTest {
             InvalidRefreshTokenException exception = new InvalidRefreshTokenException();
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleInvalidRefreshTokenException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -408,7 +406,7 @@ class GlobalExceptionHandlerTest {
             FriendRequestNotFoundException exception = new FriendRequestNotFoundException(1L);
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleFriendRequestNotFoundException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -418,22 +416,22 @@ class GlobalExceptionHandlerTest {
     }
 
     @Nested
-    @DisplayName("FriendRequestAccessDeniedException 처리")
+    @DisplayName("ResourceAccessDeniedException (friendRequest) 처리")
     class HandleFriendRequestAccessDeniedException {
 
         @Test
-        @DisplayName("FriendRequestAccessDeniedException은 403 FORBIDDEN 반환")
+        @DisplayName("friendRequestNotReceiver는 403 FORBIDDEN 반환")
         void should_returnForbidden_when_friendRequestAccessDenied() {
             // given
-            FriendRequestAccessDeniedException exception = FriendRequestAccessDeniedException.notReceiver();
+            ResourceAccessDeniedException exception = ResourceAccessDeniedException.friendRequestNotReceiver();
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleFriendRequestAccessDeniedException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
             assertThat(response.getBody()).isNotNull();
-            assertThat(response.getBody().code()).isEqualTo("FRIEND_REQUEST_ACCESS_DENIED");
+            assertThat(response.getBody().code()).isEqualTo("ACCESS_DENIED");
         }
     }
 
@@ -448,7 +446,7 @@ class GlobalExceptionHandlerTest {
             DuplicateNicknameException exception = new DuplicateNicknameException("testNickname");
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDuplicateNicknameException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
@@ -468,7 +466,7 @@ class GlobalExceptionHandlerTest {
             TermsAgreementException exception = TermsAgreementException.serviceTermsRequired();
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleTermsAgreementException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -488,7 +486,7 @@ class GlobalExceptionHandlerTest {
             FileUploadException exception = FileUploadException.invalidFileType("application/exe");
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleFileUploadException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -508,7 +506,7 @@ class GlobalExceptionHandlerTest {
             InvalidPasswordResetTokenException exception = InvalidPasswordResetTokenException.expired();
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleInvalidPasswordResetTokenException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -528,7 +526,7 @@ class GlobalExceptionHandlerTest {
             MessageNotFoundException exception = new MessageNotFoundException(500L);
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleMessageNotFoundException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -538,22 +536,22 @@ class GlobalExceptionHandlerTest {
     }
 
     @Nested
-    @DisplayName("MessageAccessDeniedException 처리")
+    @DisplayName("ResourceAccessDeniedException (message) 처리")
     class HandleMessageAccessDeniedException {
 
         @Test
-        @DisplayName("MessageAccessDeniedException은 403 FORBIDDEN 반환")
+        @DisplayName("messageNotSender는 403 FORBIDDEN 반환")
         void should_returnForbidden_when_messageAccessDenied() {
             // given
-            MessageAccessDeniedException exception = MessageAccessDeniedException.notSender();
+            ResourceAccessDeniedException exception = ResourceAccessDeniedException.messageNotSender();
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleMessageAccessDeniedException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
             assertThat(response.getBody()).isNotNull();
-            assertThat(response.getBody().code()).isEqualTo("MESSAGE_ACCESS_DENIED");
+            assertThat(response.getBody().code()).isEqualTo("ACCESS_DENIED");
         }
     }
 
@@ -568,7 +566,7 @@ class GlobalExceptionHandlerTest {
             InvalidEmojiException exception = InvalidEmojiException.invalidFormat("invalid");
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleInvalidEmojiException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -585,10 +583,10 @@ class GlobalExceptionHandlerTest {
         @DisplayName("MessageReactionNotFoundException은 404 NOT_FOUND 반환")
         void should_returnNotFound_when_messageReactionNotFound() {
             // given
-            MessageReactionNotFoundException exception = new MessageReactionNotFoundException(1L, 2L, "👍");
+            MessageReactionNotFoundException exception = new MessageReactionNotFoundException(1L, 2L, "\uD83D\uDC4D");
 
             // when
-            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleMessageReactionNotFoundException(exception);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDomainException(exception);
 
             // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);

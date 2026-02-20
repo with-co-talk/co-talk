@@ -1,5 +1,6 @@
 package com.cotalk.application.service.friend;
 
+import com.cotalk.common.fixture.BlockTestFixture;
 import com.cotalk.domain.entity.Block;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.outbound.BlockRepository;
@@ -38,8 +39,8 @@ class GetBlockedUsersServiceTest {
         Long blockedId1 = 2L;
         Long blockedId2 = 3L;
 
-        Block block1 = Block.builder().id(100L).blockerId(blockerId).blockedId(blockedId1).build();
-        Block block2 = Block.builder().id(101L).blockerId(blockerId).blockedId(blockedId2).build();
+        Block block1 = BlockTestFixture.createBlock(100L, blockerId, blockedId1);
+        Block block2 = BlockTestFixture.createBlock(101L, blockerId, blockedId2);
 
         User blockedUser1 = createUser(blockedId1, "blocked1@test.com", "차단유저1");
         User blockedUser2 = createUser(blockedId2, "blocked2@test.com", "차단유저2");
@@ -80,8 +81,8 @@ class GetBlockedUsersServiceTest {
         Long blockedId1 = 2L;
         Long blockedId2 = 3L; // 삭제된 사용자
 
-        Block block1 = Block.builder().id(100L).blockerId(blockerId).blockedId(blockedId1).build();
-        Block block2 = Block.builder().id(101L).blockerId(blockerId).blockedId(blockedId2).build();
+        Block block1 = BlockTestFixture.createBlock(100L, blockerId, blockedId1);
+        Block block2 = BlockTestFixture.createBlock(101L, blockerId, blockedId2);
 
         User blockedUser1 = createUser(blockedId1, "blocked1@test.com", "차단유저1");
 
