@@ -1,11 +1,12 @@
 package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.Message;
-import com.cotalk.domain.exception.MessageAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.util.HtmlSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class UpdateMessageService implements UpdateMessageUseCase {
 
     private final MessageRepository messageRepository;
     private final ChatMessageBroker chatMessageBroker;
+    private final TimeProvider timeProvider;
 
     /**
      * 메시지 내용을 수정한다.
@@ -36,7 +38,7 @@ public class UpdateMessageService implements UpdateMessageUseCase {
      * @param newContent 새로운 메시지 내용
      * @return 수정된 메시지
      * @throws MessageNotFoundException 메시지가 존재하지 않는 경우
-     * @throws MessageAccessDeniedException 본인이 보낸 메시지가 아니거나 이미 삭제된 경우
+     * @throws ResourceAccessDeniedException 본인이 보낸 메시지가 아니거나 이미 삭제된 경우
      */
     @Override
     public Message updateMessage(Long messageId, Long userId, String newContent) {
@@ -45,17 +47,17 @@ public class UpdateMessageService implements UpdateMessageUseCase {
 
         // 본인이 보낸 메시지인지 확인
         if (!message.isSentBy(userId)) {
-            throw MessageAccessDeniedException.notSender();
+            throw ResourceAccessDeniedException.messageNotSender();
         }
 
         // 삭제된 메시지인지 확인
         if (message.isDeleted()) {
-            throw MessageAccessDeniedException.alreadyDeleted();
+            throw ResourceAccessDeniedException.messageAlreadyDeleted();
         }
 
         // 5분 초과 여부 확인
-        if (message.isEditTimeExpired()) {
-            throw MessageAccessDeniedException.timeExpired();
+        if (message.isEditTimeExpired(timeProvider.now())) {
+            throw ResourceAccessDeniedException.messageTimeExpired();
         }
 
         // XSS 방지 + 메시지 수정

@@ -1,11 +1,12 @@
 package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.Message;
-import com.cotalk.domain.exception.MessageAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.port.inbound.message.DeleteMessageUseCase;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class DeleteMessageService implements DeleteMessageUseCase {
 
     private final MessageRepository messageRepository;
     private final ChatMessageBroker chatMessageBroker;
+    private final TimeProvider timeProvider;
 
     /**
      * 메시지를 삭제한다.
@@ -33,7 +35,7 @@ public class DeleteMessageService implements DeleteMessageUseCase {
      * @param messageId 삭제할 메시지 ID
      * @param userId 요청 사용자 ID
      * @throws MessageNotFoundException 메시지가 존재하지 않는 경우
-     * @throws MessageAccessDeniedException 본인이 보낸 메시지가 아니거나 이미 삭제된 경우
+     * @throws ResourceAccessDeniedException 본인이 보낸 메시지가 아니거나 이미 삭제된 경우
      */
     @Override
     public void deleteMessage(Long messageId, Long userId) {
@@ -42,21 +44,22 @@ public class DeleteMessageService implements DeleteMessageUseCase {
 
         // 본인이 보낸 메시지인지 확인
         if (!message.isSentBy(userId)) {
-            throw MessageAccessDeniedException.notSender();
+            throw ResourceAccessDeniedException.messageNotSender();
         }
 
         // 이미 삭제된 메시지인지 확인
         if (message.isDeleted()) {
-            throw MessageAccessDeniedException.alreadyDeleted();
+            throw ResourceAccessDeniedException.messageAlreadyDeleted();
         }
 
         // 5분 초과 여부 확인
-        if (message.isEditTimeExpired()) {
-            throw MessageAccessDeniedException.timeExpired();
+        var now = timeProvider.now();
+        if (message.isEditTimeExpired(now)) {
+            throw ResourceAccessDeniedException.messageTimeExpired();
         }
 
         // 메시지 삭제 (소프트 삭제)
-        message.delete();
+        message.delete(now);
         messageRepository.save(message);
 
         log.info("Message deleted: messageId={}, userId={}", messageId, userId);

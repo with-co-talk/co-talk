@@ -28,6 +28,14 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
     private static final int TIMEOUT_MILLIS = 5000;
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; CoTalkBot/1.0; +https://cotalk.com)";
     private static final int MAX_REDIRECTS = 3;
+    private static final int MAX_DESCRIPTION_LENGTH = 200;
+    private static final int DESCRIPTION_TRUNCATION_OFFSET = 197;
+    private static final int HTTP_REDIRECT_STATUS_MIN = 300;
+    private static final int HTTP_REDIRECT_STATUS_MAX = 400;
+    private static final int IPV4_CLOUD_METADATA_FIRST_OCTET = 169;
+    private static final int IPV4_CLOUD_METADATA_SECOND_OCTET = 254;
+    private static final int IPV4_ADDRESS_LENGTH = 4;
+    private static final String ELLIPSIS = "...";
 
     /**
      * {@inheritDoc}
@@ -83,7 +91,7 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
             int statusCode = response.statusCode();
 
             // 리다이렉트 응답 (3xx)
-            if (statusCode >= 300 && statusCode < 400) {
+            if (statusCode >= HTTP_REDIRECT_STATUS_MIN && statusCode < HTTP_REDIRECT_STATUS_MAX) {
                 String redirectUrl = response.header("Location");
                 if (redirectUrl == null || redirectUrl.isBlank()) {
                     throw new IOException("Redirect without Location header");
@@ -201,7 +209,7 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
 
                 // Block specific ranges (169.254.x.x cloud metadata)
                 byte[] addr = address.getAddress();
-                if (addr.length == 4 && (addr[0] & 0xFF) == 169 && (addr[1] & 0xFF) == 254) {
+                if (addr.length == IPV4_ADDRESS_LENGTH && (addr[0] & 0xFF) == IPV4_CLOUD_METADATA_FIRST_OCTET && (addr[1] & 0xFF) == IPV4_CLOUD_METADATA_SECOND_OCTET) {
                     throw new IllegalArgumentException("내부 네트워크 주소는 허용되지 않습니다.");
                 }
             }
@@ -278,10 +286,10 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
         if (description == null) {
             return null;
         }
-        if (description.length() <= 200) {
+        if (description.length() <= MAX_DESCRIPTION_LENGTH) {
             return description;
         }
-        return description.substring(0, 197) + "...";
+        return description.substring(0, DESCRIPTION_TRUNCATION_OFFSET) + ELLIPSIS;
     }
 
     /**

@@ -9,10 +9,10 @@ package com.cotalk.domain.exception;
 public class PasswordMismatchException extends DomainException {
 
     public PasswordMismatchException() {
-        super("비밀번호가 일치하지 않습니다.");
+        super("비밀번호가 일치하지 않습니다.", "PASSWORD_MISMATCH", HttpStatusHint.BAD_REQUEST);
     }
 
     public PasswordMismatchException(String message) {
-        super(message);
+        super(message, "PASSWORD_MISMATCH", HttpStatusHint.BAD_REQUEST);
     }
 }

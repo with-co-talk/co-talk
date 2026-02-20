@@ -9,11 +9,11 @@ package com.cotalk.domain.exception;
 public class MessageBrokerException extends DomainException {
 
     public MessageBrokerException(String message) {
-        super(message);
+        super(message, "MESSAGE_BROKER_ERROR", HttpStatusHint.INTERNAL_ERROR);
     }
 
     public MessageBrokerException(String message, Throwable cause) {
-        super(message, cause);
+        super(message, "MESSAGE_BROKER_ERROR", HttpStatusHint.INTERNAL_ERROR, cause);
     }
 
     /**

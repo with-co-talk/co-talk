@@ -14,4 +14,11 @@ public interface AuthTokenPort {
      * @return 발급된 Access 토큰 문자열
      */
     String generateAccessToken(Long userId);
+
+    /**
+     * Access 토큰의 만료 시간을 초 단위로 반환한다.
+     *
+     * @return Access 토큰 만료 시간 (초)
+     */
+    long getAccessTokenExpiresInSeconds();
 }

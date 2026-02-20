@@ -4,6 +4,7 @@ import com.cotalk.application.service.auth.RefreshTokenService;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.RefreshTokenRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.infrastructure.config.properties.JwtProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,12 +25,14 @@ public class AuthServiceConfig {
             RefreshTokenRepository refreshTokenRepository,
             AuthTokenPort authTokenPort,
             IdGenerator idGenerator,
+            TimeProvider timeProvider,
             JwtProperties jwtProperties) {
         long expirationDays = jwtProperties.refreshToken().expirationDays();
         return new RefreshTokenService(
                 refreshTokenRepository,
                 authTokenPort,
                 idGenerator,
+                timeProvider,
                 expirationDays);
     }
 }

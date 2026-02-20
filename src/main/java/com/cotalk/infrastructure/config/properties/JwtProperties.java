@@ -24,7 +24,7 @@ public record JwtProperties(
     public record RefreshToken(long expirationDays) {
         public RefreshToken {
             if (expirationDays <= 0) {
-                expirationDays = 7;
+                expirationDays = 30;
             }
         }
     }
@@ -34,7 +34,7 @@ public record JwtProperties(
             expiration = 86400000; // 24시간
         }
         if (refreshToken == null) {
-            refreshToken = new RefreshToken(7);
+            refreshToken = new RefreshToken(30);
         }
     }
 }

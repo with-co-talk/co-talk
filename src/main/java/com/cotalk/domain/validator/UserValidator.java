@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -25,24 +24,9 @@ import java.util.stream.StreamSupport;
 @RequiredArgsConstructor
 public class UserValidator {
 
-    private static final Pattern EMAIL_PATTERN = Pattern.compile(
-            "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
-    );
     private static final int MIN_PASSWORD_LENGTH = 8;
 
     private final UserRepository userRepository;
-
-    /**
-     * 이메일 형식을 검증합니다.
-     *
-     * @param email 검증할 이메일
-     * @throws IllegalArgumentException 이메일 형식이 올바르지 않은 경우
-     */
-    public void validateEmail(String email) {
-        if (email == null || !EMAIL_PATTERN.matcher(email).matches()) {
-            throw new IllegalArgumentException("올바른 이메일 형식이 아닙니다.");
-        }
-    }
 
     /**
      * 비밀번호 길이를 검증합니다.

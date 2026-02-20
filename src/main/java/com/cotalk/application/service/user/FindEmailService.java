@@ -24,7 +24,7 @@ public class FindEmailService implements FindEmailUseCase {
     @Override
     public FindEmailResult findEmail(String nickname, String phoneNumber) {
         return userRepository.findByNicknameAndPhoneNumber(nickname, phoneNumber)
-                .map(user -> FindEmailResult.success(maskEmail(user.getEmail())))
+                .map(user -> FindEmailResult.success(maskEmail(user.getEmail().value())))
                 .orElse(FindEmailResult.notFound());
     }
 

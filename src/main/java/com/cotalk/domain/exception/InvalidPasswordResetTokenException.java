@@ -8,7 +8,7 @@ package com.cotalk.domain.exception;
 public class InvalidPasswordResetTokenException extends DomainException {
 
     public InvalidPasswordResetTokenException(String message) {
-        super(message);
+        super(message, "INVALID_PASSWORD_RESET_TOKEN", HttpStatusHint.BAD_REQUEST);
     }
 
     public static InvalidPasswordResetTokenException expired() {

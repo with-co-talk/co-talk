@@ -11,7 +11,7 @@ public class SelfActionNotAllowedException extends DomainException {
     private final String actionType;
 
     public SelfActionNotAllowedException(String actionType) {
-        super(String.format("자기 자신을 %s할 수 없습니다", actionType));
+        super(String.format("자기 자신을 %s할 수 없습니다", actionType), "SELF_ACTION_NOT_ALLOWED", HttpStatusHint.BAD_REQUEST);
         this.actionType = actionType;
     }
 

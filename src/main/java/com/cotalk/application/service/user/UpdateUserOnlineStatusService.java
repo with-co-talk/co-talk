@@ -6,6 +6,7 @@ import com.cotalk.domain.entity.User.OnlineStatus;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.FriendRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserEventBroker.OnlineStatusEvent;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -34,6 +35,7 @@ public class UpdateUserOnlineStatusService implements UpdateUserOnlineStatusUseC
     private final UserRepository userRepository;
     private final FriendRepository friendRepository;
     private final UserEventBroker userEventBroker;
+    private final TimeProvider timeProvider;
 
     /**
      * 사용자의 온라인 상태를 업데이트한다.
@@ -47,10 +49,11 @@ public class UpdateUserOnlineStatusService implements UpdateUserOnlineStatusUseC
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
+        var now = timeProvider.now();
         switch (status) {
-            case ONLINE -> user.setOnline();
-            case OFFLINE -> user.setOffline();
-            case AWAY -> user.setAway();
+            case ONLINE -> user.goOnline(now);
+            case OFFLINE -> user.goOffline(now);
+            case AWAY -> user.goAway(now);
         }
 
         userRepository.save(user);
@@ -137,7 +140,7 @@ public class UpdateUserOnlineStatusService implements UpdateUserOnlineStatusUseC
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
-        user.updateLastActiveAt();
+        user.updateLastActiveAt(timeProvider.now());
         userRepository.save(user);
         log.debug("User last active time updated: userId={}", userId);
     }

@@ -8,6 +8,6 @@ package com.cotalk.domain.exception;
 public class HiddenFriendNotFoundException extends DomainException {
 
     public HiddenFriendNotFoundException(String message) {
-        super(message);
+        super(message, "HIDDEN_FRIEND_NOT_FOUND", HttpStatusHint.NOT_FOUND);
     }
 }

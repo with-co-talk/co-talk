@@ -7,6 +7,7 @@ import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.auth.ResetPasswordUseCase;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.util.LogMaskingUtil;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class ResetPasswordService implements ResetPasswordUseCase {
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final PasswordEncoderPort passwordEncoder;
+    private final TimeProvider timeProvider;
 
     /**
      * 토큰을 사용하여 비밀번호를 재설정한다.
@@ -66,10 +68,10 @@ public class ResetPasswordService implements ResetPasswordUseCase {
         userRepository.save(user);
 
         // 토큰 사용 처리
-        resetToken.markAsUsed();
+        resetToken.markAsUsed(timeProvider.now());
         tokenRepository.save(resetToken);
 
-        log.info("Password reset completed for user: {}", LogMaskingUtil.maskEmail(resetToken.getEmail()));
+        log.info("Password reset completed for user: {}", LogMaskingUtil.maskEmail(resetToken.getEmail().value()));
     }
 
     /**
@@ -81,13 +83,14 @@ public class ResetPasswordService implements ResetPasswordUseCase {
     @Override
     @Transactional(readOnly = true)
     public boolean validateToken(String token) {
+        var now = timeProvider.now();
         return tokenRepository.findByToken(token)
-                .map(PasswordResetToken::isValid)
+                .map(t -> t.isValid(now))
                 .orElse(false);
     }
 
     private void validateToken(PasswordResetToken token) {
-        if (token.isExpired()) {
+        if (token.isExpired(timeProvider.now())) {
             throw InvalidPasswordResetTokenException.expired();
         }
         if (token.isUsed()) {
@@ -112,8 +115,9 @@ public class ResetPasswordService implements ResetPasswordUseCase {
     @Override
     @Transactional(readOnly = true)
     public boolean verifyCode(String email, String code) {
+        var now = timeProvider.now();
         return tokenRepository.findByEmailAndVerificationCode(email, code)
-                .map(PasswordResetToken::isValid)
+                .map(t -> t.isValid(now))
                 .orElse(false);
     }
 
@@ -134,7 +138,7 @@ public class ResetPasswordService implements ResetPasswordUseCase {
         userRepository.save(user);
 
         // 토큰 사용 처리
-        resetToken.markAsUsed();
+        resetToken.markAsUsed(timeProvider.now());
         tokenRepository.save(resetToken);
 
         log.info("Password reset with code completed for user: {}", LogMaskingUtil.maskEmail(email));

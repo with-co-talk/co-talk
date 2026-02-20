@@ -1,5 +1,6 @@
 package com.cotalk.domain.entity;
 
+import com.cotalk.domain.model.Email;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
@@ -19,7 +20,7 @@ import java.time.LocalDateTime;
 public class User extends DomainBaseEntity {
 
     private Long id;
-    private String email;
+    private Email email;
     private String passwordHash;
     private String nickname;
     private String avatarUrl;
@@ -92,23 +93,43 @@ public class User extends DomainBaseEntity {
         return this.status == UserStatus.ACTIVE;
     }
 
-    public void setOnline() {
+    /**
+     * 사용자를 온라인 상태로 설정한다.
+     *
+     * @param now 현재 시간
+     */
+    public void goOnline(LocalDateTime now) {
         this.onlineStatus = OnlineStatus.ONLINE;
-        this.lastActiveAt = LocalDateTime.now();
+        this.lastActiveAt = now;
     }
 
-    public void setOffline() {
+    /**
+     * 사용자를 오프라인 상태로 설정한다.
+     *
+     * @param now 현재 시간
+     */
+    public void goOffline(LocalDateTime now) {
         this.onlineStatus = OnlineStatus.OFFLINE;
-        this.lastActiveAt = LocalDateTime.now();
+        this.lastActiveAt = now;
     }
 
-    public void setAway() {
+    /**
+     * 사용자를 자리비움 상태로 설정한다.
+     *
+     * @param now 현재 시간
+     */
+    public void goAway(LocalDateTime now) {
         this.onlineStatus = OnlineStatus.AWAY;
-        this.lastActiveAt = LocalDateTime.now();
+        this.lastActiveAt = now;
     }
 
-    public void updateLastActiveAt() {
-        this.lastActiveAt = LocalDateTime.now();
+    /**
+     * 마지막 활동 시간을 갱신한다.
+     *
+     * @param now 현재 시간
+     */
+    public void updateLastActiveAt(LocalDateTime now) {
+        this.lastActiveAt = now;
     }
 
     public boolean isOnline() {

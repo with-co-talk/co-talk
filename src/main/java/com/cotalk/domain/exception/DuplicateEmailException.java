@@ -8,10 +8,10 @@ package com.cotalk.domain.exception;
 public class DuplicateEmailException extends DomainException {
 
     public DuplicateEmailException(String email) {
-        super("이미 존재하는 이메일입니다: " + email);
+        super("이미 존재하는 이메일입니다: " + email, "DUPLICATE_EMAIL", HttpStatusHint.CONFLICT);
     }
 
     public DuplicateEmailException() {
-        super("이미 존재하는 이메일입니다.");
+        super("이미 존재하는 이메일입니다.", "DUPLICATE_EMAIL", HttpStatusHint.CONFLICT);
     }
 }

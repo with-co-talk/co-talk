@@ -87,9 +87,10 @@ public class TermsAgreement extends BaseEntity {
      * @param version 약관 버전
      * @param agreed 동의 여부
      * @param ipAddress IP 주소
+     * @param now 현재 시간
      * @return 생성된 TermsAgreement 인스턴스
      */
-    public static TermsAgreement create(Long userId, TermsType type, String version, boolean agreed, String ipAddress) {
+    public static TermsAgreement create(Long userId, TermsType type, String version, boolean agreed, String ipAddress, LocalDateTime now) {
         TermsAgreement agreement = TermsAgreement.builder()
                 .userId(userId)
                 .termsType(type)
@@ -97,21 +98,23 @@ public class TermsAgreement extends BaseEntity {
                 .agreed(agreed)
                 .ipAddress(ipAddress)
                 .build();
-        
+
         // 동의한 경우 동의 시간 설정
         if (agreed) {
-            agreement.agreedAt = LocalDateTime.now();
+            agreement.agreedAt = now;
         }
-        
+
         return agreement;
     }
 
     /**
      * 약관 동의를 철회한다.
+     *
+     * @param now 현재 시간
      */
-    public void withdraw() {
+    public void withdraw(LocalDateTime now) {
         this.agreed = false;
-        this.withdrawnAt = LocalDateTime.now();
+        this.withdrawnAt = now;
     }
 
     /**

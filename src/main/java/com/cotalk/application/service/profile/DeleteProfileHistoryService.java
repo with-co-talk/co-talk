@@ -8,6 +8,7 @@ import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.port.inbound.profile.DeleteProfileHistoryUseCase;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.ProfileHistoryRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserEventBroker.ProfileUpdateEvent;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -35,6 +36,7 @@ public class DeleteProfileHistoryService implements DeleteProfileHistoryUseCase 
     private final UserRepository userRepository;
     private final FriendRepository friendRepository;
     private final UserEventBroker userEventBroker;
+    private final TimeProvider timeProvider;
 
     @Override
     public void deleteProfileHistory(Long historyId, Long userId) {
@@ -94,7 +96,7 @@ public class DeleteProfileHistoryService implements DeleteProfileHistoryUseCase 
                 user.getAvatarUrl(),
                 user.getBackgroundUrl(),
                 user.getStatusMessage(),
-                LocalDateTime.now()
+                timeProvider.now()
         );
 
         for (Friend friend : friends) {

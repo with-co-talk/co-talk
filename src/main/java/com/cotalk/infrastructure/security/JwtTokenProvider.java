@@ -34,7 +34,6 @@ public class JwtTokenProvider {
     private static final int MIN_SECRET_KEY_LENGTH = 32; // 256비트
     private static final String TOKEN_TYPE_CLAIM = "token_type";
     private static final String TOKEN_TYPE_ACCESS = "ACCESS";
-    private static final String TOKEN_TYPE_REFRESH = "REFRESH";
 
     private final SecretKey secretKey;
     private final long expiration;
@@ -96,26 +95,6 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 사용자 ID를 기반으로 Refresh 토큰을 생성한다.
-     *
-     * @param userId 사용자 ID
-     * @param refreshExpiration Refresh 토큰 만료 시간 (밀리초)
-     * @return 생성된 JWT Refresh 토큰 문자열
-     */
-    public String generateRefreshToken(Long userId, long refreshExpiration) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + refreshExpiration);
-
-        return Jwts.builder()
-                .subject(userId.toString())
-                .claim(TOKEN_TYPE_CLAIM, TOKEN_TYPE_REFRESH)
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(secretKey)
-                .compact();
-    }
-
-    /**
      * JWT 토큰의 타입을 반환한다.
      *
      * @param token JWT 토큰 문자열
@@ -135,16 +114,6 @@ public class JwtTokenProvider {
      */
     public boolean isAccessToken(String token) {
         return TOKEN_TYPE_ACCESS.equals(getTokenType(token));
-    }
-
-    /**
-     * 주어진 토큰이 Refresh 토큰인지 확인한다.
-     *
-     * @param token JWT 토큰 문자열
-     * @return Refresh 토큰이면 true
-     */
-    public boolean isRefreshToken(String token) {
-        return TOKEN_TYPE_REFRESH.equals(getTokenType(token));
     }
 
     /**
@@ -176,6 +145,15 @@ public class JwtTokenProvider {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    /**
+     * Access 토큰의 만료 시간을 초 단위로 반환한다.
+     *
+     * @return Access 토큰 만료 시간 (초)
+     */
+    public long getExpiresInSeconds() {
+        return expiration / 1000;
     }
 
     /**

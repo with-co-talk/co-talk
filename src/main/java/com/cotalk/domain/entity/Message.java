@@ -167,10 +167,12 @@ public class Message extends BaseEntity {
     /**
      * 메시지를 삭제한다 (소프트 삭제).
      * 실제로 데이터베이스에서 삭제되지 않고 삭제 플래그와 삭제 시간이 설정된다.
+     *
+     * @param now 현재 시간
      */
-    public void delete() {
+    public void delete(LocalDateTime now) {
         this.deleted = true;
-        this.deletedAt = LocalDateTime.now();
+        this.deletedAt = now;
     }
 
     /**
@@ -238,12 +240,13 @@ public class Message extends BaseEntity {
     /**
      * 메시지 수정/삭제 가능 시간(5분)이 지났는지 확인한다.
      *
+     * @param now 현재 시간
      * @return 5분이 지났으면 true, 아직 수정/삭제 가능하면 false
      */
-    public boolean isEditTimeExpired() {
+    public boolean isEditTimeExpired(LocalDateTime now) {
         if (getCreatedAt() == null) {
             return false;
         }
-        return getCreatedAt().plusMinutes(MessageConstants.EDIT_TIME_LIMIT_MINUTES).isBefore(LocalDateTime.now());
+        return getCreatedAt().plusMinutes(MessageConstants.EDIT_TIME_LIMIT_MINUTES).isBefore(now);
     }
 }

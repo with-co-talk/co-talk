@@ -8,7 +8,7 @@ package com.cotalk.domain.exception;
 public class TermsAgreementException extends DomainException {
 
     public TermsAgreementException(String message) {
-        super(message);
+        super(message, "TERMS_AGREEMENT_REQUIRED", HttpStatusHint.BAD_REQUEST);
     }
 
     public static TermsAgreementException serviceTermsRequired() {

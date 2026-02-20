@@ -8,7 +8,7 @@ package com.cotalk.domain.exception;
 public class InvalidEmojiException extends DomainException {
 
     public InvalidEmojiException(String message) {
-        super(message);
+        super(message, "INVALID_EMOJI", HttpStatusHint.BAD_REQUEST);
     }
 
     public static InvalidEmojiException invalidFormat(String emoji) {

@@ -69,16 +69,17 @@ public class LoginService implements LoginUseCase {
         if (!user.isEmailVerified()) {
             log.warn("Login failed: email not verified for userId: {}", user.getId());
             metricsPort.incrementLoginFailure();
-            throw new EmailNotVerifiedException(user.getEmail());
+            throw new EmailNotVerifiedException(user.getEmail().value());
         }
 
         // 로그인 시 온라인 상태로 변경 및 마지막 접속 시간 업데이트
         updateUserOnlineStatusUseCase.setOnline(user.getId());
 
         String accessToken = authTokenPort.generateAccessToken(user.getId());
+        long expiresInSeconds = authTokenPort.getAccessTokenExpiresInSeconds();
         metricsPort.incrementLoginSuccess();
         log.info("Login successful: userId={}", user.getId());
-        return new LoginResult(accessToken, user.getId());
+        return new LoginResult(accessToken, user.getId(), expiresInSeconds);
     }
 
     /**

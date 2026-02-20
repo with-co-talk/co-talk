@@ -6,6 +6,7 @@ import com.cotalk.domain.port.inbound.chatroom.CreateChatRoomUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class CreateChatRoomService implements CreateChatRoomUseCase {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final IdGenerator idGenerator;
+    private final TimeProvider timeProvider;
     private final UserEventBroker userEventBroker;
 
     /**
@@ -131,7 +133,7 @@ public class CreateChatRoomService implements CreateChatRoomUseCase {
                 chatRoomId,
                 "",
                 "SYSTEM",
-                LocalDateTime.now(),
+                timeProvider.now(),
                 userId1,
                 "SYSTEM",
                 0

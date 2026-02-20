@@ -5,6 +5,7 @@ import com.cotalk.domain.entity.TermsAgreement.TermsType;
 import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.port.inbound.auth.AgreeToTermsUseCase;
 import com.cotalk.domain.port.outbound.TermsAgreementRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import java.util.List;
 public class AgreeToTermsService implements AgreeToTermsUseCase {
 
     private final TermsAgreementRepository termsAgreementRepository;
+    private final TimeProvider timeProvider;
     private final String termsServiceVersion;
     private final String termsPrivacyVersion;
 
@@ -33,14 +35,17 @@ public class AgreeToTermsService implements AgreeToTermsUseCase {
      * 약관 버전 정보는 application.yml에서 주입된다.
      *
      * @param termsAgreementRepository 약관 동의 저장소
+     * @param timeProvider 시간 제공자
      * @param termsServiceVersion 서비스 이용약관 버전
      * @param termsPrivacyVersion 개인정보 처리방침 버전
      */
     public AgreeToTermsService(
             TermsAgreementRepository termsAgreementRepository,
+            TimeProvider timeProvider,
             @Value("${app.terms.service-version:1.0}") String termsServiceVersion,
             @Value("${app.terms.privacy-version:1.0}") String termsPrivacyVersion) {
         this.termsAgreementRepository = termsAgreementRepository;
+        this.timeProvider = timeProvider;
         this.termsServiceVersion = termsServiceVersion;
         this.termsPrivacyVersion = termsPrivacyVersion;
     }
@@ -57,13 +62,15 @@ public class AgreeToTermsService implements AgreeToTermsUseCase {
         // 필수 약관 동의 확인
         validateRequiredTerms(command.agreements());
 
+        var now = timeProvider.now();
         List<TermsAgreement> agreements = command.agreements().stream()
                 .map(item -> TermsAgreement.create(
                         command.userId(),
                         item.termsType(),
                         item.version(),
                         item.agreed(),
-                        command.ipAddress()
+                        command.ipAddress(),
+                        now
                 ))
                 .toList();
 
@@ -80,7 +87,7 @@ public class AgreeToTermsService implements AgreeToTermsUseCase {
     public void withdrawMarketingAgreement(Long userId) {
         termsAgreementRepository.findByUserIdAndTermsType(userId, TermsType.MARKETING)
                 .ifPresent(agreement -> {
-                    agreement.withdraw();
+                    agreement.withdraw(timeProvider.now());
                     termsAgreementRepository.save(agreement);
                     log.info("Marketing agreement withdrawn for user: {}", userId);
                 });

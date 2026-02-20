@@ -1,5 +1,6 @@
 package com.cotalk.domain.entity;
 
+import com.cotalk.domain.model.Email;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,7 +32,7 @@ public class EmailVerificationToken extends BaseEntity {
     private Long userId;
 
     @Column(nullable = false)
-    private String email;
+    private Email email;
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
@@ -43,26 +44,28 @@ public class EmailVerificationToken extends BaseEntity {
      * 이메일 인증 토큰을 생성한다.
      *
      * @param userId            사용자 ID
-     * @param email             이메일 주소
+     * @param email             이메일 값 객체
      * @param expirationMinutes 만료 시간 (분 단위)
+     * @param now               현재 시간
      * @return 생성된 EmailVerificationToken 인스턴스
      */
-    public static EmailVerificationToken create(Long userId, String email, int expirationMinutes) {
+    public static EmailVerificationToken create(Long userId, Email email, int expirationMinutes, LocalDateTime now) {
         return EmailVerificationToken.builder()
                 .token(UUID.randomUUID().toString())
                 .userId(userId)
                 .email(email)
-                .expiresAt(LocalDateTime.now().plusMinutes(expirationMinutes))
+                .expiresAt(now.plusMinutes(expirationMinutes))
                 .build();
     }
 
     /**
      * 토큰이 만료되었는지 확인한다.
      *
+     * @param now 현재 시간
      * @return 만료되었으면 true, 그렇지 않으면 false
      */
-    public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+    public boolean isExpired(LocalDateTime now) {
+        return now.isAfter(expiresAt);
     }
 
     /**
@@ -78,16 +81,19 @@ public class EmailVerificationToken extends BaseEntity {
      * 토큰이 유효한지 확인한다.
      * 만료되지 않고 인증되지 않은 경우 유효하다.
      *
+     * @param now 현재 시간
      * @return 유효하면 true, 그렇지 않으면 false
      */
-    public boolean isValid() {
-        return !isExpired() && !isVerified();
+    public boolean isValid(LocalDateTime now) {
+        return !isExpired(now) && !isVerified();
     }
 
     /**
      * 토큰을 인증 완료로 표시한다.
+     *
+     * @param now 현재 시간
      */
-    public void markAsVerified() {
-        this.verifiedAt = LocalDateTime.now();
+    public void markAsVerified(LocalDateTime now) {
+        this.verifiedAt = now;
     }
 }

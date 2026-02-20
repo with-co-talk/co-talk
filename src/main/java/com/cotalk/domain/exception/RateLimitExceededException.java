@@ -10,7 +10,7 @@ public class RateLimitExceededException extends DomainException {
     private final long retryAfterSeconds;
 
     public RateLimitExceededException(String message, long retryAfterSeconds) {
-        super(message);
+        super(message, "RATE_LIMIT_EXCEEDED", HttpStatusHint.TOO_MANY_REQUESTS);
         this.retryAfterSeconds = retryAfterSeconds;
     }
 

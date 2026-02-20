@@ -8,10 +8,10 @@ package com.cotalk.domain.exception;
 public class DuplicateNicknameException extends DomainException {
 
     public DuplicateNicknameException() {
-        super("이미 사용 중인 닉네임입니다.");
+        super("이미 사용 중인 닉네임입니다.", "DUPLICATE_NICKNAME", HttpStatusHint.CONFLICT);
     }
 
     public DuplicateNicknameException(String nickname) {
-        super("이미 사용 중인 닉네임입니다: " + nickname);
+        super("이미 사용 중인 닉네임입니다: " + nickname, "DUPLICATE_NICKNAME", HttpStatusHint.CONFLICT);
     }
 }

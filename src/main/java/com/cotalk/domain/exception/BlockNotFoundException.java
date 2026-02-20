@@ -8,6 +8,6 @@ package com.cotalk.domain.exception;
 public class BlockNotFoundException extends DomainException {
 
     public BlockNotFoundException(String message) {
-        super(message);
+        super(message, "BLOCK_NOT_FOUND", HttpStatusHint.NOT_FOUND);
     }
 }

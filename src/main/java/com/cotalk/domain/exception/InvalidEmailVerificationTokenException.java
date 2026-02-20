@@ -8,7 +8,7 @@ package com.cotalk.domain.exception;
 public class InvalidEmailVerificationTokenException extends DomainException {
 
     public InvalidEmailVerificationTokenException(String message) {
-        super(message);
+        super(message, "INVALID_EMAIL_VERIFICATION_TOKEN", HttpStatusHint.BAD_REQUEST);
     }
 
     /**
