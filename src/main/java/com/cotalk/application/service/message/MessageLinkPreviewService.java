@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -61,6 +62,7 @@ public class MessageLinkPreviewService {
      * @param url       미리보기 수집할 URL
      */
     @Async
+    @Transactional
     public void fetchAndSaveLinkPreview(Long messageId, String url) {
         try {
             LinkPreviewResult result = getLinkPreviewUseCase.getLinkPreview(url);

@@ -80,6 +80,20 @@ public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
             return;
         }
         deviceTokenRepository.deleteByToken(token);
-        log.info("Device token unregistered by user {}: {}", userId, token);
+        log.info("Device token unregistered by user {}: {}", userId, maskToken(token));
+    }
+
+    /**
+     * 토큰을 마스킹하여 로그에 안전하게 출력한다.
+     * 앞 6자 + ... + 뒤 4자 형식으로 변환한다.
+     *
+     * @param token 마스킹할 토큰
+     * @return 마스킹된 토큰 문자열
+     */
+    private String maskToken(String token) {
+        if (token == null || token.length() <= 10) {
+            return "***";
+        }
+        return token.substring(0, 6) + "..." + token.substring(token.length() - 4);
     }
 }

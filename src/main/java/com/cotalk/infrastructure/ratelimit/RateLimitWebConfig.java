@@ -40,7 +40,6 @@ public class RateLimitWebConfig implements WebMvcConfigurer {
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
-                        "/api/v1/auth/**", // 인증 API는 별도 처리
                         "/swagger-ui/**",
                         "/v3/api-docs/**"
                 );

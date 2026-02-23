@@ -215,11 +215,11 @@ public class MarkAsReadService implements MarkAsReadUseCase {
 
         if (lastMessage == null) {
             // 메시지가 없는 경우 업데이트하지 않음
-            log.info("No message found in chat room {}, skipping chat list update", chatRoomId);
+            log.debug("No message found in chat room {}, skipping chat list update", chatRoomId);
             return;
         }
 
-        log.info("Found last message in chat room {}: messageId={}, content={}",
+        log.debug("Found last message in chat room {}: messageId={}, content={}",
                 chatRoomId, lastMessage.getId(), lastMessage.getContent());
 
         // 발신자 닉네임 조회
@@ -229,7 +229,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
 
         // 채팅방 참여자 목록 조회
         List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(chatRoomId);
-        log.info("Found {} members in chat room {} for chat list update", members.size(), chatRoomId);
+        log.debug("Found {} members in chat room {} for chat list update", members.size(), chatRoomId);
 
         if (members.isEmpty()) {
             log.warn("No members found in chat room {}, skipping chat list update", chatRoomId);
@@ -242,7 +242,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
         for (ChatRoomMember member : members) {
             int memberUnreadCount = unreadCountMap.getOrDefault(member.getUserId(), 0L).intValue();
 
-            log.info("Calculated unreadCount for member {}: unreadCount={}, lastReadMessageId={}",
+            log.debug("Calculated unreadCount for member {}: unreadCount={}, lastReadMessageId={}",
                     member.getUserId(), memberUnreadCount, member.getLastReadMessageId());
 
             ChatListUpdateEvent event = new ChatListUpdateEvent(
@@ -259,7 +259,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
             );
 
             userEventBroker.publishChatListUpdate(member.getUserId(), event);
-            log.info("Published chat list update to user {}: eventType={}, roomId={}, unreadCount={}",
+            log.debug("Published chat list update to user {}: eventType={}, roomId={}, unreadCount={}",
                     member.getUserId(), event.eventType(), event.roomId(), event.unreadCount());
         }
     }

@@ -252,16 +252,21 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
     /**
      * 클라이언트 IP 주소를 조회한다.
-     * X-Forwarded-For 헤더가 있으면 첫 번째 IP를 반환한다.
+     * Nginx가 설정하는 X-Real-IP 헤더를 우선 사용한다 (스푸핑 불가).
+     * X-Real-IP가 없는 경우 remoteAddr을 반환한다.
+     * X-Forwarded-For는 클라이언트가 임의로 조작할 수 있으므로 사용하지 않는다.
      *
      * @param request HTTP 요청
      * @return 클라이언트 IP 주소
      */
     private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
+        // Nginx가 설정하는 X-Real-IP를 우선 사용 (스푸핑 불가)
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isBlank()) {
+            return xRealIp.trim();
         }
+
+        // X-Real-IP 없는 경우 remoteAddr 사용 (X-Forwarded-For는 클라이언트가 조작 가능)
         return request.getRemoteAddr();
     }
 }
