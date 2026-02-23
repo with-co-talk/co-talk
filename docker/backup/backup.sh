@@ -54,6 +54,19 @@ pg_dump -h ${POSTGRES_HOST} -U ${POSTGRES_USER} -d ${POSTGRES_DB} \
 BACKUP_SIZE=$(ls -lh ${BACKUP_FILE} | awk '{print $5}')
 echo "백업 완료: ${BACKUP_FILE} (${BACKUP_SIZE})"
 
+# 백업 무결성 검증
+echo "[$(date)] Verifying backup integrity..."
+if pg_restore --list "$BACKUP_FILE" > /dev/null 2>&1; then
+    echo "[$(date)] Backup integrity verification: PASSED"
+else
+    echo "[$(date)] WARNING: Backup integrity verification FAILED"
+    # 검증 실패 시에도 파일은 보존 (수동 확인 필요)
+fi
+
+# SHA256 체크섬 생성
+sha256sum "$BACKUP_FILE" > "${BACKUP_FILE}.sha256"
+echo "[$(date)] Checksum saved: ${BACKUP_FILE}.sha256"
+
 # 오래된 백업 파일 삭제
 echo ""
 echo "오래된 백업 정리 중 (${BACKUP_RETENTION_DAYS}일 이상)..."
