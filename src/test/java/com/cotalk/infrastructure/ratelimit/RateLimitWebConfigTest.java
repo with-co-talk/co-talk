@@ -53,8 +53,8 @@ class RateLimitWebConfigTest {
     }
 
     @Test
-    @DisplayName("인증 API와 Swagger는 제외한다")
-    void should_excludeAuthAndSwaggerPaths() {
+    @DisplayName("Swagger는 제외하고 인증 API는 Rate Limit 적용한다")
+    void should_excludeSwaggerPaths_andIncludeAuthPaths() {
         // given
         given(registry.addInterceptor(any())).willReturn(registration);
         given(registration.addPathPatterns(any(String.class))).willReturn(registration);
@@ -69,9 +69,9 @@ class RateLimitWebConfigTest {
 
         String[] excludePatterns = excludePatternsCaptor.getValue();
         assertThat(excludePatterns).contains(
-                "/api/v1/auth/**",
                 "/swagger-ui/**",
                 "/v3/api-docs/**"
         );
+        assertThat(excludePatterns).doesNotContain("/api/v1/auth/**");
     }
 }

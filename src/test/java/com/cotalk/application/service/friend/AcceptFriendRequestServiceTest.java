@@ -7,20 +7,26 @@ import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
+import com.cotalk.infrastructure.lock.DistributedLockExecutor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -36,8 +42,34 @@ class AcceptFriendRequestServiceTest {
     @Mock
     private SnowflakeIdGenerator idGenerator;
 
-    @InjectMocks
+    @Mock
+    private DistributedLockExecutor lockExecutor;
+
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     private AcceptFriendRequestService acceptFriendRequestService;
+
+    @BeforeEach
+    @SuppressWarnings("unchecked")
+    void setUp() {
+        acceptFriendRequestService = new AcceptFriendRequestService(
+                friendRequestRepository, friendRepository, idGenerator, lockExecutor, transactionTemplate);
+
+        // 분산락 모킹: 락 획득 후 바로 실행
+        lenient().when(lockExecutor.executeWithLock(anyString(), any(Supplier.class)))
+                .thenAnswer(invocation -> {
+                    Supplier<?> supplier = invocation.getArgument(1);
+                    return supplier.get();
+                });
+
+        // TransactionTemplate 모킹: 트랜잭션 콜백 바로 실행
+        lenient().when(transactionTemplate.execute(any(TransactionCallback.class)))
+                .thenAnswer(invocation -> {
+                    TransactionCallback<?> callback = invocation.getArgument(0);
+                    return callback.doInTransaction(null);
+                });
+    }
 
     @Test
     @DisplayName("친구 요청 수락 성공")

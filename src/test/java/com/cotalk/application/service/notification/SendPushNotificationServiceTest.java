@@ -5,6 +5,7 @@ import com.cotalk.domain.entity.NotificationSetting;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import com.cotalk.domain.port.outbound.NotificationSettingRepository;
 import com.cotalk.domain.port.outbound.PushNotificationSender;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,12 +40,19 @@ class SendPushNotificationServiceTest {
     @Mock
     private NotificationSettingRepository notificationSettingRepository;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private SendPushNotificationService sendPushNotificationService;
 
     @BeforeEach
     void setUp() {
         sendPushNotificationService = new SendPushNotificationService(
-                deviceTokenRepository, pushNotificationSender, notificationSettingRepository);
+                deviceTokenRepository, pushNotificationSender, notificationSettingRepository, timeProvider);
+
+        // TimeProvider 모킹: 현재 시간 반환
+        org.mockito.Mockito.lenient().when(timeProvider.now())
+                .thenReturn(java.time.LocalDateTime.now());
     }
 
     private NotificationSetting createDefaultSetting(Long userId) {

@@ -300,11 +300,11 @@ class TermsControllerTest {
                     }
                     """;
 
-            // when & then - Jackson 역직렬화 실패는 내부 오류로 처리됨
+            // when & then - Jackson 역직렬화 실패는 400으로 처리됨
             mockMvc.perform(post("/api/v1/terms/agree")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isBadRequest());
         }
 
         @Test

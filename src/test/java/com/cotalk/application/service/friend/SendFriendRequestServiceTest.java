@@ -21,6 +21,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.function.Supplier;
 
@@ -57,19 +59,30 @@ class SendFriendRequestServiceTest {
     @Mock
     private SendPushNotificationUseCase sendPushNotificationUseCase;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     private SendFriendRequestService sendFriendRequestService;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         sendFriendRequestService = new SendFriendRequestService(
                 friendRequestRepository, friendRepository, userValidator, idGenerator, lockExecutor,
-                sendPushNotificationUseCase);
+                sendPushNotificationUseCase, transactionTemplate);
 
         // 분산락 모킹: 락 획득 후 바로 실행 (lenient로 불필요한 stub 경고 방지)
         lenient().when(lockExecutor.executeWithLock(anyString(), any(Supplier.class)))
                 .thenAnswer(invocation -> {
                     Supplier<?> supplier = invocation.getArgument(1);
                     return supplier.get();
+                });
+
+        // TransactionTemplate 모킹: 트랜잭션 콜백 바로 실행
+        lenient().when(transactionTemplate.execute(any(TransactionCallback.class)))
+                .thenAnswer(invocation -> {
+                    TransactionCallback<?> callback = invocation.getArgument(0);
+                    return callback.doInTransaction(null);
                 });
     }
 
