@@ -21,6 +21,10 @@ spring:
       hibernate:
         generate_statistics: false
 
+  # Flyway - 프로덕션에서 의도치 않은 베이스라이닝 방지
+  flyway:
+    baseline-on-migrate: false
+
 # 서버 설정 - 보안 강화
 server:
   error:

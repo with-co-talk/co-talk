@@ -84,7 +84,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1024M
 
 
   # ===========================================
@@ -142,7 +142,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1024M
 
   # ===========================================
   # 애플리케이션 (Instance 3)
@@ -199,7 +199,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1024M
 
   # ===========================================
   # 데이터베이스

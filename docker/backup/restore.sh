@@ -69,8 +69,12 @@ else
     fi
 fi
 
-# 복원 실행
+# 기존 데이터 정리 후 복원 실행
 echo ""
+echo "기존 스키마 정리 중..."
+psql -h ${POSTGRES_HOST} -U ${POSTGRES_USER} -d ${POSTGRES_DB} \
+    -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO ${POSTGRES_USER};"
+
 echo "복원 진행 중..."
 gunzip -c ${BACKUP_FILE} | psql -h ${POSTGRES_HOST} -U ${POSTGRES_USER} -d ${POSTGRES_DB}
 

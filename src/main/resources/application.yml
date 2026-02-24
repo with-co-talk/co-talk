@@ -6,8 +6,8 @@ spring:
   servlet:
     multipart:
       enabled: true
-      max-file-size: 50MB
-      max-request-size: 50MB
+      max-file-size: 15MB
+      max-request-size: 15MB
 
   # Jackson 날짜 직렬화 설정 (ISO 8601 형식)
   jackson:
@@ -110,6 +110,9 @@ minio:
   bucket: ${MINIO_BUCKET:cotalk}
   public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
   region: ${MINIO_REGION:us-east-1}
+  # 공개 읽기 정책 설정 여부. true이면 버킷에 공개 읽기 정책 적용(인증 없이 접근 가능).
+  # false로 설정 시 Pre-signed URL을 통해서만 파일에 접근 가능. (기본값: true - 기존 동작 유지)
+  public-read-policy: ${MINIO_PUBLIC_READ_POLICY:true}
 
 # 파일 업로드 설정
 file:
@@ -192,7 +195,7 @@ logging:
     root: INFO
     com.cotalk: DEBUG
     org.springframework.web: INFO
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: WARN
     # 보안: 쿼리 파라미터 로깅 비활성화 (민감 정보 노출 방지)
     org.hibernate.type.descriptor.sql.BasicBinder: OFF
   pattern:

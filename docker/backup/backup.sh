@@ -54,9 +54,9 @@ pg_dump -h ${POSTGRES_HOST} -U ${POSTGRES_USER} -d ${POSTGRES_DB} \
 BACKUP_SIZE=$(ls -lh ${BACKUP_FILE} | awk '{print $5}')
 echo "백업 완료: ${BACKUP_FILE} (${BACKUP_SIZE})"
 
-# 백업 무결성 검증
+# 백업 무결성 검증 (gzip 무결성 + 파일 크기 확인)
 echo "[$(date)] Verifying backup integrity..."
-if pg_restore --list "$BACKUP_FILE" > /dev/null 2>&1; then
+if gunzip -t "$BACKUP_FILE" 2>/dev/null; then
     echo "[$(date)] Backup integrity verification: PASSED"
 else
     echo "[$(date)] WARNING: Backup integrity verification FAILED"
