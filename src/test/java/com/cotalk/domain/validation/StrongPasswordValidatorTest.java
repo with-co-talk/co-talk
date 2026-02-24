@@ -154,5 +154,31 @@ class StrongPasswordValidatorTest {
             // then
             assertThat(result).isFalse();
         }
+
+        @Test
+        @DisplayName("should_returnFalse_when_passwordExceeds128Characters")
+        void should_returnFalse_when_passwordExceeds128Characters() {
+            // given - 129자: 'A' * 125 + 'a' + '1' + '!' + 'x' * 2
+            String password = "A".repeat(125) + "a1!xx";
+
+            // when
+            boolean result = validator.isValid(password, null);
+
+            // then
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        @DisplayName("should_returnTrue_when_passwordIsExactly128Characters")
+        void should_returnTrue_when_passwordIsExactly128Characters() {
+            // given - 128자: 'A' * 125 + 'a' + '1' + '!'
+            String password = "A".repeat(125) + "a1!";
+
+            // when
+            boolean result = validator.isValid(password, null);
+
+            // then
+            assertThat(result).isTrue();
+        }
     }
 }

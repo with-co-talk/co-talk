@@ -2,7 +2,7 @@ package com.cotalk.infrastructure.push;
 
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import com.cotalk.domain.port.outbound.PushNotificationSender;
-import com.cotalk.infrastructure.util.TokenMasker;
+import com.cotalk.domain.util.TokenMasker;
 import com.google.firebase.messaging.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;

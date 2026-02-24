@@ -1,6 +1,6 @@
 package com.cotalk.adapter.inbound.rest.dto.auth;
 
-import com.cotalk.infrastructure.security.PasswordValidator;
+import com.cotalk.domain.validation.StrongPassword;
 import jakarta.validation.constraints.NotBlank;
 
 /**
@@ -15,6 +15,6 @@ public record ChangePasswordRequest(
         String currentPassword,
 
         @NotBlank(message = "새 비밀번호는 필수입니다.")
-        @PasswordValidator
+        @StrongPassword
         String newPassword
 ) {}

@@ -7,11 +7,10 @@ import com.cotalk.adapter.inbound.rest.dto.user.UpdateProfileRequest;
 import com.cotalk.adapter.inbound.rest.dto.user.UserDto;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ResourceAccessDeniedException;
-import com.cotalk.domain.exception.UserNotFoundException;
+import com.cotalk.domain.port.inbound.user.GetUserUseCase;
 import com.cotalk.domain.port.inbound.user.SearchUserUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
-import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,10 +41,10 @@ import java.util.List;
 @Tag(name = "사용자", description = "사용자 검색 API")
 public class UserController {
 
+    private final GetUserUseCase getUserUseCase;
     private final SearchUserUseCase searchUserUseCase;
     private final UpdateProfileUseCase updateProfileUseCase;
     private final UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
-    private final UserRepository userRepository;
 
     /**
      * 현재 로그인한 사용자 정보를 조회한다.
@@ -57,8 +56,7 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserDto> getCurrentUser(
             @AuthenticationPrincipal CustomUserPrincipal principal) {
-        User user = userRepository.findById(principal.getUserId())
-                .orElseThrow(() -> new UserNotFoundException(principal.getUserId()));
+        User user = getUserUseCase.getUserById(principal.getUserId());
         return ResponseEntity.ok(UserDto.from(user));
     }
 
@@ -101,8 +99,7 @@ public class UserController {
     @Operation(summary = "사용자 프로필 조회", description = "특정 사용자의 프로필 정보를 조회합니다.")
     @GetMapping("/{userId}/profile")
     public ResponseEntity<UserDto> getUserProfile(@PathVariable Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(userId));
+        User user = getUserUseCase.getUserById(userId);
         return ResponseEntity.ok(UserDto.from(user));
     }
 

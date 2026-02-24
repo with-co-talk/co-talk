@@ -6,11 +6,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.stereotype.Component;
 
 /**
- * 개발/테스트용 콘솔 이메일 발송 구현체.
+ * 콘솔 출력 기반 이메일 발송 폴백 구현체.
  * {@link EmailSender} 포트를 구현하여 실제 이메일을 발송하지 않고 콘솔에 출력한다.
  *
- * <p>{@link SmtpEmailSender}가 등록되지 않은 경우 자동으로 활성화된다.
- * 로컬 개발 환경이나 테스트에서 이메일 서버 없이 이메일 발송 로직을 테스트할 때 유용하다.
+ * <p>{@link SmtpEmailSender}가 등록되지 않은 경우 모든 환경(로컬·개발·프로덕션 포함)에서
+ * 자동으로 활성화된다. SMTP 설정({@code spring.mail.host})이 없으면 {@link SmtpEmailSender}가
+ * 비활성화되므로, 이 빈이 안전한 폴백으로 동작하여 NoSuchBeanDefinitionException을 방지한다.
  *
  * @author seunggu.lee
  * @see EmailSender

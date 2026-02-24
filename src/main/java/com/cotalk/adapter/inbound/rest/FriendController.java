@@ -18,7 +18,7 @@ import com.cotalk.domain.port.inbound.friend.GetSentFriendRequestsUseCase;
 import com.cotalk.domain.port.inbound.friend.RejectFriendRequestUseCase;
 import com.cotalk.domain.port.inbound.friend.RemoveFriendUseCase;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
-import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.port.inbound.user.GetUserUseCase;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -63,7 +63,7 @@ public class FriendController {
     private final GetFriendListUseCase getFriendListUseCase;
     private final GetReceivedFriendRequestsUseCase getReceivedFriendRequestsUseCase;
     private final GetSentFriendRequestsUseCase getSentFriendRequestsUseCase;
-    private final UserRepository userRepository;
+    private final GetUserUseCase getUserUseCase;
 
     /**
      * 다른 사용자에게 친구 요청을 보냅니다.
@@ -156,11 +156,12 @@ public class FriendController {
 
     /**
      * 받은 친구 요청 목록을 조회합니다.
+     * DB 레벨 페이지네이션을 사용하여 대규모 데이터에서도 효율적으로 동작합니다.
      *
      * @param principal 인증된 사용자 정보
      * @param page 페이지 번호 (기본값: 0)
      * @param size 페이지 크기 (기본값: 20, 최대: 100)
-     * @return 받은 친구 요청 목록
+     * @return 페이지네이션된 받은 친구 요청 목록
      */
     @Operation(summary = "받은 친구 요청 목록 조회", description = "사용자가 받은 대기 중인 친구 요청 목록을 조회합니다.")
     @GetMapping("/requests/received")
@@ -170,32 +171,30 @@ public class FriendController {
             @RequestParam(defaultValue = "20") int size) {
         int safeSize = Math.min(size, 100);
         Long userId = principal.getUserId();
-        List<FriendRequest> requests = getReceivedFriendRequestsUseCase.getReceivedFriendRequests(userId);
+        Page<FriendRequest> requestPage = getReceivedFriendRequestsUseCase
+                .getReceivedFriendRequests(userId, PageRequest.of(page, safeSize));
 
-        // 빈 리스트일 때 early return
-        if (requests.isEmpty()) {
+        // 빈 페이지일 때 early return
+        if (requestPage.isEmpty()) {
             return ResponseEntity.ok(FriendRequestListResponse.of(List.of()));
         }
 
         // 현재 사용자(수신자) 정보 조회 (한 번만)
-        User receiver = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(userId));
+        User receiver = getUserUseCase.getUserById(userId);
 
-        // 요청자 ID 목록 추출
-        List<Long> requesterIds = requests.stream()
+        // 페이지 내 요청자 ID 목록 추출
+        List<Long> requesterIds = requestPage.getContent().stream()
                 .map(FriendRequest::getRequesterId)
                 .distinct()
                 .toList();
 
         // 요청자 정보 일괄 조회
-        Map<Long, User> requesterMap = userRepository.findAllById(requesterIds)
+        Map<Long, User> requesterMap = getUserUseCase.getUsersByIds(requesterIds)
                 .stream()
                 .collect(Collectors.toMap(User::getId, user -> user));
 
         // DTO 변환
-        List<FriendRequestDto> requestDtos = requests.stream()
-                .skip((long) page * safeSize)
-                .limit(safeSize)
+        List<FriendRequestDto> requestDtos = requestPage.getContent().stream()
                 .map(request -> {
                     User requester = requesterMap.get(request.getRequesterId());
                     if (requester == null) {
@@ -217,16 +216,17 @@ public class FriendController {
                 })
                 .toList();
 
-        return ResponseEntity.ok(FriendRequestListResponse.of(requestDtos));
+        return ResponseEntity.ok(FriendRequestListResponse.of(requestDtos, requestPage));
     }
 
     /**
      * 보낸 친구 요청 목록을 조회합니다.
+     * DB 레벨 페이지네이션을 사용하여 대규모 데이터에서도 효율적으로 동작합니다.
      *
      * @param principal 인증된 사용자 정보
      * @param page 페이지 번호 (기본값: 0)
      * @param size 페이지 크기 (기본값: 20, 최대: 100)
-     * @return 보낸 친구 요청 목록
+     * @return 페이지네이션된 보낸 친구 요청 목록
      */
     @Operation(summary = "보낸 친구 요청 목록 조회", description = "사용자가 보낸 대기 중인 친구 요청 목록을 조회합니다.")
     @GetMapping("/requests/sent")
@@ -236,32 +236,30 @@ public class FriendController {
             @RequestParam(defaultValue = "20") int size) {
         int safeSize = Math.min(size, 100);
         Long userId = principal.getUserId();
-        List<FriendRequest> requests = getSentFriendRequestsUseCase.getSentFriendRequests(userId);
+        Page<FriendRequest> requestPage = getSentFriendRequestsUseCase
+                .getSentFriendRequests(userId, PageRequest.of(page, safeSize));
 
-        // 빈 리스트일 때 early return
-        if (requests.isEmpty()) {
+        // 빈 페이지일 때 early return
+        if (requestPage.isEmpty()) {
             return ResponseEntity.ok(FriendRequestListResponse.of(List.of()));
         }
 
         // 현재 사용자(요청자) 정보 조회 (한 번만)
-        User requester = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(userId));
+        User requester = getUserUseCase.getUserById(userId);
 
-        // 수신자 ID 목록 추출
-        List<Long> receiverIds = requests.stream()
+        // 페이지 내 수신자 ID 목록 추출
+        List<Long> receiverIds = requestPage.getContent().stream()
                 .map(FriendRequest::getReceiverId)
                 .distinct()
                 .toList();
 
         // 수신자 정보 일괄 조회
-        Map<Long, User> receiverMap = userRepository.findAllById(receiverIds)
+        Map<Long, User> receiverMap = getUserUseCase.getUsersByIds(receiverIds)
                 .stream()
                 .collect(Collectors.toMap(User::getId, user -> user));
 
         // DTO 변환
-        List<FriendRequestDto> requestDtos = requests.stream()
-                .skip((long) page * safeSize)
-                .limit(safeSize)
+        List<FriendRequestDto> requestDtos = requestPage.getContent().stream()
                 .map(request -> {
                     User receiver = receiverMap.get(request.getReceiverId());
                     if (receiver == null) {
@@ -283,7 +281,7 @@ public class FriendController {
                 })
                 .toList();
 
-        return ResponseEntity.ok(FriendRequestListResponse.of(requestDtos));
+        return ResponseEntity.ok(FriendRequestListResponse.of(requestDtos, requestPage));
     }
 
 }

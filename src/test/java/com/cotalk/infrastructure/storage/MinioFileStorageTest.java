@@ -57,6 +57,10 @@ class MinioFileStorageTest {
     }
 
     private MinioProperties createMinioProperties(String bucket, String publicUrl) {
+        return createMinioProperties(bucket, publicUrl, true);
+    }
+
+    private MinioProperties createMinioProperties(String bucket, String publicUrl, boolean publicReadPolicy) {
         return new MinioProperties(
                 true,
                 "http://localhost:9000",
@@ -64,7 +68,8 @@ class MinioFileStorageTest {
                 "secret-key",
                 bucket,
                 publicUrl,
-                "us-east-1"
+                "us-east-1",
+                publicReadPolicy
         );
     }
 
@@ -230,6 +235,44 @@ class MinioFileStorageTest {
         // then
         assertEquals(presignedUrl, url);
         verify(s3Presigner).presignGetObject(any(GetObjectPresignRequest.class));
+    }
+
+    @Test
+    @DisplayName("publicReadPolicy=true 이면 버킷 생성 시 공개 읽기 정책 설정")
+    void should_setPublicReadPolicy_when_publicReadPolicyEnabled() {
+        // given
+        S3Client newS3Client = mock(S3Client.class);
+        S3Presigner newPresigner = mock(S3Presigner.class);
+
+        given(newS3Client.headBucket(any(HeadBucketRequest.class)))
+                .willReturn(HeadBucketResponse.builder().build());
+        given(newS3Client.putBucketPolicy(any(PutBucketPolicyRequest.class)))
+                .willReturn(PutBucketPolicyResponse.builder().build());
+
+        // when
+        MinioProperties props = createMinioProperties(BUCKET_NAME, PUBLIC_URL, true);
+        new MinioFileStorage(newS3Client, newPresigner, props);
+
+        // then
+        verify(newS3Client).putBucketPolicy(any(PutBucketPolicyRequest.class));
+    }
+
+    @Test
+    @DisplayName("publicReadPolicy=false 이면 버킷 생성 시 공개 읽기 정책 미설정")
+    void should_notSetPublicReadPolicy_when_publicReadPolicyDisabled() {
+        // given
+        S3Client newS3Client = mock(S3Client.class);
+        S3Presigner newPresigner = mock(S3Presigner.class);
+
+        given(newS3Client.headBucket(any(HeadBucketRequest.class)))
+                .willReturn(HeadBucketResponse.builder().build());
+
+        // when
+        MinioProperties props = createMinioProperties(BUCKET_NAME, PUBLIC_URL, false);
+        new MinioFileStorage(newS3Client, newPresigner, props);
+
+        // then
+        verify(newS3Client, never()).putBucketPolicy(any(PutBucketPolicyRequest.class));
     }
 
     @Test

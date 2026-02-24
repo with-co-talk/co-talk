@@ -7,10 +7,10 @@ import com.cotalk.domain.model.Email;
 import com.cotalk.domain.entity.User.OnlineStatus;
 import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.exception.UserNotFoundException;
+import com.cotalk.domain.port.inbound.user.GetUserUseCase;
 import com.cotalk.domain.port.inbound.user.SearchUserUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
 import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
-import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.exception.GlobalExceptionHandler;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
@@ -30,7 +30,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -38,7 +37,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -56,6 +54,9 @@ class UserControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
+    private GetUserUseCase getUserUseCase;
+
+    @MockitoBean
     private SearchUserUseCase searchUserUseCase;
 
     @MockitoBean
@@ -63,9 +64,6 @@ class UserControllerTest {
 
     @MockitoBean
     private UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
-
-    @MockitoBean
-    private UserRepository userRepository;
 
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
@@ -236,7 +234,7 @@ class UserControllerTest {
                     .lastActiveAt(LocalDateTime.now())
                     .build();
 
-            given(userRepository.findById(userId)).willReturn(Optional.of(user));
+            given(getUserUseCase.getUserById(userId)).willReturn(user);
 
             // when & then
             mockMvc.perform(get("/api/v1/users/me"))
@@ -254,7 +252,7 @@ class UserControllerTest {
         void should_returnNotFound_when_userNotFound() throws Exception {
             // given
             Long userId = 999L;
-            given(userRepository.findById(userId)).willReturn(Optional.empty());
+            given(getUserUseCase.getUserById(userId)).willThrow(new UserNotFoundException(userId));
 
             // when & then
             mockMvc.perform(get("/api/v1/users/me"))

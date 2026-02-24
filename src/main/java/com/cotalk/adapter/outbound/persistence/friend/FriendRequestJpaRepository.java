@@ -1,6 +1,8 @@
 package com.cotalk.adapter.outbound.persistence.friend;
 
 import com.cotalk.domain.entity.FriendRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -23,6 +25,16 @@ public interface FriendRequestJpaRepository extends JpaRepository<FriendRequest,
     List<FriendRequest> findByReceiverIdAndStatus(Long receiverId, FriendRequest.RequestStatus status);
 
     /**
+     * 수신자 ID와 상태로 친구 요청 목록을 페이지네이션하여 조회한다.
+     *
+     * @param receiverId 수신자 ID
+     * @param status     요청 상태
+     * @param pageable   페이지네이션 정보
+     * @return 페이지네이션된 친구 요청 목록
+     */
+    Page<FriendRequest> findByReceiverIdAndStatus(Long receiverId, FriendRequest.RequestStatus status, Pageable pageable);
+
+    /**
      * 요청자 ID와 상태로 친구 요청 목록을 조회한다.
      *
      * @param requesterId 요청자 ID
@@ -30,6 +42,16 @@ public interface FriendRequestJpaRepository extends JpaRepository<FriendRequest,
      * @return 친구 요청 목록
      */
     List<FriendRequest> findByRequesterIdAndStatus(Long requesterId, FriendRequest.RequestStatus status);
+
+    /**
+     * 요청자 ID와 상태로 친구 요청 목록을 페이지네이션하여 조회한다.
+     *
+     * @param requesterId 요청자 ID
+     * @param status      요청 상태
+     * @param pageable    페이지네이션 정보
+     * @return 페이지네이션된 친구 요청 목록
+     */
+    Page<FriendRequest> findByRequesterIdAndStatus(Long requesterId, FriendRequest.RequestStatus status, Pageable pageable);
 
     /**
      * 요청자 ID와 수신자 ID로 친구 요청이 존재하는지 확인한다.

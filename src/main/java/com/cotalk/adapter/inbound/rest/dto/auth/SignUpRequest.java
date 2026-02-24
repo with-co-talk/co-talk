@@ -1,6 +1,6 @@
 package com.cotalk.adapter.inbound.rest.dto.auth;
 
-import com.cotalk.infrastructure.security.PasswordValidator;
+import com.cotalk.domain.validation.StrongPassword;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -20,7 +20,7 @@ public record SignUpRequest(
         String email,
 
         @NotBlank(message = "비밀번호는 필수입니다.")
-        @PasswordValidator
+        @StrongPassword
         String password,
 
         @NotBlank(message = "닉네임은 필수입니다.")

@@ -89,7 +89,18 @@
         <logger name="com.cotalk" level="INFO"/>
     </springProfile>
 
-    <springProfile name="prod">
+    <!-- docker,prod 동시 활성화 시: CONSOLE 포함 (Promtail 수집용) + WARN 레벨 -->
+    <springProfile name="docker &amp; prod">
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="JSON"/>
+        </root>
+        <logger name="com.cotalk" level="INFO"/>
+    </springProfile>
+
+    <!-- prod 단독 (docker 없이): 파일/JSON만 -->
+    <springProfile name="prod &amp; !docker">
         <root level="WARN">
             <appender-ref ref="FILE"/>
             <appender-ref ref="JSON"/>

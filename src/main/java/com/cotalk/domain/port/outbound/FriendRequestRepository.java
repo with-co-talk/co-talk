@@ -1,6 +1,8 @@
 package com.cotalk.domain.port.outbound;
 
 import com.cotalk.domain.entity.FriendRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,12 +40,30 @@ public interface FriendRequestRepository {
     List<FriendRequest> findPendingByReceiverId(Long receiverId);
 
     /**
+     * 특정 사용자가 받은 대기 중인 친구 요청 목록을 DB 레벨 페이지네이션으로 조회한다.
+     *
+     * @param receiverId 수신자 ID
+     * @param pageable   페이지네이션 정보
+     * @return 페이지네이션된 대기 중인 친구 요청 목록
+     */
+    Page<FriendRequest> findPendingByReceiverId(Long receiverId, Pageable pageable);
+
+    /**
      * 특정 사용자가 보낸 대기 중인 친구 요청 목록을 조회한다.
      *
      * @param requesterId 요청자 ID
      * @return 대기 중인 친구 요청 목록
      */
     List<FriendRequest> findPendingByRequesterId(Long requesterId);
+
+    /**
+     * 특정 사용자가 보낸 대기 중인 친구 요청 목록을 DB 레벨 페이지네이션으로 조회한다.
+     *
+     * @param requesterId 요청자 ID
+     * @param pageable    페이지네이션 정보
+     * @return 페이지네이션된 대기 중인 친구 요청 목록
+     */
+    Page<FriendRequest> findPendingByRequesterId(Long requesterId, Pageable pageable);
 
     /**
      * 특정 요청자와 수신자 간의 친구 요청 존재 여부를 확인한다.
