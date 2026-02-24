@@ -3,6 +3,8 @@ package com.cotalk.adapter.outbound.persistence.friend;
 import com.cotalk.domain.entity.FriendRequest;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -54,6 +56,18 @@ public class FriendRequestRepositoryAdapter implements FriendRequestRepository {
     }
 
     /**
+     * 수신자 ID로 대기 중인 친구 요청 목록을 DB 레벨 페이지네이션으로 조회한다.
+     *
+     * @param receiverId 수신자 ID
+     * @param pageable   페이지네이션 정보
+     * @return 페이지네이션된 대기 중인 친구 요청 목록
+     */
+    @Override
+    public Page<FriendRequest> findPendingByReceiverId(Long receiverId, Pageable pageable) {
+        return friendRequestJpaRepository.findByReceiverIdAndStatus(receiverId, FriendRequest.RequestStatus.PENDING, pageable);
+    }
+
+    /**
      * 요청자 ID로 대기 중인 친구 요청 목록을 조회한다.
      *
      * @param requesterId 요청자 ID
@@ -62,6 +76,18 @@ public class FriendRequestRepositoryAdapter implements FriendRequestRepository {
     @Override
     public List<FriendRequest> findPendingByRequesterId(Long requesterId) {
         return friendRequestJpaRepository.findByRequesterIdAndStatus(requesterId, FriendRequest.RequestStatus.PENDING);
+    }
+
+    /**
+     * 요청자 ID로 대기 중인 친구 요청 목록을 DB 레벨 페이지네이션으로 조회한다.
+     *
+     * @param requesterId 요청자 ID
+     * @param pageable    페이지네이션 정보
+     * @return 페이지네이션된 대기 중인 친구 요청 목록
+     */
+    @Override
+    public Page<FriendRequest> findPendingByRequesterId(Long requesterId, Pageable pageable) {
+        return friendRequestJpaRepository.findByRequesterIdAndStatus(requesterId, FriendRequest.RequestStatus.PENDING, pageable);
     }
 
     /**
