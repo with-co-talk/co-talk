@@ -72,7 +72,7 @@ public class ChangePasswordService implements ChangePasswordUseCase {
         // 성공 시 실패 기록 초기화
         redisTemplate.delete("password:fail:" + userId);
 
-        log.info("Password changed for user: {}", LogMaskingUtil.maskEmail(user.getEmail()));
+        log.info("Password changed for user: {}", LogMaskingUtil.maskEmail(user.getEmail().value()));
     }
 
     private void checkRateLimit(Long userId) {

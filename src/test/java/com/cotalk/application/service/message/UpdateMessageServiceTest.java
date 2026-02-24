@@ -1,10 +1,11 @@
 package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.Message;
-import com.cotalk.domain.exception.MessageAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,11 +33,16 @@ class UpdateMessageServiceTest {
     @Mock
     private ChatMessageBroker chatMessageBroker;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private UpdateMessageService service;
+
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @BeforeEach
     void setUp() {
-        service = new UpdateMessageService(messageRepository, chatMessageBroker);
+        service = new UpdateMessageService(messageRepository, chatMessageBroker, timeProvider);
     }
 
     @Test
@@ -57,6 +63,7 @@ class UpdateMessageServiceTest {
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
         given(messageRepository.save(any(Message.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         Message updated = service.updateMessage(messageId, userId, newContent);
@@ -86,7 +93,7 @@ class UpdateMessageServiceTest {
 
         // when & then
         assertThatThrownBy(() -> service.updateMessage(messageId, userId, "새 내용"))
-                .isInstanceOf(MessageAccessDeniedException.class)
+                .isInstanceOf(ResourceAccessDeniedException.class)
                 .hasMessageContaining("본인이 보낸 메시지만");
     }
 
@@ -123,7 +130,7 @@ class UpdateMessageServiceTest {
 
         // when & then
         assertThatThrownBy(() -> service.updateMessage(messageId, userId, "새 내용"))
-                .isInstanceOf(MessageAccessDeniedException.class)
+                .isInstanceOf(ResourceAccessDeniedException.class)
                 .hasMessageContaining("이미 삭제된");
     }
 
@@ -236,13 +243,14 @@ class UpdateMessageServiceTest {
                 .build();
 
         // BaseEntity의 createdAt은 빌더에 없으므로 ReflectionTestUtils 사용
-        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now().minusMinutes(6));
+        ReflectionTestUtils.setField(message, "createdAt", FIXED_NOW.minusMinutes(6));
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when & then
         assertThatThrownBy(() -> service.updateMessage(messageId, userId, "새 내용"))
-                .isInstanceOf(MessageAccessDeniedException.class)
+                .isInstanceOf(ResourceAccessDeniedException.class)
                 .hasMessageContaining("5분");
     }
 }

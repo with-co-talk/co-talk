@@ -59,7 +59,7 @@ public class DeleteAccountService implements DeleteAccountUseCase {
         }
 
         deleteUserData(userId, user);
-        log.info("Account deleted: userId={}, email={}", userId, LogMaskingUtil.maskEmail(user.getEmail()));
+        log.info("Account deleted: userId={}, email={}", userId, LogMaskingUtil.maskEmail(user.getEmail().value()));
     }
 
     /**
@@ -75,7 +75,7 @@ public class DeleteAccountService implements DeleteAccountUseCase {
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
         deleteUserData(userId, user);
-        log.info("Account deleted by admin: userId={}, email={}", userId, LogMaskingUtil.maskEmail(user.getEmail()));
+        log.info("Account deleted by admin: userId={}, email={}", userId, LogMaskingUtil.maskEmail(user.getEmail().value()));
     }
 
     private void deleteUserData(Long userId, User user) {

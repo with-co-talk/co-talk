@@ -119,12 +119,13 @@ public class Report extends BaseEntity {
      * @param newStatus 새 처리 상태
      * @param adminNote 관리자 메모
      * @param adminId 처리한 관리자 ID
+     * @param now 현재 시간
      */
-    public void process(ReportStatus newStatus, String adminNote, Long adminId) {
+    public void process(ReportStatus newStatus, String adminNote, Long adminId, LocalDateTime now) {
         this.status = newStatus;
         this.adminNote = adminNote;
         this.processedBy = adminId;
-        this.processedAt = LocalDateTime.now();
+        this.processedAt = now;
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.cotalk.application.service.user;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.inbound.user.FindEmailUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,7 +36,7 @@ class FindEmailServiceTest {
         // given
         User user = User.builder()
                 .id(1L)
-                .email("testuser@example.com")
+                .email(new Email("testuser@example.com"))
                 .nickname("테스트")
                 .phoneNumber("010-1234-5678")
                 .build();

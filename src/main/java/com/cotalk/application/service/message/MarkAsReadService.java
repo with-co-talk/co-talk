@@ -7,6 +7,7 @@ import com.cotalk.domain.port.inbound.message.MarkAsReadUseCase;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
 import com.cotalk.domain.port.outbound.UserEventBroker.ReadReceiptEvent;
@@ -45,6 +46,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
     private final ChatMessageBroker chatMessageBroker;
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
+    private final TimeProvider timeProvider;
 
     /**
      * 채팅방의 메시지를 읽음 처리한다.
@@ -65,7 +67,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
         // 멤버 검증
         chatRoomMemberValidator.getMemberOrThrow(chatRoomId, userId);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = timeProvider.now();
 
         // 마지막 메시지 ID(= 읽음 기준점). 메시지가 없으면 lastReadMessageId는 null이다.
         Long lastReadMessageId = messageRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId)

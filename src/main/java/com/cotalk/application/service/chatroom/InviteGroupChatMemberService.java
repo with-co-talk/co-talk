@@ -4,7 +4,7 @@ import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.ChatRoomNotFoundException;
-import com.cotalk.domain.exception.InvalidGroupChatException;
+import com.cotalk.domain.exception.InvalidChatRoomException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.chatroom.InviteGroupChatMemberUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
@@ -47,7 +47,7 @@ public class InviteGroupChatMemberService implements InviteGroupChatMemberUseCas
      * @param inviterId 초대자 사용자 ID
      * @param inviteeIds 초대할 사용자 ID 목록
      * @throws ChatRoomNotFoundException 채팅방이 존재하지 않는 경우
-     * @throws InvalidGroupChatException 1:1 채팅방인 경우
+     * @throws InvalidChatRoomException 1:1 채팅방인 경우
      * @throws ChatRoomAccessDeniedException 초대자가 채팅방 멤버가 아닌 경우
      * @throws UserNotFoundException 초대할 사용자가 존재하지 않는 경우
      */
@@ -57,7 +57,7 @@ public class InviteGroupChatMemberService implements InviteGroupChatMemberUseCas
                 .orElseThrow(() -> new ChatRoomNotFoundException(roomId));
 
         if (chatRoom.isDirectChat() || chatRoom.isSelfChat()) {
-            throw new InvalidGroupChatException("1:1 채팅방 또는 나와의 채팅방에는 멤버를 초대할 수 없습니다");
+            throw new InvalidChatRoomException("1:1 채팅방 또는 나와의 채팅방에는 멤버를 초대할 수 없습니다");
         }
 
         chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, inviterId)

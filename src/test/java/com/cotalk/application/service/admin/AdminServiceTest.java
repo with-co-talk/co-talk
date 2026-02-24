@@ -2,12 +2,14 @@ package com.cotalk.application.service.admin;
 
 import com.cotalk.domain.entity.Report;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.ReportNotFoundException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.admin.AdminUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.ReportRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,8 +50,13 @@ class AdminServiceTest {
     @Mock
     private MessageRepository messageRepository;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     @InjectMocks
     private AdminService adminService;
+
+    private static final java.time.LocalDateTime FIXED_NOW = java.time.LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @Nested
     @DisplayName("신고 처리")
@@ -158,6 +165,7 @@ class AdminServiceTest {
 
             given(reportRepository.findById(reportId)).willReturn(Optional.of(report));
             given(reportRepository.save(any(Report.class))).willAnswer(inv -> inv.getArgument(0));
+            given(timeProvider.now()).willReturn(FIXED_NOW);
 
             // when
             Report result = adminService.processReport(reportId, adminId, Report.ReportStatus.RESOLVED, adminNote);
@@ -221,13 +229,13 @@ class AdminServiceTest {
             List<User> users = List.of(
                     User.builder()
                             .id(1L)
-                            .email("user1@test.com")
+                            .email(new Email("user1@test.com"))
                             .passwordHash("hash")
                             .nickname("user1")
                             .build(),
                     User.builder()
                             .id(2L)
-                            .email("user2@test.com")
+                            .email(new Email("user2@test.com"))
                             .passwordHash("hash")
                             .nickname("user2")
                             .build()
@@ -249,7 +257,7 @@ class AdminServiceTest {
             List<User> suspendedUsers = List.of(
                     User.builder()
                             .id(1L)
-                            .email("suspended@test.com")
+                            .email(new Email("suspended@test.com"))
                             .nickname("suspended")
                             .status(User.UserStatus.SUSPENDED)
                             .build()
@@ -274,7 +282,7 @@ class AdminServiceTest {
             List<User> users = List.of(
                     User.builder()
                             .id(1L)
-                            .email("user1@test.com")
+                            .email(new Email("user1@test.com"))
                             .passwordHash("hash")
                             .nickname("user1")
                             .build()
@@ -299,7 +307,7 @@ class AdminServiceTest {
             List<User> users = List.of(
                     User.builder()
                             .id(1L)
-                            .email("suspended@test.com")
+                            .email(new Email("suspended@test.com"))
                             .nickname("suspended")
                             .status(User.UserStatus.SUSPENDED)
                             .build()
@@ -326,7 +334,7 @@ class AdminServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("user@test.com")
+                    .email(new Email("user@test.com"))
                     .nickname("user")
                     .status(User.UserStatus.ACTIVE)
                     .build();
@@ -351,7 +359,7 @@ class AdminServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("user@test.com")
+                    .email(new Email("user@test.com"))
                     .nickname("user")
                     .status(User.UserStatus.SUSPENDED)
                     .build();

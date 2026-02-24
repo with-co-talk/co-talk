@@ -3,11 +3,13 @@ package com.cotalk.application.service.message;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.inbound.message.MarkAsReadUseCase;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserEventBroker.ReadReceiptEvent;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -53,9 +55,14 @@ class MarkAsReadServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private ChatRoomMemberValidator chatRoomMemberValidator;
 
     private MarkAsReadUseCase markAsReadUseCase;
+
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @BeforeEach
     void setUp() {
@@ -66,7 +73,8 @@ class MarkAsReadServiceTest {
                 userEventBroker,
                 chatMessageBroker,
                 messageRepository,
-                userRepository
+                userRepository,
+                timeProvider
         );
     }
 
@@ -88,6 +96,7 @@ class MarkAsReadServiceTest {
                 .willReturn(Optional.empty()); // 메시지 없음
         given(chatRoomMemberRepository.updateLastReadAt(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
                 .willReturn(1);
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -116,7 +125,6 @@ class MarkAsReadServiceTest {
         // given
         Long userId = 1L;
         Long chatRoomId = 100L;
-        LocalDateTime beforeMark = LocalDateTime.now().minusSeconds(1);
         ChatRoomMember member = ChatRoomMember.builder()
                 .id(500L)
                 .chatRoomId(chatRoomId)
@@ -129,6 +137,7 @@ class MarkAsReadServiceTest {
                 .willReturn(Optional.empty()); // 메시지 없음
         given(chatRoomMemberRepository.updateLastReadAt(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
                 .willReturn(1);
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -136,7 +145,7 @@ class MarkAsReadServiceTest {
         // then - 메시지가 없으므로 updateLastReadAt 호출
         ArgumentCaptor<LocalDateTime> timeCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
         verify(chatRoomMemberRepository).updateLastReadAt(eq(chatRoomId), eq(userId), timeCaptor.capture());
-        assertThat(timeCaptor.getValue()).isAfter(beforeMark);
+        assertThat(timeCaptor.getValue()).isEqualTo(FIXED_NOW);
     }
 
     @Test
@@ -166,11 +175,11 @@ class MarkAsReadServiceTest {
                 .content("테스트 메시지")
                 .type(Message.MessageType.TEXT)
                 .build();
-        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(message, "createdAt", FIXED_NOW);
 
         User sender = User.builder()
                 .id(otherUserId)
-                .email("sender@test.com")
+                .email(new Email("sender@test.com"))
                 .nickname("발신자")
                 .passwordHash("hash")
                 .build();
@@ -187,6 +196,7 @@ class MarkAsReadServiceTest {
         given(userRepository.findById(otherUserId)).willReturn(Optional.of(sender));
         given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
                 .willReturn(java.util.Map.of(readerId, 0L, otherUserId, 0L));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(readerId, chatRoomId);
@@ -223,11 +233,11 @@ class MarkAsReadServiceTest {
                 .content("테스트 메시지")
                 .type(Message.MessageType.TEXT)
                 .build();
-        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(message, "createdAt", FIXED_NOW);
 
         User sender = User.builder()
                 .id(2L)
-                .email("sender@test.com")
+                .email(new Email("sender@test.com"))
                 .nickname("발신자")
                 .passwordHash("hash")
                 .build();
@@ -244,6 +254,7 @@ class MarkAsReadServiceTest {
         given(userRepository.findById(2L)).willReturn(Optional.of(sender));
         given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
                 .willReturn(java.util.Map.of(userId, 0L));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -255,7 +266,7 @@ class MarkAsReadServiceTest {
         ReadReceiptEvent capturedEvent = eventCaptor.getValue();
         assertThat(capturedEvent.chatRoomId()).isEqualTo(chatRoomId);
         assertThat(capturedEvent.userId()).isEqualTo(userId);
-        assertThat(capturedEvent.lastReadAt()).isNotNull();
+        assertThat(capturedEvent.lastReadAt()).isEqualTo(FIXED_NOW);
     }
 
     @Test
@@ -281,11 +292,11 @@ class MarkAsReadServiceTest {
                 .content("테스트 메시지")
                 .type(Message.MessageType.TEXT)
                 .build();
-        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(message, "createdAt", FIXED_NOW);
 
         User sender = User.builder()
                 .id(2L)
-                .email("sender@test.com")
+                .email(new Email("sender@test.com"))
                 .nickname("발신자")
                 .passwordHash("hash")
                 .build();
@@ -302,6 +313,7 @@ class MarkAsReadServiceTest {
         given(userRepository.findById(2L)).willReturn(Optional.of(sender));
         given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
                 .willReturn(java.util.Map.of(userId, 5L));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -341,6 +353,7 @@ class MarkAsReadServiceTest {
                 .willReturn(1);
         given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                 .willReturn(List.of(member));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -377,7 +390,7 @@ class MarkAsReadServiceTest {
 
         User sender = User.builder()
                 .id(2L)
-                .email("sender@test.com")
+                .email(new Email("sender@test.com"))
                 .nickname("발신자")
                 .passwordHash("hash")
                 .build();
@@ -395,6 +408,7 @@ class MarkAsReadServiceTest {
                 .willReturn(Optional.of(sender));
         given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
                 .willReturn(java.util.Map.of(userId, 5L));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -425,11 +439,11 @@ class MarkAsReadServiceTest {
                 .content("테스트 메시지")
                 .type(Message.MessageType.TEXT)
                 .build();
-        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(message, "createdAt", FIXED_NOW);
 
         User sender = User.builder()
                 .id(2L)
-                .email("sender@test.com")
+                .email(new Email("sender@test.com"))
                 .nickname("발신자")
                 .passwordHash("hash")
                 .build();
@@ -447,6 +461,7 @@ class MarkAsReadServiceTest {
                 .willReturn(Optional.of(sender));
         given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
                 .willReturn(java.util.Map.of(userId, 0L));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -476,7 +491,7 @@ class MarkAsReadServiceTest {
                 .content("테스트 메시지")
                 .type(Message.MessageType.TEXT)
                 .build();
-        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(message, "createdAt", FIXED_NOW);
 
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.of(member));
@@ -491,6 +506,7 @@ class MarkAsReadServiceTest {
                 .willReturn(Optional.empty()); // 사용자 없음
         given(messageRepository.batchCountUnreadMessagesForAllMembers(chatRoomId))
                 .willReturn(java.util.Map.of(userId, 0L));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -521,6 +537,7 @@ class MarkAsReadServiceTest {
                 .willReturn(Optional.empty()); // 메시지 없음
         given(chatRoomMemberRepository.updateLastReadAt(eq(chatRoomId), eq(userId), any(LocalDateTime.class)))
                 .willReturn(1);
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -553,7 +570,7 @@ class MarkAsReadServiceTest {
                 .content("테스트 메시지")
                 .type(Message.MessageType.TEXT)
                 .build();
-        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(message, "createdAt", FIXED_NOW);
 
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .willReturn(Optional.of(member));
@@ -566,6 +583,7 @@ class MarkAsReadServiceTest {
         given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
                 .willReturn(List.of(member)) // 읽음 이벤트 발행용
                 .willReturn(List.of()); // publishChatListUpdate에서 멤버 없음
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(userId, chatRoomId);
@@ -613,11 +631,11 @@ class MarkAsReadServiceTest {
                 .content("테스트 메시지")
                 .type(Message.MessageType.TEXT)
                 .build();
-        ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(message, "createdAt", FIXED_NOW);
 
         User sender = User.builder()
                 .id(4L)
-                .email("sender@test.com")
+                .email(new Email("sender@test.com"))
                 .nickname("발신자")
                 .passwordHash("hash")
                 .build();
@@ -641,6 +659,7 @@ class MarkAsReadServiceTest {
                         otherUserId1, 5L,
                         otherUserId2, 10L
                 ));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         markAsReadUseCase.markAsRead(readerId, chatRoomId);

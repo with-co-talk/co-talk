@@ -2,8 +2,10 @@ package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.PasswordResetToken;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.outbound.EmailSender;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +36,12 @@ class RequestPasswordResetServiceTest {
     @Mock
     private EmailSender emailSender;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private RequestPasswordResetService service;
+
+    private static final java.time.LocalDateTime FIXED_NOW = java.time.LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @BeforeEach
     void setUp() {
@@ -44,6 +51,7 @@ class RequestPasswordResetServiceTest {
                 userRepository,
                 tokenRepository,
                 emailSender,
+                timeProvider,
                 frontendUrl,
                 tokenExpirationMinutes
         );
@@ -56,7 +64,7 @@ class RequestPasswordResetServiceTest {
         String email = "user@example.com";
         User user = User.builder()
                 .id(1L)
-                .email(email)
+                .email(new Email(email))
                 .nickname("테스트유저")
                 .passwordHash("hash")
                 .build();
@@ -64,6 +72,7 @@ class RequestPasswordResetServiceTest {
         given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
         given(tokenRepository.save(any(PasswordResetToken.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         service.requestPasswordReset(email);
@@ -76,7 +85,7 @@ class RequestPasswordResetServiceTest {
         
         PasswordResetToken savedToken = tokenCaptor.getValue();
         assertThat(savedToken.getUserId()).isEqualTo(user.getId());
-        assertThat(savedToken.getEmail()).isEqualTo(email);
+        assertThat(savedToken.getEmail()).isEqualTo(new Email(email));
         assertThat(savedToken.getToken()).isNotBlank();
 
         verify(emailSender).sendPasswordResetEmail(eq(email), anyString());

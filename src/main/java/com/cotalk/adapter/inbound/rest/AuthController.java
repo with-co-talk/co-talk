@@ -13,7 +13,6 @@ import com.cotalk.domain.port.inbound.auth.LoginUseCase;
 import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
 import com.cotalk.domain.port.inbound.user.FindEmailUseCase;
-import com.cotalk.infrastructure.config.properties.JwtProperties;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -44,7 +43,6 @@ public class AuthController {
     private final SignUpUseCase signUpUseCase;
     private final LoginUseCase loginUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
-    private final JwtProperties jwtProperties;
     private final FindEmailUseCase findEmailUseCase;
 
     /**
@@ -81,25 +79,24 @@ public class AuthController {
         LoginResult loginResult = loginUseCase.login(request.email(), request.password());
         // 로그인 성공 후 Refresh Token도 함께 발급
         String refreshToken = refreshTokenUseCase.createRefreshToken(loginResult.userId());
-        long expiresInSeconds = jwtProperties.expiration() / 1000;
-        return ResponseEntity.ok(AuthTokenResponse.of(loginResult.accessToken(), refreshToken, expiresInSeconds));
+        return ResponseEntity.ok(AuthTokenResponse.of(loginResult.accessToken(), refreshToken, loginResult.expiresInSeconds()));
     }
 
     /**
-     * Refresh Token으로 새로운 Access Token을 발급받는다.
+     * Refresh Token으로 새로운 Access Token과 Refresh Token을 발급받는다 (Token Rotation).
      *
      * @param request 토큰 갱신 요청 정보 (Refresh Token)
-     * @return 새로 발급된 Access Token
+     * @return 새로 발급된 Access Token과 Refresh Token
      */
-    @Operation(summary = "토큰 갱신", description = "Refresh Token으로 새로운 Access Token을 발급받습니다.")
+    @Operation(summary = "토큰 갱신", description = "Refresh Token으로 새로운 Access Token과 Refresh Token을 발급받습니다 (Token Rotation).")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "토큰 갱신 성공"),
             @ApiResponse(responseCode = "401", description = "유효하지 않은 Refresh Token")
     })
     @PostMapping("/refresh")
     public ResponseEntity<TokenRefreshResponse> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
-        String newAccessToken = refreshTokenUseCase.refreshAccessToken(request.refreshToken());
-        return ResponseEntity.ok(TokenRefreshResponse.of(newAccessToken, request.refreshToken()));
+        RefreshTokenUseCase.RefreshResult result = refreshTokenUseCase.refreshAccessToken(request.refreshToken());
+        return ResponseEntity.ok(TokenRefreshResponse.of(result.accessToken(), result.refreshToken()));
     }
 
     /**

@@ -8,6 +8,6 @@ package com.cotalk.domain.exception;
 public class InvalidBlockException extends DomainException {
 
     public InvalidBlockException(String message) {
-        super(message);
+        super(message, "INVALID_BLOCK", HttpStatusHint.BAD_REQUEST);
     }
 }

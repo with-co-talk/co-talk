@@ -1,5 +1,6 @@
 package com.cotalk.domain.entity;
 
+import com.cotalk.common.fixture.DeviceTokenTestFixture;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,12 +23,7 @@ class DeviceTokenTest {
             DeviceToken.DeviceType deviceType = DeviceToken.DeviceType.ANDROID;
 
             // when
-            DeviceToken deviceToken = DeviceToken.builder()
-                    .id(id)
-                    .userId(userId)
-                    .token(token)
-                    .deviceType(deviceType)
-                    .build();
+            DeviceToken deviceToken = DeviceTokenTestFixture.createDeviceToken(id, userId, token, deviceType);
 
             // then
             assertThat(deviceToken.getId()).isEqualTo(id);
@@ -41,12 +37,7 @@ class DeviceTokenTest {
         @DisplayName("iOS 디바이스 타입으로 생성")
         void should_createDeviceToken_when_iosDevice() {
             // given & when
-            DeviceToken deviceToken = DeviceToken.builder()
-                    .id(1L)
-                    .userId(100L)
-                    .token("apns-token-12345")
-                    .deviceType(DeviceToken.DeviceType.IOS)
-                    .build();
+            DeviceToken deviceToken = DeviceTokenTestFixture.createIosDeviceToken(1L, 100L);
 
             // then
             assertThat(deviceToken.getDeviceType()).isEqualTo(DeviceToken.DeviceType.IOS);
@@ -61,12 +52,7 @@ class DeviceTokenTest {
         @DisplayName("토큰을 비활성화하면 active가 false로 변경")
         void should_setActiveFalse_when_deactivate() {
             // given
-            DeviceToken deviceToken = DeviceToken.builder()
-                    .id(1L)
-                    .userId(100L)
-                    .token("fcm-token-12345")
-                    .deviceType(DeviceToken.DeviceType.ANDROID)
-                    .build();
+            DeviceToken deviceToken = DeviceTokenTestFixture.createDeviceToken();
 
             // when
             deviceToken.deactivate();
@@ -84,13 +70,7 @@ class DeviceTokenTest {
         @DisplayName("새로운 토큰으로 업데이트")
         void should_updateToken_when_newToken() {
             // given
-            DeviceToken deviceToken = DeviceToken.builder()
-                    .id(1L)
-                    .userId(100L)
-                    .token("old-token")
-                    .deviceType(DeviceToken.DeviceType.ANDROID)
-                    .build();
-            deviceToken.deactivate();
+            DeviceToken deviceToken = DeviceTokenTestFixture.createInactiveDeviceToken(1L, 100L);
 
             // when
             deviceToken.updateToken("new-token");

@@ -8,10 +8,10 @@ package com.cotalk.domain.exception;
 public class MessageNotFoundException extends DomainException {
 
     public MessageNotFoundException(Long messageId) {
-        super("메시지를 찾을 수 없습니다: " + messageId);
+        super("메시지를 찾을 수 없습니다: " + messageId, "MESSAGE_NOT_FOUND", HttpStatusHint.NOT_FOUND);
     }
 
     public MessageNotFoundException(String message) {
-        super(message);
+        super(message, "MESSAGE_NOT_FOUND", HttpStatusHint.NOT_FOUND);
     }
 }

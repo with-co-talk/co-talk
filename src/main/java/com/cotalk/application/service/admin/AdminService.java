@@ -8,6 +8,7 @@ import com.cotalk.domain.port.inbound.admin.AdminUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.ReportRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -39,6 +40,7 @@ public class AdminService implements AdminUseCase {
     private final ReportRepository reportRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final MessageRepository messageRepository;
+    private final TimeProvider timeProvider;
 
     /**
      * 처리 대기 중인 신고 목록을 조회한다.
@@ -103,7 +105,7 @@ public class AdminService implements AdminUseCase {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ReportNotFoundException(reportId));
 
-        report.process(newStatus, adminNote, adminId);
+        report.process(newStatus, adminNote, adminId, timeProvider.now());
         return reportRepository.save(report);
     }
 

@@ -9,11 +9,11 @@ package com.cotalk.domain.exception;
 public class FileStorageException extends DomainException {
 
     public FileStorageException(String message) {
-        super(message);
+        super(message, "FILE_STORAGE_ERROR", HttpStatusHint.INTERNAL_ERROR);
     }
 
     public FileStorageException(String message, Throwable cause) {
-        super(message, cause);
+        super(message, "FILE_STORAGE_ERROR", HttpStatusHint.INTERNAL_ERROR, cause);
     }
 
     /**

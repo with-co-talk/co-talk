@@ -20,4 +20,12 @@ public class JwtAuthTokenAdapter implements AuthTokenPort {
     public String generateAccessToken(Long userId) {
         return jwtTokenProvider.generateToken(userId);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public long getAccessTokenExpiresInSeconds() {
+        return jwtTokenProvider.getExpiresInSeconds();
+    }
 }

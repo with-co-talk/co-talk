@@ -1,5 +1,6 @@
 package com.cotalk.domain.entity;
 
+import com.cotalk.domain.model.Email;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,7 +21,7 @@ class UserTest {
         @DisplayName("이메일, 비밀번호 해시, 닉네임으로 User를 생성할 수 있다")
         void should_CreateUser_when_ValidInputsProvided() {
             // given
-            String email = "test@example.com";
+            Email email = new Email("test@example.com");
             String passwordHash = "hashedPassword123";
             String nickname = "testUser";
 
@@ -42,7 +43,7 @@ class UserTest {
         void should_HaveActiveStatus_when_Created() {
             // given & when
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .build();
@@ -60,7 +61,7 @@ class UserTest {
             // when
             User user = User.builder()
                     .id(id)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .build();
@@ -80,7 +81,7 @@ class UserTest {
         void should_UpdateNickname_when_ValidNicknameProvided() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("oldNickname")
                     .build();
@@ -98,7 +99,7 @@ class UserTest {
         void should_ThrowException_when_EmptyNicknameProvided() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("oldNickname")
                     .build();
@@ -114,7 +115,7 @@ class UserTest {
         void should_ThrowException_when_NullNicknameProvided() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("oldNickname")
                     .build();
@@ -134,7 +135,7 @@ class UserTest {
         void should_UpdateAvatarUrl_when_ValidUrlProvided() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .build();
@@ -152,7 +153,7 @@ class UserTest {
         void should_UpdateAvatarUrl_when_NullUrlProvided() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .avatarUrl("https://example.com/old.png")
@@ -175,7 +176,7 @@ class UserTest {
         void should_UpdatePassword_when_ValidPasswordHashProvided() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("oldHash")
                     .nickname("test")
                     .build();
@@ -193,7 +194,7 @@ class UserTest {
         void should_ThrowException_when_EmptyPasswordHashProvided() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("oldHash")
                     .nickname("test")
                     .build();
@@ -209,7 +210,7 @@ class UserTest {
         void should_ThrowException_when_NullPasswordHashProvided() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("oldHash")
                     .nickname("test")
                     .build();
@@ -229,7 +230,7 @@ class UserTest {
         void should_Deactivate_when_DeactivateCalled() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .status(User.UserStatus.ACTIVE)
@@ -247,7 +248,7 @@ class UserTest {
         void should_Suspend_when_SuspendCalled() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .status(User.UserStatus.ACTIVE)
@@ -265,7 +266,7 @@ class UserTest {
         void should_Activate_when_ActivateCalled() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .status(User.UserStatus.INACTIVE)
@@ -283,14 +284,14 @@ class UserTest {
         void should_ReturnTrue_when_UserIsActive() {
             // given
             User activeUser = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .status(User.UserStatus.ACTIVE)
                     .build();
 
             User inactiveUser = User.builder()
-                    .email("test2@example.com")
+                    .email(new Email("test2@example.com"))
                     .passwordHash("hash")
                     .nickname("test2")
                     .status(User.UserStatus.INACTIVE)
@@ -311,18 +312,18 @@ class UserTest {
         void should_SetOnline_when_SetOnlineCalled() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .onlineStatus(User.OnlineStatus.OFFLINE)
                     .build();
 
             // when
-            user.setOnline();
+            user.goOnline(LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // then
             assertThat(user.getOnlineStatus()).isEqualTo(User.OnlineStatus.ONLINE);
-            assertThat(user.getLastActiveAt()).isNotNull();
+            assertThat(user.getLastActiveAt()).isEqualTo(LocalDateTime.of(2026, 1, 1, 12, 0));
         }
 
         @Test
@@ -330,18 +331,18 @@ class UserTest {
         void should_SetOffline_when_SetOfflineCalled() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .onlineStatus(User.OnlineStatus.ONLINE)
                     .build();
 
             // when
-            user.setOffline();
+            user.goOffline(LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // then
             assertThat(user.getOnlineStatus()).isEqualTo(User.OnlineStatus.OFFLINE);
-            assertThat(user.getLastActiveAt()).isNotNull();
+            assertThat(user.getLastActiveAt()).isEqualTo(LocalDateTime.of(2026, 1, 1, 12, 0));
         }
 
         @Test
@@ -349,18 +350,18 @@ class UserTest {
         void should_SetAway_when_SetAwayCalled() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .onlineStatus(User.OnlineStatus.ONLINE)
                     .build();
 
             // when
-            user.setAway();
+            user.goAway(LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // then
             assertThat(user.getOnlineStatus()).isEqualTo(User.OnlineStatus.AWAY);
-            assertThat(user.getLastActiveAt()).isNotNull();
+            assertThat(user.getLastActiveAt()).isEqualTo(LocalDateTime.of(2026, 1, 1, 12, 0));
         }
 
         @Test
@@ -368,19 +369,17 @@ class UserTest {
         void should_UpdateLastActiveAt_when_UpdateLastActiveAtCalled() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
-                    .lastActiveAt(LocalDateTime.now().minusHours(1))
+                    .lastActiveAt(LocalDateTime.of(2026, 1, 1, 11, 0))
                     .build();
-            LocalDateTime beforeUpdate = user.getLastActiveAt();
 
             // when
-            user.updateLastActiveAt();
+            user.updateLastActiveAt(LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // then
-            assertThat(user.getLastActiveAt()).isNotNull();
-            assertThat(user.getLastActiveAt()).isAfter(beforeUpdate);
+            assertThat(user.getLastActiveAt()).isEqualTo(LocalDateTime.of(2026, 1, 1, 12, 0));
         }
 
         @Test
@@ -388,14 +387,14 @@ class UserTest {
         void should_ReturnTrue_when_UserIsOnline() {
             // given
             User onlineUser = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .onlineStatus(User.OnlineStatus.ONLINE)
                     .build();
 
             User offlineUser = User.builder()
-                    .email("test2@example.com")
+                    .email(new Email("test2@example.com"))
                     .passwordHash("hash")
                     .nickname("test2")
                     .onlineStatus(User.OnlineStatus.OFFLINE)
@@ -416,7 +415,7 @@ class UserTest {
         void should_ReturnTrue_when_UserIsOAuthUser() {
             // given
             User oauthUser = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .oauthProvider(User.OAuthProvider.KAKAO)
@@ -424,7 +423,7 @@ class UserTest {
                     .build();
 
             User normalUser = User.builder()
-                    .email("test2@example.com")
+                    .email(new Email("test2@example.com"))
                     .passwordHash("hash")
                     .nickname("test2")
                     .build();
@@ -439,7 +438,7 @@ class UserTest {
         void should_ReturnFalse_when_OAuthProviderIsNull() {
             // given
             User user = User.builder()
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("test")
                     .oauthProvider(null)

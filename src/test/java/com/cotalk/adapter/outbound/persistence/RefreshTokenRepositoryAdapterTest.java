@@ -5,6 +5,7 @@ import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.RefreshToken;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.infrastructure.config.JpaAuditingConfig;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +48,7 @@ class RefreshTokenRepositoryAdapterTest {
     void setUp() {
         user = userRepository.save(User.builder()
                 .id(1L)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .passwordHash("hash")
                 .nickname("user")
                 .build());

@@ -340,11 +340,12 @@ class MessageTest {
                     .build();
 
             // when
-            message.delete();
+            LocalDateTime now = LocalDateTime.of(2026, 1, 1, 12, 0);
+            message.delete(now);
 
             // then
             assertThat(message.isDeleted()).isTrue();
-            assertThat(message.getDeletedAt()).isNotNull();
+            assertThat(message.getDeletedAt()).isEqualTo(now);
         }
     }
 

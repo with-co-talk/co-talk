@@ -1,6 +1,7 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
@@ -74,7 +75,7 @@ public class OAuthLoginService implements OAuthLoginUseCase {
 
         User newUser = User.builder()
                 .id(idGenerator.nextId())
-                .email(email)
+                .email(new Email(email))
                 .nickname(nickname)
                 .avatarUrl(avatarUrl)
                 .oauthProvider(provider)

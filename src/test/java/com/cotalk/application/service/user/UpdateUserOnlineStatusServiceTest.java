@@ -1,8 +1,10 @@
 package com.cotalk.application.service.user;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.FriendRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,11 +37,16 @@ class UpdateUserOnlineStatusServiceTest {
     @Mock
     private UserEventBroker userEventBroker;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private UpdateUserOnlineStatusService service;
+
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @BeforeEach
     void setUp() {
-        service = new UpdateUserOnlineStatusService(userRepository, friendRepository, userEventBroker);
+        service = new UpdateUserOnlineStatusService(userRepository, friendRepository, userEventBroker, timeProvider);
 
         // Default mock behavior - no friends by default (lenient to avoid UnnecessaryStubbingException)
         lenient().when(friendRepository.findAcceptedFriendsByUserId(anyLong())).thenReturn(java.util.List.of());
@@ -52,7 +59,7 @@ class UpdateUserOnlineStatusServiceTest {
         Long userId = 1L;
         User user = User.builder()
                 .id(userId)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash("hash")
                 .onlineStatus(User.OnlineStatus.OFFLINE)
@@ -60,13 +67,14 @@ class UpdateUserOnlineStatusServiceTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         service.setOnline(userId);
 
         // then
         assertThat(user.isOnline()).isTrue();
-        assertThat(user.getLastActiveAt()).isNotNull();
+        assertThat(user.getLastActiveAt()).isEqualTo(FIXED_NOW);
         verify(userRepository).save(user);
     }
 
@@ -77,7 +85,7 @@ class UpdateUserOnlineStatusServiceTest {
         Long userId = 1L;
         User user = User.builder()
                 .id(userId)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash("hash")
                 .onlineStatus(User.OnlineStatus.ONLINE)
@@ -85,13 +93,14 @@ class UpdateUserOnlineStatusServiceTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         service.setOffline(userId);
 
         // then
         assertThat(user.getOnlineStatus()).isEqualTo(User.OnlineStatus.OFFLINE);
-        assertThat(user.getLastActiveAt()).isNotNull();
+        assertThat(user.getLastActiveAt()).isEqualTo(FIXED_NOW);
         verify(userRepository).save(user);
     }
 
@@ -102,7 +111,7 @@ class UpdateUserOnlineStatusServiceTest {
         Long userId = 1L;
         User user = User.builder()
                 .id(userId)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash("hash")
                 .onlineStatus(User.OnlineStatus.OFFLINE)
@@ -110,6 +119,7 @@ class UpdateUserOnlineStatusServiceTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         service.updateOnlineStatus(userId, User.OnlineStatus.ONLINE);
@@ -127,7 +137,7 @@ class UpdateUserOnlineStatusServiceTest {
         LocalDateTime beforeUpdate = LocalDateTime.now().minusMinutes(10);
         User user = User.builder()
                 .id(userId)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash("hash")
                 .lastActiveAt(beforeUpdate)
@@ -135,12 +145,13 @@ class UpdateUserOnlineStatusServiceTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         service.updateLastActiveAt(userId);
 
         // then
-        assertThat(user.getLastActiveAt()).isAfter(beforeUpdate);
+        assertThat(user.getLastActiveAt()).isEqualTo(FIXED_NOW);
         verify(userRepository).save(user);
     }
 
@@ -163,7 +174,7 @@ class UpdateUserOnlineStatusServiceTest {
         Long userId = 1L;
         User user = User.builder()
                 .id(userId)
-                .email("user@example.com")
+                .email(new Email("user@example.com"))
                 .nickname("테스트유저")
                 .passwordHash("hash")
                 .onlineStatus(User.OnlineStatus.ONLINE)
@@ -171,6 +182,7 @@ class UpdateUserOnlineStatusServiceTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         service.updateOnlineStatus(userId, User.OnlineStatus.AWAY);

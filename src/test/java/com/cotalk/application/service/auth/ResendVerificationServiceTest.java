@@ -2,9 +2,11 @@ package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.EmailVerificationToken;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.RateLimitExceededException;
 import com.cotalk.domain.port.outbound.EmailSender;
 import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -44,12 +46,17 @@ class ResendVerificationServiceTest {
     @Mock
     private EmailSender emailSender;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private ResendVerificationService service;
+
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @BeforeEach
     void setUp() {
         String frontendUrl = "http://localhost:3000";
-        service = new ResendVerificationService(userRepository, tokenRepository, emailSender, frontendUrl);
+        service = new ResendVerificationService(userRepository, tokenRepository, emailSender, timeProvider, frontendUrl);
     }
 
     @Test
@@ -60,7 +67,7 @@ class ResendVerificationServiceTest {
 
         User user = User.builder()
                 .id(10L)
-                .email(email)
+                .email(new Email(email))
                 .nickname("테스트유저")
                 .passwordHash("hash")
                 .emailVerified(false)
@@ -70,6 +77,7 @@ class ResendVerificationServiceTest {
         given(tokenRepository.findLatestByUserId(10L)).willReturn(Optional.empty());
         given(tokenRepository.save(any(EmailVerificationToken.class)))
                 .willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when
         service.resendVerification(email);
@@ -103,7 +111,7 @@ class ResendVerificationServiceTest {
 
         User user = User.builder()
                 .id(10L)
-                .email(email)
+                .email(new Email(email))
                 .nickname("테스트유저")
                 .passwordHash("hash")
                 .emailVerified(true)
@@ -127,7 +135,7 @@ class ResendVerificationServiceTest {
 
         User user = User.builder()
                 .id(10L)
-                .email(email)
+                .email(new Email(email))
                 .nickname("테스트유저")
                 .passwordHash("hash")
                 .emailVerified(false)
@@ -137,15 +145,16 @@ class ResendVerificationServiceTest {
                 .id(1L)
                 .token("recent-token")
                 .userId(10L)
-                .email(email)
+                .email(new Email(email))
                 .expiresAt(LocalDateTime.now().plusHours(24))
                 .build();
 
         // BaseEntity.createdAt은 JPA 감사로만 설정되므로 리플렉션으로 설정
-        setCreatedAt(recentToken, LocalDateTime.now());
+        setCreatedAt(recentToken, FIXED_NOW);
 
         given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
         given(tokenRepository.findLatestByUserId(10L)).willReturn(Optional.of(recentToken));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when & then
         assertThatThrownBy(() -> service.resendVerification(email))

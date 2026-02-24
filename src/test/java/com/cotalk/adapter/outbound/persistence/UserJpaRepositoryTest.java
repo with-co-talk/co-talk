@@ -3,6 +3,7 @@ package com.cotalk.adapter.outbound.persistence;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,7 @@ class UserJpaRepositoryTest {
             // given
             User user = User.builder()
                     .id(1L)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hashedPassword")
                     .nickname("testUser")
                     .build();
@@ -46,7 +47,7 @@ class UserJpaRepositoryTest {
 
             // then
             assertThat(savedUser.getId()).isEqualTo(1L);
-            assertThat(savedUser.getEmail()).isEqualTo("test@example.com");
+            assertThat(savedUser.getEmail()).isEqualTo(new Email("test@example.com"));
         }
     }
 
@@ -60,7 +61,7 @@ class UserJpaRepositoryTest {
             // given
             User user = User.builder()
                     .id(1L)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hashedPassword")
                     .nickname("testUser")
                     .build();
@@ -71,7 +72,7 @@ class UserJpaRepositoryTest {
 
             // then
             assertThat(found).isPresent();
-            assertThat(found.get().getEmail()).isEqualTo("test@example.com");
+            assertThat(found.get().getEmail()).isEqualTo(new Email("test@example.com"));
         }
 
         @Test
@@ -80,7 +81,7 @@ class UserJpaRepositoryTest {
             // given
             User user = User.builder()
                     .id(1L)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hashedPassword")
                     .nickname("testUser")
                     .build();
@@ -100,19 +101,19 @@ class UserJpaRepositoryTest {
             // given
             userRepository.save(User.builder()
                     .id(1L)
-                    .email("test1@example.com")
+                    .email(new Email("test1@example.com"))
                     .passwordHash("hash")
                     .nickname("testUser1")
                     .build());
             userRepository.save(User.builder()
                     .id(2L)
-                    .email("test2@example.com")
+                    .email(new Email("test2@example.com"))
                     .passwordHash("hash")
                     .nickname("testUser2")
                     .build());
             userRepository.save(User.builder()
                     .id(3L)
-                    .email("other@example.com")
+                    .email(new Email("other@example.com"))
                     .passwordHash("hash")
                     .nickname("otherUser")
                     .build());
@@ -135,7 +136,7 @@ class UserJpaRepositoryTest {
             // given
             userRepository.save(User.builder()
                     .id(1L)
-                    .email("existing@example.com")
+                    .email(new Email("existing@example.com"))
                     .passwordHash("hash")
                     .nickname("user")
                     .build());
@@ -151,7 +152,7 @@ class UserJpaRepositoryTest {
             // given
             userRepository.save(User.builder()
                     .id(1L)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .passwordHash("hash")
                     .nickname("existingNickname")
                     .build());

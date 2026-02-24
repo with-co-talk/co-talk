@@ -8,11 +8,11 @@ package com.cotalk.domain.exception;
 public class FileUploadException extends DomainException {
 
     public FileUploadException(String message) {
-        super(message);
+        super(message, "FILE_UPLOAD_ERROR", HttpStatusHint.BAD_REQUEST);
     }
 
     public FileUploadException(String message, Throwable cause) {
-        super(message, cause);
+        super(message, "FILE_UPLOAD_ERROR", HttpStatusHint.BAD_REQUEST, cause);
     }
 
     public static FileUploadException invalidFileType(String contentType) {

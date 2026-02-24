@@ -36,7 +36,7 @@ public record AdminUserDto(
     public static AdminUserDto from(User user) {
         return new AdminUserDto(
                 user.getId(),
-                user.getEmail(),
+                user.getEmail().value(),
                 user.getNickname(),
                 user.getAvatarUrl(),
                 user.getStatus().name(),

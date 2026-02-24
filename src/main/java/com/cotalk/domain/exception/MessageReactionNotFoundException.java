@@ -8,6 +8,7 @@ package com.cotalk.domain.exception;
 public class MessageReactionNotFoundException extends DomainException {
 
     public MessageReactionNotFoundException(Long messageId, Long userId, String emoji) {
-        super("메시지 반응을 찾을 수 없습니다: messageId=" + messageId + ", userId=" + userId + ", emoji=" + emoji);
+        super("메시지 반응을 찾을 수 없습니다: messageId=" + messageId + ", userId=" + userId + ", emoji=" + emoji,
+                "MESSAGE_REACTION_NOT_FOUND", HttpStatusHint.NOT_FOUND);
     }
 }

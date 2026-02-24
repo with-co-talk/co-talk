@@ -52,20 +52,22 @@ public class RefreshToken extends BaseEntity {
     /**
      * 토큰이 만료되었는지 확인한다.
      *
+     * @param now 현재 시간
      * @return 만료되었으면 true, 그렇지 않으면 false
      */
-    public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+    public boolean isExpired(LocalDateTime now) {
+        return now.isAfter(expiresAt);
     }
 
     /**
      * 토큰이 유효한지 확인한다.
      * 만료되지 않고 폐기되지 않은 토큰만 유효하다.
      *
+     * @param now 현재 시간
      * @return 유효하면 true, 그렇지 않으면 false
      */
-    public boolean isValid() {
-        return !isExpired() && !revoked;
+    public boolean isValid(LocalDateTime now) {
+        return !isExpired(now) && !revoked;
     }
 
     /**

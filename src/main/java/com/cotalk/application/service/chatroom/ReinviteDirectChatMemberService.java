@@ -7,7 +7,6 @@ import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.ChatRoomNotFoundException;
 import com.cotalk.domain.exception.InvalidChatRoomException;
-import com.cotalk.domain.exception.InvalidDirectChatException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.chatroom.ReinviteDirectChatMemberUseCase;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
@@ -55,7 +54,7 @@ public class ReinviteDirectChatMemberService implements ReinviteDirectChatMember
      * @param inviterId 초대하는 사용자 ID (현재 채팅방에 남아있는 사용자)
      * @param inviteeId 재초대할 사용자 ID (나갔던 사용자)
      * @throws ChatRoomNotFoundException 채팅방이 존재하지 않는 경우
-     * @throws InvalidDirectChatException 1:1 채팅방이 아닌 경우
+     * @throws InvalidChatRoomException 1:1 채팅방이 아닌 경우
      * @throws ChatRoomAccessDeniedException 초대자가 채팅방 멤버가 아닌 경우
      * @throws UserNotFoundException 재초대할 사용자가 존재하지 않는 경우
      * @throws InvalidChatRoomException 재초대할 사용자가 이미 채팅방 멤버인 경우
@@ -68,7 +67,7 @@ public class ReinviteDirectChatMemberService implements ReinviteDirectChatMember
 
         // 2. 1:1 채팅방인지 확인
         if (!chatRoom.isDirectChat()) {
-            throw new InvalidDirectChatException("1:1 채팅방에서만 재초대할 수 있습니다");
+            throw InvalidChatRoomException.invalidDirectChat("1:1 채팅방에서만 재초대할 수 있습니다");
         }
 
         // 3. 초대자가 채팅방 멤버인지 확인

@@ -8,6 +8,6 @@ package com.cotalk.domain.exception;
 public class InvalidFriendRequestException extends DomainException {
 
     public InvalidFriendRequestException(String message) {
-        super(message);
+        super(message, "INVALID_FRIEND_REQUEST", HttpStatusHint.BAD_REQUEST);
     }
 }

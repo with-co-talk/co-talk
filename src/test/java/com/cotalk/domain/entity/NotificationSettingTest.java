@@ -1,5 +1,6 @@
 package com.cotalk.domain.entity;
 
+import com.cotalk.common.fixture.NotificationSettingTestFixture;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,10 +23,7 @@ class NotificationSettingTest {
         @DisplayName("기본적으로 모든 알림이 활성화된다")
         void should_enableAllNotifications_when_default() {
             // given & when
-            NotificationSetting setting = NotificationSetting.builder()
-                    .id(1L)
-                    .userId(100L)
-                    .build();
+            NotificationSetting setting = NotificationSettingTestFixture.createDefaultSetting();
 
             // then
             assertThat(setting.isMessageNotification()).isTrue();
@@ -39,10 +37,7 @@ class NotificationSettingTest {
         @DisplayName("기본적으로 방해금지 모드가 비활성화된다")
         void should_disableDoNotDisturb_when_default() {
             // given & when
-            NotificationSetting setting = NotificationSetting.builder()
-                    .id(1L)
-                    .userId(100L)
-                    .build();
+            NotificationSetting setting = NotificationSettingTestFixture.createDefaultSetting();
 
             // then
             assertThat(setting.isDoNotDisturbEnabled()).isFalse();
@@ -59,9 +54,7 @@ class NotificationSettingTest {
         @DisplayName("메시지 알림을 비활성화한다")
         void should_disableMessageNotification_when_calledWithFalse() {
             // given
-            NotificationSetting setting = NotificationSetting.builder()
-                    .id(1L)
-                    .userId(100L)
+            NotificationSetting setting = NotificationSettingTestFixture.builder()
                     .messageNotification(true)
                     .build();
 
@@ -76,9 +69,7 @@ class NotificationSettingTest {
         @DisplayName("메시지 알림을 활성화한다")
         void should_enableMessageNotification_when_calledWithTrue() {
             // given
-            NotificationSetting setting = NotificationSetting.builder()
-                    .id(1L)
-                    .userId(100L)
+            NotificationSetting setting = NotificationSettingTestFixture.builder()
                     .messageNotification(false)
                     .build();
 
@@ -98,9 +89,7 @@ class NotificationSettingTest {
         @DisplayName("친구 요청 알림을 비활성화한다")
         void should_disableFriendRequestNotification_when_calledWithFalse() {
             // given
-            NotificationSetting setting = NotificationSetting.builder()
-                    .id(1L)
-                    .userId(100L)
+            NotificationSetting setting = NotificationSettingTestFixture.builder()
                     .friendRequestNotification(true)
                     .build();
 
@@ -120,9 +109,7 @@ class NotificationSettingTest {
         @DisplayName("그룹 초대 알림을 비활성화한다")
         void should_disableGroupInviteNotification_when_calledWithFalse() {
             // given
-            NotificationSetting setting = NotificationSetting.builder()
-                    .id(1L)
-                    .userId(100L)
+            NotificationSetting setting = NotificationSettingTestFixture.builder()
                     .groupInviteNotification(true)
                     .build();
 
@@ -142,9 +129,7 @@ class NotificationSettingTest {
         @DisplayName("알림 소리를 비활성화한다")
         void should_disableSound_when_calledWithFalse() {
             // given
-            NotificationSetting setting = NotificationSetting.builder()
-                    .id(1L)
-                    .userId(100L)
+            NotificationSetting setting = NotificationSettingTestFixture.builder()
                     .soundEnabled(true)
                     .build();
 
@@ -164,9 +149,7 @@ class NotificationSettingTest {
         @DisplayName("알림 진동을 비활성화한다")
         void should_disableVibration_when_calledWithFalse() {
             // given
-            NotificationSetting setting = NotificationSetting.builder()
-                    .id(1L)
-                    .userId(100L)
+            NotificationSetting setting = NotificationSettingTestFixture.builder()
                     .vibrationEnabled(true)
                     .build();
 
@@ -186,11 +169,7 @@ class NotificationSettingTest {
         @DisplayName("방해 금지 모드를 활성화한다")
         void should_enableDoNotDisturb_when_calledWithTrue() {
             // given
-            NotificationSetting setting = NotificationSetting.builder()
-                    .id(1L)
-                    .userId(100L)
-                    .doNotDisturbEnabled(false)
-                    .build();
+            NotificationSetting setting = NotificationSettingTestFixture.createDefaultSetting();
 
             // when
             setting.updateDoNotDisturb(true, "22:00", "07:00");
@@ -205,13 +184,7 @@ class NotificationSettingTest {
         @DisplayName("방해 금지 모드를 비활성화한다")
         void should_disableDoNotDisturb_when_calledWithFalse() {
             // given
-            NotificationSetting setting = NotificationSetting.builder()
-                    .id(1L)
-                    .userId(100L)
-                    .doNotDisturbEnabled(true)
-                    .doNotDisturbStart("22:00")
-                    .doNotDisturbEnd("07:00")
-                    .build();
+            NotificationSetting setting = NotificationSettingTestFixture.createWithDoNotDisturb(1L, 100L, "22:00", "07:00");
 
             // when
             setting.updateDoNotDisturb(false, null, null);
@@ -226,13 +199,7 @@ class NotificationSettingTest {
         @DisplayName("방해 금지 시간을 변경한다")
         void should_updateDoNotDisturbTime_when_newTimeProvided() {
             // given
-            NotificationSetting setting = NotificationSetting.builder()
-                    .id(1L)
-                    .userId(100L)
-                    .doNotDisturbEnabled(true)
-                    .doNotDisturbStart("22:00")
-                    .doNotDisturbEnd("07:00")
-                    .build();
+            NotificationSetting setting = NotificationSettingTestFixture.createWithDoNotDisturb(1L, 100L, "22:00", "07:00");
 
             // when
             setting.updateDoNotDisturb(true, "23:00", "06:00");

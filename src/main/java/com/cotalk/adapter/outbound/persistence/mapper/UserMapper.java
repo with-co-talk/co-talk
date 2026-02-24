@@ -1,6 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.mapper;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.adapter.outbound.persistence.entity.UserJpaEntity;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +19,7 @@ public class UserMapper {
         }
         return User.builder()
                 .id(jpa.getId())
-                .email(jpa.getEmail())
+                .email(new Email(jpa.getEmail()))
                 .passwordHash(jpa.getPasswordHash())
                 .nickname(jpa.getNickname())
                 .avatarUrl(jpa.getAvatarUrl())
@@ -43,7 +44,7 @@ public class UserMapper {
         }
         UserJpaEntity jpa = UserJpaEntity.builder()
                 .id(domain.getId())
-                .email(domain.getEmail())
+                .email(domain.getEmail().value())
                 .passwordHash(domain.getPasswordHash())
                 .nickname(domain.getNickname())
                 .avatarUrl(domain.getAvatarUrl())

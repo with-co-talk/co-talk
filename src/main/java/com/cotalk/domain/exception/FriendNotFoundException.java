@@ -8,14 +8,14 @@ package com.cotalk.domain.exception;
 public class FriendNotFoundException extends DomainException {
 
     public FriendNotFoundException() {
-        super("친구를 찾을 수 없습니다.");
+        super("친구를 찾을 수 없습니다.", "FRIEND_NOT_FOUND", HttpStatusHint.NOT_FOUND);
     }
 
     public FriendNotFoundException(String message) {
-        super(message);
+        super(message, "FRIEND_NOT_FOUND", HttpStatusHint.NOT_FOUND);
     }
 
     public FriendNotFoundException(Long friendId) {
-        super("친구를 찾을 수 없습니다: " + friendId);
+        super("친구를 찾을 수 없습니다: " + friendId, "FRIEND_NOT_FOUND", HttpStatusHint.NOT_FOUND);
     }
 }

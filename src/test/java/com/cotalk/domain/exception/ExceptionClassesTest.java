@@ -359,17 +359,27 @@ class ExceptionClassesTest {
     }
 
     @Nested
-    @DisplayName("FriendRequestAccessDeniedException")
-    class FriendRequestAccessDeniedExceptionTest {
+    @DisplayName("ResourceAccessDeniedException (friendRequest factory methods)")
+    class ResourceAccessDeniedFriendRequestTest {
 
         @Test
-        @DisplayName("메시지로 예외를 생성한다")
-        void should_createException_when_messageProvided() {
+        @DisplayName("friendRequestNotReceiver 팩토리 메서드로 예외를 생성한다")
+        void should_createException_when_friendRequestNotReceiver() {
             // when
-            FriendRequestAccessDeniedException e = new FriendRequestAccessDeniedException("접근 거부");
+            ResourceAccessDeniedException e = ResourceAccessDeniedException.friendRequestNotReceiver();
 
             // then
-            assertThat(e.getMessage()).isEqualTo("접근 거부");
+            assertThat(e.getMessage()).contains("거절");
+        }
+
+        @Test
+        @DisplayName("friendRequestNotRequester 팩토리 메서드로 예외를 생성한다")
+        void should_createException_when_friendRequestNotRequester() {
+            // when
+            ResourceAccessDeniedException e = ResourceAccessDeniedException.friendRequestNotRequester();
+
+            // then
+            assertThat(e.getMessage()).contains("취소");
         }
     }
 
@@ -449,14 +459,14 @@ class ExceptionClassesTest {
     }
 
     @Nested
-    @DisplayName("InvalidGroupChatException")
-    class InvalidGroupChatExceptionTest {
+    @DisplayName("InvalidChatRoomException (invalidGroupChat factory method)")
+    class InvalidChatRoomGroupChatTest {
 
         @Test
-        @DisplayName("메시지로 예외를 생성한다")
-        void should_createException_when_messageProvided() {
+        @DisplayName("invalidGroupChat 팩토리 메서드로 예외를 생성한다")
+        void should_createException_when_invalidGroupChat() {
             // when
-            InvalidGroupChatException e = new InvalidGroupChatException("잘못된 그룹 채팅");
+            InvalidChatRoomException e = InvalidChatRoomException.invalidGroupChat("잘못된 그룹 채팅");
 
             // then
             assertThat(e.getMessage()).isEqualTo("잘못된 그룹 채팅");
@@ -479,17 +489,37 @@ class ExceptionClassesTest {
     }
 
     @Nested
-    @DisplayName("MessageAccessDeniedException")
-    class MessageAccessDeniedExceptionTest {
+    @DisplayName("ResourceAccessDeniedException (message factory methods)")
+    class ResourceAccessDeniedMessageTest {
 
         @Test
-        @DisplayName("메시지로 예외를 생성한다")
-        void should_createException_when_messageProvided() {
+        @DisplayName("messageNotSender 팩토리 메서드로 예외를 생성한다")
+        void should_createException_when_messageNotSender() {
             // when
-            MessageAccessDeniedException e = new MessageAccessDeniedException("접근 거부");
+            ResourceAccessDeniedException e = ResourceAccessDeniedException.messageNotSender();
 
             // then
-            assertThat(e.getMessage()).isEqualTo("접근 거부");
+            assertThat(e.getMessage()).contains("본인이 보낸 메시지만");
+        }
+
+        @Test
+        @DisplayName("messageAlreadyDeleted 팩토리 메서드로 예외를 생성한다")
+        void should_createException_when_messageAlreadyDeleted() {
+            // when
+            ResourceAccessDeniedException e = ResourceAccessDeniedException.messageAlreadyDeleted();
+
+            // then
+            assertThat(e.getMessage()).contains("이미 삭제된");
+        }
+
+        @Test
+        @DisplayName("messageTimeExpired 팩토리 메서드로 예외를 생성한다")
+        void should_createException_when_messageTimeExpired() {
+            // when
+            ResourceAccessDeniedException e = ResourceAccessDeniedException.messageTimeExpired();
+
+            // then
+            assertThat(e.getMessage()).contains("5분");
         }
     }
 

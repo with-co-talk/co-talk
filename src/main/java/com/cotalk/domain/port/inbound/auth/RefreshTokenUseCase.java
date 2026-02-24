@@ -18,13 +18,23 @@ public interface RefreshTokenUseCase {
     String createRefreshToken(Long userId);
 
     /**
-     * Refresh Token으로 새로운 Access Token을 발급받는다.
+     * 토큰 갱신 결과.
+     * Access Token과 새로 발급된 Refresh Token을 함께 반환한다.
+     *
+     * @param accessToken 새로 발급된 Access Token
+     * @param refreshToken 새로 발급된 Refresh Token
+     */
+    record RefreshResult(String accessToken, String refreshToken) {}
+
+    /**
+     * Refresh Token으로 새로운 Access Token과 Refresh Token을 발급받는다.
+     * 기존 Refresh Token은 폐기되고 새로운 Refresh Token이 발급된다 (Token Rotation).
      *
      * @param refreshToken Refresh Token 값
-     * @return 새로 발급된 Access Token
+     * @return 새로 발급된 Access Token과 Refresh Token
      * @throws com.cotalk.domain.exception.InvalidRefreshTokenException 토큰이 유효하지 않은 경우
      */
-    String refreshAccessToken(String refreshToken);
+    RefreshResult refreshAccessToken(String refreshToken);
 
     /**
      * 특정 Refresh Token을 폐기한다.

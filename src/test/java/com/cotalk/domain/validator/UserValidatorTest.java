@@ -38,33 +38,6 @@ class UserValidatorTest {
     }
 
     @Nested
-    @DisplayName("이메일 검증")
-    class EmailValidation {
-
-        @Test
-        @DisplayName("유효한 이메일이면 예외가 발생하지 않음")
-        void should_notThrowException_when_validEmail() {
-            // given
-            String validEmail = "test@example.com";
-
-            // when & then
-            assertThatCode(() -> validator.validateEmail(validEmail))
-                    .doesNotThrowAnyException();
-        }
-
-        @ParameterizedTest
-        @NullAndEmptySource
-        @ValueSource(strings = {" ", "invalid", "invalid@", "@example.com", "invalid@.com"})
-        @DisplayName("잘못된 이메일 형식이면 예외 발생")
-        void should_throwException_when_invalidEmail(String invalidEmail) {
-            // when & then
-            assertThatThrownBy(() -> validator.validateEmail(invalidEmail))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("올바른 이메일 형식이 아닙니다");
-        }
-    }
-
-    @Nested
     @DisplayName("비밀번호 검증")
     class PasswordValidation {
 

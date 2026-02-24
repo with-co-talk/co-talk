@@ -27,7 +27,7 @@ class TermsAgreementTest {
             String ipAddress = "192.168.1.1";
 
             // when
-            TermsAgreement agreement = TermsAgreement.create(userId, type, version, agreed, ipAddress);
+            TermsAgreement agreement = TermsAgreement.create(userId, type, version, agreed, ipAddress, LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // then
             assertThat(agreement.getUserId()).isEqualTo(userId);
@@ -50,7 +50,7 @@ class TermsAgreementTest {
             String ipAddress = "192.168.1.1";
 
             // when
-            TermsAgreement agreement = TermsAgreement.create(userId, type, version, agreed, ipAddress);
+            TermsAgreement agreement = TermsAgreement.create(userId, type, version, agreed, ipAddress, LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // then
             assertThat(agreement.isAgreed()).isFalse();
@@ -68,7 +68,7 @@ class TermsAgreementTest {
             String ipAddress = "192.168.1.1";
 
             // when
-            TermsAgreement agreement = TermsAgreement.create(userId, type, version, agreed, ipAddress);
+            TermsAgreement agreement = TermsAgreement.create(userId, type, version, agreed, ipAddress, LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // then
             assertThat(agreement.getTermsType()).isEqualTo(TermsType.PRIVACY);
@@ -86,7 +86,7 @@ class TermsAgreementTest {
             String ipAddress = "192.168.1.1";
 
             // when
-            TermsAgreement agreement = TermsAgreement.create(userId, type, version, agreed, ipAddress);
+            TermsAgreement agreement = TermsAgreement.create(userId, type, version, agreed, ipAddress, LocalDateTime.of(2026, 1, 1, 12, 0));
 
             // then
             assertThat(agreement.getTermsType()).isEqualTo(TermsType.MARKETING);
@@ -103,13 +103,13 @@ class TermsAgreementTest {
         void should_setAgreedToFalse_when_withdrawn() {
             // given
             TermsAgreement agreement = TermsAgreement.create(
-                    1L, TermsType.MARKETING, "1.0", true, "192.168.1.1"
+                    1L, TermsType.MARKETING, "1.0", true, "192.168.1.1", LocalDateTime.of(2026, 1, 1, 12, 0)
             );
 
             assertThat(agreement.isAgreed()).isTrue();
 
             // when
-            agreement.withdraw();
+            agreement.withdraw(LocalDateTime.of(2026, 1, 1, 13, 0));
 
             // then
             assertThat(agreement.isAgreed()).isFalse();
@@ -120,19 +120,17 @@ class TermsAgreementTest {
         void should_setWithdrawnAt_when_withdrawn() {
             // given
             TermsAgreement agreement = TermsAgreement.create(
-                    1L, TermsType.MARKETING, "1.0", true, "192.168.1.1"
+                    1L, TermsType.MARKETING, "1.0", true, "192.168.1.1", LocalDateTime.of(2026, 1, 1, 12, 0)
             );
 
             assertThat(agreement.getWithdrawnAt()).isNull();
-            LocalDateTime beforeWithdraw = LocalDateTime.now();
+            LocalDateTime withdrawTime = LocalDateTime.of(2026, 1, 1, 13, 0);
 
             // when
-            agreement.withdraw();
+            agreement.withdraw(withdrawTime);
 
             // then
-            assertThat(agreement.getWithdrawnAt())
-                    .isAfterOrEqualTo(beforeWithdraw)
-                    .isBeforeOrEqualTo(LocalDateTime.now());
+            assertThat(agreement.getWithdrawnAt()).isEqualTo(withdrawTime);
         }
     }
 
@@ -145,7 +143,7 @@ class TermsAgreementTest {
         void should_returnTrue_when_serviceTerms() {
             // given
             TermsAgreement agreement = TermsAgreement.create(
-                    1L, TermsType.SERVICE, "1.0", true, "192.168.1.1"
+                    1L, TermsType.SERVICE, "1.0", true, "192.168.1.1", LocalDateTime.of(2026, 1, 1, 12, 0)
             );
 
             // when
@@ -160,7 +158,7 @@ class TermsAgreementTest {
         void should_returnTrue_when_privacyPolicy() {
             // given
             TermsAgreement agreement = TermsAgreement.create(
-                    1L, TermsType.PRIVACY, "1.0", true, "192.168.1.1"
+                    1L, TermsType.PRIVACY, "1.0", true, "192.168.1.1", LocalDateTime.of(2026, 1, 1, 12, 0)
             );
 
             // when
@@ -175,7 +173,7 @@ class TermsAgreementTest {
         void should_returnFalse_when_marketing() {
             // given
             TermsAgreement agreement = TermsAgreement.create(
-                    1L, TermsType.MARKETING, "1.0", true, "192.168.1.1"
+                    1L, TermsType.MARKETING, "1.0", true, "192.168.1.1", LocalDateTime.of(2026, 1, 1, 12, 0)
             );
 
             // when

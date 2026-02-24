@@ -1,5 +1,6 @@
 package com.cotalk.domain.entity;
 
+import com.cotalk.common.fixture.BlockTestFixture;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,11 +22,7 @@ class BlockTest {
             Long blockedId = 2L;
 
             // when
-            Block block = Block.builder()
-                    .id(1L)
-                    .blockerId(blockerId)
-                    .blockedId(blockedId)
-                    .build();
+            Block block = BlockTestFixture.createBlock(1L, blockerId, blockedId);
 
             // then
             assertThat(block.getBlockerId()).isEqualTo(blockerId);
@@ -43,11 +40,7 @@ class BlockTest {
             // given
             Long blockerId = 1L;
             Long blockedId = 2L;
-            Block block = Block.builder()
-                    .id(1L)
-                    .blockerId(blockerId)
-                    .blockedId(blockedId)
-                    .build();
+            Block block = BlockTestFixture.createBlock(1L, blockerId, blockedId);
 
             // when
             boolean result = block.isBlockedBy(blockerId);
@@ -62,11 +55,7 @@ class BlockTest {
             // given
             Long blockerId = 1L;
             Long blockedId = 2L;
-            Block block = Block.builder()
-                    .id(1L)
-                    .blockerId(blockerId)
-                    .blockedId(blockedId)
-                    .build();
+            Block block = BlockTestFixture.createBlock(1L, blockerId, blockedId);
 
             // when
             boolean result = block.isBlockedBy(blockedId);
@@ -82,11 +71,7 @@ class BlockTest {
             Long blockerId = 1L;
             Long blockedId = 2L;
             Long otherUserId = 3L;
-            Block block = Block.builder()
-                    .id(1L)
-                    .blockerId(blockerId)
-                    .blockedId(blockedId)
-                    .build();
+            Block block = BlockTestFixture.createBlock(1L, blockerId, blockedId);
 
             // when
             boolean result = block.isBlockedBy(otherUserId);

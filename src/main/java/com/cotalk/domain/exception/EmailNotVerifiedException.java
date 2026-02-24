@@ -10,7 +10,7 @@ public class EmailNotVerifiedException extends DomainException {
     private final String email;
 
     public EmailNotVerifiedException(String email) {
-        super("이메일 인증이 완료되지 않았습니다. 이메일을 확인해주세요.");
+        super("이메일 인증이 완료되지 않았습니다. 이메일을 확인해주세요.", "EMAIL_NOT_VERIFIED", HttpStatusHint.FORBIDDEN);
         this.email = email;
     }
 

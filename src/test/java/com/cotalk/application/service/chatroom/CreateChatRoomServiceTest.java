@@ -4,6 +4,7 @@ import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +35,9 @@ class CreateChatRoomServiceTest {
 
     @Mock
     private SnowflakeIdGenerator idGenerator;
+
+    @Mock
+    private TimeProvider timeProvider;
 
     @Mock
     private UserEventBroker userEventBroker;

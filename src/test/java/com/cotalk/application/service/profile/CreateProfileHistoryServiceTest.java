@@ -3,6 +3,7 @@ package com.cotalk.application.service.profile;
 import com.cotalk.domain.entity.ProfileHistory;
 import com.cotalk.domain.entity.ProfileHistoryType;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.port.outbound.ProfileHistoryRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -56,7 +57,7 @@ class CreateProfileHistoryServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .nickname("테스트유저")
                     .passwordHash("hash")
                     .build();
@@ -95,7 +96,7 @@ class CreateProfileHistoryServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .nickname("테스트유저")
                     .passwordHash("hash")
                     .build();
@@ -132,7 +133,7 @@ class CreateProfileHistoryServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .nickname("테스트유저")
                     .passwordHash("hash")
                     .build();
@@ -169,7 +170,7 @@ class CreateProfileHistoryServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .nickname("테스트유저")
                     .passwordHash("hash")
                     .build();
@@ -206,7 +207,7 @@ class CreateProfileHistoryServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .nickname("테스트유저")
                     .passwordHash("hash")
                     .build();
@@ -251,7 +252,7 @@ class CreateProfileHistoryServiceTest {
 
             User user = User.builder()
                     .id(userId)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .nickname("테스트유저")
                     .passwordHash("hash")
                     .build();

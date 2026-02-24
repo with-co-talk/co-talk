@@ -8,6 +8,6 @@ package com.cotalk.domain.exception;
 public class InvalidReportException extends DomainException {
 
     public InvalidReportException(String message) {
-        super(message);
+        super(message, "INVALID_REPORT", HttpStatusHint.BAD_REQUEST);
     }
 }

@@ -1,10 +1,13 @@
 package com.cotalk.application.service.auth;
 
+import com.cotalk.common.fixture.RefreshTokenTestFixture;
 import com.cotalk.domain.entity.RefreshToken;
 import com.cotalk.domain.exception.InvalidRefreshTokenException;
+import com.cotalk.domain.port.inbound.auth.RefreshTokenUseCase.RefreshResult;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.RefreshTokenRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -42,9 +45,13 @@ class RefreshTokenServiceTest {
     @Mock
     private IdGenerator idGenerator;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private RefreshTokenService refreshTokenService;
 
-    private static final long REFRESH_TOKEN_EXPIRATION_DAYS = 7;
+    private static final long REFRESH_TOKEN_EXPIRATION_DAYS = 30;
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @BeforeEach
     void setUp() {
@@ -52,6 +59,7 @@ class RefreshTokenServiceTest {
                 refreshTokenRepository,
                 authTokenPort,
                 idGenerator,
+                timeProvider,
                 REFRESH_TOKEN_EXPIRATION_DAYS
         );
     }
@@ -69,6 +77,7 @@ class RefreshTokenServiceTest {
             given(idGenerator.nextId()).willReturn(tokenId);
             given(refreshTokenRepository.save(any(RefreshToken.class)))
                     .willAnswer(invocation -> invocation.getArgument(0));
+            given(timeProvider.now()).willReturn(FIXED_NOW);
 
             // when
             String token = refreshTokenService.createRefreshToken(userId);
@@ -81,7 +90,7 @@ class RefreshTokenServiceTest {
 
             RefreshToken savedToken = captor.getValue();
             assertThat(savedToken.getUserId()).isEqualTo(userId);
-            assertThat(savedToken.getExpiresAt()).isAfter(LocalDateTime.now());
+            assertThat(savedToken.getExpiresAt()).isEqualTo(FIXED_NOW.plusDays(REFRESH_TOKEN_EXPIRATION_DAYS));
         }
 
         @Test
@@ -90,18 +99,14 @@ class RefreshTokenServiceTest {
             // given
             Long userId = 100L;
             Long tokenId = 1L;
-            RefreshToken existingToken = RefreshToken.builder()
-                    .id(99L)
-                    .userId(userId)
-                    .token("old-token")
-                    .expiresAt(LocalDateTime.now().plusDays(7))
-                    .build();
+            RefreshToken existingToken = RefreshTokenTestFixture.createRefreshToken(99L, userId, "old-token");
 
             given(refreshTokenRepository.findByUserIdAndRevokedFalse(userId))
                     .willReturn(Optional.of(existingToken));
             given(idGenerator.nextId()).willReturn(tokenId);
             given(refreshTokenRepository.save(any(RefreshToken.class)))
                     .willAnswer(invocation -> invocation.getArgument(0));
+            given(timeProvider.now()).willReturn(FIXED_NOW);
 
             // when
             refreshTokenService.createRefreshToken(userId);
@@ -116,29 +121,30 @@ class RefreshTokenServiceTest {
     class RefreshAccessToken {
 
         @Test
-        @DisplayName("유효한 Refresh Token으로 새 Access Token을 발급받을 수 있다")
-        void should_IssueNewAccessToken_when_ValidRefreshToken() {
+        @DisplayName("유효한 Refresh Token으로 새 Access Token과 Refresh Token을 발급받을 수 있다 (Token Rotation)")
+        void should_IssueNewAccessTokenAndRefreshToken_when_ValidRefreshToken() {
             // given
             String refreshToken = "valid-refresh-token";
             Long userId = 100L;
             String newAccessToken = "new-access-token";
 
-            RefreshToken storedToken = RefreshToken.builder()
-                    .id(1L)
-                    .userId(userId)
-                    .token(refreshToken)
-                    .expiresAt(LocalDateTime.now().plusDays(7))
-                    .build();
+            RefreshToken storedToken = RefreshTokenTestFixture.createRefreshToken(1L, userId, refreshToken);
 
             given(refreshTokenRepository.findByToken(refreshToken))
                     .willReturn(Optional.of(storedToken));
             given(authTokenPort.generateAccessToken(userId)).willReturn(newAccessToken);
+            given(idGenerator.nextId()).willReturn(2L);
+            given(refreshTokenRepository.save(any(RefreshToken.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+            given(timeProvider.now()).willReturn(FIXED_NOW);
 
             // when
-            String result = refreshTokenService.refreshAccessToken(refreshToken);
+            RefreshResult result = refreshTokenService.refreshAccessToken(refreshToken);
 
             // then
-            assertThat(result).isEqualTo(newAccessToken);
+            assertThat(result.accessToken()).isEqualTo(newAccessToken);
+            assertThat(result.refreshToken()).isNotNull();
+            assertThat(storedToken.isRevoked()).isTrue();
         }
 
         @Test
@@ -159,15 +165,16 @@ class RefreshTokenServiceTest {
         void should_ThrowException_when_TokenExpired() {
             // given
             String expiredToken = "expired-token";
-            RefreshToken storedToken = RefreshToken.builder()
+            RefreshToken storedToken = RefreshTokenTestFixture.builder()
                     .id(1L)
                     .userId(100L)
                     .token(expiredToken)
-                    .expiresAt(LocalDateTime.now().minusHours(1))
+                    .expiresAt(FIXED_NOW.minusHours(1))
                     .build();
 
             given(refreshTokenRepository.findByToken(expiredToken))
                     .willReturn(Optional.of(storedToken));
+            given(timeProvider.now()).willReturn(FIXED_NOW);
 
             // when & then
             assertThatThrownBy(() -> refreshTokenService.refreshAccessToken(expiredToken))
@@ -179,16 +186,16 @@ class RefreshTokenServiceTest {
         void should_ThrowException_when_TokenRevoked() {
             // given
             String revokedToken = "revoked-token";
-            RefreshToken storedToken = RefreshToken.builder()
+            RefreshToken storedToken = RefreshTokenTestFixture.builder()
                     .id(1L)
                     .userId(100L)
                     .token(revokedToken)
-                    .expiresAt(LocalDateTime.now().plusDays(7))
+                    .revoked(true)
                     .build();
-            storedToken.revoke();
 
             given(refreshTokenRepository.findByToken(revokedToken))
                     .willReturn(Optional.of(storedToken));
+            given(timeProvider.now()).willReturn(FIXED_NOW);
 
             // when & then
             assertThatThrownBy(() -> refreshTokenService.refreshAccessToken(revokedToken))
@@ -218,12 +225,7 @@ class RefreshTokenServiceTest {
         void should_RevokeToken_when_ValidToken() {
             // given
             String token = "valid-token";
-            RefreshToken refreshToken = RefreshToken.builder()
-                    .id(1L)
-                    .userId(100L)
-                    .token(token)
-                    .expiresAt(LocalDateTime.now().plusDays(7))
-                    .build();
+            RefreshToken refreshToken = RefreshTokenTestFixture.createRefreshToken(1L, 100L, token);
 
             given(refreshTokenRepository.findByToken(token))
                     .willReturn(Optional.of(refreshToken));

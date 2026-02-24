@@ -4,11 +4,13 @@ import com.cotalk.domain.entity.EmailVerificationToken;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.DuplicateEmailException;
 import com.cotalk.domain.exception.DuplicateNicknameException;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.inbound.auth.SignUpUseCase;
 import com.cotalk.domain.port.outbound.EmailSender;
 import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.UserValidator;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +35,7 @@ public class SignUpService implements SignUpUseCase {
     private final UserValidator userValidator;
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final EmailSender emailSender;
+    private final TimeProvider timeProvider;
     private final String frontendUrl;
 
     /**
@@ -45,6 +48,7 @@ public class SignUpService implements SignUpUseCase {
      * @param userValidator 사용자 정보 검증기
      * @param emailVerificationTokenRepository 이메일 인증 토큰 저장소
      * @param emailSender 이메일 발송 포트
+     * @param timeProvider 시간 제공자
      * @param frontendUrl 프론트엔드 URL
      */
     public SignUpService(
@@ -54,6 +58,7 @@ public class SignUpService implements SignUpUseCase {
             UserValidator userValidator,
             EmailVerificationTokenRepository emailVerificationTokenRepository,
             EmailSender emailSender,
+            TimeProvider timeProvider,
             @Value("${app.frontend-url}") String frontendUrl) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -61,6 +66,7 @@ public class SignUpService implements SignUpUseCase {
         this.userValidator = userValidator;
         this.emailVerificationTokenRepository = emailVerificationTokenRepository;
         this.emailSender = emailSender;
+        this.timeProvider = timeProvider;
         this.frontendUrl = frontendUrl;
     }
 
@@ -78,7 +84,7 @@ public class SignUpService implements SignUpUseCase {
     public Long signUp(String email, String password, String nickname) {
         log.debug("Sign-up attempt: email={}, nickname={}", maskEmail(email), nickname);
 
-        userValidator.validateEmail(email);
+        Email emailVo = new Email(email);
         userValidator.validatePassword(password);
         userValidator.validateNickname(nickname);
 
@@ -89,7 +95,7 @@ public class SignUpService implements SignUpUseCase {
 
         User user = User.builder()
                 .id(idGenerator.nextId())
-                .email(email)
+                .email(emailVo)
                 .passwordHash(passwordHash)
                 .nickname(nickname)
                 .emailVerified(false)
@@ -99,7 +105,7 @@ public class SignUpService implements SignUpUseCase {
 
         // 이메일 인증 토큰 생성 및 발송
         EmailVerificationToken verificationToken = EmailVerificationToken.create(
-                savedUser.getId(), email, 1440); // 24시간
+                savedUser.getId(), emailVo, 1440, timeProvider.now()); // 24시간
         emailVerificationTokenRepository.save(verificationToken);
 
         String verificationLink = frontendUrl + "/verify-email?token=" + verificationToken.getToken();

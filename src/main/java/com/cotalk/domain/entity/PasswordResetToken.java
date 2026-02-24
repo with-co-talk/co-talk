@@ -1,5 +1,6 @@
 package com.cotalk.domain.entity;
 
+import com.cotalk.domain.model.Email;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,7 +32,7 @@ public class PasswordResetToken extends BaseEntity {
     private Long userId;
 
     @Column(nullable = false)
-    private String email;
+    private Email email;
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
@@ -46,16 +47,17 @@ public class PasswordResetToken extends BaseEntity {
      * 비밀번호 재설정 토큰을 생성한다.
      *
      * @param userId 사용자 ID
-     * @param email 이메일 주소
+     * @param email 이메일 값 객체
      * @param expirationMinutes 만료 시간 (분 단위)
+     * @param now 현재 시간
      * @return 생성된 PasswordResetToken 인스턴스
      */
-    public static PasswordResetToken create(Long userId, String email, int expirationMinutes) {
+    public static PasswordResetToken create(Long userId, Email email, int expirationMinutes, LocalDateTime now) {
         return PasswordResetToken.builder()
                 .token(UUID.randomUUID().toString())
                 .userId(userId)
                 .email(email)
-                .expiresAt(LocalDateTime.now().plusMinutes(expirationMinutes))
+                .expiresAt(now.plusMinutes(expirationMinutes))
                 .build();
     }
 
@@ -63,18 +65,19 @@ public class PasswordResetToken extends BaseEntity {
      * 6자리 인증 코드가 포함된 비밀번호 재설정 토큰을 생성한다.
      *
      * @param userId 사용자 ID
-     * @param email 이메일 주소
+     * @param email 이메일 값 객체
      * @param expirationMinutes 만료 시간 (분 단위)
+     * @param now 현재 시간
      * @return 생성된 PasswordResetToken 인스턴스 (6자리 인증 코드 포함)
      */
-    public static PasswordResetToken createWithCode(Long userId, String email, int expirationMinutes) {
+    public static PasswordResetToken createWithCode(Long userId, Email email, int expirationMinutes, LocalDateTime now) {
         String code = generateVerificationCode();
         return PasswordResetToken.builder()
                 .token(UUID.randomUUID().toString())
                 .userId(userId)
                 .email(email)
                 .verificationCode(code)
-                .expiresAt(LocalDateTime.now().plusMinutes(expirationMinutes))
+                .expiresAt(now.plusMinutes(expirationMinutes))
                 .build();
     }
 
@@ -92,10 +95,11 @@ public class PasswordResetToken extends BaseEntity {
     /**
      * 토큰이 만료되었는지 확인한다.
      *
+     * @param now 현재 시간
      * @return 만료되었으면 true, 그렇지 않으면 false
      */
-    public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+    public boolean isExpired(LocalDateTime now) {
+        return now.isAfter(expiresAt);
     }
 
     /**
@@ -111,16 +115,19 @@ public class PasswordResetToken extends BaseEntity {
      * 토큰이 유효한지 확인한다.
      * 만료되지 않고 사용되지 않은 경우 유효하다.
      *
+     * @param now 현재 시간
      * @return 유효하면 true, 그렇지 않으면 false
      */
-    public boolean isValid() {
-        return !isExpired() && !isUsed();
+    public boolean isValid(LocalDateTime now) {
+        return !isExpired(now) && !isUsed();
     }
 
     /**
      * 토큰을 사용됨으로 표시한다.
+     *
+     * @param now 현재 시간
      */
-    public void markAsUsed() {
-        this.usedAt = LocalDateTime.now();
+    public void markAsUsed(LocalDateTime now) {
+        this.usedAt = now;
     }
 }

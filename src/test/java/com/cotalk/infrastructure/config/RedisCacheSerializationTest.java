@@ -1,6 +1,7 @@
 package com.cotalk.infrastructure.config;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,7 +51,7 @@ class RedisCacheSerializationTest {
         LocalDateTime now = LocalDateTime.now();
         User user = User.builder()
                 .id(1L)
-                .email("serialize-test@example.com")
+                .email(new Email("serialize-test@example.com"))
                 .nickname("serializeTest")
                 .status(User.UserStatus.ACTIVE)
                 .role(User.Role.USER)
@@ -82,7 +83,7 @@ class RedisCacheSerializationTest {
 
         User user = User.builder()
                 .id(2L)
-                .email("fail@example.com")
+                .email(new Email("fail@example.com"))
                 .nickname("fail")
                 .status(User.UserStatus.ACTIVE)
                 .role(User.Role.USER)

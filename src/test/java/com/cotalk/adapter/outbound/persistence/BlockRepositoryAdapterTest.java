@@ -5,6 +5,7 @@ import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.Block;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.infrastructure.config.JpaAuditingConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,21 +46,21 @@ class BlockRepositoryAdapterTest {
     void setUp() {
         user1 = userRepository.save(User.builder()
                 .id(1L)
-                .email("user1@example.com")
+                .email(new Email("user1@example.com"))
                 .passwordHash("hash")
                 .nickname("user1")
                 .build());
 
         user2 = userRepository.save(User.builder()
                 .id(2L)
-                .email("user2@example.com")
+                .email(new Email("user2@example.com"))
                 .passwordHash("hash")
                 .nickname("user2")
                 .build());
 
         user3 = userRepository.save(User.builder()
                 .id(3L)
-                .email("user3@example.com")
+                .email(new Email("user3@example.com"))
                 .passwordHash("hash")
                 .nickname("user3")
                 .build());

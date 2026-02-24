@@ -5,9 +5,9 @@ import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.ChatRoomNotFoundException;
 import com.cotalk.domain.exception.InvalidChatRoomException;
-import com.cotalk.domain.exception.InvalidDirectChatException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
@@ -96,7 +96,7 @@ class ReinviteDirectChatMemberServiceTest {
         invitee = User.builder()
                 .id(inviteeId)
                 .nickname("재초대유저")
-                .email("reinvite@test.com")
+                .email(new Email("reinvite@test.com"))
                 .build();
 
         given(chatRoomRepository.findById(roomId))
@@ -174,7 +174,7 @@ class ReinviteDirectChatMemberServiceTest {
 
         // when & then
         assertThatThrownBy(() -> service.reinviteMember(roomId, inviterId, inviteeId))
-                .isInstanceOf(InvalidDirectChatException.class)
+                .isInstanceOf(InvalidChatRoomException.class)
                 .hasMessageContaining("1:1 채팅방에서만 재초대할 수 있습니다");
     }
 

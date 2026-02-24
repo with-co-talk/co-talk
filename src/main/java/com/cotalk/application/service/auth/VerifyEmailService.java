@@ -6,6 +6,7 @@ import com.cotalk.domain.exception.InvalidEmailVerificationTokenException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.auth.VerifyEmailUseCase;
 import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.util.LogMaskingUtil;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class VerifyEmailService implements VerifyEmailUseCase {
 
     private final EmailVerificationTokenRepository tokenRepository;
     private final UserRepository userRepository;
+    private final TimeProvider timeProvider;
 
     /**
      * 토큰을 사용하여 이메일 인증을 완료한다.
@@ -40,7 +42,7 @@ public class VerifyEmailService implements VerifyEmailUseCase {
         EmailVerificationToken verificationToken = tokenRepository.findByToken(token)
                 .orElseThrow(InvalidEmailVerificationTokenException::notFound);
 
-        if (verificationToken.isExpired()) {
+        if (verificationToken.isExpired(timeProvider.now())) {
             throw InvalidEmailVerificationTokenException.expired();
         }
         if (verificationToken.isVerified()) {
@@ -53,9 +55,9 @@ public class VerifyEmailService implements VerifyEmailUseCase {
         user.verifyEmail();
         userRepository.save(user);
 
-        verificationToken.markAsVerified();
+        verificationToken.markAsVerified(timeProvider.now());
         tokenRepository.save(verificationToken);
 
-        log.info("Email verified for user: {}", LogMaskingUtil.maskEmail(verificationToken.getEmail()));
+        log.info("Email verified for user: {}", LogMaskingUtil.maskEmail(verificationToken.getEmail().value()));
     }
 }

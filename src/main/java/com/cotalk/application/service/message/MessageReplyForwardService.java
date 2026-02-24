@@ -4,8 +4,8 @@ import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
-import com.cotalk.domain.exception.MessageAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
+import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
@@ -58,7 +58,7 @@ public class MessageReplyForwardService implements MessageReplyForwardUseCase {
         Long chatRoomId = originalMessage.getChatRoomId();
 
         if (originalMessage.isDeleted()) {
-            throw MessageAccessDeniedException.alreadyDeleted();
+            throw ResourceAccessDeniedException.messageAlreadyDeleted();
         }
 
         validateChatRoomAccess(chatRoomId, senderId);
@@ -96,7 +96,7 @@ public class MessageReplyForwardService implements MessageReplyForwardUseCase {
         Long originalChatRoomId = originalMessage.getChatRoomId();
 
         if (originalMessage.isDeleted()) {
-            throw MessageAccessDeniedException.alreadyDeleted();
+            throw ResourceAccessDeniedException.messageAlreadyDeleted();
         }
 
         // 원본 채팅방 접근 권한 확인

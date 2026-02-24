@@ -4,6 +4,7 @@ import com.cotalk.domain.entity.PasswordResetToken;
 import com.cotalk.domain.port.inbound.auth.RequestPasswordResetUseCase;
 import com.cotalk.domain.port.outbound.EmailSender;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.util.LogMaskingUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class RequestPasswordResetService implements RequestPasswordResetUseCase 
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository tokenRepository;
     private final EmailSender emailSender;
+    private final TimeProvider timeProvider;
     private final String frontendUrl;
     private final int tokenExpirationMinutes;
 
@@ -35,6 +37,7 @@ public class RequestPasswordResetService implements RequestPasswordResetUseCase 
      * @param userRepository 사용자 저장소
      * @param tokenRepository 비밀번호 재설정 토큰 저장소
      * @param emailSender 이메일 발송 포트
+     * @param timeProvider 시간 제공자
      * @param frontendUrl 프론트엔드 URL
      * @param tokenExpirationMinutes 토큰 만료 시간(분)
      */
@@ -42,11 +45,13 @@ public class RequestPasswordResetService implements RequestPasswordResetUseCase 
             UserRepository userRepository,
             PasswordResetTokenRepository tokenRepository,
             EmailSender emailSender,
+            TimeProvider timeProvider,
             @Value("${app.frontend-url}") String frontendUrl,
             @Value("${app.password-reset.expiration-minutes:30}") int tokenExpirationMinutes) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.emailSender = emailSender;
+        this.timeProvider = timeProvider;
         this.frontendUrl = frontendUrl;
         this.tokenExpirationMinutes = tokenExpirationMinutes;
     }
@@ -67,8 +72,9 @@ public class RequestPasswordResetService implements RequestPasswordResetUseCase 
             // 새 토큰 생성
             PasswordResetToken token = PasswordResetToken.create(
                     user.getId(),
-                    email,
-                    tokenExpirationMinutes
+                    user.getEmail(),
+                    tokenExpirationMinutes,
+                    timeProvider.now()
             );
             tokenRepository.save(token);
 
@@ -90,8 +96,9 @@ public class RequestPasswordResetService implements RequestPasswordResetUseCase 
             // 6자리 코드가 포함된 새 토큰 생성
             PasswordResetToken token = PasswordResetToken.createWithCode(
                     user.getId(),
-                    email,
-                    tokenExpirationMinutes
+                    user.getEmail(),
+                    tokenExpirationMinutes,
+                    timeProvider.now()
             );
             tokenRepository.save(token);
 

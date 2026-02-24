@@ -4,6 +4,7 @@ import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.entity.User.OAuthProvider;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.entity.User.UserStatus;
 import com.cotalk.infrastructure.config.JpaAuditingConfig;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +42,7 @@ class UserRepositoryAdapterTest {
     void setUp() {
         user1 = userRepository.save(User.builder()
                 .id(1L)
-                .email("user1@example.com")
+                .email(new Email("user1@example.com"))
                 .passwordHash("hash1")
                 .nickname("user1")
                 .status(UserStatus.ACTIVE)
@@ -49,7 +50,7 @@ class UserRepositoryAdapterTest {
 
         user2 = userRepository.save(User.builder()
                 .id(2L)
-                .email("user2@example.com")
+                .email(new Email("user2@example.com"))
                 .passwordHash("hash2")
                 .nickname("user2")
                 .status(UserStatus.ACTIVE)
@@ -66,7 +67,7 @@ class UserRepositoryAdapterTest {
             // given
             User newUser = User.builder()
                     .id(100L)
-                    .email("new@example.com")
+                    .email(new Email("new@example.com"))
                     .passwordHash("hash")
                     .nickname("newuser")
                     .build();
@@ -76,7 +77,7 @@ class UserRepositoryAdapterTest {
 
             // then
             assertThat(saved.getId()).isEqualTo(100L);
-            assertThat(saved.getEmail()).isEqualTo("new@example.com");
+            assertThat(saved.getEmail()).isEqualTo(new Email("new@example.com"));
             assertThat(saved.getNickname()).isEqualTo("newuser");
         }
 
@@ -86,7 +87,7 @@ class UserRepositoryAdapterTest {
             // given
             User oauthUser = User.builder()
                     .id(101L)
-                    .email("oauth@example.com")
+                    .email(new Email("oauth@example.com"))
                     .nickname("oauthuser")
                     .oauthProvider(OAuthProvider.GOOGLE)
                     .oauthId("google-123")
@@ -113,7 +114,7 @@ class UserRepositoryAdapterTest {
 
             // then
             assertThat(found).isPresent();
-            assertThat(found.get().getEmail()).isEqualTo("user1@example.com");
+            assertThat(found.get().getEmail()).isEqualTo(new Email("user1@example.com"));
         }
 
         @Test
@@ -133,7 +134,7 @@ class UserRepositoryAdapterTest {
             // given
             userRepository.save(User.builder()
                     .id(100L)
-                    .email("oauth@example.com")
+                    .email(new Email("oauth@example.com"))
                     .nickname("oauthuser")
                     .oauthProvider(OAuthProvider.KAKAO)
                     .oauthId("kakao-123")
@@ -145,7 +146,7 @@ class UserRepositoryAdapterTest {
 
             // then
             assertThat(found).isPresent();
-            assertThat(found.get().getEmail()).isEqualTo("oauth@example.com");
+            assertThat(found.get().getEmail()).isEqualTo(new Email("oauth@example.com"));
         }
 
         @Test
@@ -174,7 +175,7 @@ class UserRepositoryAdapterTest {
             // given
             userRepository.save(User.builder()
                     .id(100L)
-                    .email("inactive@example.com")
+                    .email(new Email("inactive@example.com"))
                     .passwordHash("hash")
                     .nickname("inactive")
                     .status(UserStatus.INACTIVE)
@@ -261,7 +262,7 @@ class UserRepositoryAdapterTest {
             // given
             userRepository.save(User.builder()
                     .id(100L)
-                    .email("inactive@example.com")
+                    .email(new Email("inactive@example.com"))
                     .passwordHash("hash")
                     .nickname("inactive")
                     .status(UserStatus.INACTIVE)

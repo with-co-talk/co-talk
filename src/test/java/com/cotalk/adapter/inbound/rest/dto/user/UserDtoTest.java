@@ -1,6 +1,7 @@
 package com.cotalk.adapter.inbound.rest.dto.user;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.entity.User.OnlineStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -24,7 +25,7 @@ class UserDtoTest {
             // given
             User user = User.builder()
                     .id(1L)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .nickname("테스트유저")
                     .passwordHash("hash")
                     .avatarUrl("https://example.com/avatar.png")
@@ -50,7 +51,7 @@ class UserDtoTest {
             // given
             User user = User.builder()
                     .id(1L)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .nickname("테스트유저")
                     .passwordHash("hash")
                     .avatarUrl(null)
@@ -71,7 +72,7 @@ class UserDtoTest {
             // given
             User user = User.builder()
                     .id(1L)
-                    .email("test@example.com")
+                    .email(new Email("test@example.com"))
                     .nickname("테스트유저")
                     .passwordHash("hash")
                     .onlineStatus(OnlineStatus.AWAY)

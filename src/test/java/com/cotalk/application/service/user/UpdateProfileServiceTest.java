@@ -1,6 +1,7 @@
 package com.cotalk.application.service.user;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.port.inbound.user.UpdateProfileUseCase;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -41,7 +42,7 @@ class UpdateProfileServiceTest {
         String newAvatarUrl = "https://example.com/new-avatar.png";
         User user = User.builder()
                 .id(userId)
-                .email("test@test.com")
+                .email(new Email("test@test.com"))
                 .passwordHash("hashedPassword")
                 .nickname("기존닉네임")
                 .statusMessage("기존상태메시지")
@@ -70,7 +71,7 @@ class UpdateProfileServiceTest {
         String originalAvatarUrl = "https://example.com/original-avatar.png";
         User user = User.builder()
                 .id(userId)
-                .email("test@test.com")
+                .email(new Email("test@test.com"))
                 .passwordHash("hashedPassword")
                 .nickname("기존닉네임")
                 .statusMessage(originalStatusMessage)
@@ -99,7 +100,7 @@ class UpdateProfileServiceTest {
         String originalAvatarUrl = "https://example.com/original-avatar.png";
         User user = User.builder()
                 .id(userId)
-                .email("test@test.com")
+                .email(new Email("test@test.com"))
                 .passwordHash("hashedPassword")
                 .nickname(originalNickname)
                 .statusMessage("기존상태메시지")
@@ -128,7 +129,7 @@ class UpdateProfileServiceTest {
         String newAvatarUrl = "https://example.com/new-avatar.png";
         User user = User.builder()
                 .id(userId)
-                .email("test@test.com")
+                .email(new Email("test@test.com"))
                 .passwordHash("hashedPassword")
                 .nickname(originalNickname)
                 .statusMessage(originalStatusMessage)
@@ -167,7 +168,7 @@ class UpdateProfileServiceTest {
         Long userId = 1L;
         User user = User.builder()
                 .id(userId)
-                .email("test@test.com")
+                .email(new Email("test@test.com"))
                 .passwordHash("hashedPassword")
                 .nickname("기존닉네임")
                 .build();
@@ -190,7 +191,7 @@ class UpdateProfileServiceTest {
         String originalAvatarUrl = "https://example.com/original-avatar.png";
         User user = User.builder()
                 .id(userId)
-                .email("test@test.com")
+                .email(new Email("test@test.com"))
                 .passwordHash("hashedPassword")
                 .nickname(originalNickname)
                 .statusMessage(originalStatusMessage)

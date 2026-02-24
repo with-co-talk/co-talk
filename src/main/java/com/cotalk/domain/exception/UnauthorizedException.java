@@ -8,10 +8,10 @@ package com.cotalk.domain.exception;
 public class UnauthorizedException extends DomainException {
 
     public UnauthorizedException(String message) {
-        super(message);
+        super(message, "UNAUTHORIZED", HttpStatusHint.UNAUTHORIZED);
     }
 
     public UnauthorizedException(String message, Throwable cause) {
-        super(message, cause);
+        super(message, "UNAUTHORIZED", HttpStatusHint.UNAUTHORIZED, cause);
     }
 }

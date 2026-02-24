@@ -5,6 +5,7 @@ import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.adapter.outbound.persistence.auth.EmailVerificationTokenJpaRepository;
 import com.cotalk.config.TestRedisConfiguration;
 import com.cotalk.domain.entity.EmailVerificationToken;
+import com.cotalk.domain.model.Email;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -135,7 +136,7 @@ class AuthIntegrationTest {
      */
     private void verifyEmailForUser(String email) throws Exception {
         EmailVerificationToken token = emailVerificationTokenJpaRepository.findAll().stream()
-                .filter(t -> t.getEmail().equals(email))
+                .filter(t -> t.getEmail().equals(new Email(email)))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Verification token not found for: " + email));
 
