@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.security;
 
+import com.cotalk.domain.validation.StrongPassword;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -18,6 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * PasswordValidator 테스트.
+ *
+ * <p>domain.validation.StrongPassword 기반 비밀번호 검증을 검증한다.</p>
  *
  * @author seunggu.lee
  */
@@ -165,7 +168,7 @@ class PasswordValidatorTest {
      * 테스트용 DTO.
      */
     private record TestDto(
-            @PasswordValidator
+            @StrongPassword
             String password
     ) {
     }

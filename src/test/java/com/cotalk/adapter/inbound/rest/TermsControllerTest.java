@@ -308,7 +308,7 @@ class TermsControllerTest {
         }
 
         @Test
-        @DisplayName("X-Forwarded-For 헤더에서 IP 추출")
+        @DisplayName("X-Real-IP 헤더에서 IP 추출")
         @WithMockCustomUser(userId = 1L)
         void should_extractIpFromXForwardedFor() throws Exception {
             // given
@@ -331,7 +331,7 @@ class TermsControllerTest {
             // when
             mockMvc.perform(post("/api/v1/terms/agree")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .header("X-Forwarded-For", "192.168.1.1, 10.0.0.1")
+                            .header("X-Real-IP", "192.168.1.1")
                             .content(requestBody))
                     .andExpect(status().isOk());
 
