@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneOffset;
+
 /**
  * 메시지 수정 유스케이스 구현체.
  * 메시지 내용을 수정한다.
@@ -77,7 +79,7 @@ public class UpdateMessageService implements UpdateMessageUseCase {
                         updated.getId(),
                         userId,
                         updated.getContent(),
-                        System.currentTimeMillis()
+                        timeProvider.now().toInstant(ZoneOffset.UTC).toEpochMilli()
                 )
         );
 

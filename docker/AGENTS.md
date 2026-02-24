@@ -46,4 +46,8 @@ docker-compose.yml 실행
   → app-2, app-3 순차 배포
 ```
 
+### 운영 반영 전 확인 (체크리스트)
+- **Redis 비밀번호**: Redis 사용 시 `REDIS_PASSWORD` 환경 변수 설정 필수. 미설정 시 빈 비밀번호로 동작할 수 있음. 앱은 `application.yml`에서 `password: ${REDIS_PASSWORD:}`를 사용하므로 배포/운영 문서에 명시할 것.
+- **Actuator Prometheus**: `/actuator/prometheus`는 현재 ADMIN만 접근 가능. Prometheus가 인증 없이 스크래핑하는 구성이면 403으로 메트릭 수집이 실패할 수 있음. 필요 시 (1) Prometheus에 Basic Auth 또는 서비스 어카운트 설정 후 Scrape 설정 반영, 또는 (2) 공개 스크래핑이 필요하면 SecurityConfig에서 해당 경로를 `permitAll()`에 추가하거나 IP/경로 제한이 있는 별도 보안 규칙 검토.
+
 <!-- MANUAL: -->

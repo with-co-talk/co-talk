@@ -4,9 +4,14 @@ import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.RateLimitExceededException;
 import com.cotalk.infrastructure.lock.DistributedLockException;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -130,6 +135,71 @@ public class GlobalExceptionHandler {
         log.warn("Invalid argument: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(e.getMessage(), "INVALID_ARGUMENT", LocalDateTime.now()));
+    }
+
+    /**
+     * 요청 본문 파싱 실패 예외를 처리한다.
+     *
+     * @param e 요청 본문 파싱 실패 예외
+     * @return 400 Bad Request 응답
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        log.warn("요청 본문 파싱 실패: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("요청 본문을 읽을 수 없습니다.", "INVALID_REQUEST_BODY", LocalDateTime.now()));
+    }
+
+    /**
+     * 제약 조건 위반 예외를 처리한다.
+     *
+     * @param e 제약 조건 위반 예외
+     * @return 400 Bad Request 응답
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException e) {
+        log.warn("제약 조건 위반: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(e.getMessage(), "CONSTRAINT_VIOLATION", LocalDateTime.now()));
+    }
+
+    /**
+     * 지원하지 않는 HTTP 메서드 예외를 처리한다.
+     *
+     * @param e 지원하지 않는 HTTP 메서드 예외
+     * @return 405 Method Not Allowed 응답
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        log.warn("지원하지 않는 HTTP 메서드: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(new ErrorResponse("지원하지 않는 HTTP 메서드입니다.", "METHOD_NOT_ALLOWED", LocalDateTime.now()));
+    }
+
+    /**
+     * 지원하지 않는 Content-Type 예외를 처리한다.
+     *
+     * @param e 지원하지 않는 Content-Type 예외
+     * @return 415 Unsupported Media Type 응답
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException e) {
+        log.warn("지원하지 않는 Content-Type: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(new ErrorResponse("지원하지 않는 Content-Type입니다.", "UNSUPPORTED_MEDIA_TYPE", LocalDateTime.now()));
+    }
+
+    /**
+     * 접근 거부 예외를 처리한다.
+     *
+     * @param e 접근 거부 예외
+     * @return 403 Forbidden 응답
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException e) {
+        log.warn("접근 거부: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse("접근 권한이 없습니다.", "ACCESS_DENIED", LocalDateTime.now()));
     }
 
     /**

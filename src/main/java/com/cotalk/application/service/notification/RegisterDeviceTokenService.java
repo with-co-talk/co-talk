@@ -4,6 +4,7 @@ import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.port.inbound.notification.RegisterDeviceTokenUseCase;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.infrastructure.util.TokenMasker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -80,6 +81,6 @@ public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
             return;
         }
         deviceTokenRepository.deleteByToken(token);
-        log.info("Device token unregistered by user {}: {}", userId, token);
+        log.info("Device token unregistered by user {}: {}", userId, TokenMasker.mask(token));
     }
 }

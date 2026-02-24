@@ -6,6 +6,7 @@ import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import com.cotalk.domain.port.outbound.NotificationSettingRepository;
 import com.cotalk.domain.port.outbound.PushNotificationSender;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -39,6 +40,7 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
     private final DeviceTokenRepository deviceTokenRepository;
     private final PushNotificationSender pushNotificationSender;
     private final NotificationSettingRepository notificationSettingRepository;
+    private final TimeProvider timeProvider;
 
     /**
      * 새 메시지 알림을 전송한다.
@@ -111,7 +113,7 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
                 .stream()
                 .collect(Collectors.toMap(NotificationSetting::getUserId, Function.identity()));
 
-        LocalTime now = LocalTime.now();
+        LocalTime now = timeProvider.now().toLocalTime();
         List<Long> allowedUserIds = receiverUserIds.stream()
                 .filter(userId -> {
                     NotificationSetting setting = settingsMap.get(userId);
@@ -222,7 +224,7 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
      * @return 메시지 알림이 허용되면 {@code true}
      */
     private boolean isMessageNotificationAllowed(NotificationSetting setting) {
-        return isMessageNotificationAllowed(setting, LocalTime.now());
+        return isMessageNotificationAllowed(setting, timeProvider.now().toLocalTime());
     }
 
     /**
@@ -257,7 +259,7 @@ public class SendPushNotificationService implements SendPushNotificationUseCase 
         if (!setting.isFriendRequestNotification()) {
             return false;
         }
-        return !setting.isInDoNotDisturbTime(LocalTime.now());
+        return !setting.isInDoNotDisturbTime(timeProvider.now().toLocalTime());
     }
 
     /**

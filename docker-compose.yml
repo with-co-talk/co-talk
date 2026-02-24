@@ -162,8 +162,8 @@ services:
     image: redis:7-alpine
     container_name: cotalk-redis
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+      - "127.0.0.1:6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
     networks:
@@ -229,7 +229,7 @@ services:
     image: grafana/grafana:10.2.2
     container_name: cotalk-grafana
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
@@ -251,7 +251,7 @@ services:
     image: openzipkin/zipkin:latest
     container_name: cotalk-zipkin
     ports:
-      - "9411:9411"
+      - "127.0.0.1:9411:9411"
     environment:
       - STORAGE_TYPE=mem
     networks:
@@ -270,7 +270,7 @@ services:
     image: grafana/loki:2.9.2
     container_name: cotalk-loki
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
       - ./docker/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
@@ -285,7 +285,7 @@ services:
     image: prom/alertmanager:v0.26.0
     container_name: cotalk-alertmanager
     ports:
-      - "9093:9093"
+      - "127.0.0.1:9093:9093"
     volumes:
       - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager-data:/alertmanager

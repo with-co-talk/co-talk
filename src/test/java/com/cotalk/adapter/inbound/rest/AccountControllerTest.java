@@ -172,14 +172,14 @@ class AccountControllerTest {
 
 
         @Test
-        @DisplayName("request body 없이 요청 시 500 에러 (HttpMessageNotReadable)")
+        @DisplayName("request body 없이 요청 시 400 에러 (HttpMessageNotReadable)")
         @WithMockCustomUser(userId = 1L)
-        void should_returnInternalError_when_noRequestBody() throws Exception {
+        void should_returnBadRequest_when_noRequestBody() throws Exception {
             // given
-            // when & then - body 없이 요청 시 HttpMessageNotReadableException 발생
+            // when & then - body 없이 요청 시 HttpMessageNotReadableException → 400
             mockMvc.perform(delete("/api/v1/account")
                             .contentType(MediaType.APPLICATION_JSON))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isBadRequest());
         }
 
         @Test

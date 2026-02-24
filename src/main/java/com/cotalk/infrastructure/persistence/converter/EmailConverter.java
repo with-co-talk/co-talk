@@ -43,6 +43,12 @@ public class EmailConverter implements AttributeConverter<Email, String> {
         return local + "@***" + domainSuffix;
     }
 
+    /**
+     * Email 값 객체를 데이터베이스 컬럼 값(String)으로 변환한다.
+     *
+     * @param email 변환할 Email 값 객체
+     * @return 이메일 주소 문자열, null이면 null 반환
+     */
     @Override
     public String convertToDatabaseColumn(Email email) {
         return email == null ? null : email.value();

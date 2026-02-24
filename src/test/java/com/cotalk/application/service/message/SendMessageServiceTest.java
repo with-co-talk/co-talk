@@ -11,6 +11,7 @@ import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
@@ -74,6 +75,9 @@ class SendMessageServiceTest {
     @Mock
     private TransactionTemplate transactionTemplate;
 
+    @Mock
+    private TimeProvider timeProvider;
+
     private ChatRoomMemberValidator chatRoomMemberValidator;
 
     private SendMessageService sendMessageService;
@@ -85,7 +89,8 @@ class SendMessageServiceTest {
         sendMessageService = new SendMessageService(
                 messageRepository, chatRoomMemberRepository, userRepository, idGenerator,
                 sendPushNotificationUseCase, chatRoomMemberValidator, chatRoomPresenceTracker,
-                customMetrics, messageLinkPreviewService, messageBroadcastService, transactionTemplate);
+                customMetrics, messageLinkPreviewService, messageBroadcastService, transactionTemplate,
+                timeProvider);
 
         // TransactionTemplate: 콜백을 즉시 실행 (트랜잭션 없이 동기 실행)
         lenient().when(transactionTemplate.execute(any(TransactionCallback.class)))
@@ -99,6 +104,7 @@ class SendMessageServiceTest {
                 .thenReturn(1);
         lenient().when(chatRoomPresenceTracker.getActiveUserIds(anyLong(), anyList())).thenReturn(Set.of());
         lenient().when(messageLinkPreviewService.extractFirstUrl(anyString())).thenReturn(Optional.empty());
+        lenient().when(timeProvider.now()).thenReturn(java.time.LocalDateTime.now());
     }
 
     @Nested

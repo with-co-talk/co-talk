@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneOffset;
+
 /**
  * 메시지 삭제 유스케이스 구현체.
  * 메시지를 소프트 삭제하고 실시간으로 채팅방 참여자들에게 알린다.
@@ -87,7 +89,7 @@ public class DeleteMessageService implements DeleteMessageUseCase {
                         chatRoomId,
                         messageId,
                         deletedBy,
-                        System.currentTimeMillis()
+                        timeProvider.now().toInstant(ZoneOffset.UTC).toEpochMilli()
                 )
         );
 

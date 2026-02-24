@@ -1,8 +1,8 @@
 package com.cotalk.infrastructure.push;
 
-import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import com.cotalk.domain.port.outbound.PushNotificationSender;
+import com.cotalk.infrastructure.util.TokenMasker;
 import com.google.firebase.messaging.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
@@ -193,10 +193,10 @@ public class FcmPushNotificationSender implements PushNotificationSender {
         MessagingErrorCode errorCode = e.getMessagingErrorCode();
 
         if (isInvalidTokenError(errorCode)) {
-            log.warn("FCM token is invalid or unregistered: {}", token);
+            log.warn("FCM token is invalid or unregistered: {}", TokenMasker.mask(token));
             deactivateToken(token);
         } else {
-            log.error("FCM send failed for token {}: {}", token, e.getMessage());
+            log.error("FCM send failed for token {}: {}", TokenMasker.mask(token), e.getMessage());
         }
     }
 
@@ -221,7 +221,7 @@ public class FcmPushNotificationSender implements PushNotificationSender {
                 .ifPresent(deviceToken -> {
                     deviceToken.deactivate();
                     deviceTokenRepository.save(deviceToken);
-                    log.info("Deactivated invalid FCM token: {}", token);
+                    log.info("Deactivated invalid FCM token: {}", TokenMasker.mask(token));
                 });
     }
 

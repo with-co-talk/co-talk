@@ -44,6 +44,11 @@ logging:
     org.springframework.web: WARN
     org.hibernate: WARN
 
+# 암호화 강제 활성화 (프로덕션)
+app:
+  encryption:
+    enabled: true
+
 # 모니터링 설정 - 샘플링 조정
 management:
   tracing:

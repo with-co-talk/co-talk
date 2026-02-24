@@ -11,6 +11,7 @@ import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.port.outbound.MetricsPort;
 import com.cotalk.domain.util.HtmlSanitizer;
@@ -21,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 
@@ -50,6 +50,7 @@ public class SendMessageService implements SendMessageUseCase {
     private final MessageLinkPreviewService messageLinkPreviewService;
     private final MessageBroadcastService messageBroadcastService;
     private final TransactionTemplate transactionTemplate;
+    private final TimeProvider timeProvider;
 
     /**
      * 텍스트 메시지를 전송한다.
@@ -168,7 +169,7 @@ public class SendMessageService implements SendMessageUseCase {
             customMetrics.incrementMessagesSent();
 
             // 발신자는 자신이 보낸 메시지를 읽은 것으로 간주하여 lastReadMessageId 업데이트
-            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+            LocalDateTime now = timeProvider.now();
             int updated = chatRoomMemberRepository.updateLastReadMessageIdIfNewer(
                     chatRoomId, senderId, now, savedMessage.getId());
             if (updated > 0) {

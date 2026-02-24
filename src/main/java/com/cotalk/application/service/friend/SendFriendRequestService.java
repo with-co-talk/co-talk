@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 친구 요청 전송 유스케이스 구현체.
@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>동시성 제어:
  * <ul>
  *   <li>분산락: 동일 사용자 쌍에 대한 동시 요청 방지</li>
+ *   <li>TransactionTemplate: 분산락 내부에서 트랜잭션 실행하여 락-트랜잭션 범위 역전 방지</li>
  *   <li>DB UNIQUE: 중복 요청 최종 방어</li>
  * </ul>
  *
@@ -39,6 +40,7 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
     private final IdGenerator idGenerator;
     private final DistributedLockPort lockExecutor;
     private final SendPushNotificationUseCase sendPushNotificationUseCase;
+    private final TransactionTemplate transactionTemplate;
 
     /**
      * 친구 요청을 전송한다.
@@ -57,7 +59,6 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
      * @throws com.cotalk.domain.exception.UserNotFoundException 수신자를 찾을 수 없는 경우
      */
     @Override
-    @Transactional
     public Long sendFriendRequest(Long requesterId, Long receiverId) {
         userValidator.validateNotSelfAction(requesterId, receiverId, "친구 요청");
         userValidator.validateUserExists(receiverId);
@@ -66,7 +67,7 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
         String lockKey = createFriendRequestLockKey(requesterId, receiverId);
 
         return lockExecutor.executeWithLock(lockKey, () ->
-                createFriendRequest(requesterId, receiverId));
+                transactionTemplate.execute(status -> createFriendRequest(requesterId, receiverId)));
     }
 
     /**

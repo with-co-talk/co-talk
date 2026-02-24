@@ -140,6 +140,7 @@ app:
     # 프로덕션: 반드시 환경변수로 안전한 키 설정 필요
     # 키 생성: openssl rand -base64 32
     key: ${ENCRYPTION_KEY}  # 필수 환경변수 - 기본값 없음 (보안)
+    enabled: ${ENCRYPTION_ENABLED:true}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   redis:
