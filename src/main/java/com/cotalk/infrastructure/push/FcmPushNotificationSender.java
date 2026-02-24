@@ -1,8 +1,8 @@
 package com.cotalk.infrastructure.push;
 
-import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import com.cotalk.domain.port.outbound.PushNotificationSender;
+import com.cotalk.infrastructure.util.TokenMasker;
 import com.google.firebase.messaging.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
@@ -193,10 +193,10 @@ public class FcmPushNotificationSender implements PushNotificationSender {
         MessagingErrorCode errorCode = e.getMessagingErrorCode();
 
         if (isInvalidTokenError(errorCode)) {
-            log.warn("FCM token is invalid or unregistered: {}", maskToken(token));
+            log.warn("FCM token is invalid or unregistered: {}", TokenMasker.mask(token));
             deactivateToken(token);
         } else {
-            log.error("FCM send failed for token {}: {}", maskToken(token), e.getMessage());
+            log.error("FCM send failed for token {}: {}", TokenMasker.mask(token), e.getMessage());
         }
     }
 
@@ -221,7 +221,7 @@ public class FcmPushNotificationSender implements PushNotificationSender {
                 .ifPresent(deviceToken -> {
                     deviceToken.deactivate();
                     deviceTokenRepository.save(deviceToken);
-                    log.info("Deactivated invalid FCM token: {}", maskToken(token));
+                    log.info("Deactivated invalid FCM token: {}", TokenMasker.mask(token));
                 });
     }
 
@@ -235,20 +235,6 @@ public class FcmPushNotificationSender implements PushNotificationSender {
             deactivateToken(token);
         }
         log.info("Deactivated {} invalid FCM tokens", tokens.size());
-    }
-
-    /**
-     * 토큰을 마스킹하여 로그에 안전하게 출력한다.
-     * 앞 6자 + ... + 뒤 4자 형식으로 변환한다.
-     *
-     * @param token 마스킹할 토큰
-     * @return 마스킹된 토큰 문자열
-     */
-    private String maskToken(String token) {
-        if (token == null || token.length() <= 10) {
-            return "***";
-        }
-        return token.substring(0, 6) + "..." + token.substring(token.length() - 4);
     }
 
     /**

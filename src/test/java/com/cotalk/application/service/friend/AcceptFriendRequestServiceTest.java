@@ -4,10 +4,10 @@ import com.cotalk.domain.entity.Friend;
 import com.cotalk.domain.entity.FriendRequest;
 import com.cotalk.domain.exception.FriendNotFoundException;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
+import com.cotalk.domain.port.outbound.DistributedLockPort;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
-import com.cotalk.infrastructure.lock.DistributedLockExecutor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,7 +43,7 @@ class AcceptFriendRequestServiceTest {
     private SnowflakeIdGenerator idGenerator;
 
     @Mock
-    private DistributedLockExecutor lockExecutor;
+    private DistributedLockPort lockExecutor;
 
     @Mock
     private TransactionTemplate transactionTemplate;
