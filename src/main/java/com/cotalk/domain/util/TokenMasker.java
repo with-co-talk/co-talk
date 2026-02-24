@@ -1,4 +1,4 @@
-package com.cotalk.infrastructure.util;
+package com.cotalk.domain.util;
 
 /**
  * FCM·디바이스 토큰 등 로그 출력 시 마스킹하기 위한 유틸리티 클래스.
