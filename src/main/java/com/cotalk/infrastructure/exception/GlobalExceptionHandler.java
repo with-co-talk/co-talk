@@ -66,6 +66,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleDomainException(DomainException e) {
         log.warn("Domain exception [{}]: {}", e.getErrorCode(), e.getMessage());
         HttpStatus status = HttpStatus.resolve(e.getStatusHint().getStatusCode());
+        // HttpStatusHint에 정의되지 않은 코드가 들어오면 null → 400으로 처리. (향후 500 정책으로 변경 가능)
         if (status == null) {
             status = HttpStatus.BAD_REQUEST;
         }
