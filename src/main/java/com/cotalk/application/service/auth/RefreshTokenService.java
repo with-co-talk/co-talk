@@ -8,6 +8,8 @@ import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.RefreshTokenRepository;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -20,6 +22,7 @@ import java.util.UUID;
  * @author seunggu.lee
  */
 @Slf4j
+@Service
 @Transactional
 public class RefreshTokenService implements RefreshTokenUseCase {
 
@@ -43,7 +46,7 @@ public class RefreshTokenService implements RefreshTokenUseCase {
             AuthTokenPort authTokenPort,
             IdGenerator idGenerator,
             TimeProvider timeProvider,
-            long refreshTokenExpirationDays) {
+            @Value("${jwt.refresh-token.expiration-days:30}") long refreshTokenExpirationDays) {
         this.refreshTokenRepository = refreshTokenRepository;
         this.authTokenPort = authTokenPort;
         this.idGenerator = idGenerator;

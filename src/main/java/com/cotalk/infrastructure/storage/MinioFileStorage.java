@@ -26,6 +26,10 @@ import java.time.Duration;
  *
  * <p>초기화 시 설정된 버킷이 존재하지 않으면 자동으로 생성한다.
  *
+ * <p>공개 읽기 정책({@code minio.public-read-policy})이 {@code true}이면 버킷에 공개 읽기 정책을
+ * 적용하여 {@code publicUrl}로 직접 파일에 접근 가능하다. {@code false}이면 공개 읽기 정책을 설정하지
+ * 않으며, 파일 접근 시 Pre-signed URL이 필요하다.
+ *
  * @author seunggu.lee
  * @see FileStorage
  * @see InMemoryFileStorage
@@ -41,6 +45,7 @@ public class MinioFileStorage implements FileStorage {
     private final S3Presigner s3Presigner;
     private final String bucketName;
     private final String publicUrl;
+    private final boolean publicReadPolicy;
 
     /**
      * MinioFileStorage를 생성한다.
@@ -57,6 +62,7 @@ public class MinioFileStorage implements FileStorage {
         this.s3Presigner = s3Presigner;
         this.bucketName = minioProperties.bucket();
         this.publicUrl = minioProperties.publicUrl();
+        this.publicReadPolicy = minioProperties.publicReadPolicy();
 
         try {
             ensureBucketExists();
@@ -70,7 +76,7 @@ public class MinioFileStorage implements FileStorage {
 
     /**
      * 버킷이 존재하는지 확인하고, 없으면 생성한다.
-     * 생성 후 공개 읽기 정책을 설정한다.
+     * {@code publicReadPolicy}가 {@code true}이면 공개 읽기 정책을 설정한다.
      */
     private void ensureBucketExists() {
         try {
@@ -84,13 +90,19 @@ public class MinioFileStorage implements FileStorage {
                     .bucket(bucketName)
                     .build());
         }
-        // 항상 공개 읽기 정책 적용 (기존 버킷도 포함)
-        setPublicReadPolicy();
+
+        if (publicReadPolicy) {
+            setPublicReadPolicy();
+        } else {
+            log.info("Public read policy is disabled for bucket '{}'. Pre-signed URLs will be required for file access.", bucketName);
+        }
     }
 
     /**
      * 버킷에 공개 읽기 정책을 설정한다.
      * 업로드된 파일에 인증 없이 접근할 수 있도록 한다.
+     *
+     * <p>{@code minio.public-read-policy=true}일 때만 호출된다.
      */
     private void setPublicReadPolicy() {
         String policy = """
@@ -121,8 +133,11 @@ public class MinioFileStorage implements FileStorage {
     /**
      * 파일을 MinIO에 업로드한다.
      *
-     * <p>공개 URL이 설정되어 있으면 해당 URL을 반환하고,
-     * 그렇지 않으면 7일 유효기간의 Pre-signed URL을 생성하여 반환한다.
+     * <p>공개 URL({@code minio.public-url})이 설정되어 있으면 {@code publicUrl/bucket/fileName} 형태의 직접 URL을 반환한다.
+     * 공개 URL이 없으면 7일 유효기간의 Pre-signed URL을 생성하여 반환한다.
+     *
+     * <p>공개 읽기 정책({@code minio.public-read-policy})이 {@code false}인 경우 직접 URL로는 파일에 접근할 수 없으며,
+     * {@link #generatePresignedUrl(String, int)}을 통해 서명된 URL을 별도로 발급해야 한다.
      *
      * @param inputStream 업로드할 파일의 입력 스트림
      * @param fileName    저장될 파일명 (오브젝트 키)
