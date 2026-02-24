@@ -1,5 +1,7 @@
 package com.cotalk.domain.util;
 
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
 import org.springframework.web.util.HtmlUtils;
 
 /**
@@ -99,15 +101,20 @@ public final class HtmlSanitizer {
 
     /**
      * 문자열에서 모든 HTML 태그를 제거한다.
-     * null 입력은 null을 반환한다.
+     *
+     * <p>단순 정규식 대신 Jsoup 파서를 사용하여 불완전한 태그({@code <script}),
+     * 중첩 꺾쇠({@code <<script>}) 등 정규식으로 우회 가능한 패턴도 안전하게 처리한다.
+     * {@link Safelist#none()}을 적용하므로 어떠한 HTML 태그나 속성도 허용하지 않는다.</p>
+     *
+     * <p>null 입력은 null을 반환한다.</p>
      *
      * @param input 태그를 제거할 문자열
-     * @return 태그가 제거된 문자열, 입력이 null이면 null
+     * @return 태그가 제거된 순수 텍스트, 입력이 null이면 null
      */
     public static String stripAllTags(String input) {
         if (input == null) {
             return null;
         }
-        return input.replaceAll("<[^>]*>", "");
+        return Jsoup.clean(input, Safelist.none());
     }
 }

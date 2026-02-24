@@ -14,11 +14,11 @@ import java.lang.annotation.Target;
  *
  * <p>비밀번호 요구사항:</p>
  * <ul>
- *     <li>최소 8자 이상</li>
+ *     <li>최소 8자 이상, 최대 128자 이하</li>
  *     <li>대문자 1개 이상</li>
  *     <li>소문자 1개 이상</li>
  *     <li>숫자 1개 이상</li>
- *     <li>특수문자 1개 이상 (@$!%*?&)</li>
+ *     <li>특수문자 1개 이상 (@$!%*?&amp;#^()-_=+)</li>
  * </ul>
  *
  * @author seunggu.lee
@@ -34,7 +34,7 @@ public @interface StrongPassword {
      *
      * @return 기본 에러 메시지
      */
-    String message() default "비밀번호는 8자 이상이며, 대문자, 소문자, 숫자, 특수문자를 각각 1개 이상 포함해야 합니다.";
+    String message() default "비밀번호는 8-128자이며, 대문자, 소문자, 숫자, 특수문자를 각각 1개 이상 포함해야 합니다.";
 
     /**
      * 검증 그룹.

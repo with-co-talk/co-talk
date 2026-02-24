@@ -10,11 +10,11 @@ import java.util.regex.Pattern;
  *
  * <p>비밀번호 요구사항:</p>
  * <ul>
- *     <li>최소 8자 이상</li>
+ *     <li>최소 8자 이상, 최대 128자 이하</li>
  *     <li>대문자 1개 이상</li>
  *     <li>소문자 1개 이상</li>
  *     <li>숫자 1개 이상</li>
- *     <li>특수문자 1개 이상</li>
+ *     <li>특수문자 1개 이상 (@$!%*?&amp;#^()-_=+)</li>
  * </ul>
  *
  * @author seunggu.lee
@@ -23,14 +23,14 @@ public class StrongPasswordValidator implements ConstraintValidator<StrongPasswo
 
     /**
      * 비밀번호 정규식 패턴.
-     * - 최소 8자
+     * - 최소 8자, 최대 128자
      * - 대문자 1개 이상
      * - 소문자 1개 이상
      * - 숫자 1개 이상
-     * - 특수문자 1개 이상
+     * - 특수문자 1개 이상 (@$!%*?&#^()-_=+)
      */
     private static final Pattern PASSWORD_PATTERN = Pattern.compile(
-            "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d]).{8,}$"
+            "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()\\-_=+])[A-Za-z\\d@$!%*?&#^()\\-_=+]{8,128}$"
     );
 
     @Override
