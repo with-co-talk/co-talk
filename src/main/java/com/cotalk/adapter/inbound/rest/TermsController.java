@@ -119,15 +119,16 @@ public class TermsController {
 
     /**
      * HTTP 요청에서 클라이언트 IP 주소를 추출한다.
-     * X-Forwarded-For 헤더가 있으면 첫 번째 IP를, 없으면 remoteAddr을 반환한다.
+     * Nginx가 설정하는 X-Real-IP 헤더를 우선 사용한다 (스푸핑 불가).
+     * X-Real-IP가 없는 경우 remoteAddr을 반환한다.
      *
      * @param request HTTP 요청
      * @return 클라이언트 IP 주소
      */
     private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty()) {
+            return xRealIp;
         }
         return request.getRemoteAddr();
     }
