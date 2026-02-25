@@ -46,6 +46,9 @@ snowflake:
   worker-id: 0
 
 app:
+  security:
+    default-chain:
+      enabled: false
   rate-limit:
     enabled: true
     endpoints:
