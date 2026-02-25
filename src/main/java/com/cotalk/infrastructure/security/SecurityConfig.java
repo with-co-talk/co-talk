@@ -1,6 +1,7 @@
 package com.cotalk.infrastructure.security;
 
 import com.cotalk.infrastructure.config.properties.AppProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -63,6 +64,7 @@ public class SecurityConfig {
      * @throws Exception 보안 설정 중 오류 발생 시
      */
     @Bean
+    @ConditionalOnProperty(name = "app.security.default-chain.enabled", matchIfMissing = true)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))

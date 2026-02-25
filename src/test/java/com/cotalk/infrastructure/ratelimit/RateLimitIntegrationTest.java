@@ -150,7 +150,7 @@ class RateLimitIntegrationTest {
         // when & then - 5번 요청 (허용 범위)
         for (int i = 0; i < 5; i++) {
             var result = mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", uniqueIp))
+                            .header("X-Real-IP", uniqueIp))
                     .andExpect(status().isOk())
                     .andReturn();
 
@@ -159,7 +159,7 @@ class RateLimitIntegrationTest {
             if (rateLimitHeader != null) {
                 // Rate Limit이 활성화되어 있으면 헤더 확인
                 mockMvc.perform(get(endpoint)
-                                .header("X-Forwarded-For", uniqueIp))
+                                .header("X-Real-IP", uniqueIp))
                         .andExpect(header().exists("X-RateLimit-Limit"))
                         .andExpect(header().exists("X-RateLimit-Remaining"));
                 break; // 한 번만 확인
@@ -177,7 +177,7 @@ class RateLimitIntegrationTest {
         // when - 5번 요청 (허용 범위)
         for (int i = 0; i < 5; i++) {
             var result = mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", uniqueIp))
+                            .header("X-Real-IP", uniqueIp))
                     .andExpect(status().isOk())
                     .andReturn();
 
@@ -192,7 +192,7 @@ class RateLimitIntegrationTest {
 
         // then - 6번째 요청은 Rate Limit 초과
         mockMvc.perform(get(endpoint)
-                        .header("X-Forwarded-For", uniqueIp))
+                        .header("X-Real-IP", uniqueIp))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().exists("X-RateLimit-Limit"))
                 .andExpect(header().exists("X-RateLimit-Remaining"))
@@ -209,12 +209,12 @@ class RateLimitIntegrationTest {
         // when - 5번 요청으로 버킷 소진
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(get(endpoint)
-                    .header("X-Forwarded-For", uniqueIp));
+                    .header("X-Real-IP", uniqueIp));
         }
 
         // then - 6번째 요청에서 헤더 확인
         mockMvc.perform(get(endpoint)
-                        .header("X-Forwarded-For", uniqueIp))
+                        .header("X-Real-IP", uniqueIp))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().string("X-RateLimit-Limit", "5"))
                 .andExpect(header().string("X-RateLimit-Remaining", "0"))
@@ -231,13 +231,13 @@ class RateLimitIntegrationTest {
         // when - 동일 IP에서 5번 요청
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", uniqueIp))
+                            .header("X-Real-IP", uniqueIp))
                     .andExpect(status().isOk());
         }
 
         // then - 6번째 요청은 Rate Limit 초과
         mockMvc.perform(get(endpoint)
-                        .header("X-Forwarded-For", uniqueIp))
+                        .header("X-Real-IP", uniqueIp))
                 .andExpect(status().isTooManyRequests());
     }
 
@@ -290,17 +290,17 @@ class RateLimitIntegrationTest {
         // when - IP1에서 5번 요청하여 버킷 소진
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", ip1))
+                            .header("X-Real-IP", ip1))
                     .andExpect(status().isOk());
         }
 
         // then - IP1은 제한되지만, IP2는 여전히 요청 가능
         mockMvc.perform(get(endpoint)
-                        .header("X-Forwarded-For", ip1))
+                        .header("X-Real-IP", ip1))
                 .andExpect(status().isTooManyRequests());
 
         mockMvc.perform(get(endpoint)
-                        .header("X-Forwarded-For", ip2))
+                        .header("X-Real-IP", ip2))
                 .andExpect(status().isOk())
                 .andExpect(header().string("X-RateLimit-Remaining", "4")); // 첫 요청이므로 4개 남음
     }
@@ -347,7 +347,7 @@ class RateLimitIntegrationTest {
         for (int i = 0; i < 5; i++) {
             int expectedRemaining = 4 - i; // 5개 제한이므로 첫 요청 후 4, 두 번째 후 3, ...
             mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", uniqueIp))
+                            .header("X-Real-IP", uniqueIp))
                     .andExpect(status().isOk())
                     .andExpect(header().string("X-RateLimit-Limit", "5"))
                     .andExpect(header().string("X-RateLimit-Remaining", String.valueOf(expectedRemaining)));
@@ -365,17 +365,17 @@ class RateLimitIntegrationTest {
         // when - users 엔드포인트에서 5번 요청하여 버킷 소진
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(get(usersEndpoint)
-                            .header("X-Forwarded-For", uniqueIp))
+                            .header("X-Real-IP", uniqueIp))
                     .andExpect(status().isOk());
         }
 
         // then - users는 제한되지만, chat은 별도 버킷이므로 요청 가능
         mockMvc.perform(get(usersEndpoint)
-                        .header("X-Forwarded-For", uniqueIp))
+                        .header("X-Real-IP", uniqueIp))
                 .andExpect(status().isTooManyRequests());
 
         mockMvc.perform(get(chatEndpoint)
-                        .header("X-Forwarded-For", uniqueIp)
+                        .header("X-Real-IP", uniqueIp)
                         .param("userId", "1"))
                 .andExpect(status().isOk())
                 .andExpect(header().exists("X-RateLimit-Limit")); // chat 엔드포인트도 Rate Limit 적용됨
@@ -391,43 +391,41 @@ class RateLimitIntegrationTest {
         // when - 토큰 없이 3번 요청 (perUser이지만 토큰 없으면 IP 기반)
         for (int i = 0; i < 3; i++) {
             mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", uniqueIp)
+                            .header("X-Real-IP", uniqueIp)
                             .param("userId", "1"))
                     .andExpect(status().isOk());
         }
 
         // then - 4번째 요청은 Rate Limit 초과 (IP 기반으로 제한됨)
         mockMvc.perform(get(endpoint)
-                        .header("X-Forwarded-For", uniqueIp)
+                        .header("X-Real-IP", uniqueIp)
                         .param("userId", "1"))
                 .andExpect(status().isTooManyRequests());
     }
 
     @Test
-    @DisplayName("X-Forwarded-For 헤더에 여러 IP가 있을 때 첫 번째 IP 사용")
-    void should_useFirstIp_when_multipleIpsInXForwardedFor() throws Exception {
+    @DisplayName("X-Real-IP 헤더가 있으면 해당 IP를 사용")
+    void should_useXRealIpHeader_when_present() throws Exception {
         // given
         String endpoint = "/api/v1/users/search?nickname=test";
-        String clientIp = "10.5.1." + UUID.randomUUID().toString().substring(0, 3);
-        String proxyIp = "192.168.1.1";
-        String multipleIps = clientIp + ", " + proxyIp;
+        String uniqueIp = "10.5.1." + UUID.randomUUID().toString().substring(0, 3);
 
-        // when - 첫 번째 IP(clientIp)로 5번 요청
+        // when - X-Real-IP로 5번 요청 (허용 범위)
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", multipleIps))
+                            .header("X-Real-IP", uniqueIp))
                     .andExpect(status().isOk());
         }
 
-        // then - clientIp 기준으로 제한
+        // then - 6번째 요청은 Rate Limit 초과
         mockMvc.perform(get(endpoint)
-                        .header("X-Forwarded-For", multipleIps))
+                        .header("X-Real-IP", uniqueIp))
                 .andExpect(status().isTooManyRequests());
 
-        // 다른 클라이언트 IP는 여전히 요청 가능
-        String differentClientIp = "10.5.2." + UUID.randomUUID().toString().substring(0, 3);
+        // 다른 X-Real-IP는 독립적인 버킷을 사용하므로 여전히 요청 가능
+        String differentIp = "10.5.2." + UUID.randomUUID().toString().substring(0, 3);
         mockMvc.perform(get(endpoint)
-                        .header("X-Forwarded-For", differentClientIp + ", " + proxyIp))
+                        .header("X-Real-IP", differentIp))
                 .andExpect(status().isOk());
     }
 
@@ -441,14 +439,14 @@ class RateLimitIntegrationTest {
         // when - 5번 요청으로 버킷 소진
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", uniqueIp))
+                            .header("X-Real-IP", uniqueIp))
                     .andExpect(status().isOk());
         }
 
         // then - 이후 모든 요청은 429
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", uniqueIp))
+                            .header("X-Real-IP", uniqueIp))
                     .andExpect(status().isTooManyRequests())
                     .andExpect(header().string("X-RateLimit-Remaining", "0"));
         }
@@ -466,14 +464,14 @@ class RateLimitIntegrationTest {
         // when - endpoint로 5번 요청하여 버킷 소진
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", uniqueIp)
+                            .header("X-Real-IP", uniqueIp)
                             .param("nickname", "test" + i))
                     .andExpect(status().isOk());
         }
 
         // then - 같은 URI이므로 6번째 요청은 제한 (쿼리 파라미터가 달라도)
         mockMvc.perform(get(endpoint)
-                        .header("X-Forwarded-For", uniqueIp)
+                        .header("X-Real-IP", uniqueIp)
                         .param("nickname", "different"))
                 .andExpect(status().isTooManyRequests());
     }
@@ -489,13 +487,13 @@ class RateLimitIntegrationTest {
         // when & then - 정확히 5번만 허용
         for (int i = 1; i <= limit; i++) {
             mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", uniqueIp))
+                            .header("X-Real-IP", uniqueIp))
                     .andExpect(status().isOk());
         }
 
         // limit+1번째 요청은 거부
         mockMvc.perform(get(endpoint)
-                        .header("X-Forwarded-For", uniqueIp))
+                        .header("X-Real-IP", uniqueIp))
                 .andExpect(status().isTooManyRequests());
     }
 
@@ -509,13 +507,13 @@ class RateLimitIntegrationTest {
         // when - 버킷 소진
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(get(endpoint)
-                            .header("X-Forwarded-For", uniqueIp))
+                            .header("X-Real-IP", uniqueIp))
                     .andExpect(status().isOk());
         }
 
         // then - Retry-After가 양수
         var result = mockMvc.perform(get(endpoint)
-                        .header("X-Forwarded-For", uniqueIp))
+                        .header("X-Real-IP", uniqueIp))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().exists("Retry-After"))
                 .andReturn();
