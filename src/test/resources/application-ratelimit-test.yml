@@ -46,6 +46,7 @@ snowflake:
   worker-id: 0
 
 app:
+  # 통합 테스트에서 IntegrationTestSecurityConfig의 테스트용 체인만 사용 (빈 충돌 방지)
   security:
     default-chain:
       enabled: false
