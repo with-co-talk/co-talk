@@ -7,7 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
+// @Primary 제거 - 동일한 빈 이름("securityFilterChain")으로 프로덕션 빈을 오버라이드
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -36,8 +36,7 @@ public class IntegrationTestSecurityConfig {
      * @return SecurityFilterChain 인스턴스
      * @throws Exception 설정 오류 시
      */
-    @Bean
-    @Primary
+    @Bean("securityFilterChain")
     public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
