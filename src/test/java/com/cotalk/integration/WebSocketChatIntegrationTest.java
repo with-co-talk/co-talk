@@ -15,13 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.data.redis.core.RedisCallback;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
@@ -93,42 +87,29 @@ class WebSocketChatIntegrationTest {
     private TestRestTemplate restTemplate;
 
     @Autowired
-    private RedisTemplate<String, String> redisTemplate;
-
-    @Autowired
     private RedisMessageListenerContainer redisMessageListenerContainer;
 
     /**
      * Redis Pub/Sub 리스너가 완전히 초기화될 때까지 대기한다.
      * {@link RedisMessageListenerContainer#start()}는 비동기로 PSUBSCRIBE를 등록하므로,
      * CI 환경에서 테스트 실행 전에 구독이 완료되지 않는 레이스 컨디션이 발생할 수 있다.
-     * Redis 서버의 PUBSUB NUMPAT 명령으로 실제 패턴 구독 등록을 확인한다.
+     *
+     * <p>{@code isListening()}은 내부 상태 머신이 {@code State.listening()}으로 전이된 후에만 true를 반환한다.
+     * 이 전이는 PSUBSCRIBE 명령이 Redis 서버에서 성공적으로 처리된 후 발생하므로,
+     * 서버 측 구독 등록을 신뢰할 수 있게 보장한다.</p>
+     *
+     * <p>참고: 이전에 사용했던 {@code PUBSUB NUMPAT} 방식은 Lettuce 드라이버의
+     * {@code ByteArrayOutput}이 integer 응답을 처리하지 못해 항상 실패했다
+     * (spring-data-redis#2908, lettuce#2849).</p>
      */
     @BeforeEach
     void waitForRedisPubSubReady() {
-        // 1. 컨테이너 running 상태 확인
+        // isListening() = PSUBSCRIBE가 Redis 서버에서 성공 후 State.listening() 전이 완료
+        // isRunning()과 달리 실제 구독 성공을 보장한다.
         await()
-                .atMost(10, TimeUnit.SECONDS)
-                .pollInterval(100, TimeUnit.MILLISECONDS)
-                .until(redisMessageListenerContainer::isRunning);
-
-        // 2. Redis 서버에 PSUBSCRIBE가 실제 등록될 때까지 확인
-        //    PUBSUB NUMPAT: 서버에 등록된 패턴 구독 수 반환
-        await()
-                .atMost(5, TimeUnit.SECONDS)
-                .pollInterval(100, TimeUnit.MILLISECONDS)
-                .until(() -> {
-                    try {
-                        Long numpat = redisTemplate.execute((RedisCallback<Long>) connection -> {
-                            Object result = connection.execute("PUBSUB", "NUMPAT".getBytes());
-                            if (result instanceof Long l) return l;
-                            return 0L;
-                        });
-                        return numpat != null && numpat > 0;
-                    } catch (Exception e) {
-                        return false;
-                    }
-                });
+                .atMost(15, TimeUnit.SECONDS)
+                .pollInterval(200, TimeUnit.MILLISECONDS)
+                .until(redisMessageListenerContainer::isListening);
     }
 
     @Test
