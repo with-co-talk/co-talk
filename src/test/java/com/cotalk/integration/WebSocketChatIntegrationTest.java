@@ -44,7 +44,8 @@ import static org.awaitility.Awaitility.await;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
-                "spring.main.allow-bean-definition-overriding=true",
+                // 프로덕션 SecurityFilterChain 비활성화 → IntegrationTestSecurityConfig만 사용
+                "app.security.default-chain.enabled=false",
                 "spring.data.redis.enabled=true",
                 // application-test.yml의 RedisAutoConfiguration exclude를 재정의하여 Redis 자동 설정 허용
                 "spring.autoconfigure.exclude=org.redisson.spring.starter.RedissonAutoConfigurationV2"
