@@ -64,6 +64,7 @@ public class SecurityConfig {
      * @throws Exception 보안 설정 중 오류 발생 시
      */
     @Bean
+    // 테스트 프로파일(ratelimit-test 등)에서 IntegrationTestSecurityConfig만 사용하도록 비활성화 가능
     @ConditionalOnProperty(name = "app.security.default-chain.enabled", matchIfMissing = true)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http

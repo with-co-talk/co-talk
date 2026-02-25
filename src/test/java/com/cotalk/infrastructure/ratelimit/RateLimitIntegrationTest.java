@@ -33,6 +33,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Rate Limit 통합 테스트.
  * Testcontainers Redis를 사용하여 Rate Limit 동작을 검증합니다.
  *
+ * <p>IP 식별은 {@link RateLimitInterceptor}와 동일하게 X-Real-IP 헤더를 사용한다
+ * (X-Forwarded-For는 클라이언트 조작 가능으로 미사용).</p>
+ *
  * <p><b>주의:</b> Docker가 실행 중이어야 테스트가 실행됩니다.</p>
  *
  * @author seunggu.lee
