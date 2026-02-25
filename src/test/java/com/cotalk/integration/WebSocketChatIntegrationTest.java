@@ -6,6 +6,7 @@ import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -14,6 +15,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -87,6 +91,45 @@ class WebSocketChatIntegrationTest {
 
     @Autowired
     private TestRestTemplate restTemplate;
+
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
+    @Autowired
+    private RedisMessageListenerContainer redisMessageListenerContainer;
+
+    /**
+     * Redis Pub/Sub 리스너가 완전히 초기화될 때까지 대기한다.
+     * {@link RedisMessageListenerContainer#start()}는 비동기로 PSUBSCRIBE를 등록하므로,
+     * CI 환경에서 테스트 실행 전에 구독이 완료되지 않는 레이스 컨디션이 발생할 수 있다.
+     * Redis 서버의 PUBSUB NUMPAT 명령으로 실제 패턴 구독 등록을 확인한다.
+     */
+    @BeforeEach
+    void waitForRedisPubSubReady() {
+        // 1. 컨테이너 running 상태 확인
+        await()
+                .atMost(10, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(redisMessageListenerContainer::isRunning);
+
+        // 2. Redis 서버에 PSUBSCRIBE가 실제 등록될 때까지 확인
+        //    PUBSUB NUMPAT: 서버에 등록된 패턴 구독 수 반환
+        await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(() -> {
+                    try {
+                        Long numpat = redisTemplate.execute((RedisCallback<Long>) connection -> {
+                            Object result = connection.execute("PUBSUB", "NUMPAT".getBytes());
+                            if (result instanceof Long l) return l;
+                            return 0L;
+                        });
+                        return numpat != null && numpat > 0;
+                    } catch (Exception e) {
+                        return false;
+                    }
+                });
+    }
 
     @Test
     @Timeout(value = 20)
