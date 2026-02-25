@@ -44,7 +44,9 @@ import static org.awaitility.Awaitility.await;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
-                "spring.data.redis.enabled=true"
+                "spring.data.redis.enabled=true",
+                // application-test.yml의 RedisAutoConfiguration exclude를 재정의하여 Redis 자동 설정 허용
+                "spring.autoconfigure.exclude=org.redisson.spring.starter.RedissonAutoConfigurationV2"
         }
 )
 @ActiveProfiles("test")
