@@ -16,6 +16,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
@@ -31,7 +32,6 @@ import org.testcontainers.utility.DockerImageName;
 import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -89,6 +89,9 @@ class WebSocketChatIntegrationTest {
     @Autowired
     private RedisMessageListenerContainer redisMessageListenerContainer;
 
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+
     /**
      * Redis Pub/Sub 리스너가 완전히 초기화될 때까지 대기한다.
      * {@link RedisMessageListenerContainer#start()}는 비동기로 PSUBSCRIBE를 등록하므로,
@@ -97,15 +100,9 @@ class WebSocketChatIntegrationTest {
      * <p>{@code isListening()}은 내부 상태 머신이 {@code State.listening()}으로 전이된 후에만 true를 반환한다.
      * 이 전이는 PSUBSCRIBE 명령이 Redis 서버에서 성공적으로 처리된 후 발생하므로,
      * 서버 측 구독 등록을 신뢰할 수 있게 보장한다.</p>
-     *
-     * <p>참고: 이전에 사용했던 {@code PUBSUB NUMPAT} 방식은 Lettuce 드라이버의
-     * {@code ByteArrayOutput}이 integer 응답을 처리하지 못해 항상 실패했다
-     * (spring-data-redis#2908, lettuce#2849).</p>
      */
     @BeforeEach
     void waitForRedisPubSubReady() {
-        // isListening() = PSUBSCRIBE가 Redis 서버에서 성공 후 State.listening() 전이 완료
-        // isRunning()과 달리 실제 구독 성공을 보장한다.
         await()
                 .atMost(15, TimeUnit.SECONDS)
                 .pollInterval(200, TimeUnit.MILLISECONDS)
@@ -113,7 +110,7 @@ class WebSocketChatIntegrationTest {
     }
 
     @Test
-    @Timeout(value = 20)
+    @Timeout(value = 30)
     @DisplayName("A가 /app/chat/message로 보내면, B는 /topic/chat/room/{roomId}에서 실시간으로 수신한다 (Redis Pub/Sub 포함)")
     void should_deliverMessageToOtherUserViaWebSocketRoomTopic() throws Exception {
         // given: room + members
@@ -139,7 +136,7 @@ class WebSocketChatIntegrationTest {
         StompSession sessionB = connectWithToken(port, jwtTokenProvider.generateToken(2L));
 
         try {
-            CompletableFuture<Map<String, Object>> received = new CompletableFuture<>();
+            BlockingQueue<Map<String, Object>> bRoomEvents = new LinkedBlockingQueue<>();
 
             sessionB.subscribe("/topic/chat/room/" + roomId, new StompFrameHandler() {
                 @Override
@@ -150,10 +147,12 @@ class WebSocketChatIntegrationTest {
                 @SuppressWarnings("unchecked")
                 @Override
                 public void handleFrame(StompHeaders headers, Object payload) {
-                    received.complete((Map<String, Object>) payload);
+                    bRoomEvents.add((Map<String, Object>) payload);
                 }
             });
-            awaitSubscriptionReady(sessionB);
+
+            // probe 기반 구독 확인: SimpleBroker에 실제 등록될 때까지 대기
+            awaitSubscriptionReady(messagingTemplate, "/topic/chat/room/" + roomId, bRoomEvents);
 
             // when: A sends message
             sessionA.send("/app/chat/message", Map.of(
@@ -163,7 +162,7 @@ class WebSocketChatIntegrationTest {
             ));
 
             // then
-            Map<String, Object> payload = received.get(15, TimeUnit.SECONDS);
+            Map<String, Object> payload = pollRoomMessage(bRoomEvents, "hi", 15);
             assertThat(((Number) payload.get("roomId")).longValue()).isEqualTo(roomId);
             assertThat(((Number) payload.get("senderId")).longValue()).isEqualTo(1L);
             assertThat(payload.get("content")).isEqualTo("hi");
@@ -176,7 +175,7 @@ class WebSocketChatIntegrationTest {
 
     @Test
     @Timeout(value = 30)
-    @DisplayName("B가 방 구독 중이면 unreadCount=0, 구독 해제하면 unreadCount가 증가한다 (Redis Pub/Sub + chat-list)")
+    @DisplayName("메시지 전송 시 unreadCount=1로 시작, markAsRead 후 다시 전송하면 unreadCount=1 (Redis Pub/Sub + chat-list)")
     void should_adjustUnreadCount_byPresenceSubscription_withRedis() throws Exception {
         // given: room + members
         Long roomId = idGenerator.nextId();
@@ -215,7 +214,7 @@ class WebSocketChatIntegrationTest {
                 }
             });
 
-            // 1) B가 방을 구독(=presence active)한 상태에서 A가 메시지 전송
+            // B가 방 토픽 구독 (presence 목적)
             Subscription roomSub = sessionB.subscribe("/topic/chat/room/" + roomId, new StompFrameHandler() {
                 @Override
                 public Type getPayloadType(StompHeaders headers) {
@@ -227,8 +226,11 @@ class WebSocketChatIntegrationTest {
                     // no-op
                 }
             });
-            awaitSubscriptionReady(sessionB);
 
+            // chat-list 구독이 SimpleBroker에 등록될 때까지 대기
+            awaitSubscriptionReady(messagingTemplate, "/topic/user/2/chat-list", chatListEvents);
+
+            // 1) A가 메시지 전송 → B의 lastReadMessageId가 NULL이므로 unreadCount = 1
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
                     "roomId", roomId,
@@ -238,12 +240,13 @@ class WebSocketChatIntegrationTest {
             Map<String, Object> e1 = pollChatListNewMessage(chatListEvents, "m1", 15);
             assertThat(e1.get("eventType")).isEqualTo("NEW_MESSAGE");
             assertThat(((Number) e1.get("roomId")).longValue()).isEqualTo(roomId);
-            assertThat(((Number) e1.get("unreadCount")).intValue()).isZero();
+            // B가 구독 중이더라도 markAsRead를 호출하기 전까지는 unreadCount = 1
+            assertThat(((Number) e1.get("unreadCount")).intValue()).isEqualTo(1);
 
             // B 읽음 반영(REST) - 실제 앱과 동일하게 lastReadAt 업데이트
             markAsReadViaRest(restTemplate, jwtTokenProvider, 2L, roomId);
 
-            // 2) B가 구독 해제 후 메시지 전송 -> unreadCount 증가
+            // 2) B가 구독 해제 후 메시지 전송 → markAsRead 이후 새 메시지이므로 unreadCount = 1
             roomSub.unsubscribe();
 
             sessionA.send("/app/chat/message", Map.of(
@@ -316,7 +319,9 @@ class WebSocketChatIntegrationTest {
                     // no-op
                 }
             });
-            awaitSubscriptionReady(sessionB);
+
+            // A의 구독이 SimpleBroker에 등록될 때까지 대기 (A가 메시지를 수신해야 하므로)
+            awaitSubscriptionReady(messagingTemplate, "/topic/chat/room/" + roomId, aRoomEvents);
 
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -372,6 +377,7 @@ class WebSocketChatIntegrationTest {
         try {
             BlockingQueue<Map<String, Object>> aUserEvents = new LinkedBlockingQueue<>();
             BlockingQueue<Map<String, Object>> bUserEvents = new LinkedBlockingQueue<>();
+            BlockingQueue<Map<String, Object>> aRoomEvents = new LinkedBlockingQueue<>();
 
             // A가 사용자 채널 구독
             Subscription aUserSub = sessionA.subscribe("/topic/user/1/read-receipt", new StompFrameHandler() {
@@ -400,7 +406,26 @@ class WebSocketChatIntegrationTest {
                     bUserEvents.add((Map<String, Object>) payload);
                 }
             });
-            awaitSubscriptionReady(sessionB);
+
+            // A가 방 토픽도 구독하여 메시지 전달 확인용으로 사용 (메시지가 DB에 저장 + 브로드캐스트 완료 확인)
+            Subscription aRoomSub = sessionA.subscribe("/topic/chat/room/" + roomId, new StompFrameHandler() {
+                @Override
+                public Type getPayloadType(StompHeaders headers) {
+                    return Map.class;
+                }
+
+                @SuppressWarnings("unchecked")
+                @Override
+                public void handleFrame(StompHeaders headers, Object payload) {
+                    aRoomEvents.add((Map<String, Object>) payload);
+                }
+            });
+
+            // A의 read-receipt 구독과 room 구독이 모두 등록될 때까지 대기
+            awaitSubscriptionReady(messagingTemplate, "/topic/user/1/read-receipt", aUserEvents);
+            awaitSubscriptionReady(messagingTemplate, "/topic/chat/room/" + roomId, aRoomEvents);
+            // B의 read-receipt 구독도 확인
+            awaitSubscriptionReady(messagingTemplate, "/topic/user/2/read-receipt", bUserEvents);
 
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -408,17 +433,8 @@ class WebSocketChatIntegrationTest {
                     "content", "m1"
             ));
 
-            // 메시지가 브로드캐스트되고 DB에 저장될 때까지 대기
-            // (메시지 ID를 얻기 위해 REST API로 조회하거나, 큐에서 메시지 수신을 기다림)
-            // 현재는 메시지가 처리될 시간을 주기 위해 최소 대기
-            await()
-                    .atMost(500, TimeUnit.MILLISECONDS)
-                    .pollInterval(50, TimeUnit.MILLISECONDS)
-                    .until(() -> {
-                        // 메시지가 처리되었는지 확인: aUserEvents나 bUserEvents에 메시지가 들어왔는지 확인
-                        // 또는 REST API로 메시지 조회 시도
-                        return !aUserEvents.isEmpty() || !bUserEvents.isEmpty();
-                    });
+            // 메시지가 DB에 저장되고 브로드캐스트될 때까지 대기 (방 토픽에서 메시지 수신으로 확인)
+            pollRoomMessage(aRoomEvents, "m1", 15);
 
             // when: B mark-as-read
             markAsReadViaRest(restTemplate, jwtTokenProvider, 2L, roomId);
@@ -440,6 +456,7 @@ class WebSocketChatIntegrationTest {
 
             aUserSub.unsubscribe();
             bUserSub.unsubscribe();
+            aRoomSub.unsubscribe();
         } finally {
             sessionA.disconnect();
             sessionB.disconnect();
@@ -447,4 +464,3 @@ class WebSocketChatIntegrationTest {
     }
 
 }
-

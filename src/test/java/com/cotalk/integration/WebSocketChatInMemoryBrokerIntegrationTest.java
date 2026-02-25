@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Import;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
@@ -55,6 +56,9 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
     @Autowired
     private TestRestTemplate restTemplate;
 
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+
     @Test
     @Timeout(value = 20)
     @DisplayName("A가 /app/chat/message로 보내면, B는 /topic/chat/room/{roomId}에서 실시간으로 수신한다 (InMemory broker)")
@@ -81,7 +85,7 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
         StompSession sessionB = connectWithToken(port, jwtTokenProvider.generateToken(2L));
 
         try {
-            CompletableFuture<Map<String, Object>> received = new CompletableFuture<>();
+            BlockingQueue<Map<String, Object>> bRoomEvents = new LinkedBlockingQueue<>();
 
             sessionB.subscribe("/topic/chat/room/" + roomId, new StompFrameHandler() {
                 @Override
@@ -92,10 +96,12 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
                 @SuppressWarnings("unchecked")
                 @Override
                 public void handleFrame(StompHeaders headers, Object payload) {
-                    received.complete((Map<String, Object>) payload);
+                    bRoomEvents.add((Map<String, Object>) payload);
                 }
             });
-            awaitSubscriptionReady(sessionB);
+
+            // probe 기반 구독 확인
+            awaitSubscriptionReady(messagingTemplate, "/topic/chat/room/" + roomId, bRoomEvents);
 
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -103,7 +109,7 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
                     "content", "hi"
             ));
 
-            Map<String, Object> payload = received.get(15, TimeUnit.SECONDS);
+            Map<String, Object> payload = pollRoomMessage(bRoomEvents, "hi", 15);
             assertThat(payload.get("content")).isEqualTo("hi");
             assertThat(payload).containsKeys("schemaVersion", "eventId");
         } finally {
@@ -164,6 +170,9 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
                     // 방 메시지 자체는 여기서는 검증하지 않는다(필요 시 확장 가능)
                 }
             });
+
+            // chat-list 구독이 SimpleBroker에 등록될 때까지 대기
+            awaitSubscriptionReady(messagingTemplate, "/topic/user/2/chat-list", chatListEvents);
 
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -256,6 +265,9 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
                 }
             });
 
+            // A의 구독이 SimpleBroker에 등록될 때까지 대기
+            awaitSubscriptionReady(messagingTemplate, "/topic/chat/room/" + roomId, aRoomEvents);
+
             // when: A가 메시지를 전송하고, A는 해당 메시지의 messageId를 수신한다.
             sessionA.send("/app/chat/message", Map.of(
                     "senderId", 1L,
@@ -310,7 +322,9 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
                     roomEvents.add((Map<String, Object>) payload);
                 }
             });
-            awaitSubscriptionReady(sessionB);
+
+            // probe 기반 구독 확인
+            awaitSubscriptionReady(messagingTemplate, "/topic/chat/room/" + roomId, roomEvents);
 
             sessionA.send("/app/chat/typing", Map.of("roomId", roomId, "isTyping", true));
 
@@ -401,6 +415,8 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
                 errors.add((Map<String, Object>) payload);
             }
         });
+
+        // /user/queue/errors는 사용자별 destination이므로 probe 대신 짧은 대기
         awaitSubscriptionReady(session1);
 
         session1.send("/app/chat/message", Map.of("senderId", 1L, "roomId", roomId, "content", "forbidden"));
@@ -411,4 +427,3 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
     }
 
 }
-
