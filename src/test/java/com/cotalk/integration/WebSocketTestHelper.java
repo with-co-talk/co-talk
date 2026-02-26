@@ -7,8 +7,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompCommand;
-import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
@@ -16,7 +16,6 @@ import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
-import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -93,23 +92,58 @@ public final class WebSocketTestHelper {
 
     /**
      * 구독이 브로커에 반영될 때까지 대기한다.
-     * Awaitility를 사용하여 실제 구독 완료를 확인한다.
-     * 
-     * <p>구독이 이미 완료되었거나, 세션이 연결되어 있으면 즉시 반환한다.
-     * 실제 구독 완료는 STOMP 프로토콜의 비동기 특성상 짧은 대기가 필요할 수 있다.</p>
+     * Awaitility를 사용하여 세션이 연결된 상태가 유지되는지 짧게 대기한다.
+     *
+     * @param session STOMP 세션
      */
     public static void awaitSubscriptionReady(StompSession session) {
         if (!session.isConnected()) {
-            return; // 연결되지 않았으면 대기 불필요
+            return;
         }
-        // 구독이 완료될 때까지 짧게 대기 (STOMP 프로토콜의 비동기 특성)
         await()
                 .atMost(500, TimeUnit.MILLISECONDS)
                 .pollInterval(50, TimeUnit.MILLISECONDS)
-                .until(() -> {
-                    // 세션이 연결되어 있고, 구독이 등록되었거나 이미 메시지를 받을 준비가 되었는지 확인
-                    return session.isConnected();
-                });
+                .until(session::isConnected);
+    }
+
+    /**
+     * STOMP 구독이 SimpleBroker에 실제로 등록될 때까지 대기한다.
+     *
+     * <p>서버 측 {@link SimpMessagingTemplate}으로 probe 메시지를 전송하고,
+     * 구독자가 해당 메시지를 수신하면 구독이 완료된 것으로 간주한다.
+     * 이 방식은 STOMP SUBSCRIBE 프레임이 서버의 인바운드 채널에서 비동기로 처리되는
+     * 타이밍 문제를 확실하게 해결한다.</p>
+     *
+     * <p>probe 메시지는 {@code _probe=true} 키를 포함하며,
+     * 기존 poll 메서드들({@code pollRoomMessage}, {@code pollChatListNewMessage} 등)은
+     * 이 키를 가진 메시지를 자동으로 무시한다.</p>
+     *
+     * @param template    서버 측 메시지 전송 템플릿
+     * @param destination 구독 확인할 STOMP destination
+     * @param queue       해당 구독의 메시지를 수신하는 큐
+     * @throws InterruptedException 인터럽트 발생 시
+     */
+    public static void awaitSubscriptionReady(SimpMessagingTemplate template,
+                                              String destination,
+                                              BlockingQueue<Map<String, Object>> queue) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (System.currentTimeMillis() < deadline) {
+            // 서버 측에서 직접 메시지 전송 → SimpleBroker가 구독자에게 전달
+            template.convertAndSend(destination, Map.of("_probe", true));
+
+            // probe가 도착했는지 확인 (짧은 타임아웃으로 폴링)
+            Map<String, Object> received = queue.poll(300, TimeUnit.MILLISECONDS);
+            if (received != null) {
+                if (Boolean.TRUE.equals(received.get("_probe"))) {
+                    // 구독 확인 완료. 잔여 probe 메시지 제거
+                    queue.removeIf(m -> Boolean.TRUE.equals(m.get("_probe")));
+                    return;
+                }
+                // probe가 아닌 실제 메시지가 먼저 도착한 경우 → 큐에 복원
+                queue.add(received);
+            }
+        }
+        throw new AssertionError("STOMP 구독이 10초 내에 등록되지 않음: " + destination);
     }
 
     /**
