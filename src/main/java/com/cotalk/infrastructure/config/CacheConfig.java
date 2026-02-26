@@ -1,8 +1,16 @@
 package com.cotalk.infrastructure.config;
 
+import com.cotalk.domain.model.Email;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -17,6 +25,7 @@ import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSeriali
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -68,6 +77,7 @@ public class CacheConfig {
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
         ObjectMapper redisObjectMapper = new ObjectMapper();
         redisObjectMapper.registerModule(new JavaTimeModule());
+        redisObjectMapper.registerModule(emailModule());
         redisObjectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         redisObjectMapper.activateDefaultTyping(
                 redisObjectMapper.getPolymorphicTypeValidator(),
@@ -93,6 +103,32 @@ public class CacheConfig {
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigurations)
                 .build();
+    }
+
+    /**
+     * {@link Email} 값 객체의 Redis 직렬화 모듈을 생성한다.
+     * 도메인 레이어에 Jackson 의존성을 추가하지 않고, 인프라 레이어에서 처리한다.
+     * {@code Email}을 plain string으로 직렬화하고, string/object 양쪽에서 역직렬화한다.
+     *
+     * @return Email 직렬화/역직렬화 모듈
+     */
+    static SimpleModule emailModule() {
+        SimpleModule module = new SimpleModule("EmailModule");
+        module.addSerializer(Email.class, new JsonSerializer<>() {
+            @Override
+            public void serialize(Email email, JsonGenerator gen, SerializerProvider serializers)
+                    throws IOException {
+                gen.writeString(email.value());
+            }
+        });
+        module.addDeserializer(Email.class, new JsonDeserializer<>() {
+            @Override
+            public Email deserialize(JsonParser p, DeserializationContext ctxt)
+                    throws IOException {
+                return new Email(p.getText());
+            }
+        });
+        return module;
     }
 
     /**

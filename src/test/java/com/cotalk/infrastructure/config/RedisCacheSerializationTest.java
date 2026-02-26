@@ -36,6 +36,7 @@ class RedisCacheSerializationTest {
     void setUp() {
         ObjectMapper redisObjectMapper = new ObjectMapper();
         redisObjectMapper.registerModule(new JavaTimeModule());
+        redisObjectMapper.registerModule(CacheConfig.emailModule());
         redisObjectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         redisObjectMapper.activateDefaultTyping(
                 redisObjectMapper.getPolymorphicTypeValidator(),
