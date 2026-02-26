@@ -3,7 +3,6 @@ package com.cotalk.application.service.user;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.outbound.UserRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

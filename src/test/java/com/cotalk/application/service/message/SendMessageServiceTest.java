@@ -14,7 +14,6 @@ import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.TimeProvider;
 
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import com.cotalk.domain.port.outbound.MetricsPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -78,19 +77,15 @@ class SendMessageServiceTest {
     @Mock
     private TimeProvider timeProvider;
 
-    private ChatRoomMemberValidator chatRoomMemberValidator;
-
     private SendMessageService sendMessageService;
 
     @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() {
-        chatRoomMemberValidator = new ChatRoomMemberValidator(chatRoomMemberRepository);
         sendMessageService = new SendMessageService(
                 messageRepository, chatRoomMemberRepository, userRepository, idGenerator,
-                sendPushNotificationUseCase, chatRoomMemberValidator, chatRoomPresenceTracker,
-                customMetrics, messageLinkPreviewService, messageBroadcastService, transactionTemplate,
-                timeProvider);
+                sendPushNotificationUseCase, chatRoomPresenceTracker, customMetrics,
+                messageLinkPreviewService, messageBroadcastService, transactionTemplate, timeProvider);
 
         // TransactionTemplate: 콜백을 즉시 실행 (트랜잭션 없이 동기 실행)
         lenient().when(transactionTemplate.execute(any(TransactionCallback.class)))
@@ -452,13 +447,14 @@ class SendMessageServiceTest {
 
         @Test
         @DisplayName("트랜잭션 실행 결과가 null이면 예외가 발생한다")
+        @SuppressWarnings("unchecked")
         void should_throwException_when_transactionReturnsNull() {
             // given
             Long chatRoomId = 1L;
             Long senderId = 2L;
             String content = "테스트 메시지";
 
-            // TransactionTemplate이 null을 반환하도록 설정
+            // TransactionTemplate이 null을 반환하도록 설정 (any(TransactionCallback.class)는 제네릭이라 unchecked)
             given(transactionTemplate.execute(any(TransactionCallback.class)))
                     .willReturn(null);
 

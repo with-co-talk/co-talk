@@ -6,12 +6,15 @@ import com.cotalk.domain.port.outbound.MessageRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -59,8 +62,8 @@ class SearchMessageServiceTest {
         List<Message> result = searchMessageService.searchInChatRoom(chatRoomId, userId, keyword, 0, 20);
 
         // then
-        assertThat(result).hasSize(2);
-        assertThat(result).allMatch(m -> m.getContent().contains("안녕"));
+        assertThat(result).hasSize(2)
+                        .allSatisfy(m -> assertThat(m.getContent()).contains("안녕"));
     }
 
     @Test
@@ -79,13 +82,13 @@ class SearchMessageServiceTest {
                 .hasMessage("채팅방 멤버만 메시지를 검색할 수 있습니다.");
     }
 
-    @Test
-    @DisplayName("검색어가 비어있는 경우 빈 결과 반환")
-    void should_returnEmpty_when_keywordIsEmpty() {
+    @ParameterizedTest(name = "검색어가 {0}인 경우 빈 결과 반환")
+    @MethodSource("blankKeywordSource")
+    @DisplayName("검색어가 비어있거나 공백인 경우 빈 결과 반환")
+    void should_returnEmpty_when_keywordIsEmptyOrBlank(String displayValue, String keyword) {
         // given
         Long chatRoomId = 1L;
         Long userId = 100L;
-        String keyword = "";
 
         given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
 
@@ -96,38 +99,12 @@ class SearchMessageServiceTest {
         assertThat(result).isEmpty();
     }
 
-    @Test
-    @DisplayName("검색어가 null인 경우 빈 결과 반환")
-    void should_returnEmpty_when_keywordIsNull() {
-        // given
-        Long chatRoomId = 1L;
-        Long userId = 100L;
-        String keyword = null;
-
-        given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
-
-        // when
-        List<Message> result = searchMessageService.searchInChatRoom(chatRoomId, userId, keyword, 0, 20);
-
-        // then
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    @DisplayName("검색어가 공백만 있는 경우 빈 결과 반환")
-    void should_returnEmpty_when_keywordIsWhitespace() {
-        // given
-        Long chatRoomId = 1L;
-        Long userId = 100L;
-        String keyword = "   ";
-
-        given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
-
-        // when
-        List<Message> result = searchMessageService.searchInChatRoom(chatRoomId, userId, keyword, 0, 20);
-
-        // then
-        assertThat(result).isEmpty();
+    static Stream<Arguments> blankKeywordSource() {
+        return Stream.of(
+                Arguments.of("empty", ""),
+                Arguments.of("null", (String) null),
+                Arguments.of("whitespace", "   ")
+        );
     }
 
     @Test

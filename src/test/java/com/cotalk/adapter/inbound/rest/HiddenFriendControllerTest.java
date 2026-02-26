@@ -107,7 +107,6 @@ class HiddenFriendControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_returnOk_when_getHiddenFriendsSuccess() throws Exception {
             // given
-            Long userId = 1L;
             LocalDateTime now = LocalDateTime.now();
             List<HiddenFriendInfo> hiddenFriends = List.of(
                     new HiddenFriendInfo(1L, 2L, "친구1", "https://example.com/profile1.png", now),
@@ -134,7 +133,6 @@ class HiddenFriendControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_returnEmptyArray_when_noHiddenFriends() throws Exception {
             // given
-            Long userId = 1L;
             given(getHiddenFriendsUseCase.getHiddenFriends(anyLong())).willReturn(List.of());
 
             // when & then
@@ -151,7 +149,6 @@ class HiddenFriendControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_returnPaginatedResult_when_requestSecondPage() throws Exception {
             // given
-            Long userId = 1L;
             LocalDateTime now = LocalDateTime.now();
             // 첫 번째 페이지 20개 + 두 번째 페이지 3개 시뮬레이션
             List<HiddenFriendInfo> allHiddenFriends = List.of(

@@ -5,7 +5,6 @@ import com.cotalk.adapter.inbound.rest.dto.user.UpdateProfileRequest;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.model.Email;
 import com.cotalk.domain.entity.User.OnlineStatus;
-import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.user.GetUserUseCase;
 import com.cotalk.domain.port.inbound.user.SearchUserUseCase;
@@ -346,7 +345,6 @@ class UserControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_returnForbidden_when_updateOtherUserOnlineStatus() throws Exception {
             // given
-            Long currentUserId = 1L;
             Long targetUserId = 2L;
             UpdateOnlineStatusRequest request = new UpdateOnlineStatusRequest(OnlineStatus.ONLINE);
 
@@ -382,7 +380,6 @@ class UserControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_returnForbidden_when_updateOtherUserLastActive() throws Exception {
             // given
-            Long currentUserId = 1L;
             Long targetUserId = 2L;
 
             // when & then

@@ -4,7 +4,6 @@ import com.cotalk.domain.entity.EmailVerificationToken;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.InvalidEmailVerificationTokenException;
-import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;

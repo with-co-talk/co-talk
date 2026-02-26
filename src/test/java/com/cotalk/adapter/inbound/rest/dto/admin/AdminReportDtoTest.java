@@ -23,7 +23,6 @@ class AdminReportDtoTest {
         void should_createDto_when_fromReport() {
             // given
             LocalDateTime createdAt = LocalDateTime.now();
-            LocalDateTime processedAt = LocalDateTime.now().plusHours(1);
             Report report = Report.builder()
                     .id(1L)
                     .reporterId(100L)

@@ -11,8 +11,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -88,7 +86,6 @@ class BroadcastReactionEventServiceTest {
     @Test
     void should_broadcastWithCreatedAtTimestamp_when_reactionHasCreatedAt() {
         // given
-        LocalDateTime createdAt = LocalDateTime.now();
         MessageReaction reaction = MessageReaction.builder()
                 .id(1L)
                 .messageId(100L)

@@ -18,8 +18,9 @@ public class RateLimitTestConfiguration {
 
     @Bean
     @Primary
+    @SuppressWarnings("unchecked")
     public ProxyManager<byte[]> bucket4jProxyManager() {
-        return mock(ProxyManager.class);
+        return (ProxyManager<byte[]>) mock(ProxyManager.class);
     }
 
     @Bean

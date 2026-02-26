@@ -9,7 +9,6 @@ import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.cotalk.infrastructure.security.WithMockCustomUser;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,10 +19,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -37,9 +34,6 @@ class ReportControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @MockitoBean
     private CreateReportUseCase createReportUseCase;
@@ -72,10 +66,10 @@ class ReportControllerTest {
                 .build();
 
         given(createReportUseCase.reportUser(
-                eq(reporterId),
-                eq(reportedUserId),
-                eq(Report.ReportReason.HARASSMENT),
-                eq("욕설을 사용했습니다.")))
+                reporterId,
+                reportedUserId,
+                Report.ReportReason.HARASSMENT,
+                "욕설을 사용했습니다."))
                 .willReturn(report);
 
         String requestBody = """
@@ -116,10 +110,10 @@ class ReportControllerTest {
                 .build();
 
         given(createReportUseCase.reportMessage(
-                eq(reporterId),
-                eq(reportedMessageId),
-                eq(Report.ReportReason.SPAM),
-                eq("스팸 메시지입니다.")))
+                reporterId,
+                reportedMessageId,
+                Report.ReportReason.SPAM,
+                "스팸 메시지입니다."))
                 .willReturn(report);
 
         String requestBody = """
@@ -188,10 +182,10 @@ class ReportControllerTest {
         Long userId = 100L;
 
         given(createReportUseCase.reportUser(
-                eq(userId),
-                eq(userId),
-                eq(Report.ReportReason.HARASSMENT),
-                eq("test")))
+                userId,
+                userId,
+                Report.ReportReason.HARASSMENT,
+                "test"))
                 .willThrow(new InvalidReportException("자기 자신을 신고할 수 없습니다."));
 
         String requestBody = """
@@ -218,10 +212,10 @@ class ReportControllerTest {
         Long reportedUserId = 200L;
 
         given(createReportUseCase.reportUser(
-                eq(reporterId),
-                eq(reportedUserId),
-                eq(Report.ReportReason.SPAM),
-                eq("test")))
+                reporterId,
+                reportedUserId,
+                Report.ReportReason.SPAM,
+                "test"))
                 .willThrow(new InvalidReportException("이미 신고한 사용자입니다."));
 
         String requestBody = """

@@ -8,8 +8,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
@@ -45,32 +46,16 @@ class HexagonalArchitectureTest {
     @DisplayName("Domain 레이어 규칙")
     class DomainLayerRules {
 
-        @Test
-        @DisplayName("Domain은 Application 레이어에 의존하지 않는다")
-        void should_notDependOnApplication_when_inDomainLayer() {
+        @ParameterizedTest(name = "Domain은 {0} 레이어에 의존하지 않는다")
+        @CsvSource({
+                "Application, ..application..",
+                "Adapter, ..adapter..",
+                "Infrastructure, ..infrastructure.."
+        })
+        void should_notDependOnOtherLayers_when_inDomainLayer(String layerName, String forbiddenPackage) {
             ArchRule rule = noClasses()
                     .that().resideInAPackage("..domain..")
-                    .should().dependOnClassesThat().resideInAPackage("..application..");
-
-            rule.check(classes);
-        }
-
-        @Test
-        @DisplayName("Domain은 Adapter 레이어에 의존하지 않는다")
-        void should_notDependOnAdapter_when_inDomainLayer() {
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("..domain..")
-                    .should().dependOnClassesThat().resideInAPackage("..adapter..");
-
-            rule.check(classes);
-        }
-
-        @Test
-        @DisplayName("Domain은 Infrastructure 레이어에 의존하지 않는다")
-        void should_notDependOnInfrastructure_when_inDomainLayer() {
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("..domain..")
-                    .should().dependOnClassesThat().resideInAPackage("..infrastructure..");
+                    .should().dependOnClassesThat().resideInAPackage(forbiddenPackage);
 
             rule.check(classes);
         }

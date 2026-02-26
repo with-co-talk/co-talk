@@ -14,7 +14,6 @@ public class ProfileHistoryTestFixture {
     private static final Long DEFAULT_ID = 1L;
     private static final Long DEFAULT_USER_ID = 1L;
     private static final String DEFAULT_URL = "https://example.com/avatar.png";
-    private static final String DEFAULT_STATUS_MESSAGE = "안녕하세요!";
 
     /**
      * 프로필 사진(AVATAR) 이력을 생성한다.
