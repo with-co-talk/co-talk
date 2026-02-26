@@ -121,6 +121,10 @@ class ChatRoomRepositoryAdapterTest {
         @DisplayName("ID로 채팅방을 조회할 수 있다")
         void should_findChatRoom_when_idProvided() {
             // given
+            chatRoomRepository.save(ChatRoom.builder()
+                    .id(100L)
+                    .type(ChatRoomType.DIRECT)
+                    .build());
 
             // when
             Optional<ChatRoom> found = chatRoomRepository.findById(100L);
