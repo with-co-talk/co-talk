@@ -1,6 +1,5 @@
 package com.cotalk.integration;
 
-import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.adapter.inbound.rest.dto.friend.SendFriendRequestRequest;
 import com.cotalk.adapter.outbound.persistence.auth.EmailVerificationTokenJpaRepository;
@@ -53,19 +52,15 @@ class FriendIntegrationTest {
 
     private Long user1Id;
     private Long user2Id;
-    private String user1Token;
-    private String user2Token;
 
     @BeforeEach
     void setUp() throws Exception {
-        // 두 명의 사용자 생성, 이메일 인증 및 로그인
+        // 두 명의 사용자 생성 및 이메일 인증 (인증 후 setSecurityContext로 테스트)
         user1Id = createUserAndGetId("user1@test.com", "Password123!", "사용자1");
         verifyEmailForUser("user1@test.com");
-        user1Token = loginAndGetToken("user1@test.com", "Password123!");
 
         user2Id = createUserAndGetId("user2@test.com", "Password123!", "사용자2");
         verifyEmailForUser("user2@test.com");
-        user2Token = loginAndGetToken("user2@test.com", "Password123!");
     }
 
     private Long createUserAndGetId(String email, String password, String nickname) throws Exception {
@@ -78,18 +73,6 @@ class FriendIntegrationTest {
 
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
         return response.get("userId").asLong();
-    }
-
-    private String loginAndGetToken(String email, String password) throws Exception {
-        LoginRequest request = new LoginRequest(email, password);
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
-        return response.get("accessToken").asText();
     }
 
     private void verifyEmailForUser(String email) throws Exception {

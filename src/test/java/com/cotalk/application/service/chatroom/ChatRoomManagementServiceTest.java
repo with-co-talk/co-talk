@@ -16,8 +16,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -208,12 +206,6 @@ class ChatRoomManagementServiceTest {
         void should_throwException_when_normalUserTriesToPromote() {
             // given
             Long anotherUserId = 300L;
-            ChatRoomMember anotherMember = ChatRoomMember.builder()
-                    .id(3L)
-                    .chatRoomId(chatRoomId)
-                    .userId(anotherUserId)
-                    .role(ChatRoomMember.MemberRole.MEMBER)
-                    .build();
 
             given(chatRoomRepository.findById(chatRoomId)).willReturn(Optional.of(groupChatRoom));
             given(chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, normalUserId))

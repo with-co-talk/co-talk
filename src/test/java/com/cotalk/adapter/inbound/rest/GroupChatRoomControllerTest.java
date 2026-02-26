@@ -28,8 +28,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
@@ -148,7 +146,7 @@ class GroupChatRoomControllerTest {
                     .type(ChatRoom.ChatRoomType.GROUP)
                     .build();
 
-            given(chatRoomManagementUseCase.updateChatRoomName(eq(roomId), eq(adminId), eq(newName)))
+            given(chatRoomManagementUseCase.updateChatRoomName(roomId, adminId, newName))
                     .willReturn(chatRoom);
 
             // when & then
@@ -202,7 +200,7 @@ class GroupChatRoomControllerTest {
                     .role(ChatRoomMember.MemberRole.ADMIN)
                     .build();
 
-            given(chatRoomManagementUseCase.promoteToAdmin(eq(roomId), eq(adminId), eq(targetUserId)))
+            given(chatRoomManagementUseCase.promoteToAdmin(roomId, adminId, targetUserId))
                     .willReturn(member);
 
             // when & then

@@ -35,6 +35,9 @@ logs/
 application-local.yml
 application-prod.yml
 
+# Deploy state
+.deploy-active
+
 # Secrets
 *.pem
 *.key

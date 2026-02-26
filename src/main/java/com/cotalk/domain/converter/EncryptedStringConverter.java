@@ -1,6 +1,5 @@
 package com.cotalk.domain.converter;
 
-import com.cotalk.domain.port.outbound.EncryptionPort;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
@@ -34,7 +33,7 @@ public class EncryptedStringConverter implements AttributeConverter<String, Stri
         }
         try {
             return EncryptionPortHolder.getEncryptionPort().encrypt(attribute);
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException _) {
             // 테스트 환경 등에서 EncryptionPort가 초기화되지 않은 경우 평문 반환
             return attribute;
         }
@@ -53,11 +52,8 @@ public class EncryptedStringConverter implements AttributeConverter<String, Stri
         }
         try {
             return EncryptionPortHolder.getEncryptionPort().decrypt(dbData);
-        } catch (IllegalStateException e) {
-            // 테스트 환경 등에서 EncryptionPort가 초기화되지 않은 경우 그대로 반환
-            return dbData;
-        } catch (RuntimeException e) {
-            // 암호화되지 않은 기존 데이터인 경우 그대로 반환 (마이그레이션 호환)
+        } catch (RuntimeException _) {
+            // 테스트 환경 등 EncryptionPort 미초기화, 또는 암호화되지 않은 기존 데이터(마이그레이션 호환) 시 그대로 반환
             return dbData;
         }
     }

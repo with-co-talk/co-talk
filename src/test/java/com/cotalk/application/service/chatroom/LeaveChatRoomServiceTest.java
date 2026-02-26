@@ -68,7 +68,6 @@ class LeaveChatRoomServiceTest {
     private LeaveChatRoomService service;
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setUp() {
         service = new LeaveChatRoomService(
                 chatRoomMemberRepository,

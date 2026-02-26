@@ -6,7 +6,6 @@ import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.InvalidEmojiException;
 import com.cotalk.domain.exception.MessageNotFoundException;
-import com.cotalk.domain.port.inbound.message.AddMessageReactionUseCase;
 import com.cotalk.domain.port.outbound.MessageReactionRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;

@@ -119,5 +119,5 @@ jobs:
             # GHCR 로그인 (이미지 풀을 위해)
             echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.GHCR_USER }} --password-stdin
 
-            # 카나리아 롤링 배포 실행
+            # Blue-Green 무중단 배포 실행
             ./scripts/deploy.sh -f docker-compose.nas.yml --pull

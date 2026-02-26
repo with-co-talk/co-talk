@@ -4,7 +4,6 @@ import com.cotalk.adapter.inbound.rest.dto.profile.CreateProfileHistoryRequest;
 import com.cotalk.adapter.inbound.rest.dto.profile.UpdateProfileHistoryRequest;
 import com.cotalk.domain.entity.ProfileHistory;
 import com.cotalk.domain.entity.ProfileHistoryType;
-import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.port.inbound.profile.CreateProfileHistoryUseCase;
 import com.cotalk.domain.port.inbound.profile.DeleteProfileHistoryUseCase;
 import com.cotalk.domain.port.inbound.profile.GetProfileHistoryUseCase;
@@ -36,7 +35,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -203,7 +201,6 @@ class ProfileHistoryControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_return403_when_notOwner() throws Exception {
             // given
-            Long currentUserId = 1L;
             Long targetUserId = 2L;
             CreateProfileHistoryRequest request = new CreateProfileHistoryRequest(
                     ProfileHistoryType.AVATAR,
@@ -265,7 +262,6 @@ class ProfileHistoryControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_return403_when_notOwner() throws Exception {
             // given
-            Long currentUserId = 1L;
             Long targetUserId = 2L;
             Long historyId = 1L;
             UpdateProfileHistoryRequest request = new UpdateProfileHistoryRequest(true);
@@ -304,7 +300,6 @@ class ProfileHistoryControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_return403_when_notOwner() throws Exception {
             // given
-            Long currentUserId = 1L;
             Long targetUserId = 2L;
             Long historyId = 1L;
 
@@ -340,7 +335,6 @@ class ProfileHistoryControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_return403_when_notOwner() throws Exception {
             // given
-            Long currentUserId = 1L;
             Long targetUserId = 2L;
             Long historyId = 1L;
 

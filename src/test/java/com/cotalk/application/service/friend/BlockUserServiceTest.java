@@ -2,7 +2,6 @@ package com.cotalk.application.service.friend;
 
 import com.cotalk.common.fixture.BlockTestFixture;
 import com.cotalk.domain.entity.Block;
-import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidBlockException;
 import com.cotalk.domain.exception.SelfActionNotAllowedException;
 import com.cotalk.domain.exception.UserNotFoundException;
@@ -23,8 +22,6 @@ import static com.cotalk.common.fixture.UserTestFixture.createUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.doNothing;

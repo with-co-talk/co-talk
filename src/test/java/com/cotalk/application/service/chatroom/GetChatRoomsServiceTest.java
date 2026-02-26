@@ -1,10 +1,7 @@
 package com.cotalk.application.service.chatroom;
 
 import com.cotalk.domain.entity.ChatRoom;
-import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.ChatRoomSummary;
-import com.cotalk.domain.entity.Message;
-import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomsUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
@@ -30,7 +27,6 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -171,7 +167,7 @@ class GetChatRoomsServiceTest {
             ChatRoomSummary summary = result.get(0);
             assertThat(summary.lastMessage()).isEmpty();
             assertThat(summary.lastMessageAt()).isNull();
-            assertThat(summary.unreadCount()).isEqualTo(0L);
+            assertThat(summary.unreadCount()).isZero();
         }
 
         @Test
@@ -208,7 +204,7 @@ class GetChatRoomsServiceTest {
 
             // then
             assertThat(result).hasSize(1);
-            assertThat(result.get(0).unreadCount()).isEqualTo(0L);
+            assertThat(result.get(0).unreadCount()).isZero();
         }
 
         @Test
@@ -385,7 +381,7 @@ class GetChatRoomsServiceTest {
             assertThat(summary1.unreadCount()).isEqualTo(3L);
 
             ChatRoomSummary summary2 = result.stream().filter(s -> s.id().equals(chatRoomId2)).findFirst().orElseThrow();
-            assertThat(summary2.unreadCount()).isEqualTo(0L);
+            assertThat(summary2.unreadCount()).isZero();
 
             ChatRoomSummary summary3 = result.stream().filter(s -> s.id().equals(chatRoomId3)).findFirst().orElseThrow();
             assertThat(summary3.unreadCount()).isEqualTo(10L);
@@ -480,7 +476,7 @@ class GetChatRoomsServiceTest {
             // then
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.getTotalElements()).isEqualTo(1);
-            assertThat(result.getNumber()).isEqualTo(0);
+            assertThat(result.getNumber()).isZero();
             assertThat(result.getSize()).isEqualTo(20);
 
             ChatRoomSummary summary = result.getContent().get(0);
@@ -507,7 +503,7 @@ class GetChatRoomsServiceTest {
 
             // then
             assertThat(result.getContent()).isEmpty();
-            assertThat(result.getTotalElements()).isEqualTo(0);
+            assertThat(result.getTotalElements()).isZero();
             // 빈 페이지일 때 assembler가 호출되지 않음
             verify(chatRoomSummaryAssembler, never()).loadBatchData(any(), anyList());
             verify(chatRoomSummaryAssembler, never()).assembleSummaries(anyList(), any());

@@ -1,6 +1,5 @@
 package com.cotalk.domain.port.inbound.message;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**

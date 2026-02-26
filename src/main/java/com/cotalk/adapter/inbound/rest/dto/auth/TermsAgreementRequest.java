@@ -1,7 +1,6 @@
 package com.cotalk.adapter.inbound.rest.dto.auth;
 
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 

@@ -23,8 +23,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -63,14 +65,17 @@ class RateLimitIntegrationTest {
         try {
             DockerClientFactory.instance().client();
             return true;
-        } catch (Throwable e) {
+        } catch (Throwable ignored) {
             return false;
         }
     }
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitIntegrationTest.class);
 
+    private static final Random RANDOM = new Random();
+
     @Container
+    @SuppressWarnings("resource") // Testcontainers JUnit extension이 수명 관리(시작/종료)를 담당함
     static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
             .withExposedPorts(6379);
 
@@ -249,7 +254,7 @@ class RateLimitIntegrationTest {
     void should_limitByUser_when_perUserIsTrue() throws Exception {
         // given - Rate Limit: 분당 3회, 사용자별 제한
         String endpoint = "/api/v1/reports/my";
-        Long userId = (long) (Math.random() * 100000 + 10000); // 고유 사용자 ID로 테스트 격리
+        Long userId = ThreadLocalRandom.current().nextLong(10000, 110000); // 고유 사용자 ID로 테스트 격리
         String validToken = "Bearer " + jwtTokenProvider.generateToken(userId);
 
         // when - 동일 사용자로 3번 요청
@@ -313,8 +318,8 @@ class RateLimitIntegrationTest {
     void should_haveIndependentBucket_when_differentUser() throws Exception {
         // given - Rate Limit: 분당 3회, 사용자별 제한
         String endpoint = "/api/v1/reports/my";
-        Long userId1 = (long) (Math.random() * 100000 + 20000);
-        Long userId2 = (long) (Math.random() * 100000 + 30000);
+        Long userId1 = RANDOM.nextLong(20000, 120000);
+        Long userId2 = RANDOM.nextLong(30000, 130000);
         String token1 = "Bearer " + jwtTokenProvider.generateToken(userId1);
         String token2 = "Bearer " + jwtTokenProvider.generateToken(userId2);
 

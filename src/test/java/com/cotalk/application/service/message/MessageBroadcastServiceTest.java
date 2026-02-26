@@ -149,10 +149,6 @@ class MessageBroadcastServiceTest {
         List<UserEventBroker.ChatListUpdateEvent> events = eventCaptor.getAllValues();
 
         // 각 멤버별 읽지 않은 메시지 수 검증
-        UserEventBroker.ChatListUpdateEvent senderEvent = events.stream()
-                .filter(e -> messageRepository.countUnreadMessagesByLastReadMessageId(chatRoomId, senderId, null) == 0)
-                .findFirst().orElse(null);
-
         UserEventBroker.ChatListUpdateEvent receiver1Event = events.stream()
                 .filter(e -> e.unreadCount() == 10)
                 .findFirst().orElse(null);

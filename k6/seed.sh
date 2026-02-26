@@ -97,12 +97,13 @@ else
 
     for i in $(seq 1 "$USER_COUNT"); do
         email="${EMAIL_PREFIX}+${i}@${DOMAIN}"
+        signup_body=$(printf '{"email":"%s","password":"%s","nickname":"%s"}' "$email" "$PASSWORD" "${EMAIL_PREFIX}-user-${i}")
 
         status=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST "${BASE_URL}/api/v1/auth/signup" \
             -H "Content-Type: application/json" \
             ${K6_HEADER:+-H "$K6_HEADER"} \
-            -d "{\"email\":\"${email}\",\"password\":\"${PASSWORD}\",\"nickname\":\"${EMAIL_PREFIX}-user-${i}\"}")
+            -d "$signup_body")
 
         case "$status" in
             201) signup_ok=$((signup_ok + 1)); echo -ne "${GREEN}.${RESET}" ;;
@@ -115,7 +116,7 @@ else
                     -X POST "${BASE_URL}/api/v1/auth/signup" \
                     -H "Content-Type: application/json" \
                     ${K6_HEADER:+-H "$K6_HEADER"} \
-                    -d "{\"email\":\"${email}\",\"password\":\"${PASSWORD}\",\"nickname\":\"${EMAIL_PREFIX}-user-${i}\"}")
+                    -d "$signup_body")
                 if [ "$status" = "201" ]; then
                     signup_ok=$((signup_ok + 1))
                     echo -ne "${GREEN}r${RESET}"
@@ -180,13 +181,14 @@ first=true
 
 for i in $(seq 1 "$USER_COUNT"); do
     email="${EMAIL_PREFIX}+${i}@${DOMAIN}"
+    login_body=$(printf '{"email":"%s","password":"%s"}' "$email" "$PASSWORD")
 
     # Step 1: 로그인 (accessToken 획득)
     login_response=$(curl -s \
         -X POST "${BASE_URL}/api/v1/auth/login" \
         -H "Content-Type: application/json" \
         ${K6_HEADER:+-H "$K6_HEADER"} \
-        -d "{\"email\":\"${email}\",\"password\":\"${PASSWORD}\"}")
+        -d "$login_body")
 
     access_token=$(echo "$login_response" | python3 -c "
 import sys, json
@@ -223,7 +225,7 @@ except:
                 -X POST "${BASE_URL}/api/v1/auth/login" \
                 -H "Content-Type: application/json" \
                 ${K6_HEADER:+-H "$K6_HEADER"} \
-                -d "{\"email\":\"${email}\",\"password\":\"${PASSWORD}\"}")
+                -d "$login_body")
             access_token=$(echo "$login_response" | python3 -c "
 import sys, json
 try:

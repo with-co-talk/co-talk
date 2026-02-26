@@ -31,7 +31,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -115,7 +114,7 @@ class AdminControllerTest {
                     .processedAt(LocalDateTime.now())
                     .build();
 
-            given(adminUseCase.processReport(eq(reportId), eq(999L), eq(Report.ReportStatus.RESOLVED), eq("처리 완료")))
+            given(adminUseCase.processReport(reportId, 999L, Report.ReportStatus.RESOLVED, "처리 완료"))
                     .willReturn(processedReport);
 
             // when & then
@@ -183,7 +182,7 @@ class AdminControllerTest {
                     .status(User.UserStatus.SUSPENDED)
                     .build();
 
-            given(adminUseCase.suspendUser(eq(999L), eq(userId), eq("부적절한 행동")))
+            given(adminUseCase.suspendUser(999L, userId, "부적절한 행동"))
                     .willReturn(suspendedUser);
 
             // when & then
@@ -200,7 +199,6 @@ class AdminControllerTest {
         void should_activateUser() throws Exception {
             // given
             Long userId = 1L;
-            Long adminId = 999L;
 
             User activatedUser = User.builder()
                     .id(userId)
@@ -209,7 +207,7 @@ class AdminControllerTest {
                     .status(User.UserStatus.ACTIVE)
                     .build();
 
-            given(adminUseCase.activateUser(eq(999L), eq(userId))).willReturn(activatedUser);
+            given(adminUseCase.activateUser(999L, userId)).willReturn(activatedUser);
 
             // when & then
             mockMvc.perform(post("/api/v1/admin/users/{userId}/activate", userId))

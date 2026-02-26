@@ -271,20 +271,6 @@ class MessageRepositoryAdapterTest {
                     .content("메시지 1")
                     .type(MessageType.TEXT)
                     .build());
-            Message message2 = messageRepository.save(Message.builder()
-                    .id(10002L)
-                    .chatRoomId(chatRoom.getId())
-                    .senderId(user2.getId())
-                    .content("메시지 2")
-                    .type(MessageType.TEXT)
-                    .build());
-            Message message3 = messageRepository.save(Message.builder()
-                    .id(10003L)
-                    .chatRoomId(chatRoom.getId())
-                    .senderId(user1.getId())
-                    .content("메시지 3")
-                    .type(MessageType.TEXT)
-                    .build());
 
             // when - message1을 읽었다고 가정
             long unreadCount = messageRepository.countUnreadMessagesByLastReadMessageId(
@@ -345,8 +331,11 @@ class MessageRepositoryAdapterTest {
                     chatRoom.getId(), null, 3);
 
             // then
-            assertThat(messages).hasSize(3);
-            assertThat(messages.get(0).getId()).isEqualTo(10005L);
+            assertThat(messages)
+                    .hasSize(3)
+                    .element(0)
+                    .extracting(Message::getId)
+                    .isEqualTo(10005L);
         }
 
         @Test
@@ -368,8 +357,9 @@ class MessageRepositoryAdapterTest {
                     chatRoom.getId(), 10004L, 3);
 
             // then
-            assertThat(messages).hasSize(3);
-            assertThat(messages).allMatch(m -> m.getId() < 10004L);
+            assertThat(messages)
+                    .hasSize(3)
+                    .allMatch(m -> m.getId() < 10004L);
         }
     }
 

@@ -1,7 +1,6 @@
 package com.cotalk.adapter.inbound.rest.dto.message;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 /**
  * 메시지 수정 요청 DTO.

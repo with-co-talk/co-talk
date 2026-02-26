@@ -18,8 +18,6 @@ services:
     command: /bin/sh -c "envsubst '$$K6_BYPASS_TOKEN' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"
     depends_on:
       - app-1
-      - app-2
-      - app-3
     networks:
       - cotalk-network
     healthcheck:
@@ -88,67 +86,13 @@ services:
 
 
   # ===========================================
-  # 애플리케이션 (Instance 2)
+  # 애플리케이션 (Instance 2 - Blue-Green Standby)
   # ===========================================
+  # 평소에는 뜨지 않음. 배포 시 deploy.sh가 --profile deploy로 시작.
+  # 맥미니 이전 후 3인스턴스 복구 시 profiles 제거하면 됨.
   app-2:
     image: ghcr.io/${GITHUB_REPO}:latest
-    restart: unless-stopped
-    stop_grace_period: 35s
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker,prod
-      - DB_URL=jdbc:postgresql://postgres:5432/cotalk
-      - DB_USERNAME=${DB_USERNAME:-cotalk}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
-      - K6_BYPASS_TOKEN=${K6_BYPASS_TOKEN:-}
-      - SWAGGER_SERVER_URL=${SWAGGER_SERVER_URL:-http://localhost:8080}
-      - SWAGGER_SERVER_DESCRIPTION=${SWAGGER_SERVER_DESCRIPTION:-Co-Talk API 서버}
-      - MAIL_HOST=${MAIL_HOST:-}
-      - MAIL_PORT=${MAIL_PORT:-587}
-      - MAIL_USERNAME=${MAIL_USERNAME:-}
-      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
-      - FIREBASE_ENABLED=true
-      - FIREBASE_CREDENTIALS_PATH=/tmp/firebase-service-account.json
-      - TRACING_ENABLED=true
-      - ZIPKIN_ENDPOINT=http://zipkin:9411/api/v2/spans
-    volumes:
-      - ${HOME}/firebase-service-account.json:/tmp/firebase-service-account.json
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      zipkin:
-        condition: service_started
-    networks:
-      - cotalk-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 1024M
-
-  # ===========================================
-  # 애플리케이션 (Instance 3)
-  # ===========================================
-  app-3:
-    image: ghcr.io/${GITHUB_REPO}:latest
+    profiles: ["deploy"]
     restart: unless-stopped
     stop_grace_period: 35s
     environment:

@@ -48,6 +48,7 @@ public class DockerRedissonConfig {
      * @return 설정된 RedissonClient 인스턴스, 또는 연결 실패 시 null
      */
     @Bean(destroyMethod = "")
+    @SuppressWarnings("deprecation") // setRetryInterval(int): Redisson 3.51에 Duration 오버로드 없음
     public RedissonClient redissonClient() {
         String host = redisProperties.getHost();
         int port = redisProperties.getPort();
