@@ -1,6 +1,7 @@
 package com.cotalk.infrastructure.ratelimit;
 
 import io.github.bucket4j.distributed.ExpirationAfterWriteStrategy;
+import io.github.bucket4j.distributed.proxy.ClientSideConfig;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
 import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
 import io.lettuce.core.RedisClient;
@@ -59,8 +60,12 @@ public class RateLimitConfig {
 
         RedisClient redisClient = RedisClient.create(redisURI);
         
+        ClientSideConfig clientSideConfig = ClientSideConfig.getDefault()
+                .withExpirationAfterWriteStrategy(
+                        ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(Duration.ofSeconds(10)));
+
         ProxyManager<byte[]> proxyManager = LettuceBasedProxyManager.builderFor(redisClient)
-                .withExpirationStrategy(ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(Duration.ofSeconds(10)))
+                .withClientSideConfig(clientSideConfig)
                 .build();
 
         log.info("Bucket4j ProxyManager initialized with Redis: {}:{}", host, port);

@@ -1,7 +1,6 @@
 package com.cotalk.adapter.inbound.rest.dto.auth;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 /**
  * 디바이스 토큰 등록 요청 DTO.

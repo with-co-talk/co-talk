@@ -36,6 +36,8 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
     private static final int IPV4_CLOUD_METADATA_SECOND_OCTET = 254;
     private static final int IPV4_ADDRESS_LENGTH = 4;
     private static final String ELLIPSIS = "...";
+    /** HTML meta 태그의 content 속성명 */
+    private static final String META_ATTR_CONTENT = "content";
 
     /**
      * {@inheritDoc}
@@ -64,7 +66,7 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
                     siteName,
                     favicon
             );
-        } catch (Exception e) {
+        } catch (Exception _) {
             // 연결 실패 시 기본 정보만 반환
             return LinkPreviewResult.empty(url, domain);
         }
@@ -137,7 +139,7 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
             return redirectUrl;
         }
 
-        URL base = new URL(baseUrl);
+        URL base = URI.create(baseUrl).toURL();
 
         // 프로토콜 상대 URL (//example.com/path)
         if (redirectUrl.startsWith("//")) {
@@ -151,7 +153,11 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
         }
 
         // 상대 경로 (path 또는 ./path 또는 ../path)
-        return new URL(base, redirectUrl).toString();
+        try {
+            return base.toURI().resolve(redirectUrl).toURL().toString();
+        } catch (URISyntaxException e) {
+            throw new MalformedURLException("Invalid redirect URL: " + e.getMessage());
+        }
     }
 
     /**
@@ -246,9 +252,9 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
             return ogTitle;
         }
 
-        // og:title이 없으면 title 태그 사용
+        // og:title이 없으면 title 태그 사용 (Jsoup Document#title()은 null을 반환하지 않음)
         String title = doc.title();
-        return title != null && !title.isBlank() ? title : null;
+        return title.isBlank() ? null : title;
     }
 
     /**
@@ -267,7 +273,7 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
         // og:description이 없으면 meta description 사용
         Element metaDesc = doc.selectFirst("meta[name=description]");
         if (metaDesc != null) {
-            String content = metaDesc.attr("content");
+            String content = metaDesc.attr(META_ATTR_CONTENT);
             if (!content.isBlank()) {
                 return truncateDescription(content);
             }
@@ -325,7 +331,8 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
         // link[rel=icon] 또는 link[rel="shortcut icon"]
         Elements icons = doc.select("link[rel~=(?i)^(shortcut )?icon]");
         if (!icons.isEmpty()) {
-            String href = icons.first().attr("href");
+            Element firstIcon = icons.get(0);
+            String href = firstIcon.attr("href");
             if (!href.isBlank()) {
                 return resolveUrl(href, baseUrl);
             }
@@ -350,13 +357,13 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase {
     private String extractMetaContent(Document doc, String property) {
         Element meta = doc.selectFirst("meta[property=" + property + "]");
         if (meta != null) {
-            return meta.attr("content");
+            return meta.attr(META_ATTR_CONTENT);
         }
 
         // property 대신 name으로 시도 (일부 사이트)
         meta = doc.selectFirst("meta[name=" + property + "]");
         if (meta != null) {
-            return meta.attr("content");
+            return meta.attr(META_ATTR_CONTENT);
         }
 
         return null;

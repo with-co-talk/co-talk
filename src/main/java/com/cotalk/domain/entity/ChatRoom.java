@@ -3,7 +3,6 @@ package com.cotalk.domain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
 
 /**
  * 채팅방 엔티티.

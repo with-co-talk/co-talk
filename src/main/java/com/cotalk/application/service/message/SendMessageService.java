@@ -15,7 +15,6 @@ import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.port.outbound.MetricsPort;
 import com.cotalk.domain.util.HtmlSanitizer;
-import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,7 +43,6 @@ public class SendMessageService implements SendMessageUseCase {
     private final UserRepository userRepository;
     private final IdGenerator idGenerator;
     private final SendPushNotificationUseCase sendPushNotificationUseCase;
-    private final ChatRoomMemberValidator chatRoomMemberValidator;
     private final ChatRoomPresenceTracker chatRoomPresenceTracker;
     private final MetricsPort customMetrics;
     private final MessageLinkPreviewService messageLinkPreviewService;

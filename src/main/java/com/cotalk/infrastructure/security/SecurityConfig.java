@@ -94,7 +94,7 @@ public class SecurityConfig {
                         .referrerPolicy(referrer -> referrer
                                 .policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                         // Permissions-Policy - 브라우저 기능 제한
-                        .permissionsPolicy(permissions -> permissions
+                        .permissionsPolicyHeader(permissions -> permissions
                                 .policy("geolocation=(), microphone=(), camera=()")))
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {

@@ -1,7 +1,6 @@
 package com.cotalk.adapter.inbound.rest.dto.admin;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 /**
  * 사용자 정지 요청 DTO.
