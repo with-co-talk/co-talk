@@ -55,6 +55,7 @@ import static org.awaitility.Awaitility.await;
 @DisplayName("WebSocket Chat Integration")
 class WebSocketChatIntegrationTest {
 
+    @SuppressWarnings("resource")
     @Container
     static final GenericContainer<?> redis = new GenericContainer<>(
             DockerImageName.parse("redis:7.2-alpine")
@@ -156,7 +157,6 @@ class WebSocketChatIntegrationTest {
 
             // when: A sends message
             sessionA.send("/app/chat/message", Map.of(
-                    "senderId", 1L,
                     "roomId", roomId,
                     "content", "hi"
             ));
@@ -165,7 +165,7 @@ class WebSocketChatIntegrationTest {
             Map<String, Object> payload = pollRoomMessage(bRoomEvents, "hi", 15);
             assertThat(((Number) payload.get("roomId")).longValue()).isEqualTo(roomId);
             assertThat(((Number) payload.get("senderId")).longValue()).isEqualTo(1L);
-            assertThat(payload.get("content")).isEqualTo("hi");
+            assertThat(payload).containsEntry("content", "hi");
             assertThat(payload).containsKeys("schemaVersion", "eventId");
         } finally {
             sessionA.disconnect();
@@ -232,13 +232,12 @@ class WebSocketChatIntegrationTest {
 
             // 1) A가 메시지 전송 → B의 lastReadMessageId가 NULL이므로 unreadCount = 1
             sessionA.send("/app/chat/message", Map.of(
-                    "senderId", 1L,
                     "roomId", roomId,
                     "content", "m1"
             ));
 
             Map<String, Object> e1 = pollChatListNewMessage(chatListEvents, "m1", 15);
-            assertThat(e1.get("eventType")).isEqualTo("NEW_MESSAGE");
+            assertThat(e1).containsEntry("eventType", "NEW_MESSAGE");
             assertThat(((Number) e1.get("roomId")).longValue()).isEqualTo(roomId);
             // B가 구독 중이더라도 markAsRead를 호출하기 전까지는 unreadCount = 1
             assertThat(((Number) e1.get("unreadCount")).intValue()).isEqualTo(1);
@@ -250,13 +249,12 @@ class WebSocketChatIntegrationTest {
             roomSub.unsubscribe();
 
             sessionA.send("/app/chat/message", Map.of(
-                    "senderId", 1L,
                     "roomId", roomId,
                     "content", "m2"
             ));
 
             Map<String, Object> e2 = pollChatListNewMessage(chatListEvents, "m2", 15);
-            assertThat(e2.get("eventType")).isEqualTo("NEW_MESSAGE");
+            assertThat(e2).containsEntry("eventType", "NEW_MESSAGE");
             assertThat(((Number) e2.get("roomId")).longValue()).isEqualTo(roomId);
             assertThat(((Number) e2.get("unreadCount")).intValue()).isEqualTo(1);
 
@@ -324,7 +322,6 @@ class WebSocketChatIntegrationTest {
             awaitSubscriptionReady(messagingTemplate, "/topic/chat/room/" + roomId, aRoomEvents);
 
             sessionA.send("/app/chat/message", Map.of(
-                    "senderId", 1L,
                     "roomId", roomId,
                     "content", "m1"
             ));
@@ -337,7 +334,7 @@ class WebSocketChatIntegrationTest {
 
             // then: A receives READ room event with lastReadMessageId=messageId
             Map<String, Object> readPayload = pollRoomRead(aRoomEvents, 2L, roomId, 15);
-            assertThat(readPayload.get("eventType")).isEqualTo("READ");
+            assertThat(readPayload).containsEntry("eventType", "READ");
             assertThat(((Number) readPayload.get("chatRoomId")).longValue()).isEqualTo(roomId);
             assertThat(((Number) readPayload.get("userId")).longValue()).isEqualTo(2L);
             assertThat(((Number) readPayload.get("lastReadMessageId")).longValue()).isEqualTo(messageId);
@@ -428,7 +425,6 @@ class WebSocketChatIntegrationTest {
             awaitSubscriptionReady(messagingTemplate, "/topic/user/2/read-receipt", bUserEvents);
 
             sessionA.send("/app/chat/message", Map.of(
-                    "senderId", 1L,
                     "roomId", roomId,
                     "content", "m1"
             ));
@@ -452,7 +448,7 @@ class WebSocketChatIntegrationTest {
             assertThat(bReadReceipt.get("lastReadMessageId")).isNotNull();
 
             // 이벤트 ID가 동일한지 확인 (중복 체크를 위해)
-            assertThat(aReadReceipt.get("eventId")).isEqualTo(bReadReceipt.get("eventId"));
+            assertThat(aReadReceipt).containsEntry("eventId", bReadReceipt.get("eventId"));
 
             aUserSub.unsubscribe();
             bUserSub.unsubscribe();

@@ -104,7 +104,6 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
             awaitSubscriptionReady(messagingTemplate, "/topic/chat/room/" + roomId, bRoomEvents);
 
             sessionA.send("/app/chat/message", Map.of(
-                    "senderId", 1L,
                     "roomId", roomId,
                     "content", "hi"
             ));
@@ -175,7 +174,6 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
             awaitSubscriptionReady(messagingTemplate, "/topic/user/2/chat-list", chatListEvents);
 
             sessionA.send("/app/chat/message", Map.of(
-                    "senderId", 1L,
                     "roomId", roomId,
                     "content", "m1"
             ));
@@ -194,7 +192,6 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
             roomSub.unsubscribe();
 
             sessionA.send("/app/chat/message", Map.of(
-                    "senderId", 1L,
                     "roomId", roomId,
                     "content", "m2"
             ));
@@ -270,7 +267,6 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
 
             // when: A가 메시지를 전송하고, A는 해당 메시지의 messageId를 수신한다.
             sessionA.send("/app/chat/message", Map.of(
-                    "senderId", 1L,
                     "roomId", roomId,
                     "content", "m1"
             ));
@@ -419,7 +415,7 @@ class WebSocketChatInMemoryBrokerIntegrationTest {
         // /user/queue/errors는 사용자별 destination이므로 probe 대신 짧은 대기
         awaitSubscriptionReady(session1);
 
-        session1.send("/app/chat/message", Map.of("senderId", 1L, "roomId", roomId, "content", "forbidden"));
+        session1.send("/app/chat/message", Map.of("roomId", roomId, "content", "forbidden"));
 
         Map<String, Object> err = pollErrorPayload(errors, 10);
         assertThat(err.get("code")).isEqualTo("ACCESS_DENIED");
