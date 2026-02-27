@@ -78,7 +78,7 @@ jobs:
   # 2단계: Tailscale VPN으로 NAS에 무중단 배포
   # ===========================================
   # 공개 포트 없이 Tailscale VPN 터널을 통해 SSH 접속.
-  # 필요 secrets: TS_OAUTH_CLIENT_ID, TS_OAUTH_SECRET,
+  # 필요 secrets: TS_AUTHKEY,
   #              NAS_SSH_KEY, NAS_USER, NAS_DEPLOY_PATH,
   #              GHCR_USER, GHCR_TOKEN
   deploy:
@@ -91,9 +91,7 @@ jobs:
       - name: Connect to Tailscale
         uses: tailscale/github-action@v4
         with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
+          authkey: ${{ secrets.TS_AUTHKEY }}
 
       - name: Deploy to NAS via Tailscale SSH
         env:
