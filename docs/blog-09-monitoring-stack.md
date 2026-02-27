@@ -527,7 +527,9 @@ Redis Pub/Sub 구독 후 WebSocket 전달 부분은 비동기라 별도 trace로
 
 ## 다음 편
 
-9편에서는 k6를 이용한 부하 테스트와 Nginx 리버스 프록시 앞에서 실시간 채팅 앱이 어떻게 동작하는지를 다룰 예정이다. Prometheus의 `--web.enable-remote-write-receiver` 옵션도 여기서 활약한다.
+다음 편에서는 k6를 이용한 부하 테스트와 Nginx 리버스 프록시 앞에서 실시간 채팅 앱이 어떻게 동작하는지를 다룬다. Prometheus의 `--web.enable-remote-write-receiver` 옵션도 여기서 활약한다.
+
+[다음 편: k6로 채팅 앱 부하 테스트하기 — 그리고 성능 최적화](blog-10-k6-load-testing.md)
 
 ---
 

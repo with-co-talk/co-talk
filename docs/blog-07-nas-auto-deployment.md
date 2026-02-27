@@ -29,6 +29,112 @@ NAS는 이미 집에서 백업 용도로 쓰고 있었다. 추가 비용은 전�
 
 ---
 
+## 배포 전략의 진화: Watchtower → Blue-Green → Canary
+
+카나리아 롤링이 처음부터 계획된 건 아니었다. 세 번의 전략을 거쳐 지금에 이르렀다. 지금 코드에 `cotalk-watchtower`와 `co-talk-app-green-1`이라는 이름이 고아 컨테이너 정리 목록에 남아있는 게 그 흔적이다.
+
+### 1차: Watchtower — "이미지 바뀌면 알아서 교체해줘"
+
+처음에는 Watchtower를 썼다. GitHub Actions가 GHCR에 새 이미지를 push하면, NAS에서 돌고 있는 Watchtower가 주기적으로 레지스트리를 폴링하다가 새 이미지를 감지하면 컨테이너를 자동으로 교체하는 방식이다.
+
+```yaml
+# docker-compose.yml에 이거 하나 추가하면 끝
+  watchtower:
+    image: containrrr/watchtower
+    container_name: cotalk-watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 300  # 5분마다 폴링
+```
+
+설정이 이게 전부다. 애플리케이션 코드나 파이프라인을 거의 건드리지 않고 자동 배포를 달 수 있었다.
+
+**문제점이 쌓이기 시작했다.**
+
+- **폴링 지연**: 기본 5분 폴링이라 push 후 최대 5분 뒤에야 배포가 시작된다.
+- **배포 상태 추적 불가**: GitHub Actions가 이미지를 올리고 나면 그 다음 일은 모른다. 배포가 됐는지, 실패했는지 알 수가 없다.
+- **헬스체크 없이 바로 교체**: 새 컨테이너가 뜨자마자 교체한다. 앱이 실제로 준비됐는지 확인하지 않는다.
+- **롤백 불가**: 배포된 이미지에 문제가 있어도 되돌릴 방법이 없다.
+
+작은 사이드 프로젝트에서는 버텼지만, 배포 중 다운타임이 눈에 보이기 시작하면서 다음 단계로 넘어갔다.
+
+### 2차: Blue-Green — "안전하게 전환하자"
+
+app-blue와 app-green, 두 인스턴스를 준비한다. nginx upstream에는 하나만 활성화해두고, 새 이미지를 비활성 인스턴스에 먼저 올린다. 준비가 완료되면 nginx upstream을 스위칭한다.
+
+```nginx
+# upstream.conf
+upstream cotalk_backend {
+    server app-green:8080;
+    # server app-blue:8080;  # 비활성
+}
+```
+
+배포 스크립트는 어느 쪽이 현재 활성인지 확인하고, 반대편에 새 이미지를 올린 뒤 `nginx -s reload`로 전환했다.
+
+**개선된 점:**
+- 전환 시 다운타임이 거의 없다.
+- 문제가 생기면 upstream만 다시 바꾸면 되니 롤백이 빠르다.
+
+**남은 문제:**
+- 유휴 인스턴스(현재 비활성인 blue 또는 green)가 항상 메모리를 차지한다. NAS 8GB에서 이건 아깝다.
+- **All-or-nothing**: 전환은 한 번에 전체다. 새 버전에 문제가 있을 때 일부 트래픽만 먼저 보내볼 수 없다.
+
+### 3차: 카나리아 롤링 — "한 대씩 조심스럽게"
+
+현재 방식이다. app-1, app-2, app-3 세 인스턴스가 항상 살아있고, 하나씩 순차적으로 교체한다.
+
+app-1을 카나리아로 먼저 교체하고, Prometheus에서 5xx 에러율이 5%를 넘는지 확인한다. 이상이 없으면 app-2, app-3을 순서대로 교체한다. 에러율이 치솟으면 자동으로 `:previous` 이미지로 전체 롤백한다.
+
+Blue-Green의 "유휴 인스턴스 낭비" 문제가 없다. 세 인스턴스 모두 트래픽을 받으면서 순서대로 교체된다. Watchtower의 "배포 상태 추적 불가" 문제도 없다. 각 단계마다 헬스체크와 메트릭 검증이 들어간다.
+
+NAS처럼 메모리가 제한된 환경에서 세 인스턴스를 유지하는 게 부담이 아닌가 싶을 수 있다. 실제로 측정해보니 Blue-Green의 두 인스턴스 총량(2 × 1GB = 2GB)보다, 카나리아의 세 인스턴스(3 × 768MB = 2.3GB)가 비슷하거나 오히려 나았다. 트래픽이 분산되니 인스턴스당 메모리 여유가 생겼다.
+
+### 세 전략 비교
+
+| 항목 | Watchtower | Blue-Green | Canary Rolling |
+|------|-----------|------------|----------------|
+| 설정 복잡도 | 매우 낮음 | 중간 | 높음 |
+| 배포 지연 | 폴링 간격 (최대 5분) | 즉시 (push 후) | 즉시 (push 후) |
+| 다운타임 | 컨테이너 교체 중 순간 발생 | 거의 없음 | 없음 (순차 교체) |
+| 롤백 | 불가 | 빠름 (upstream 전환) | 자동 (`:previous` 이미지) |
+| 배포 상태 가시성 | 없음 | 있음 | 있음 + 메트릭 기반 |
+| 메모리 효율 | 최고 (인스턴스 1개) | 낮음 (유휴 1개 낭비) | 좋음 (모든 인스턴스 활성) |
+| 점진적 롤아웃 | 불가 | 불가 | 가능 (카나리아 검증 후) |
+
+```plantuml
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+
+title 배포 전략 진화
+
+rectangle "**1차: Watchtower**" as W
+rectangle "**2차: Blue-Green**" as BG
+rectangle "**3차: Canary Rolling**" as CR
+
+W -down-> BG : 폴링 지연, 헬스체크 없음, 롤백 불가
+BG -down-> CR : 유휴 인스턴스 메모리 낭비, all-or-nothing
+
+note right of W
+  GitHub Actions --> GHCR --> Watchtower 폴링 --> 컨테이너 교체
+  설정 간단, 배포 상태 추적 불가
+end note
+
+note right of BG
+  app-blue / app-green + nginx upstream 전환
+  다운타임 없음, 빠른 롤백
+end note
+
+note right of CR
+  app-1 --> app-2 --> app-3 순차 배포
+  Prometheus 에러율 검증, 자동 롤백
+end note
+@enduml
+```
+
+---
+
 <!-- IMAGE: GitHub Actions 워크플로우 실행 성공 화면 — Actions 탭에서 build-and-push → deploy 두 Job이 모두 초록 체크인 파이프라인 캡처 -->
 
 ## 파이프라인 전체 그림
@@ -434,6 +540,8 @@ done
 
 `2>/dev/null || true`는 컨테이너가 없을 때 에러를 무시한다. 있으면 제거, 없으면 그냥 지나간다.
 
+목록에 있는 `co-talk-app-green-1`과 `cotalk-watchtower`는 앞서 이야기한 배포 전략 변천사의 흔적이다. `co-talk-app-green-1`은 Blue-Green 시절 app-green 인스턴스의 컨테이너 이름이고, `cotalk-watchtower`는 1차 Watchtower 시절에 남은 컨테이너다. 카나리아 롤링으로 전환하면서 이 컨테이너들이 고아가 됐고, 새 배포와 이름이 충돌하지 않도록 정리 목록에 박아뒀다.
+
 ---
 
 ## 클라우드 전환 대비: Kubernetes 매니페스트 준비
@@ -485,11 +593,6 @@ main 브랜치에 push가 발생하면 이런 일이 일어난다.
 
 ---
 
-*Co-Talk 시리즈 전체 글 목록*
+*[Co-Talk 시리즈 전체 목차](blog-index.md)*
 
-- 1편: 헥사고날 아키텍처로 백엔드 구조 잡기
-- 2편: Spring Security + JWT 인증 구현
-- 3편: WebSocket STOMP로 실시간 채팅 구현
-- 4편: Redis Pub/Sub로 메시지 브로커 구성
-- 5편: CI 통합 테스트 20건 수정기 — 로컬 올 그린, CI 올 레드
-- **6편: 사이드 프로젝트를 NAS에 자동 배포하기 (현재 글)**
+다음 편: [WebSocket 브로드캐스트가 실패해도 메시지는 살려야 한다](blog-08-websocket-broadcast-resilience.md)

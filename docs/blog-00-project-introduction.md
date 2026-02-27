@@ -86,20 +86,20 @@ Hexagonal Architecture(Ports and Adapters)를 선택한 건 유행을 따라서�
 
 Hexagonal은 이 결합을 끊는다.
 
-```
+```text
 ┌─────────────────────────────────────────────┐
-│                  Domain                      │
+│                  Domain                     │
 │  (순수 Java + Jakarta Validation만)          │
-│  외부 의존 없음 — JPA, Redis, HTTP 모두 금지 │
+│  외부 의존 없음 — JPA, Redis, HTTP 모두 금지     │
 └──────────────┬──────────────────────────────┘
                │ Port(Interface)
 ┌──────────────┴──────────────────────────────┐
-│               Application                    │
-│  UseCase 구현 — domain만 의존               │
+│               Application                   │
+│  UseCase 구현 — domain만 의존                  │
 └──────────────┬──────────────────────────────┘
                │ Port(Interface)
 ┌──────────────┴──────────────────────────────┐
-│               Adapter                        │
+│               Adapter                       │
 │  inbound: REST, WebSocket                   │
 │  outbound: JPA, Redis, MinIO, FCM           │
 └─────────────────────────────────────────────┘
@@ -139,7 +139,7 @@ void inboundAdapterShouldNotDependOnOutboundAdapter() {
 
 이상적인 Hexagonal에서는 도메인 엔티티와 JPA 엔티티가 완전히 분리된다.
 
-```
+```text
 User (도메인) ←→ UserMapper ←→ UserJpaEntity (JPA)
 ```
 
@@ -242,7 +242,7 @@ public class MessageContentConverter implements AttributeConverter<String, Strin
 
 Twitter가 공개한 Snowflake 알고리즘을 직접 구현했다. 64비트 정수 하나에 아래 정보를 담는다.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │ 1비트(부호) │ 41비트(타임스탬프) │ 10비트(노드 ID) │ 12비트(시퀀스) │
 └─────────────────────────────────────────────────────────────┘
@@ -272,7 +272,7 @@ Docker 컨테이너로 패키징, GitHub Actions로 자동 배포, 자체 NAS �
 
 CI 파이프라인은 다음 순서로 실행된다.
 
-```
+```text
 push to main
   → 테스트 전체 실행 (JUnit + Testcontainers)
   → JaCoCo 커버리지 60% 미만이면 빌드 실패
@@ -367,4 +367,4 @@ Redis/InMemory 전환 전략은 기능을 위한 설계지만, 테스트에서�
 
 ---
 
-이 글은 CI 트러블슈팅 시리즈의 0편이다. 실제로 겪은 통합 테스트 20건 CI 실패 수정기는 1탄부터 이어진다.
+다음 편: [실시간 채팅 아키텍처를 밑바닥부터 쌓아올리기](blog-01-realtime-chat-architecture.md) | [전체 시리즈 목차](blog-index.md)

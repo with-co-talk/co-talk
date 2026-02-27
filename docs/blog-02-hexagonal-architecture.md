@@ -533,4 +533,4 @@ Co-Talk에 이 구조가 맞는 이유는, **인프라 교체 가능성이 실�
 
 ---
 
-다음 편: **2편 - 실시간 채팅 아키텍처 (WebSocket STOMP + Redis Pub/Sub)**
+다음 편: [CI만 터지는 이유 — MinIO 설정 한 줄의 차이](blog-03-ci-minio-connection.md)

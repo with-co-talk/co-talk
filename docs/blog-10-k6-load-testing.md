@@ -382,4 +382,4 @@ k6 run --env VUS=10 k6/scenarios/full-flow.js
 
 ---
 
-다음 편에서는 Co-Talk의 메시지 암호화(AES-256) 구현을 다룰 예정이다. 클라이언트-서버 간 메시지를 어떻게 암호화하고, 키 관리는 어떻게 하는지 이야기한다.
+다음 편: [Java 25를 쓰려면 Gradle 9가 필수다](blog-11-gradle-9-java25-upgrade.md)

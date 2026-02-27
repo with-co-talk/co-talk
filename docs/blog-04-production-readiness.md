@@ -377,8 +377,8 @@ spring:
 
 ---
 
-*Co-Talk 시리즈 다른 글:*
-- *1편 — 실시간 채팅 백엔드를 처음부터 만들어보며 배운 것들*
-- *2편 — 로컬 올 그린, CI 올 레드 (Spring Boot 통합 테스트 트러블슈팅)*
-- *5편 — Redis LocalDateTime 직렬화 함정 (예정)*
-- *11편 — Flyway + H2 비호환, 테스트 프로파일 관리법 (예정)*
+*Co-Talk 시리즈 관련 글:*
+- *[실시간 채팅 아키텍처를 밑바닥부터 쌓아올리기](blog-01-realtime-chat-architecture.md)*
+- *[Redis 캐시 직렬화 삽질기](blog-06-redis-cache-serialization.md)*
+- *[로컬 올 그린, CI 올 레드 — 통합 테스트 20건 수정기](blog-12-ci-integration-test-fix.md)*
+- *[전체 시리즈 목차](blog-index.md)*
