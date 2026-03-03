@@ -75,8 +75,12 @@ jobs:
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
   # ===========================================
-  # 2단계: NAS에 무중단 배포
+  # 2단계: Tailscale VPN으로 NAS에 무중단 배포
   # ===========================================
+  # 공개 포트 없이 Tailscale VPN 터널을 통해 SSH 접속.
+  # 필요 secrets: TS_AUTHKEY, NAS_SSH_PORT,
+  #              NAS_SSH_KEY, NAS_USER, NAS_DEPLOY_PATH,
+  #              GHCR_USER, GHCR_TOKEN
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -84,40 +88,60 @@ jobs:
     environment: production
 
     steps:
-      - name: Deploy to NAS via SSH
-        uses: appleboy/ssh-action@v1
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
         with:
-          host: ${{ secrets.NAS_HOST }}
-          port: ${{ secrets.NAS_SSH_PORT }}
-          username: ${{ secrets.NAS_USER }}
-          key: ${{ secrets.NAS_SSH_KEY }}
-          command_timeout: 10m
-          script: |
-            set -e
-            # NAS에서 Docker PATH 로드 (비로그인 셸이면 PATH에 없을 수 있음)
-            export PATH="/usr/bin:/usr/local/bin:$PATH"
-            [ -f "$HOME/.profile" ] && . "$HOME/.profile" || true
-            [ -f "/etc/profile" ] && . "/etc/profile" || true
+          authkey: ${{ secrets.TS_AUTHKEY }}
 
-            # 배포 디렉토리 확보 (없으면 생성)
-            mkdir -p ${{ secrets.NAS_DEPLOY_PATH }}
-            cd ${{ secrets.NAS_DEPLOY_PATH }}
+      - name: Deploy to NAS via Tailscale SSH
+        env:
+          NAS_SSH_KEY: ${{ secrets.NAS_SSH_KEY }}
+          NAS_SSH_PORT: ${{ secrets.NAS_SSH_PORT }}
+          NAS_USER: ${{ secrets.NAS_USER }}
+          NAS_DEPLOY_PATH: ${{ secrets.NAS_DEPLOY_PATH }}
+          GHCR_USER: ${{ secrets.GHCR_USER }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          # SSH 키 설정
+          mkdir -p ~/.ssh
+          echo "$NAS_SSH_KEY" > ~/.ssh/nas_key
+          echo "" >> ~/.ssh/nas_key
+          chmod 600 ~/.ssh/nas_key
 
-            # 저장소가 없으면 자동 clone, 있으면 pull
-            if [ ! -d .git ]; then
-              echo "Repository not found. Cloning..."
-              git clone https://${{ secrets.GHCR_USER }}:${{ secrets.GHCR_TOKEN }}@github.com/${{ github.repository }}.git .
-            else
-              git pull --ff-only
-            fi
+          # NAS Tailscale IP 확인 (MagicDNS 또는 직접 IP)
+          NAS_IP=$(tailscale status --json | jq -r '.Peer[] | select(.Tags != null) | select(.Tags[] == "tag:nas") | .TailscaleIPs[0]')
+          if [ -z "$NAS_IP" ]; then
+            echo "::error::NAS not found in Tailscale network (tag:nas)"
+            exit 1
+          fi
+          echo "NAS Tailscale IP: $NAS_IP"
 
-            # 이전 blue-green 배포의 고아 컨테이너 정리
-            for c in co-talk-app-green-1 cotalk-app cotalk-watchtower; do
-              docker rm -f "$c" 2>/dev/null || true
-            done
+          # SSH로 배포 스크립트 실행
+          ssh -i ~/.ssh/nas_key \
+              -p "$NAS_SSH_PORT" \
+              -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=30 \
+              "$NAS_USER@$NAS_IP" \
+              "set -e
+               export PATH=\"/usr/bin:/usr/local/bin:\$PATH\"
+               [ -f \"\$HOME/.profile\" ] && . \"\$HOME/.profile\" || true
+               [ -f \"/etc/profile\" ] && . \"/etc/profile\" || true
 
-            # GHCR 로그인 (이미지 풀을 위해)
-            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.GHCR_USER }} --password-stdin
+               mkdir -p $NAS_DEPLOY_PATH
+               cd $NAS_DEPLOY_PATH
 
-            # Blue-Green 무중단 배포 실행
-            ./scripts/deploy.sh -f docker-compose.nas.yml --pull
+               if [ ! -d .git ]; then
+                 echo 'Repository not found. Cloning...'
+                 git clone https://${GHCR_USER}:${GHCR_TOKEN}@github.com/${GITHUB_REPO}.git .
+               else
+                 git pull --ff-only
+               fi
+
+               for c in co-talk-app-green-1 cotalk-app cotalk-watchtower; do
+                 docker rm -f \"\$c\" 2>/dev/null || true
+               done
+
+               echo ${GHCR_TOKEN} | docker login ghcr.io -u ${GHCR_USER} --password-stdin
+
+               ./scripts/deploy.sh -f docker-compose.nas.yml --pull"
