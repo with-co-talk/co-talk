@@ -1,9 +1,11 @@
 package com.cotalk.adapter.outbound.persistence.auth;
 
 import com.cotalk.domain.entity.PasswordResetToken;
+import com.cotalk.domain.model.Email;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -31,7 +33,8 @@ public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordR
      * @param verificationCode 6자리 인증 코드
      * @return 비밀번호 재설정 토큰 (Optional)
      */
-    Optional<PasswordResetToken> findByEmailAndVerificationCode(String email, String verificationCode);
+    @Query("SELECT t FROM PasswordResetToken t WHERE t.email = :email AND t.verificationCode = :code")
+    Optional<PasswordResetToken> findByEmailAndVerificationCode(@Param("email") Email email, @Param("code") String code);
 
     /**
      * 사용자 ID로 비밀번호 재설정 토큰을 삭제한다.
