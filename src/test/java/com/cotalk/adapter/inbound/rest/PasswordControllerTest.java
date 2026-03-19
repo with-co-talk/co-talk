@@ -183,6 +183,132 @@ class PasswordControllerTest {
     }
 
     @Nested
+    @DisplayName("인증 코드 검증 API")
+    class VerifyCodeTests {
+
+        private final String email = "test@example.com";
+        private final String code = "123456";
+
+        @Test
+        @DisplayName("유효한 코드로 요청 시 200과 메시지를 반환한다")
+        void should_returnOk_when_codeValid() throws Exception {
+            // given
+            willDoNothing().given(resetPasswordUseCase).verifyCode(eq(email), eq(code));
+
+            String requestBody = """
+                    {
+                        "email": "test@example.com",
+                        "code": "123456"
+                    }
+                    """;
+
+            // when & then
+            mockMvc.perform(post("/api/v1/password/verify-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("인증 코드가 확인되었습니다."));
+        }
+
+        @Test
+        @DisplayName("코드가 일치하지 않으면 400 에러를 반환한다")
+        void should_returnBadRequest_when_invalidCode() throws Exception {
+            // given
+            willThrow(InvalidPasswordResetTokenException.invalidCode())
+                    .given(resetPasswordUseCase).verifyCode(anyString(), anyString());
+
+            String requestBody = """
+                    {
+                        "email": "test@example.com",
+                        "code": "000000"
+                    }
+                    """;
+
+            // when & then
+            mockMvc.perform(post("/api/v1/password/verify-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("코드가 만료되면 400 에러를 반환한다")
+        void should_returnBadRequest_when_codeExpired() throws Exception {
+            // given
+            willThrow(InvalidPasswordResetTokenException.expired())
+                    .given(resetPasswordUseCase).verifyCode(anyString(), anyString());
+
+            String requestBody = """
+                    {
+                        "email": "test@example.com",
+                        "code": "123456"
+                    }
+                    """;
+
+            // when & then
+            mockMvc.perform(post("/api/v1/password/verify-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("최대 시도 횟수 초과 시 400 에러를 반환한다")
+        void should_returnBadRequest_when_maxAttemptsExceeded() throws Exception {
+            // given
+            willThrow(InvalidPasswordResetTokenException.maxAttemptsExceeded())
+                    .given(resetPasswordUseCase).verifyCode(anyString(), anyString());
+
+            String requestBody = """
+                    {
+                        "email": "test@example.com",
+                        "code": "123456"
+                    }
+                    """;
+
+            // when & then
+            mockMvc.perform(post("/api/v1/password/verify-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("이메일 누락 시 400 에러를 반환한다")
+        void should_returnBadRequest_when_emailMissing() throws Exception {
+            // given
+            String requestBody = """
+                    {
+                        "code": "123456"
+                    }
+                    """;
+
+            // when & then
+            mockMvc.perform(post("/api/v1/password/verify-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("코드 누락 시 400 에러를 반환한다")
+        void should_returnBadRequest_when_codeMissing() throws Exception {
+            // given
+            String requestBody = """
+                    {
+                        "email": "test@example.com"
+                    }
+                    """;
+
+            // when & then
+            mockMvc.perform(post("/api/v1/password/verify-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
     @DisplayName("토큰 유효성 검증 API")
     class ValidateTokenTests {
 

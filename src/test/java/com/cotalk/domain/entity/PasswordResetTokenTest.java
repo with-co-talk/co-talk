@@ -313,6 +313,126 @@ class PasswordResetTokenTest {
     }
 
     @Nested
+    @DisplayName("incrementFailedAttempts 메서드")
+    class IncrementFailedAttempts {
+
+        @Test
+        @DisplayName("호출하면 failedAttempts가 1 증가한다")
+        void should_incrementBy1_when_called() {
+            // given
+            PasswordResetToken token = PasswordResetToken.builder()
+                    .token("test-token")
+                    .userId(1L)
+                    .email(new Email("test@example.com"))
+                    .expiresAt(LocalDateTime.now().plusMinutes(30))
+                    .build();
+            int before = token.getFailedAttempts();
+
+            // when
+            token.incrementFailedAttempts();
+
+            // then
+            assertThat(token.getFailedAttempts()).isEqualTo(before + 1);
+        }
+
+        @Test
+        @DisplayName("3번 호출하면 failedAttempts가 3이 된다")
+        void should_incrementMultipleTimes() {
+            // given
+            PasswordResetToken token = PasswordResetToken.builder()
+                    .token("test-token")
+                    .userId(1L)
+                    .email(new Email("test@example.com"))
+                    .expiresAt(LocalDateTime.now().plusMinutes(30))
+                    .build();
+
+            // when
+            token.incrementFailedAttempts();
+            token.incrementFailedAttempts();
+            token.incrementFailedAttempts();
+
+            // then
+            assertThat(token.getFailedAttempts()).isEqualTo(3);
+        }
+    }
+
+    @Nested
+    @DisplayName("isMaxAttemptsExceeded 메서드")
+    class IsMaxAttemptsExceeded {
+
+        @Test
+        @DisplayName("failedAttempts가 maxAttempts 미만이면 false를 반환한다")
+        void should_returnFalse_when_belowMax() {
+            // given
+            PasswordResetToken token = PasswordResetToken.builder()
+                    .token("test-token")
+                    .userId(1L)
+                    .email(new Email("test@example.com"))
+                    .expiresAt(LocalDateTime.now().plusMinutes(30))
+                    .failedAttempts(4)
+                    .build();
+
+            // when
+            boolean result = token.isMaxAttemptsExceeded(5);
+
+            // then
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        @DisplayName("failedAttempts가 maxAttempts와 같으면 true를 반환한다")
+        void should_returnTrue_when_equalToMax() {
+            // given
+            PasswordResetToken token = PasswordResetToken.builder()
+                    .token("test-token")
+                    .userId(1L)
+                    .email(new Email("test@example.com"))
+                    .expiresAt(LocalDateTime.now().plusMinutes(30))
+                    .failedAttempts(5)
+                    .build();
+
+            // when
+            boolean result = token.isMaxAttemptsExceeded(5);
+
+            // then
+            assertThat(result).isTrue();
+        }
+
+        @Test
+        @DisplayName("failedAttempts가 maxAttempts를 초과하면 true를 반환한다")
+        void should_returnTrue_when_aboveMax() {
+            // given
+            PasswordResetToken token = PasswordResetToken.builder()
+                    .token("test-token")
+                    .userId(1L)
+                    .email(new Email("test@example.com"))
+                    .expiresAt(LocalDateTime.now().plusMinutes(30))
+                    .failedAttempts(6)
+                    .build();
+
+            // when
+            boolean result = token.isMaxAttemptsExceeded(5);
+
+            // then
+            assertThat(result).isTrue();
+        }
+
+        @Test
+        @DisplayName("새로 생성된 토큰은 failedAttempts가 0이므로 false를 반환한다")
+        void should_returnFalse_when_noFailures() {
+            // given
+            LocalDateTime now = LocalDateTime.of(2026, 1, 1, 12, 0);
+            PasswordResetToken token = PasswordResetToken.createWithCode(1L, new Email("test@example.com"), 30, now);
+
+            // when
+            boolean result = token.isMaxAttemptsExceeded(5);
+
+            // then
+            assertThat(result).isFalse();
+        }
+    }
+
+    @Nested
     @DisplayName("markAsUsed 메서드")
     class MarkAsUsed {
 

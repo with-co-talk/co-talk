@@ -36,7 +36,13 @@ class SmtpEmailSenderTest {
     @BeforeEach
     void setUp() {
         given(mailSender.createMimeMessage()).willReturn(mimeMessage);
-        emailSender = new SmtpEmailSender(mailSender);
+
+        MailProperties mailProperties = new MailProperties();
+        mailProperties.setHost("smtp.example.com");
+        mailProperties.setUsername("noreply@cotalk.com");
+        mailProperties.setPassword("test-password");
+
+        emailSender = new SmtpEmailSender(mailSender, mailProperties);
     }
 
     @Test
