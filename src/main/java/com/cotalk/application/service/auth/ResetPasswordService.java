@@ -142,9 +142,7 @@ public class ResetPasswordService implements ResetPasswordUseCase {
             if (token.isExpired(timeProvider.now())) {
                 throw InvalidPasswordResetTokenException.expired();
             }
-            if (token.isUsed()) {
-                throw InvalidPasswordResetTokenException.alreadyUsed();
-            }
+            throw InvalidPasswordResetTokenException.alreadyUsed();
         }
     }
 
