@@ -113,12 +113,19 @@ public class PasswordController {
         ));
     }
 
+    /**
+     * 이메일과 6자리 인증 코드를 검증한다.
+     * 코드가 유효하지 않은 경우 사유별 예외가 발생한다.
+     *
+     * @param request 인증 코드 검증 요청 (이메일, 코드)
+     * @return 검증 성공 메시지
+     */
     @Operation(summary = "인증 코드 검증", description = "이메일과 6자리 인증 코드를 검증합니다.")
     @PostMapping("/verify-code")
-    public ResponseEntity<TokenValidationResponse> verifyCode(
+    public ResponseEntity<MessageResponse> verifyCode(
             @Valid @RequestBody VerifyCodeRequest request) {
-        boolean isValid = resetPasswordUseCase.verifyCode(request.email(), request.code());
-        return ResponseEntity.ok(TokenValidationResponse.of(isValid));
+        resetPasswordUseCase.verifyCode(request.email(), request.code());
+        return ResponseEntity.ok(MessageResponse.of("인증 코드가 확인되었습니다."));
     }
 
     @Operation(summary = "인증 코드로 비밀번호 재설정", description = "인증 코드를 이용하여 새 비밀번호로 변경합니다.")

@@ -26,12 +26,13 @@ public interface ResetPasswordUseCase {
 
     /**
      * 이메일과 인증 코드의 유효성을 검증한다.
+     * 코드가 유효하지 않은 경우 사유별 예외를 던진다.
      *
      * @param email 이메일 주소
      * @param code 6자리 인증 코드
-     * @return 유효 여부
+     * @throws InvalidPasswordResetTokenException 코드가 유효하지 않은 경우 (만료, 사용됨, 횟수 초과, 불일치)
      */
-    boolean verifyCode(String email, String code);
+    void verifyCode(String email, String code);
 
     /**
      * 인증 코드를 이용하여 비밀번호를 재설정한다.

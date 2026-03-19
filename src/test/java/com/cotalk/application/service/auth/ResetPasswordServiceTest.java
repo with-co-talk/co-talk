@@ -23,6 +23,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -210,5 +211,182 @@ class ResetPasswordServiceTest {
 
         // then
         assertThat(result).isFalse();
+    }
+
+    @Test
+    @DisplayName("유효한 이메일+코드로 verifyCode 호출 시 예외 없이 성공한다")
+    void should_succeed_when_validCode() {
+        // given
+        String email = "user@example.com";
+        String code = "123456";
+
+        PasswordResetToken token = PasswordResetToken.builder()
+                .token("some-token")
+                .userId(10L)
+                .email(new Email(email))
+                .verificationCode(code)
+                .expiresAt(FIXED_NOW.plusMinutes(30))
+                .build();
+
+        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
+
+        // when & then
+        assertDoesNotThrow(() -> service.verifyCode(email, code));
+    }
+
+    @Test
+    @DisplayName("일치하는 토큰이 없으면 invalidCode 예외가 발생한다")
+    void should_throwInvalidCode_when_codeNotFound() {
+        // given
+        String email = "user@example.com";
+        String code = "123456";
+
+        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> service.verifyCode(email, code))
+                .isInstanceOf(InvalidPasswordResetTokenException.class)
+                .hasMessageContaining("일치");
+    }
+
+    @Test
+    @DisplayName("만료된 토큰으로 verifyCode 호출 시 expired 예외가 발생하고 failedAttempts가 증가한다")
+    void should_throwExpired_when_codeExpired() {
+        // given
+        String email = "user@example.com";
+        String code = "123456";
+
+        PasswordResetToken token = PasswordResetToken.builder()
+                .token("some-token")
+                .userId(10L)
+                .email(new Email(email))
+                .verificationCode(code)
+                .expiresAt(FIXED_NOW.minusMinutes(1))
+                .build();
+
+        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
+
+        // when & then
+        assertThatThrownBy(() -> service.verifyCode(email, code))
+                .isInstanceOf(InvalidPasswordResetTokenException.class)
+                .hasMessageContaining("만료");
+
+        verify(tokenRepository).save(any(PasswordResetToken.class));
+    }
+
+    @Test
+    @DisplayName("failedAttempts가 5인 토큰으로 verifyCode 호출 시 maxAttemptsExceeded 예외가 발생한다")
+    void should_throwMaxAttempts_when_exceededMaxAttempts() {
+        // given
+        String email = "user@example.com";
+        String code = "123456";
+
+        PasswordResetToken token = PasswordResetToken.builder()
+                .token("some-token")
+                .userId(10L)
+                .email(new Email(email))
+                .verificationCode(code)
+                .expiresAt(FIXED_NOW.plusMinutes(30))
+                .failedAttempts(5)
+                .build();
+
+        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+
+        // when & then
+        assertThatThrownBy(() -> service.verifyCode(email, code))
+                .isInstanceOf(InvalidPasswordResetTokenException.class)
+                .hasMessageContaining("초과");
+    }
+
+    @Test
+    @DisplayName("이미 사용된 토큰으로 verifyCode 호출 시 alreadyUsed 예외가 발생한다")
+    void should_throwAlreadyUsed_when_codeAlreadyUsed() {
+        // given
+        String email = "user@example.com";
+        String code = "123456";
+
+        PasswordResetToken token = PasswordResetToken.builder()
+                .token("some-token")
+                .userId(10L)
+                .email(new Email(email))
+                .verificationCode(code)
+                .expiresAt(FIXED_NOW.plusMinutes(30))
+                .usedAt(FIXED_NOW.minusMinutes(5))
+                .build();
+
+        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
+
+        // when & then
+        assertThatThrownBy(() -> service.verifyCode(email, code))
+                .isInstanceOf(InvalidPasswordResetTokenException.class)
+                .hasMessageContaining("이미 사용");
+    }
+
+    @Test
+    @DisplayName("유효한 코드로 resetPasswordWithCode 호출 시 비밀번호 변경에 성공한다")
+    void should_resetPassword_when_validCode() {
+        // given
+        String email = "user@example.com";
+        String code = "123456";
+        String newPassword = "NewPassword1!";
+
+        PasswordResetToken token = PasswordResetToken.builder()
+                .token("some-token")
+                .userId(10L)
+                .email(new Email(email))
+                .verificationCode(code)
+                .expiresAt(FIXED_NOW.plusMinutes(30))
+                .build();
+
+        User user = User.builder()
+                .id(10L)
+                .email(new Email(email))
+                .nickname("테스트유저")
+                .passwordHash("oldHash")
+                .build();
+
+        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+        given(userRepository.findById(10L)).willReturn(Optional.of(user));
+        given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
+
+        // when
+        service.resetPasswordWithCode(email, code, newPassword);
+
+        // then
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(passwordEncoder.matches(newPassword, userCaptor.getValue().getPasswordHash())).isTrue();
+
+        ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
+        verify(tokenRepository).save(tokenCaptor.capture());
+        assertThat(tokenCaptor.getValue().isUsed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("failedAttempts가 5인 토큰으로 resetPasswordWithCode 호출 시 maxAttemptsExceeded 예외가 발생한다")
+    void should_throwMaxAttempts_when_resetWithExceededAttempts() {
+        // given
+        String email = "user@example.com";
+        String code = "123456";
+
+        PasswordResetToken token = PasswordResetToken.builder()
+                .token("some-token")
+                .userId(10L)
+                .email(new Email(email))
+                .verificationCode(code)
+                .expiresAt(FIXED_NOW.plusMinutes(30))
+                .failedAttempts(5)
+                .build();
+
+        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+
+        // when & then
+        assertThatThrownBy(() -> service.resetPasswordWithCode(email, code, "NewPassword1!"))
+                .isInstanceOf(InvalidPasswordResetTokenException.class)
+                .hasMessageContaining("초과");
     }
 }
