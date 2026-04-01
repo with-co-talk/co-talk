@@ -84,6 +84,18 @@ class HexagonalArchitectureTest {
 
             rule.check(classes);
         }
+
+        @Test
+        @DisplayName("Notification 외 Application 서비스는 Notification 인바운드 포트에 의존하지 않는다")
+        void should_notDependOnNotificationInboundPorts_when_outsideNotificationModule() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("..application.service..")
+                    .and().resideOutsideOfPackage("..application.service.notification..")
+                    .should().dependOnClassesThat().resideInAPackage("..domain.port.inbound.notification..");
+
+            rule.check(classes);
+        }
+
     }
 
     @Nested
