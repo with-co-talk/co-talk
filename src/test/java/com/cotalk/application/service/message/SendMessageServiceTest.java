@@ -5,14 +5,12 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
-import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
-
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.NotificationCommandPort;
 import com.cotalk.domain.port.outbound.TimeProvider;
-
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.port.outbound.MetricsPort;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,7 +55,7 @@ class SendMessageServiceTest {
     private IdGenerator idGenerator;
 
     @Mock
-    private SendPushNotificationUseCase sendPushNotificationUseCase;
+    private NotificationCommandPort notificationCommandPort;
 
     @Mock
     private ChatRoomPresenceTracker chatRoomPresenceTracker;
@@ -84,7 +82,7 @@ class SendMessageServiceTest {
     void setUp() {
         sendMessageService = new SendMessageService(
                 messageRepository, chatRoomMemberRepository, userRepository, idGenerator,
-                sendPushNotificationUseCase, chatRoomPresenceTracker, customMetrics,
+                notificationCommandPort, chatRoomPresenceTracker, customMetrics,
                 messageLinkPreviewService, messageBroadcastService, transactionTemplate, timeProvider);
 
         // TransactionTemplate: 콜백을 즉시 실행 (트랜잭션 없이 동기 실행)
@@ -151,7 +149,7 @@ class SendMessageServiceTest {
             assertThat(result.getContent()).isEqualTo(content);
 
             // 벌크 푸시 알림이 수신자에게 전송되었는지 검증
-            verify(sendPushNotificationUseCase).sendNewMessageNotificationBulk(
+            verify(notificationCommandPort).sendNewMessageNotificationBulk(
                     eq(List.of(receiverId)), eq("발신자"), eq(content), eq(chatRoomId), nullable(String.class));
         }
 
@@ -412,7 +410,7 @@ class SendMessageServiceTest {
             sendMessageService.sendFileMessage(chatRoomId, senderId, command);
 
             // then
-            verify(sendPushNotificationUseCase).sendNewMessageNotificationBulk(
+            verify(notificationCommandPort).sendNewMessageNotificationBulk(
                     eq(List.of(receiverId)), eq("발신자"), eq("📷 사진을 보냈습니다."), eq(chatRoomId), nullable(String.class));
         }
 
@@ -501,7 +499,7 @@ class SendMessageServiceTest {
             // then
             @SuppressWarnings("unchecked")
             ArgumentCaptor<List<Long>> receiverIdsCaptor = ArgumentCaptor.forClass(List.class);
-            verify(sendPushNotificationUseCase).sendNewMessageNotificationBulk(
+            verify(notificationCommandPort).sendNewMessageNotificationBulk(
                     receiverIdsCaptor.capture(), anyString(), anyString(), anyLong(), nullable(String.class));
 
             assertThat(receiverIdsCaptor.getValue())
@@ -534,7 +532,7 @@ class SendMessageServiceTest {
 
             // then
             ArgumentCaptor<String> nicknameCaptor = ArgumentCaptor.forClass(String.class);
-            verify(sendPushNotificationUseCase).sendNewMessageNotificationBulk(
+            verify(notificationCommandPort).sendNewMessageNotificationBulk(
                     anyList(), nicknameCaptor.capture(), anyString(), anyLong(), nullable(String.class));
 
             assertThat(nicknameCaptor.getValue()).isEqualTo("알 수 없음");
@@ -564,7 +562,7 @@ class SendMessageServiceTest {
             sendMessageService.sendMessage(chatRoomId, senderId, "테스트");
 
             // then
-            verify(sendPushNotificationUseCase, never()).sendNewMessageNotificationBulk(
+            verify(notificationCommandPort, never()).sendNewMessageNotificationBulk(
                     anyList(), anyString(), anyString(), anyLong(), nullable(String.class));
         }
     }
