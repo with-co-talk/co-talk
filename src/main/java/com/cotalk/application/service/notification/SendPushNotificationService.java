@@ -4,6 +4,7 @@ import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.entity.NotificationSetting;
 import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
+import com.cotalk.domain.port.outbound.NotificationCommandPort;
 import com.cotalk.domain.port.outbound.NotificationSettingRepository;
 import com.cotalk.domain.port.outbound.PushNotificationSender;
 import com.cotalk.domain.port.outbound.TimeProvider;
@@ -29,7 +30,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SendPushNotificationService implements SendPushNotificationUseCase {
+public class SendPushNotificationService implements SendPushNotificationUseCase, NotificationCommandPort {
 
     private static final int MAX_MESSAGE_PREVIEW_LENGTH = 100;
     private static final String PREVIEW_MODE_NAME_AND_MESSAGE = "NAME_AND_MESSAGE";
