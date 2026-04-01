@@ -96,6 +96,17 @@ class HexagonalArchitectureTest {
             rule.check(classes);
         }
 
+        @Test
+        @DisplayName("User 외 Application 서비스는 User 인바운드 포트에 의존하지 않는다")
+        void should_notDependOnUserInboundPorts_when_outsideUserModule() {
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("..application.service..")
+                    .and().resideOutsideOfPackage("..application.service.user..")
+                    .should().dependOnClassesThat().resideInAPackage("..domain.port.inbound.user..");
+
+            rule.check(classes);
+        }
+
     }
 
     @Nested
