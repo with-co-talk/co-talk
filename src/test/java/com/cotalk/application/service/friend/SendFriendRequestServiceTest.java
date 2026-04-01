@@ -6,9 +6,9 @@ import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.exception.SelfActionNotAllowedException;
 import com.cotalk.domain.exception.UserNotFoundException;
-import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
+import com.cotalk.domain.port.outbound.NotificationCommandPort;
 import com.cotalk.domain.validator.UserValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import com.cotalk.infrastructure.lock.DistributedLockExecutor;
@@ -57,7 +57,7 @@ class SendFriendRequestServiceTest {
     private DistributedLockExecutor lockExecutor;
 
     @Mock
-    private SendPushNotificationUseCase sendPushNotificationUseCase;
+    private NotificationCommandPort notificationCommandPort;
 
     @Mock
     private TransactionTemplate transactionTemplate;
@@ -69,7 +69,7 @@ class SendFriendRequestServiceTest {
     void setUp() {
         sendFriendRequestService = new SendFriendRequestService(
                 friendRequestRepository, friendRepository, userValidator, idGenerator, lockExecutor,
-                sendPushNotificationUseCase, transactionTemplate);
+                notificationCommandPort, transactionTemplate);
 
         // 분산락 모킹: 락 획득 후 바로 실행 (lenient로 불필요한 stub 경고 방지)
         lenient().when(lockExecutor.executeWithLock(anyString(), any(Supplier.class)))
@@ -223,7 +223,7 @@ class SendFriendRequestServiceTest {
         sendFriendRequestService.sendFriendRequest(requesterId, receiverId);
 
         // then
-        verify(sendPushNotificationUseCase).sendFriendRequestNotification(receiverId, requesterNickname);
+        verify(notificationCommandPort).sendFriendRequestNotification(receiverId, requesterNickname);
     }
 
     @Test
@@ -301,7 +301,7 @@ class SendFriendRequestServiceTest {
         given(friendRequestRepository.save(any(FriendRequest.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
         org.mockito.Mockito.doThrow(new RuntimeException("Push notification failed"))
-                .when(sendPushNotificationUseCase).sendFriendRequestNotification(anyLong(), anyString());
+                .when(notificationCommandPort).sendFriendRequestNotification(anyLong(), anyString());
 
         // when
         Long result = sendFriendRequestService.sendFriendRequest(requesterId, receiverId);
