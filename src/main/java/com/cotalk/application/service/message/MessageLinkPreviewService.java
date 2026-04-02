@@ -1,9 +1,9 @@
 package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.Message;
-import com.cotalk.domain.port.inbound.linkpreview.GetLinkPreviewUseCase;
-import com.cotalk.domain.port.inbound.linkpreview.GetLinkPreviewUseCase.LinkPreviewResult;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
+import com.cotalk.domain.port.outbound.LinkPreviewQueryPort;
+import com.cotalk.domain.port.outbound.LinkPreviewQueryResult;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +30,7 @@ public class MessageLinkPreviewService {
             java.util.regex.Pattern.compile("https?://[^\\s<>\"']+");
 
     private final MessageRepository messageRepository;
-    private final GetLinkPreviewUseCase getLinkPreviewUseCase;
+    private final LinkPreviewQueryPort linkPreviewQueryPort;
     private final ChatMessageBroker chatMessageBroker;
 
     /**
@@ -65,7 +65,7 @@ public class MessageLinkPreviewService {
     @Transactional
     public void fetchAndSaveLinkPreview(Long messageId, String url) {
         try {
-            LinkPreviewResult result = getLinkPreviewUseCase.getLinkPreview(url);
+            LinkPreviewQueryResult result = linkPreviewQueryPort.queryLinkPreview(url);
             Optional<Message> opt = messageRepository.findById(messageId);
             if (opt.isEmpty()) {
                 return;
