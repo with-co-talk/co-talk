@@ -4,12 +4,12 @@ import com.cotalk.domain.entity.FriendRequest;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.port.inbound.friend.SendFriendRequestUseCase;
-import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
+import com.cotalk.domain.port.outbound.DistributedLockPort;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.port.outbound.NotificationCommandPort;
 import com.cotalk.domain.validator.UserValidator;
-import com.cotalk.domain.port.outbound.DistributedLockPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -39,7 +39,7 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
     private final UserValidator userValidator;
     private final IdGenerator idGenerator;
     private final DistributedLockPort lockExecutor;
-    private final SendPushNotificationUseCase sendPushNotificationUseCase;
+    private final NotificationCommandPort notificationCommandPort;
     private final TransactionTemplate transactionTemplate;
 
     /**
@@ -128,7 +128,7 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
     private void sendFriendRequestPushNotification(Long requesterId, Long receiverId) {
         try {
             User requester = userValidator.validateUserExists(requesterId);
-            sendPushNotificationUseCase.sendFriendRequestNotification(receiverId, requester.getNickname());
+            notificationCommandPort.sendFriendRequestNotification(receiverId, requester.getNickname());
         } catch (Exception e) {
             // 푸시 알림 실패는 친구 요청 자체를 실패시키지 않음
             log.warn("Failed to send friend request push notification: {} -> {}", requesterId, receiverId, e);

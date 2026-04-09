@@ -6,14 +6,14 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.Message.MessageType;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
-import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.MetricsPort;
+import com.cotalk.domain.port.outbound.NotificationCommandPort;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.domain.port.outbound.MetricsPort;
 import com.cotalk.domain.util.HtmlSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +42,7 @@ public class SendMessageService implements SendMessageUseCase {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final UserRepository userRepository;
     private final IdGenerator idGenerator;
-    private final SendPushNotificationUseCase sendPushNotificationUseCase;
+    private final NotificationCommandPort notificationCommandPort;
     private final ChatRoomPresenceTracker chatRoomPresenceTracker;
     private final MetricsPort customMetrics;
     private final MessageLinkPreviewService messageLinkPreviewService;
@@ -243,7 +243,7 @@ public class SendMessageService implements SendMessageUseCase {
 
         // 벌크 푸시 알림 전송 (한 번의 호출로 처리)
         if (!receiverUserIds.isEmpty()) {
-            sendPushNotificationUseCase.sendNewMessageNotificationBulk(
+            notificationCommandPort.sendNewMessageNotificationBulk(
                     receiverUserIds,
                     senderNickname,
                     content,
