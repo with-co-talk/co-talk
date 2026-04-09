@@ -10,6 +10,7 @@ import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserEventBroker.OnlineStatusEvent;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.port.outbound.UserStatusCommandPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class UpdateUserOnlineStatusService implements UpdateUserOnlineStatusUseCase {
+public class UpdateUserOnlineStatusService implements UpdateUserOnlineStatusUseCase, UserStatusCommandPort {
 
     private final UserRepository userRepository;
     private final FriendRepository friendRepository;

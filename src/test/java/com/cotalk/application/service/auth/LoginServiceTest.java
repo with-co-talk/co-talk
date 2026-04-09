@@ -5,9 +5,9 @@ import com.cotalk.domain.exception.DomainException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.inbound.auth.LoginResult;
-import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
+import com.cotalk.domain.port.outbound.UserStatusCommandPort;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.metrics.CustomMetrics;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +38,7 @@ class LoginServiceTest {
     private AuthTokenPort authTokenPort;
 
     @Mock
-    private UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
+    private UserStatusCommandPort userStatusCommandPort;
 
     @Mock
     private CustomMetrics customMetrics;
@@ -47,7 +47,7 @@ class LoginServiceTest {
 
     @BeforeEach
     void setUp() {
-        loginService = new LoginService(userRepository, passwordEncoder, authTokenPort, updateUserOnlineStatusUseCase, customMetrics);
+        loginService = new LoginService(userRepository, passwordEncoder, authTokenPort, userStatusCommandPort, customMetrics);
     }
 
     @Nested
@@ -83,7 +83,7 @@ class LoginServiceTest {
             assertThat(result.userId()).isEqualTo(userId);
             assertThat(result.expiresInSeconds()).isEqualTo(3600L);
             // 로그인 시 온라인 상태로 변경되는지 확인
-            org.mockito.Mockito.verify(updateUserOnlineStatusUseCase).setOnline(userId);
+            org.mockito.Mockito.verify(userStatusCommandPort).setOnline(userId);
         }
     }
 

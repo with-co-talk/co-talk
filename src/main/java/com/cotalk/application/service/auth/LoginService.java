@@ -6,10 +6,10 @@ import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.inbound.auth.LoginResult;
 import com.cotalk.domain.port.inbound.auth.LoginUseCase;
-import com.cotalk.domain.port.inbound.user.UpdateUserOnlineStatusUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.MetricsPort;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
+import com.cotalk.domain.port.outbound.UserStatusCommandPort;
 import com.cotalk.domain.port.outbound.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +30,7 @@ public class LoginService implements LoginUseCase {
     private final UserRepository userRepository;
     private final PasswordEncoderPort passwordEncoder;
     private final AuthTokenPort authTokenPort;
-    private final UpdateUserOnlineStatusUseCase updateUserOnlineStatusUseCase;
+    private final UserStatusCommandPort userStatusCommandPort;
     private final MetricsPort metricsPort;
 
     /**
@@ -73,7 +73,7 @@ public class LoginService implements LoginUseCase {
         }
 
         // 로그인 시 온라인 상태로 변경 및 마지막 접속 시간 업데이트
-        updateUserOnlineStatusUseCase.setOnline(user.getId());
+        userStatusCommandPort.setOnline(user.getId());
 
         String accessToken = authTokenPort.generateAccessToken(user.getId());
         long expiresInSeconds = authTokenPort.getAccessTokenExpiresInSeconds();
