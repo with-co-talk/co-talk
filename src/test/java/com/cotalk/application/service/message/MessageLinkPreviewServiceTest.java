@@ -1,9 +1,9 @@
 package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.Message;
-import com.cotalk.domain.port.inbound.linkpreview.GetLinkPreviewUseCase;
-import com.cotalk.domain.port.inbound.linkpreview.GetLinkPreviewUseCase.LinkPreviewResult;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
+import com.cotalk.domain.port.outbound.LinkPreviewQueryPort;
+import com.cotalk.domain.port.outbound.LinkPreviewQueryResult;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ class MessageLinkPreviewServiceTest {
     private MessageRepository messageRepository;
 
     @Mock
-    private GetLinkPreviewUseCase getLinkPreviewUseCase;
+    private LinkPreviewQueryPort linkPreviewQueryPort;
 
     @Mock
     private ChatMessageBroker chatMessageBroker;
@@ -55,7 +55,7 @@ class MessageLinkPreviewServiceTest {
         Long chatRoomId = 10L;
         String url = "https://example.com";
 
-        LinkPreviewResult linkPreview = new LinkPreviewResult(
+        LinkPreviewQueryResult linkPreview = new LinkPreviewQueryResult(
                 url,
                 "Example Title",
                 "Example Description",
@@ -73,7 +73,7 @@ class MessageLinkPreviewServiceTest {
                 .type(Message.MessageType.TEXT)
                 .build();
 
-        given(getLinkPreviewUseCase.getLinkPreview(url)).willReturn(linkPreview);
+        given(linkPreviewQueryPort.queryLinkPreview(url)).willReturn(linkPreview);
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
         given(messageRepository.save(any(Message.class))).willReturn(message);
 
@@ -103,7 +103,7 @@ class MessageLinkPreviewServiceTest {
         Long messageId = 999L;
         String url = "https://example.com";
 
-        LinkPreviewResult linkPreview = new LinkPreviewResult(
+        LinkPreviewQueryResult linkPreview = new LinkPreviewQueryResult(
                 url,
                 "Example Title",
                 "Example Description",
@@ -113,7 +113,7 @@ class MessageLinkPreviewServiceTest {
                 "https://example.com/favicon.ico"
         );
 
-        given(getLinkPreviewUseCase.getLinkPreview(url)).willReturn(linkPreview);
+        given(linkPreviewQueryPort.queryLinkPreview(url)).willReturn(linkPreview);
         given(messageRepository.findById(messageId)).willReturn(Optional.empty());
 
         // When: fetchAndSaveLinkPreview 호출
@@ -131,7 +131,7 @@ class MessageLinkPreviewServiceTest {
         Long messageId = 100L;
         String url = "https://invalid-url.com";
 
-        given(getLinkPreviewUseCase.getLinkPreview(url))
+        given(linkPreviewQueryPort.queryLinkPreview(url))
                 .willThrow(new RuntimeException("Failed to fetch link preview"));
 
         // When: fetchAndSaveLinkPreview 호출

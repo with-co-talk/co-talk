@@ -1,6 +1,8 @@
 package com.cotalk.application.service.linkpreview;
 
 import com.cotalk.domain.port.inbound.linkpreview.GetLinkPreviewUseCase;
+import com.cotalk.domain.port.outbound.LinkPreviewQueryPort;
+import com.cotalk.domain.port.outbound.LinkPreviewQueryResult;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -23,7 +25,21 @@ import java.net.UnknownHostException;
  * @author seunggu.lee
  */
 @Service
-public class GetLinkPreviewService implements GetLinkPreviewUseCase {
+public class GetLinkPreviewService implements GetLinkPreviewUseCase, LinkPreviewQueryPort {
+
+    @Override
+    public LinkPreviewQueryResult queryLinkPreview(String url) {
+        LinkPreviewResult result = getLinkPreview(url);
+        return new LinkPreviewQueryResult(
+                result.url(),
+                result.title(),
+                result.description(),
+                result.imageUrl(),
+                result.domain(),
+                result.siteName(),
+                result.favicon()
+        );
+    }
 
     private static final int TIMEOUT_MILLIS = 5000;
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; CoTalkBot/1.0; +https://cotalk.com)";
