@@ -1,6 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.auth;
 
 import com.cotalk.domain.entity.PasswordResetToken;
+import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -51,7 +52,7 @@ public class PasswordResetTokenRepositoryAdapter implements PasswordResetTokenRe
      */
     @Override
     public Optional<PasswordResetToken> findByEmailAndVerificationCode(String email, String verificationCode) {
-        return jpaRepository.findByEmailAndVerificationCode(email, verificationCode);
+        return jpaRepository.findByEmailAndVerificationCode(new Email(email), verificationCode);
     }
 
     /**

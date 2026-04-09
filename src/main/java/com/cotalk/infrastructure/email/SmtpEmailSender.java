@@ -5,7 +5,8 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -25,10 +26,12 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "spring.mail.host")
+@ConditionalOnExpression("!'${spring.mail.host:}'.isEmpty()")
+@EnableConfigurationProperties(MailProperties.class)
 public class SmtpEmailSender implements EmailSender {
 
     private final JavaMailSender mailSender;
+    private final MailProperties mailProperties;
 
     /**
      * 이메일을 비동기로 발송한다.
@@ -47,6 +50,7 @@ public class SmtpEmailSender implements EmailSender {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
+            helper.setFrom(mailProperties.getUsername());
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(body, true); // HTML 지원

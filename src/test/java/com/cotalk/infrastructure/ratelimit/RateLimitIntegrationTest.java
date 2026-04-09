@@ -65,7 +65,7 @@ class RateLimitIntegrationTest {
         try {
             DockerClientFactory.instance().client();
             return true;
-        } catch (Throwable _) {
+        } catch (Throwable ignored) {
             return false;
         }
     }

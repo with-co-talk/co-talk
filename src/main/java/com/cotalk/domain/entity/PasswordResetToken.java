@@ -44,6 +44,14 @@ public class PasswordResetToken extends BaseEntity {
     private String verificationCode;
 
     /**
+     * 인증 코드 입력 실패 횟수.
+     * 최대 허용 횟수를 초과하면 토큰이 무효화된다.
+     */
+    @Column(name = "failed_attempts", nullable = false)
+    @Builder.Default
+    private int failedAttempts = 0;
+
+    /**
      * 비밀번호 재설정 토큰을 생성한다.
      *
      * @param userId 사용자 ID
@@ -129,5 +137,22 @@ public class PasswordResetToken extends BaseEntity {
      */
     public void markAsUsed(LocalDateTime now) {
         this.usedAt = now;
+    }
+
+    /**
+     * 인증 코드 입력 실패 횟수를 1 증가시킨다.
+     */
+    public void incrementFailedAttempts() {
+        this.failedAttempts++;
+    }
+
+    /**
+     * 최대 허용 실패 횟수를 초과했는지 확인한다.
+     *
+     * @param maxAttempts 최대 허용 실패 횟수
+     * @return 초과했으면 true, 그렇지 않으면 false
+     */
+    public boolean isMaxAttemptsExceeded(int maxAttempts) {
+        return this.failedAttempts >= maxAttempts;
     }
 }

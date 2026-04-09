@@ -37,6 +37,12 @@ public class ResetPasswordService implements ResetPasswordUseCase {
             "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()\\-_=+])[A-Za-z\\d@$!%*?&#^()\\-_=+]{8,128}$"
     );
 
+    /**
+     * 인증 코드 최대 실패 허용 횟수.
+     * 초과 시 토큰이 무효화되며 새로운 코드를 요청해야 한다.
+     */
+    private static final int MAX_VERIFY_ATTEMPTS = 5;
+
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final PasswordEncoderPort passwordEncoder;
@@ -112,19 +118,52 @@ public class ResetPasswordService implements ResetPasswordUseCase {
         }
     }
 
+    /**
+     * 이메일과 인증 코드를 검증한다.
+     * 코드가 유효하지 않은 경우 사유별 예외를 던진다.
+     *
+     * @param email 사용자 이메일
+     * @param code  6자리 인증 코드
+     * @throws InvalidPasswordResetTokenException 코드가 유효하지 않은 경우
+     */
     @Override
-    @Transactional(readOnly = true)
-    public boolean verifyCode(String email, String code) {
-        var now = timeProvider.now();
-        return tokenRepository.findByEmailAndVerificationCode(email, code)
-                .map(t -> t.isValid(now))
-                .orElse(false);
+    public void verifyCode(String email, String code) {
+        PasswordResetToken token = tokenRepository.findByEmailAndVerificationCode(email, code)
+                .orElseThrow(InvalidPasswordResetTokenException::invalidCode);
+
+        if (token.isMaxAttemptsExceeded(MAX_VERIFY_ATTEMPTS)) {
+            throw InvalidPasswordResetTokenException.maxAttemptsExceeded();
+        }
+
+        if (!token.isValid(timeProvider.now())) {
+            token.incrementFailedAttempts();
+            tokenRepository.save(token);
+
+            if (token.isExpired(timeProvider.now())) {
+                throw InvalidPasswordResetTokenException.expired();
+            }
+            throw InvalidPasswordResetTokenException.alreadyUsed();
+        }
     }
 
+    /**
+     * 인증 코드를 사용하여 비밀번호를 재설정한다.
+     *
+     * @param email       사용자 이메일
+     * @param code        6자리 인증 코드
+     * @param newPassword 새로운 비밀번호
+     * @throws InvalidPasswordResetTokenException 토큰이 없거나 최대 실패 횟수를 초과한 경우
+     * @throws UserNotFoundException              사용자를 찾을 수 없는 경우
+     * @throws IllegalArgumentException           비밀번호가 보안 요구사항을 충족하지 않는 경우
+     */
     @Override
     public void resetPasswordWithCode(String email, String code, String newPassword) {
         PasswordResetToken resetToken = tokenRepository.findByEmailAndVerificationCode(email, code)
                 .orElseThrow(InvalidPasswordResetTokenException::notFound);
+
+        if (resetToken.isMaxAttemptsExceeded(MAX_VERIFY_ATTEMPTS)) {
+            throw InvalidPasswordResetTokenException.maxAttemptsExceeded();
+        }
 
         validateToken(resetToken);
         validatePasswordStrength(newPassword);
