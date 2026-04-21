@@ -21,6 +21,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create .env from secrets
+        run: |
+          cat > .env << EOF
+          DB_USERNAME=${{ secrets.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
+          MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
+          K6_BYPASS_TOKEN=${{ secrets.K6_BYPASS_TOKEN }}
+          EOF
+
       - name: Canary Deploy
         run: ./scripts/deploy.sh --canary
 
@@ -53,6 +66,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Create .env from secrets
+        run: |
+          cat > .env << EOF
+          DB_USERNAME=${{ secrets.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
+          MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
+          K6_BYPASS_TOKEN=${{ secrets.K6_BYPASS_TOKEN }}
+          EOF
 
       - name: Rollback
         run: ./scripts/deploy.sh --rollback
