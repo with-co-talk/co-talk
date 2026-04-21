@@ -1,147 +1,58 @@
-name: Build, Push and Deploy
+name: Deploy to Mac Mini (Canary)
 
 on:
   push:
-    branches:
-      - main
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-  workflow_dispatch:  # 수동 실행 가능
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Deployment action'
+        required: true
+        default: 'deploy'
+        type: choice
+        options: [deploy, rollback]
 
 jobs:
-  # ===========================================
-  # 1단계: 테스트 + 이미지 빌드 + 푸시
-  # ===========================================
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+  deploy:
+    runs-on: self-hosted
+    if: github.event.inputs.action != 'rollback'
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 25
-        uses: actions/setup-java@v4
-        with:
-          java-version: '25'
-          distribution: 'temurin'
+      - name: Canary Deploy
+        run: ./scripts/deploy.sh --canary
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Run tests
-        run: ./gradlew test
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # GHA 캐시 + 레지스트리 캐시(보조)로 빌드 시간 단축
-          cache-from: |
-            type=gha
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: |
-            type=gha,mode=max
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
-
-  # ===========================================
-  # 2단계: Tailscale VPN으로 NAS에 무중단 배포
-  # ===========================================
-  # 공개 포트 없이 Tailscale VPN 터널을 통해 SSH 접속.
-  # 필요 secrets: TS_AUTHKEY, NAS_SSH_PORT,
-  #              NAS_SSH_KEY, NAS_USER, NAS_DEPLOY_PATH,
-  #              GHCR_USER, GHCR_TOKEN
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment: production
-
-    steps:
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v4
-        with:
-          authkey: ${{ secrets.TS_AUTHKEY }}
-
-      - name: Deploy to NAS via Tailscale SSH
-        env:
-          NAS_SSH_KEY: ${{ secrets.NAS_SSH_KEY }}
-          NAS_SSH_PORT: ${{ secrets.NAS_SSH_PORT }}
-          NAS_USER: ${{ secrets.NAS_USER }}
-          NAS_DEPLOY_PATH: ${{ secrets.NAS_DEPLOY_PATH }}
-          GHCR_USER: ${{ secrets.GHCR_USER }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          GITHUB_REPO: ${{ github.repository }}
+      - name: Observe canary (2 min)
         run: |
-          # SSH 키 설정
-          mkdir -p ~/.ssh
-          echo "$NAS_SSH_KEY" > ~/.ssh/nas_key
-          echo "" >> ~/.ssh/nas_key
-          chmod 600 ~/.ssh/nas_key
+          echo "Observing canary for 120 seconds..."
+          sleep 120
 
-          # NAS Tailscale IP 확인 (MagicDNS 또는 직접 IP)
-          NAS_IP=$(tailscale status --json | jq -r '.Peer[] | select(.Tags != null) | select(.Tags[] == "tag:nas") | .TailscaleIPs[0]')
-          if [ -z "$NAS_IP" ]; then
-            echo "::error::NAS not found in Tailscale network (tag:nas)"
+      - name: Check canary health
+        run: |
+          response=$(curl -sf http://localhost:8080/actuator/health)
+          status=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])" 2>/dev/null || echo "UNKNOWN")
+          if [ "$status" != "UP" ]; then
+            echo "Canary health check failed: $status"
             exit 1
           fi
-          echo "NAS Tailscale IP: $NAS_IP"
+          echo "Canary is healthy: $status"
 
-          # SSH로 배포 스크립트 실행
-          ssh -i ~/.ssh/nas_key \
-              -p "$NAS_SSH_PORT" \
-              -o StrictHostKeyChecking=no \
-              -o ConnectTimeout=30 \
-              "$NAS_USER@$NAS_IP" \
-              "set -e
-               export PATH=\"/usr/bin:/usr/local/bin:\$PATH\"
-               [ -f \"\$HOME/.profile\" ] && . \"\$HOME/.profile\" || true
-               [ -f \"/etc/profile\" ] && . \"/etc/profile\" || true
+      - name: Promote canary to stable
+        run: ./scripts/deploy.sh --promote
 
-               mkdir -p $NAS_DEPLOY_PATH
-               cd $NAS_DEPLOY_PATH
+      - name: Rollback on failure
+        if: failure()
+        run: ./scripts/deploy.sh --rollback
 
-               if [ ! -d .git ]; then
-                 echo 'Repository not found. Cloning...'
-                 git clone https://${GHCR_USER}:${GHCR_TOKEN}@github.com/${GITHUB_REPO}.git .
-               else
-                 git pull --ff-only
-               fi
+  rollback:
+    runs-on: self-hosted
+    if: github.event.inputs.action == 'rollback'
 
-               for c in co-talk-app-green-1 cotalk-app cotalk-watchtower; do
-                 docker rm -f \"\$c\" 2>/dev/null || true
-               done
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-               echo ${GHCR_TOKEN} | docker login ghcr.io -u ${GHCR_USER} --password-stdin
-
-               ./scripts/deploy.sh -f docker-compose.nas.yml --pull"
+      - name: Rollback
+        run: ./scripts/deploy.sh --rollback

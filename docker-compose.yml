@@ -19,6 +19,7 @@ services:
       - app-1
     networks:
       - cotalk-network
+      - macmini-shared
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost/nginx-health || exit 1"]
       interval: 10s
@@ -27,12 +28,11 @@ services:
     restart: unless-stopped
 
   # ===========================================
-  # 애플리케이션 (Instance 1)
+  # 애플리케이션 (Instance 1 - Stable)
   # ===========================================
   app-1:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: cotalk-app:stable
+    container_name: co-talk-app-1
     stop_grace_period: 35s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
@@ -54,6 +54,7 @@ services:
         condition: service_healthy
     networks:
       - cotalk-network
+      - macmini-shared
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -62,12 +63,11 @@ services:
       start_period: 60s
 
   # ===========================================
-  # 애플리케이션 (Instance 2)
+  # 애플리케이션 (Instance 2 - Stable)
   # ===========================================
   app-2:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: cotalk-app:stable
+    container_name: co-talk-app-2
     stop_grace_period: 35s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
@@ -89,6 +89,7 @@ services:
         condition: service_healthy
     networks:
       - cotalk-network
+      - macmini-shared
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -97,12 +98,12 @@ services:
       start_period: 60s
 
   # ===========================================
-  # 애플리케이션 (Instance 3)
+  # 애플리케이션 (Canary)
   # ===========================================
-  app-3:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  app-canary:
+    image: cotalk-app:canary
+    container_name: co-talk-app-canary
+    profiles: [canary]
     stop_grace_period: 35s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
@@ -124,6 +125,7 @@ services:
         condition: service_healthy
     networks:
       - cotalk-network
+      - macmini-shared
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -197,113 +199,13 @@ services:
       timeout: 20s
       retries: 3
 
-  # ===========================================
-  # 모니터링 - Prometheus
-  # ===========================================
-  prometheus:
-    image: prom/prometheus:v2.48.0
-    container_name: cotalk-prometheus
-    ports:
-      - "127.0.0.1:9090:9090"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=15d'
-      - '--web.enable-lifecycle'
-      - '--web.enable-remote-write-receiver'
-    volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./docker/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
-      - prometheus-data:/prometheus
-    networks:
-      - cotalk-network
-    depends_on:
-      - app-1
-
-  # ===========================================
-  # 모니터링 - Grafana
-  # ===========================================
-  grafana:
-    image: grafana/grafana:10.2.2
-    container_name: cotalk-grafana
-    ports:
-      - "127.0.0.1:3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_DOMAIN=localhost
-    volumes:
-      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana-data:/var/lib/grafana
-    networks:
-      - cotalk-network
-    depends_on:
-      - prometheus
-
-  # ===========================================
-  # 분산 추적 - Zipkin
-  # ===========================================
-  zipkin:
-    image: openzipkin/zipkin:latest
-    container_name: cotalk-zipkin
-    ports:
-      - "127.0.0.1:9411:9411"
-    environment:
-      - STORAGE_TYPE=mem
-    networks:
-      - cotalk-network
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:9411/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
-  # ===========================================
-  # 로그 수집 - Loki
-  # ===========================================
-  loki:
-    image: grafana/loki:2.9.2
-    container_name: cotalk-loki
-    ports:
-      - "127.0.0.1:3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - ./docker/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
-      - loki-data:/loki
-    networks:
-      - cotalk-network
-
-  # ===========================================
-  # 알림 - Alertmanager
-  # ===========================================
-  alertmanager:
-    image: prom/alertmanager:v0.26.0
-    container_name: cotalk-alertmanager
-    ports:
-      - "127.0.0.1:9093:9093"
-    volumes:
-      - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - alertmanager-data:/alertmanager
-    command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
-    networks:
-      - cotalk-network
-
 networks:
   cotalk-network:
     driver: bridge
+  macmini-shared:
+    external: true
 
 volumes:
   postgres-data:
   redis-data:
   minio-data:
-  prometheus-data:
-  grafana-data:
-  loki-data:
-  alertmanager-data:
