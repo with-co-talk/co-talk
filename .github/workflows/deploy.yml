@@ -55,6 +55,10 @@ jobs:
       - name: Promote canary to stable
         run: ./scripts/deploy.sh --promote
 
+      - name: Print canary logs on failure
+        if: failure()
+        run: docker logs co-talk-app-canary 2>&1 | tail -50 || true
+
       - name: Rollback on failure
         if: failure()
         run: ./scripts/deploy.sh --rollback
