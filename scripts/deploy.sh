@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Ensure docker and other tools are in PATH (for GitHub Actions runner environment)
+export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+
 # ===========================================
 # Co-Talk Canary Deployment Script
 # ===========================================
