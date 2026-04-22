@@ -189,8 +189,14 @@ EOF
 }
 
 nginx_reload() {
-    dc exec -T nginx nginx -s reload
-    log_success "nginx reloaded"
+    if dc ps nginx 2>/dev/null | grep -q "Up\|running"; then
+        dc exec -T nginx nginx -s reload
+        log_success "nginx reloaded"
+    else
+        log_info "nginx not running, starting..."
+        dc up -d --no-deps nginx
+        log_success "nginx started"
+    fi
 }
 
 # ===========================================
