@@ -16,9 +16,6 @@ jobs:
   deploy:
     runs-on: self-hosted
     if: github.event.inputs.action != 'rollback'
-    env:
-      DOCKER_CONFIG: /Users/yeseung/.docker-runner
-      PATH: /usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
     steps:
       - name: Checkout
@@ -65,9 +62,6 @@ jobs:
   rollback:
     runs-on: self-hosted
     if: github.event.inputs.action == 'rollback'
-    env:
-      DOCKER_CONFIG: /Users/yeseung/.docker-runner
-      PATH: /usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
     steps:
       - name: Checkout
