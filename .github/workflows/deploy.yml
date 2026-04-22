@@ -34,6 +34,15 @@ jobs:
           K6_BYPASS_TOKEN=${{ secrets.K6_BYPASS_TOKEN }}
           EOF
 
+      - name: Bootstrap (first-time only)
+        run: |
+          if ! docker image inspect cotalk-app:stable &>/dev/null; then
+            echo "No stable image found. Running bootstrap..."
+            ./scripts/deploy.sh --init
+          else
+            echo "Stable image exists. Skipping bootstrap."
+          fi
+
       - name: Canary Deploy
         run: ./scripts/deploy.sh --canary
 

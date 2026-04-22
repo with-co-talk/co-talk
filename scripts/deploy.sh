@@ -217,6 +217,54 @@ nginx_reload() {
 }
 
 # ===========================================
+# Initial Bootstrap (first-time deploy)
+# ===========================================
+bootstrap() {
+    log_info "=== Co-Talk Bootstrap (First-Time Deploy) ==="
+    check_dependencies
+
+    # Already bootstrapped?
+    if docker image inspect cotalk-app:stable &>/dev/null; then
+        log_info "cotalk-app:stable already exists. Skipping bootstrap."
+        log_info "Use --canary to deploy a new version."
+        return 0
+    fi
+
+    log_info "Building cotalk-app:stable image..."
+    docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null || docker buildx use ci-builder
+    docker buildx build --load -t cotalk-app:stable "${PROJECT_ROOT}"
+    log_success "Image built: cotalk-app:stable"
+
+    log_info "Starting infrastructure services (postgres, redis, minio)..."
+    dc up -d postgres redis minio
+    log_info "Waiting for infra to be ready (20s)..."
+    sleep 20
+
+    log_info "Starting stable app instances..."
+    dc up -d --no-deps app-1 app-2
+
+    if ! health_check "co-talk-app-1"; then
+        log_error "app-1 health check failed."
+        docker logs co-talk-app-1 2>&1 | tail -100 || true
+        exit 1
+    fi
+    log_success "app-1 healthy"
+
+    if ! health_check "co-talk-app-2"; then
+        log_error "app-2 health check failed."
+        docker logs co-talk-app-2 2>&1 | tail -100 || true
+        exit 1
+    fi
+    log_success "app-2 healthy"
+
+    write_upstream_stable
+    nginx_reload
+
+    echo "stable" > "$DEPLOY_PHASE_FILE"
+    log_success "=== Bootstrap complete. app-1 and app-2 are running. ==="
+}
+
+# ===========================================
 # Canary Deploy
 # ===========================================
 deploy_canary() {
@@ -344,11 +392,14 @@ main() {
 
     if [ $# -eq 0 ]; then
         log_error "No action specified."
-        echo "Usage: $0 --canary | --promote | --rollback"
+        echo "Usage: $0 --init | --canary | --promote | --rollback"
         exit 1
     fi
 
     case $1 in
+        --init)
+            bootstrap
+            ;;
         --canary)
             deploy_canary
             ;;
@@ -360,7 +411,7 @@ main() {
             ;;
         *)
             log_error "Unknown option: $1"
-            echo "Usage: $0 --canary | --promote | --rollback"
+            echo "Usage: $0 --init | --canary | --promote | --rollback"
             exit 1
             ;;
     esac
