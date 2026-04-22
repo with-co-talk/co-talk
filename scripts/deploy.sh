@@ -201,7 +201,10 @@ deploy_canary() {
     check_dependencies
 
     log_info "Building cotalk-app:canary image..."
-    docker build -t cotalk-app:canary "${PROJECT_ROOT}"
+    # CI 환경에서 Docker Desktop 빌더(desktop-linux)의 keychain 접근 문제 우회
+    # docker-container 드라이버로 별도 빌더 생성
+    docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null || docker buildx use ci-builder
+    docker buildx build --load -t cotalk-app:canary "${PROJECT_ROOT}"
     log_success "Image built: cotalk-app:canary"
 
     log_info "Stopping previous canary container if exists..."
