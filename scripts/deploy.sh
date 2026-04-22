@@ -44,7 +44,7 @@ COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.yml"
 UPSTREAM_CONF="${PROJECT_ROOT}/docker/nginx/upstream.conf"
 DEPLOY_PHASE_FILE="${PROJECT_ROOT}/.deploy-phase"
 
-HEALTH_CHECK_TIMEOUT=120
+HEALTH_CHECK_TIMEOUT=180
 HEALTH_CHECK_INTERVAL=5
 
 # ===========================================
@@ -118,6 +118,15 @@ health_check() {
     log_info "Waiting up to ${HEALTH_CHECK_TIMEOUT}s (checking every ${HEALTH_CHECK_INTERVAL}s)"
 
     while [ $elapsed -lt $HEALTH_CHECK_TIMEOUT ]; do
+        # 컨테이너가 종료된 경우 즉시 실패
+        local status
+        status=$(docker inspect --format='{{.State.Status}}' "$container_name" 2>/dev/null || echo "missing")
+        if [ "$status" = "exited" ] || [ "$status" = "missing" ]; then
+            echo ""
+            log_error "Container ${container_name} has exited (status: ${status})"
+            return 1
+        fi
+
         if docker exec "$container_name" curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
             log_success "Health check passed for ${container_name}"
             return 0
@@ -222,6 +231,9 @@ deploy_canary() {
 
     if ! health_check "co-talk-app-canary"; then
         log_error "Canary health check failed. Aborting."
+        log_info "=== co-talk-app-canary logs ==="
+        docker logs co-talk-app-canary 2>&1 | tail -60 || true
+        log_info "=== end of logs ==="
         docker stop co-talk-app-canary 2>/dev/null || true
         docker rm co-talk-app-canary 2>/dev/null || true
         exit 1
