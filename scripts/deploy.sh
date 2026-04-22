@@ -118,18 +118,26 @@ health_check() {
     log_info "Waiting up to ${HEALTH_CHECK_TIMEOUT}s (checking every ${HEALTH_CHECK_INTERVAL}s)"
 
     while [ $elapsed -lt $HEALTH_CHECK_TIMEOUT ]; do
+        local state health_status
+        state=$(docker inspect --format='{{.State.Status}}' "$container_name" 2>/dev/null || echo "missing")
+
         # 컨테이너가 종료된 경우 즉시 실패
-        local status
-        status=$(docker inspect --format='{{.State.Status}}' "$container_name" 2>/dev/null || echo "missing")
-        if [ "$status" = "exited" ] || [ "$status" = "missing" ]; then
+        if [ "$state" = "exited" ] || [ "$state" = "missing" ]; then
             echo ""
-            log_error "Container ${container_name} has exited (status: ${status})"
+            log_error "Container ${container_name} has exited (status: ${state})"
             return 1
         fi
 
-        if docker exec "$container_name" curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
-            log_success "Health check passed for ${container_name}"
+        # Docker 내장 HEALTHCHECK 상태 확인 (Dockerfile에 정의된 헬스체크 사용)
+        health_status=$(docker inspect --format='{{.State.Health.Status}}' "$container_name" 2>/dev/null || echo "none")
+        if [ "$health_status" = "healthy" ]; then
+            log_success "Health check passed for ${container_name} (status: healthy)"
             return 0
+        fi
+        if [ "$health_status" = "unhealthy" ]; then
+            echo ""
+            log_error "Container ${container_name} is unhealthy"
+            return 1
         fi
 
         echo -n "."
@@ -232,7 +240,7 @@ deploy_canary() {
     if ! health_check "co-talk-app-canary"; then
         log_error "Canary health check failed. Aborting."
         log_info "=== co-talk-app-canary logs ==="
-        docker logs co-talk-app-canary 2>&1 | tail -60 || true
+        docker logs co-talk-app-canary 2>&1 | tail -100 || true
         log_info "=== end of logs ==="
         docker stop co-talk-app-canary 2>/dev/null || true
         docker rm co-talk-app-canary 2>/dev/null || true
