@@ -273,7 +273,6 @@ HPA, PDB, NetworkPolicy, ServiceMonitor 등 프로덕션 수준의 K8s 리소스
 
 ```
 ├── .github/workflows/         # CI/CD (GitHub Actions)
-├── docs/                      # 개발기 블로그 시리즈 (20편)
 ├── docker/                    # Docker 관련 설정
 ├── k8s/                       # Kubernetes 매니페스트
 │   ├── base/                  # Deployment, Service, HPA, PDB, NetworkPolicy
@@ -291,29 +290,5 @@ HPA, PDB, NetworkPolicy, ServiceMonitor 등 프로덕션 수준의 K8s 리소스
 └── build.gradle.kts           # Gradle 9 (Kotlin DSL)
 ```
 
-## 개발기 블로그 시리즈
-
-프로젝트 개발 과정을 기록한 20편의 기술 블로그 시리즈:
-
-| 영역 | 주제 |
-|------|------|
-| **아키텍처** | 실시간 채팅 설계, 헥사고날 리팩토링, Clean Architecture |
-| **핵심 기능** | WebSocket STOMP, Redis Pub/Sub, AES 암호화, Snowflake ID |
-| **인프라** | 프로덕션 배포, NAS 자동 배포, 모니터링 스택, Blue-Green |
-| **성능** | k6 부하 테스트, 커넥션 풀 튜닝, 성능 최적화 |
-| **트러블슈팅** | CI 테스트 수정, Flyway+H2, Redis 직렬화, Gradle 9 마이그레이션 |
-| **Flutter** | Clean Architecture, WebSocket Facade, UX 기능, 생체인증 |
-| **CI/CD** | Fastlane 멀티플랫폼, GitHub Actions, 스토어 배포 |
-
-전체 목차: [docs/blog-index.md](docs/blog-index.md)
-
-## 문서
-
-- [개발기 블로그 시리즈](docs/blog-index.md) — 20편의 기술 블로그
-- [읽기 기능 가이드](docs/READ_FEATURE.md) — 카카오톡 스타일 읽음 표시 구현
-- [프로덕션 준비 가이드](docs/PRODUCTION_READINESS.md) — 배포 체크리스트
-- [리팩토링 가이드](docs/REFACTORING_GUIDE.md) — 코드 개선 방향
-
-## 라이선스
 
 Private
