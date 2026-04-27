@@ -32,6 +32,7 @@ jobs:
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
           K6_BYPASS_TOKEN=${{ secrets.K6_BYPASS_TOKEN }}
+          APP_PORT=8081
           EOF
 
       - name: Bootstrap (first-time only)
@@ -53,7 +54,7 @@ jobs:
 
       - name: Check canary health
         run: |
-          response=$(curl -sf http://localhost:8080/actuator/health/liveness)
+          response=$(curl -sf http://localhost:8081/actuator/health/liveness)
           status=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])" 2>/dev/null || echo "UNKNOWN")
           if [ "$status" != "UP" ]; then
             echo "Canary health check failed: $status"
@@ -91,6 +92,7 @@ jobs:
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
           K6_BYPASS_TOKEN=${{ secrets.K6_BYPASS_TOKEN }}
+          APP_PORT=8081
           EOF
 
       - name: Rollback

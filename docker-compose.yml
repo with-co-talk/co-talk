@@ -8,7 +8,7 @@ services:
     image: nginx:alpine
     container_name: cotalk-nginx
     ports:
-      - "${APP_PORT:-8080}:80"
+      - "127.0.0.1:${APP_PORT:-8081}:80"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf.template:ro
       - ./docker/nginx/upstream.conf:/etc/nginx/upstream.conf:ro
@@ -19,7 +19,7 @@ services:
       - cotalk-network
       - macmini-shared
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost/nginx-health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/nginx-health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -31,20 +31,40 @@ services:
   app-1:
     image: cotalk-app:stable
     container_name: co-talk-app-1
+    restart: unless-stopped
     stop_grace_period: 35s
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=docker,prod
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
       - DB_USERNAME=${DB_USERNAME:-cotalk}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-      - JWT_SECRET=${JWT_SECRET}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      - SERVER_FORWARD_HEADERS_STRATEGY=framework
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://cotalk-api.tpsg.co.kr}
+      - K6_BYPASS_TOKEN=${K6_BYPASS_TOKEN:-}
+      - SWAGGER_SERVER_URL=${SWAGGER_SERVER_URL:-https://cotalk-api.tpsg.co.kr}
+      - SWAGGER_SERVER_DESCRIPTION=${SWAGGER_SERVER_DESCRIPTION:-Co-Talk API 서버}
+      - MAIL_HOST=${MAIL_HOST:-}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Co-Talk}
+      - EMAIL_SUPPRESSED_DOMAINS=${EMAIL_SUPPRESSED_DOMAINS:-}
+      - FIREBASE_ENABLED=${FIREBASE_ENABLED:-false}
+      - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-}
+      - TRACING_ENABLED=${TRACING_ENABLED:-true}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,20 +86,95 @@ services:
   app-2:
     image: cotalk-app:stable
     container_name: co-talk-app-2
+    restart: unless-stopped
     stop_grace_period: 35s
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=docker,prod
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
       - DB_USERNAME=${DB_USERNAME:-cotalk}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-      - JWT_SECRET=${JWT_SECRET}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      - SERVER_FORWARD_HEADERS_STRATEGY=framework
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://cotalk-api.tpsg.co.kr}
+      - K6_BYPASS_TOKEN=${K6_BYPASS_TOKEN:-}
+      - SWAGGER_SERVER_URL=${SWAGGER_SERVER_URL:-https://cotalk-api.tpsg.co.kr}
+      - SWAGGER_SERVER_DESCRIPTION=${SWAGGER_SERVER_DESCRIPTION:-Co-Talk API 서버}
+      - MAIL_HOST=${MAIL_HOST:-}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Co-Talk}
+      - EMAIL_SUPPRESSED_DOMAINS=${EMAIL_SUPPRESSED_DOMAINS:-}
+      - FIREBASE_ENABLED=${FIREBASE_ENABLED:-false}
+      - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-}
+      - TRACING_ENABLED=${TRACING_ENABLED:-true}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - cotalk-network
+      - macmini-shared
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ===========================================
+  # 애플리케이션 (Instance 3 - Stable)
+  # ===========================================
+  app-3:
+    image: cotalk-app:stable
+    container_name: co-talk-app-3
+    restart: unless-stopped
+    stop_grace_period: 35s
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker,prod
+      - DB_URL=jdbc:postgresql://postgres:5432/cotalk
+      - DB_USERNAME=${DB_USERNAME:-cotalk}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      - SERVER_FORWARD_HEADERS_STRATEGY=framework
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://cotalk-api.tpsg.co.kr}
+      - K6_BYPASS_TOKEN=${K6_BYPASS_TOKEN:-}
+      - SWAGGER_SERVER_URL=${SWAGGER_SERVER_URL:-https://cotalk-api.tpsg.co.kr}
+      - SWAGGER_SERVER_DESCRIPTION=${SWAGGER_SERVER_DESCRIPTION:-Co-Talk API 서버}
+      - MAIL_HOST=${MAIL_HOST:-}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Co-Talk}
+      - EMAIL_SUPPRESSED_DOMAINS=${EMAIL_SUPPRESSED_DOMAINS:-}
+      - FIREBASE_ENABLED=${FIREBASE_ENABLED:-false}
+      - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-}
+      - TRACING_ENABLED=${TRACING_ENABLED:-true}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
     depends_on:
       postgres:
         condition: service_healthy
@@ -102,20 +197,40 @@ services:
     image: cotalk-app:canary
     container_name: co-talk-app-canary
     profiles: [canary]
+    restart: unless-stopped
     stop_grace_period: 35s
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=docker,prod
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
       - DB_USERNAME=${DB_USERNAME:-cotalk}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-      - JWT_SECRET=${JWT_SECRET}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      - SERVER_FORWARD_HEADERS_STRATEGY=framework
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://cotalk-api.tpsg.co.kr}
+      - K6_BYPASS_TOKEN=${K6_BYPASS_TOKEN:-}
+      - SWAGGER_SERVER_URL=${SWAGGER_SERVER_URL:-https://cotalk-api.tpsg.co.kr}
+      - SWAGGER_SERVER_DESCRIPTION=${SWAGGER_SERVER_DESCRIPTION:-Co-Talk API 서버}
+      - MAIL_HOST=${MAIL_HOST:-}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Co-Talk}
+      - EMAIL_SUPPRESSED_DOMAINS=${EMAIL_SUPPRESSED_DOMAINS:-}
+      - FIREBASE_ENABLED=${FIREBASE_ENABLED:-false}
+      - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-}
+      - TRACING_ENABLED=${TRACING_ENABLED:-true}
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
     depends_on:
       postgres:
         condition: service_healthy
@@ -142,7 +257,7 @@ services:
     environment:
       POSTGRES_DB: cotalk
       POSTGRES_USER: ${DB_USERNAME:-cotalk}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -181,14 +296,14 @@ services:
     image: minio/minio:latest
     container_name: cotalk-minio
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     command: server /data --console-address ":9001"
     volumes:
-      - minio-data:/data
+      - ${MINIO_DATA_DIR:-./data/minio}:/data
     networks:
       - cotalk-network
     healthcheck:
@@ -206,4 +321,3 @@ networks:
 volumes:
   postgres-data:
   redis-data:
-  minio-data:
