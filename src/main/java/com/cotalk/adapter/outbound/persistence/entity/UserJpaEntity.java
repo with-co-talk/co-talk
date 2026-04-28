@@ -32,6 +32,7 @@ public class UserJpaEntity extends BaseJpaEntity {
     @Column(nullable = false)
     private String nickname;
 
+    @Column(name = "avatar_url", length = 2048)
     private String avatarUrl;
 
     @Enumerated(EnumType.STRING)
@@ -66,7 +67,7 @@ public class UserJpaEntity extends BaseJpaEntity {
     @Column(name = "status_message", length = 60)
     private String statusMessage;
 
-    @Column(name = "background_url", length = 500)
+    @Column(name = "background_url", length = 2048)
     private String backgroundUrl;
 
     @Column(name = "phone_number", length = 20)

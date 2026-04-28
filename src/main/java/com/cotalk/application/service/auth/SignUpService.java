@@ -37,6 +37,8 @@ public class SignUpService implements SignUpUseCase {
     private final EmailSender emailSender;
     private final TimeProvider timeProvider;
     private final String frontendUrl;
+    private final String publicServerUrl;
+    private final String suppressedEmailDomains;
 
     /**
      * SignUpService 생성자.
@@ -59,7 +61,9 @@ public class SignUpService implements SignUpUseCase {
             EmailVerificationTokenRepository emailVerificationTokenRepository,
             EmailSender emailSender,
             TimeProvider timeProvider,
-            @Value("${app.frontend-url}") String frontendUrl) {
+            @Value("${app.frontend-url}") String frontendUrl,
+            @Value("${app.swagger.server-url}") String publicServerUrl,
+            @Value("${app.email.suppressed-domains:}") String suppressedEmailDomains) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.idGenerator = idGenerator;
@@ -68,6 +72,8 @@ public class SignUpService implements SignUpUseCase {
         this.emailSender = emailSender;
         this.timeProvider = timeProvider;
         this.frontendUrl = frontendUrl;
+        this.publicServerUrl = publicServerUrl;
+        this.suppressedEmailDomains = suppressedEmailDomains;
     }
 
     /**
@@ -108,8 +114,12 @@ public class SignUpService implements SignUpUseCase {
                 savedUser.getId(), emailVo, 1440, timeProvider.now()); // 24시간
         emailVerificationTokenRepository.save(verificationToken);
 
-        String verificationLink = frontendUrl + "/verify-email?token=" + verificationToken.getToken();
-        emailSender.sendVerificationEmail(email, verificationLink);
+        if (isEmailSuppressed(email)) {
+            log.info("Verification email suppressed for test/domain policy: {}", maskEmail(email));
+        } else {
+            String verificationLink = buildVerificationLink(verificationToken.getToken());
+            emailSender.sendVerificationEmail(email, verificationLink);
+        }
 
         log.info("Sign-up successful: userId={}, email={}", savedUser.getId(), maskEmail(email));
         return savedUser.getId();
@@ -139,6 +149,31 @@ public class SignUpService implements SignUpUseCase {
         if (userRepository.existsByNickname(nickname)) {
             throw new DuplicateNicknameException();
         }
+    }
+
+    private String buildVerificationLink(String token) {
+        if (frontendUrl == null || frontendUrl.isBlank() || frontendUrl.contains("localhost")) {
+            log.warn("frontendUrl is not publicly reachable. Falling back to API verification endpoint.");
+            return publicServerUrl + "/api/v1/auth/verify-email?token=" + token;
+        }
+        return frontendUrl + "/verify-email?token=" + token;
+    }
+
+    private boolean isEmailSuppressed(String email) {
+        if (email == null || suppressedEmailDomains == null || suppressedEmailDomains.isBlank()) {
+            return false;
+        }
+        int atIndex = email.lastIndexOf('@');
+        if (atIndex < 0 || atIndex == email.length() - 1) {
+            return false;
+        }
+        String domain = email.substring(atIndex + 1).trim().toLowerCase();
+        for (String configuredDomain : suppressedEmailDomains.split(",")) {
+            if (domain.equals(configuredDomain.trim().toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.cotalk.adapter.inbound.rest;
 
 import com.cotalk.adapter.inbound.rest.dto.auth.ResendVerificationRequest;
+import com.cotalk.domain.exception.InvalidEmailVerificationTokenException;
 import com.cotalk.domain.port.inbound.auth.ResendVerificationUseCase;
 import com.cotalk.domain.port.inbound.auth.VerifyEmailUseCase;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
@@ -19,8 +20,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -69,7 +72,40 @@ class EmailVerificationControllerTest {
             mockMvc.perform(get("/api/v1/auth/verify-email")
                             .param("token", token))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.message").value("이메일 인증이 완료되었습니다. 이제 로그인할 수 있습니다."));
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("이메일 인증이 완료되었습니다.")));
+        }
+
+        @Test
+        @DisplayName("이미 인증된 토큰이면 안내 HTML 반환")
+        void should_returnHtmlNotice_when_alreadyVerified() throws Exception {
+            // given
+            String token = "verified-token-123";
+            willThrow(InvalidEmailVerificationTokenException.alreadyVerified())
+                    .given(verifyEmailUseCase).verifyEmail(token);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/auth/verify-email")
+                            .param("token", token))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("이미 인증이 완료된 이메일입니다.")));
+        }
+
+        @Test
+        @DisplayName("유효하지 않은 토큰이면 에러 안내 HTML 반환")
+        void should_returnHtmlError_when_invalidToken() throws Exception {
+            // given
+            String token = "invalid-token-123";
+            willThrow(InvalidEmailVerificationTokenException.notFound())
+                    .given(verifyEmailUseCase).verifyEmail(token);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/auth/verify-email")
+                            .param("token", token))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("유효하지 않은 이메일 인증 링크입니다.")));
         }
     }
 

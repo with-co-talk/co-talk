@@ -37,4 +37,14 @@ public class MailProperties {
      * SMTP 인증 비밀번호.
      */
     private String password;
+
+    /**
+     * 메일 From 주소. 비어 있으면 username을 사용한다.
+     */
+    private String fromAddress;
+
+    /**
+     * 메일 From 표시명.
+     */
+    private String fromName;
 }

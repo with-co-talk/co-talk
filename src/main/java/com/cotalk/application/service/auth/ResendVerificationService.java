@@ -30,6 +30,8 @@ public class ResendVerificationService implements ResendVerificationUseCase {
     private final EmailSender emailSender;
     private final TimeProvider timeProvider;
     private final String frontendUrl;
+    private final String publicServerUrl;
+    private final String suppressedEmailDomains;
 
     private static final long RESEND_COOLDOWN_SECONDS = 60;
 
@@ -48,12 +50,16 @@ public class ResendVerificationService implements ResendVerificationUseCase {
             EmailVerificationTokenRepository tokenRepository,
             EmailSender emailSender,
             TimeProvider timeProvider,
-            @Value("${app.frontend-url}") String frontendUrl) {
+            @Value("${app.frontend-url}") String frontendUrl,
+            @Value("${app.swagger.server-url}") String publicServerUrl,
+            @Value("${app.email.suppressed-domains:}") String suppressedEmailDomains) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.emailSender = emailSender;
         this.timeProvider = timeProvider;
         this.frontendUrl = frontendUrl;
+        this.publicServerUrl = publicServerUrl;
+        this.suppressedEmailDomains = suppressedEmailDomains;
     }
 
     /**
@@ -85,10 +91,40 @@ public class ResendVerificationService implements ResendVerificationUseCase {
                     user.getId(), user.getEmail(), 1440, timeProvider.now()); // 24시간
             tokenRepository.save(token);
 
-            String verificationLink = frontendUrl + "/verify-email?token=" + token.getToken();
-            emailSender.sendVerificationEmail(user.getEmail().value(), verificationLink);
+            if (isEmailSuppressed(user.getEmail().value())) {
+                log.info("Verification email resend suppressed for test/domain policy: {}",
+                        LogMaskingUtil.maskEmail(email));
+            } else {
+                String verificationLink = buildVerificationLink(token.getToken());
+                emailSender.sendVerificationEmail(user.getEmail().value(), verificationLink);
 
-            log.info("Verification email resent to: {}", LogMaskingUtil.maskEmail(email));
+                log.info("Verification email resent to: {}", LogMaskingUtil.maskEmail(email));
+            }
         });
+    }
+
+    private String buildVerificationLink(String token) {
+        if (frontendUrl == null || frontendUrl.isBlank() || frontendUrl.contains("localhost")) {
+            log.warn("frontendUrl is not publicly reachable. Falling back to API verification endpoint.");
+            return publicServerUrl + "/api/v1/auth/verify-email?token=" + token;
+        }
+        return frontendUrl + "/verify-email?token=" + token;
+    }
+
+    private boolean isEmailSuppressed(String email) {
+        if (email == null || suppressedEmailDomains == null || suppressedEmailDomains.isBlank()) {
+            return false;
+        }
+        int atIndex = email.lastIndexOf('@');
+        if (atIndex < 0 || atIndex == email.length() - 1) {
+            return false;
+        }
+        String domain = email.substring(atIndex + 1).trim().toLowerCase();
+        for (String configuredDomain : suppressedEmailDomains.split(",")) {
+            if (domain.equals(configuredDomain.trim().toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

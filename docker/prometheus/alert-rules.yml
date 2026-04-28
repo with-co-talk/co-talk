@@ -5,7 +5,7 @@ groups:
       # 애플리케이션 상태 알림
       # ===========================================
       - alert: ApplicationDown
-        expr: up{job="cotalk-app"} == 0
+        expr: up{job="cotalk-app", instance_type="stable"} == 0
         for: 1m
         labels:
           severity: critical
@@ -15,7 +15,7 @@ groups:
 
       # 인스턴스 다운 알림 (3인스턴스 티어)
       - alert: InstanceDown
-        expr: up{job="cotalk-app"} == 0
+        expr: up{job="cotalk-app", instance_type="stable"} == 0
         for: 30s
         labels:
           severity: warning
@@ -24,7 +24,7 @@ groups:
           description: "인스턴스 {{ $labels.instance }}가 30초 이상 응답하지 않습니다. 나머지 인스턴스가 트래픽을 처리 중입니다."
 
       - alert: MultipleInstancesDown
-        expr: count(up{job="cotalk-app"} == 0) >= 2
+        expr: count(up{job="cotalk-app", instance_type="stable"} == 0) >= 2
         for: 30s
         labels:
           severity: critical

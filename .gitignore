@@ -45,6 +45,9 @@ firebase-service-account.json
 .env
 .env.*
 
+# Local bind-mounted service data
+data/
+
 # K8s Secrets (민감 정보 포함)
 k8s/**/secret.yaml
 k8s/**/secrets.yaml

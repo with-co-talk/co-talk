@@ -23,8 +23,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -59,8 +61,9 @@ class SignUpServiceTest {
     @BeforeEach
     void setUp() {
         String frontendUrl = "http://localhost:3000";
+        String publicServerUrl = "https://cotalk-api.example.com";
         signUpService = new SignUpService(userRepository, passwordEncoder, idGenerator, userValidator,
-                emailVerificationTokenRepository, emailSender, timeProvider, frontendUrl);
+                emailVerificationTokenRepository, emailSender, timeProvider, frontendUrl, publicServerUrl, "");
     }
 
     @Nested
@@ -145,6 +148,36 @@ class SignUpServiceTest {
             ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
             verify(userRepository).save(userCaptor.capture());
             assertThat(userCaptor.getValue().getId()).isEqualTo(snowflakeId);
+        }
+
+        @Test
+        @DisplayName("차단 도메인 이메일이면 인증 토큰만 만들고 메일은 발송하지 않는다")
+        void should_SuppressVerificationEmail_when_EmailDomainIsSuppressed() {
+            // given
+            String email = "loadtest@test.cotalk.com";
+            String password = "password123";
+            String nickname = "loadtestUser";
+
+            signUpService = new SignUpService(userRepository, passwordEncoder, idGenerator, userValidator,
+                    emailVerificationTokenRepository, emailSender, timeProvider,
+                    "http://localhost:3000", "https://cotalk-api.example.com", "test.cotalk.com");
+
+            given(userRepository.existsByEmail(email)).willReturn(false);
+            given(userRepository.existsByNickname(nickname)).willReturn(false);
+            given(passwordEncoder.encode(password)).willReturn("encoded");
+            given(idGenerator.nextId()).willReturn(1L);
+            given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+            given(emailVerificationTokenRepository.save(any(EmailVerificationToken.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+            given(timeProvider.now()).willReturn(FIXED_NOW);
+
+            // when
+            Long result = signUpService.signUp(email, password, nickname);
+
+            // then
+            assertThat(result).isEqualTo(1L);
+            verify(emailVerificationTokenRepository).save(any(EmailVerificationToken.class));
+            verify(emailSender, never()).sendVerificationEmail(anyString(), anyString());
         }
     }
 

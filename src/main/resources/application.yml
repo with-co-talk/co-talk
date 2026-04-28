@@ -125,6 +125,8 @@ spring.mail:
   port: ${MAIL_PORT:587}
   username: ${MAIL_USERNAME:}
   password: ${MAIL_PASSWORD:}
+  from-address: ${MAIL_FROM_ADDRESS:}
+  from-name: ${MAIL_FROM_NAME:Co-Talk}
   properties:
     mail:
       smtp:
@@ -148,6 +150,8 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   redis:
     channel-prefix: ${REDIS_CHANNEL_PREFIX:chat:room:}
+  email:
+    suppressed-domains: ${EMAIL_SUPPRESSED_DOMAINS:}
   password-reset:
     expiration-minutes: ${PASSWORD_RESET_EXPIRATION:30}
   terms:

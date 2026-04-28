@@ -29,9 +29,19 @@ jobs:
           REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
           MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
           MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
+          MINIO_PUBLIC_URL=${{ secrets.MINIO_PUBLIC_URL }}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
           K6_BYPASS_TOKEN=${{ secrets.K6_BYPASS_TOKEN }}
+          FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+          CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
+          MAIL_HOST=${{ secrets.MAIL_HOST }}
+          MAIL_PORT=${{ secrets.MAIL_PORT }}
+          MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+          MAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}
+          MAIL_FROM_NAME=${{ secrets.MAIL_FROM_NAME }}
+          EMAIL_SUPPRESSED_DOMAINS=${{ secrets.EMAIL_SUPPRESSED_DOMAINS }}
           APP_PORT=8081
           EOF
 
@@ -89,9 +99,19 @@ jobs:
           REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
           MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
           MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
+          MINIO_PUBLIC_URL=${{ secrets.MINIO_PUBLIC_URL }}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
           K6_BYPASS_TOKEN=${{ secrets.K6_BYPASS_TOKEN }}
+          FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+          CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
+          MAIL_HOST=${{ secrets.MAIL_HOST }}
+          MAIL_PORT=${{ secrets.MAIL_PORT }}
+          MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+          MAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}
+          MAIL_FROM_NAME=${{ secrets.MAIL_FROM_NAME }}
+          EMAIL_SUPPRESSED_DOMAINS=${{ secrets.EMAIL_SUPPRESSED_DOMAINS }}
           APP_PORT=8081
           EOF
 

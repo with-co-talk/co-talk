@@ -22,6 +22,8 @@ import java.time.LocalDateTime;
 @Builder
 public class Message extends BaseEntity {
 
+    public static final int URL_MAX_LENGTH = 2048;
+
     @Id
     private Long id;
 
@@ -41,7 +43,7 @@ public class Message extends BaseEntity {
     private MessageType type = MessageType.TEXT;
 
     // 파일/이미지 메시지용 필드
-    @Column(name = "file_url")
+    @Column(name = "file_url", length = URL_MAX_LENGTH)
     private String fileUrl;
 
     @Column(name = "file_name")
@@ -54,7 +56,7 @@ public class Message extends BaseEntity {
     private String fileContentType;
 
     // 이미지 미리보기용 (썸네일)
-    @Column(name = "thumbnail_url")
+    @Column(name = "thumbnail_url", length = URL_MAX_LENGTH)
     private String thumbnailUrl;
 
     // 답장 기능: 답장 대상 메시지 ID

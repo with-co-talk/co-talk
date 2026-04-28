@@ -17,12 +17,17 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # Spring Boot 애플리케이션 메트릭 (3-instance)
+  # Spring Boot 애플리케이션 메트릭 (stable 3-instance)
   - job_name: 'cotalk-app'
     metrics_path: '/actuator/prometheus'
     scrape_interval: 5s
     static_configs:
       - targets: ['app-1:8080', 'app-2:8080', 'app-3:8080']
+        labels:
+          instance_type: 'stable'
+      - targets: ['app-canary:8080']
+        labels:
+          instance_type: 'canary'
     relabel_configs:
       - source_labels: [__address__]
         regex: 'app-(.+):8080'

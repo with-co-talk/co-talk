@@ -56,7 +56,9 @@ class ResendVerificationServiceTest {
     @BeforeEach
     void setUp() {
         String frontendUrl = "http://localhost:3000";
-        service = new ResendVerificationService(userRepository, tokenRepository, emailSender, timeProvider, frontendUrl);
+        String publicServerUrl = "https://cotalk-api.example.com";
+        service = new ResendVerificationService(userRepository, tokenRepository, emailSender, timeProvider,
+                frontendUrl, publicServerUrl, "");
     }
 
     @Test
@@ -86,6 +88,37 @@ class ResendVerificationServiceTest {
         verify(tokenRepository).deleteByUserId(10L);
         verify(tokenRepository).save(any(EmailVerificationToken.class));
         verify(emailSender).sendVerificationEmail(eq(email), anyString());
+    }
+
+    @Test
+    @DisplayName("차단 도메인 이메일이면 새 토큰만 만들고 인증 이메일은 재발송하지 않는다")
+    void should_suppressVerificationEmail_when_emailDomainIsSuppressed() {
+        // given
+        String email = "loadtest@test.cotalk.com";
+        service = new ResendVerificationService(userRepository, tokenRepository, emailSender, timeProvider,
+                "http://localhost:3000", "https://cotalk-api.example.com", "test.cotalk.com");
+
+        User user = User.builder()
+                .id(10L)
+                .email(new Email(email))
+                .nickname("테스트유저")
+                .passwordHash("hash")
+                .emailVerified(false)
+                .build();
+
+        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+        given(tokenRepository.findLatestByUserId(10L)).willReturn(Optional.empty());
+        given(tokenRepository.save(any(EmailVerificationToken.class)))
+                .willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
+
+        // when
+        service.resendVerification(email);
+
+        // then
+        verify(tokenRepository).deleteByUserId(10L);
+        verify(tokenRepository).save(any(EmailVerificationToken.class));
+        verify(emailSender, never()).sendVerificationEmail(anyString(), anyString());
     }
 
     @Test

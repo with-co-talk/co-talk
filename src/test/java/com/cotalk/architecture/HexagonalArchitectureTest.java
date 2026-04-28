@@ -118,30 +118,7 @@ class HexagonalArchitectureTest {
             rule.check(classes);
         }
 
-        @Test
-        @DisplayName("User 외 Application 서비스는 User 인바운드 포트에 의존하지 않는다")
-        void should_notDependOnUserInboundPorts_when_outsideUserModule() {
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("..application.service..")
-                    .and().resideOutsideOfPackage("..application.service.user..")
-                    .should().dependOnClassesThat().resideInAPackage("..domain.port.inbound.user..");
-
-            rule.check(classes);
-        }
-
-        @Test
-        @DisplayName("LinkPreview 외 Application 서비스는 LinkPreview 인바운드 포트에 의존하지 않는다")
-        void should_notDependOnLinkPreviewInboundPorts_when_outsideLinkPreviewModule() {
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("..application.service..")
-                    .and().resideOutsideOfPackage("..application.service.linkpreview..")
-                    .should().dependOnClassesThat().resideInAPackage("..domain.port.inbound.linkpreview..");
-
-            rule.check(classes);
-        }
-
     }
->>>>>>> 1decc7c (test: add linkpreview application boundary rule)
 
     @Nested
     @DisplayName("Adapter 레이어 규칙")

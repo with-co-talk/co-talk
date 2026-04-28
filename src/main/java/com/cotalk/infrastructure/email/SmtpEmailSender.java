@@ -2,9 +2,12 @@ package com.cotalk.infrastructure.email;
 
 import com.cotalk.domain.port.outbound.EmailSender;
 import jakarta.mail.MessagingException;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
+import java.io.UnsupportedEncodingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -33,6 +36,9 @@ public class SmtpEmailSender implements EmailSender {
     private final JavaMailSender mailSender;
     private final MailProperties mailProperties;
 
+    @Value("${app.email.suppressed-domains:}")
+    private String suppressedEmailDomains;
+
     /**
      * 이메일을 비동기로 발송한다.
      *
@@ -46,21 +52,69 @@ public class SmtpEmailSender implements EmailSender {
     @Override
     @Async
     public void send(String to, String subject, String body) {
+        if (isEmailSuppressed(to)) {
+            log.info("Email suppressed for test/domain policy: {}", maskEmail(to));
+            return;
+        }
+
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(mailProperties.getUsername());
+            helper.setFrom(buildFromAddress());
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(body, true); // HTML 지원
 
             mailSender.send(message);
             log.info("Email sent successfully to: {}", to);
-        } catch (MessagingException e) {
+        } catch (MessagingException | UnsupportedEncodingException e) {
             log.error("Failed to send email to: {}", to, e);
             throw new RuntimeException("이메일 발송에 실패했습니다.", e);
         }
+    }
+
+    private InternetAddress buildFromAddress() throws MessagingException, UnsupportedEncodingException {
+        String fromAddress = hasText(mailProperties.getFromAddress())
+                ? mailProperties.getFromAddress()
+                : mailProperties.getUsername();
+        if (hasText(mailProperties.getFromName())) {
+            return new InternetAddress(fromAddress, mailProperties.getFromName(), "UTF-8");
+        }
+        return new InternetAddress(fromAddress);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private boolean isEmailSuppressed(String email) {
+        if (email == null || suppressedEmailDomains == null || suppressedEmailDomains.isBlank()) {
+            return false;
+        }
+        int atIndex = email.lastIndexOf('@');
+        if (atIndex < 0 || atIndex == email.length() - 1) {
+            return false;
+        }
+        String domain = email.substring(atIndex + 1).trim().toLowerCase();
+        for (String configuredDomain : suppressedEmailDomains.split(",")) {
+            if (domain.equals(configuredDomain.trim().toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return "***";
+        }
+        String[] parts = email.split("@");
+        String localPart = parts[0];
+        if (localPart.length() <= 2) {
+            return "**@" + parts[1];
+        }
+        return localPart.substring(0, 2) + "**@" + parts[1];
     }
 
     /**

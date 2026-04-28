@@ -1,19 +1,22 @@
 package com.cotalk.infrastructure.email;
 
 import jakarta.mail.MessagingException;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 /**
@@ -35,7 +38,7 @@ class SmtpEmailSenderTest {
 
     @BeforeEach
     void setUp() {
-        given(mailSender.createMimeMessage()).willReturn(mimeMessage);
+        lenient().when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         MailProperties mailProperties = new MailProperties();
         mailProperties.setHost("smtp.example.com");
@@ -121,5 +124,44 @@ class SmtpEmailSenderTest {
 
         // then
         verify(mailSender).createMimeMessage();
+    }
+
+    @Test
+    @DisplayName("From 표시명과 주소를 설정한다")
+    void should_setConfiguredFromAddress_when_fromPropertiesProvided() throws Exception {
+        // given
+        MailProperties mailProperties = new MailProperties();
+        mailProperties.setHost("smtp.example.com");
+        mailProperties.setUsername("tp.bmsg@gmail.com");
+        mailProperties.setPassword("test-password");
+        mailProperties.setFromAddress("no-reply@cotalk.co.kr");
+        mailProperties.setFromName("Co-Talk");
+
+        SmtpEmailSender configuredSender = new SmtpEmailSender(mailSender, mailProperties);
+        doNothing().when(mailSender).send(any(MimeMessage.class));
+
+        // when
+        configuredSender.send("test@example.com", "Test Subject", "Test Body");
+
+        // then
+        ArgumentCaptor<InternetAddress> fromCaptor = ArgumentCaptor.forClass(InternetAddress.class);
+        verify(mimeMessage).setFrom(fromCaptor.capture());
+        InternetAddress from = fromCaptor.getValue();
+        assertThat(from.getAddress()).isEqualTo("no-reply@cotalk.co.kr");
+        assertThat(from.getPersonal()).isEqualTo("Co-Talk");
+    }
+
+    @Test
+    @DisplayName("차단 도메인 이메일이면 SMTP 발송을 건너뛴다")
+    void should_suppressEmail_when_emailDomainIsSuppressed() {
+        // given
+        ReflectionTestUtils.setField(emailSender, "suppressedEmailDomains", "test.cotalk.com");
+
+        // when
+        emailSender.send("loadtest@test.cotalk.com", "Test Subject", "Test Body");
+
+        // then
+        verify(mailSender, never()).createMimeMessage();
+        verify(mailSender, never()).send(any(MimeMessage.class));
     }
 }
