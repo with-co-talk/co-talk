@@ -273,8 +273,10 @@ EOF
 
 nginx_reload() {
     if dc ps nginx 2>/dev/null | grep -q "Up\|running"; then
-        dc exec -T nginx nginx -s reload
-        log_success "nginx reloaded"
+        # Recreate instead of in-place reload because Docker Desktop file mounts
+        # can keep the old inode when Actions checkout rewrites upstream.conf.
+        dc up -d --force-recreate --no-deps nginx
+        log_success "nginx recreated with updated config"
     else
         log_info "nginx not running, starting..."
         dc up -d --no-deps nginx
