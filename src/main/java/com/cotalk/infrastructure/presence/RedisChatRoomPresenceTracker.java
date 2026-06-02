@@ -49,17 +49,29 @@ public class RedisChatRoomPresenceTracker implements ChatRoomPresenceTracker {
         long expiresAt = System.currentTimeMillis() + TTL_MILLIS;
         String roomKey = roomKey(chatRoomId);
         String userKey = String.valueOf(userId);
+        // ZSet 점수(만료시각)는 ping 마다 항상 갱신한다.
         redisTemplate.opsForZSet().add(roomKey, userKey, expiresAt);
-        // 멀티 인스턴스 세션 카운트: 같은 유저가 여러 세션으로 같은 방을 구독할 수 있음
+
+        // 멀티 인스턴스 세션 카운트: 같은 유저가 여러 세션으로 같은 방을 구독할 수 있다.
+        // 단, 세션 카운트는 (방, 세션)당 1회만 증가해야 한다.
+        // presence ping(20초 주기)도 markActive를 호출하므로, 매번 증가시키면
+        // 카운트가 누적되어 markInactive로 0까지 감소하지 못하고 방을 나가도
+        // TTL(60초) 만료 전까지 "보는 중"으로 남아 푸시가 억제되는 버그가 생긴다.
+        // session -> rooms Set에 처음 추가될 때(SADD 반환=1)만 카운트를 증가시켜 멱등화한다.
         String countKey = userCountKey(chatRoomId, userId);
-        redisTemplate.opsForValue().increment(countKey);
-        redisTemplate.expire(countKey, TTL_MILLIS + 10000, TimeUnit.MILLISECONDS);
-        // disconnect cleanup용으로 session -> rooms 매핑 저장
         if (sessionId != null) {
             String sessionRoomsKey = sessionRoomsKey(sessionId);
-            redisTemplate.opsForSet().add(sessionRoomsKey, String.valueOf(chatRoomId));
+            Long added = redisTemplate.opsForSet().add(sessionRoomsKey, String.valueOf(chatRoomId));
             redisTemplate.expire(sessionRoomsKey, SESSION_TTL_MILLIS, TimeUnit.MILLISECONDS);
+            if (added != null && added > 0) {
+                // 이 세션이 이 방을 처음 활성화한 경우에만 카운트 증가 (ping 반복 증가 방지)
+                redisTemplate.opsForValue().increment(countKey);
+            }
+        } else {
+            // sessionId가 없는 예외적 경우: 멱등 보장이 불가하므로 기존 동작 유지
+            redisTemplate.opsForValue().increment(countKey);
         }
+        redisTemplate.expire(countKey, TTL_MILLIS + 10000, TimeUnit.MILLISECONDS);
         log.debug("Marked active: roomId={}, userId={}, sessionId={}", chatRoomId, userId, sessionId);
     }
 
@@ -68,6 +80,20 @@ public class RedisChatRoomPresenceTracker implements ChatRoomPresenceTracker {
         if (chatRoomId == null || userId == null) return;
         String roomKey = roomKey(chatRoomId);
         String userKey = String.valueOf(userId);
+
+        // 멱등성: 이 세션이 실제로 이 방에 활성 등록돼 있던 경우(SREM 반환=1)에만 카운트를 감소시킨다.
+        // markActive가 (방, 세션)당 1회만 증가시키므로, 감소도 1회만 일어나야 대칭이 맞는다.
+        // 중복 호출(예: presenceInactive + UNSUBSCRIBE)이 와도 카운트를 두 번 깎지 않는다.
+        if (sessionId != null) {
+            Long removed = redisTemplate.opsForSet().remove(sessionRoomsKey(sessionId), String.valueOf(chatRoomId));
+            if (removed == null || removed == 0) {
+                // 이미 비활성 처리된 세션 → 아무 것도 하지 않음
+                log.debug("Marked inactive (already inactive): roomId={}, userId={}, sessionId={}",
+                        chatRoomId, userId, sessionId);
+                return;
+            }
+        }
+
         // 세션 카운트 DECR → 0 이하일 때만 ZSet에서 제거 (멀티 인스턴스 안전)
         String countKey = userCountKey(chatRoomId, userId);
         Long count = redisTemplate.opsForValue().decrement(countKey);
@@ -78,9 +104,6 @@ public class RedisChatRoomPresenceTracker implements ChatRoomPresenceTracker {
         } else {
             log.debug("Marked inactive (remaining sessions: {}): roomId={}, userId={}, sessionId={}",
                     count, chatRoomId, userId, sessionId);
-        }
-        if (sessionId != null) {
-            redisTemplate.opsForSet().remove(sessionRoomsKey(sessionId), String.valueOf(chatRoomId));
         }
     }
 

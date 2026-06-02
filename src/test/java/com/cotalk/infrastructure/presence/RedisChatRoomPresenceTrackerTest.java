@@ -70,6 +70,33 @@ class RedisChatRoomPresenceTrackerTest {
         }
 
         @Test
+        @DisplayName("같은 세션의 반복 ping은 세션 카운트를 한 번만 증가시킨다")
+        void should_incrementCountOnce_onRepeatedPing_forSameSession() {
+            // given: presence ping이 20초마다 markActive를 호출해도 카운트가 누적되면 안 된다.
+            Long chatRoomId = 100L;
+            Long userId = 1L;
+            String sessionId = "session-1";
+
+            when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(redisTemplate.opsForSet()).thenReturn(setOperations);
+            when(zSetOperations.add(anyString(), anyString(), anyDouble())).thenReturn(true);
+            when(valueOperations.increment(anyString())).thenReturn(1L);
+            // 첫 호출은 새로 추가(SADD=1), 이후 ping은 이미 존재(SADD=0)
+            when(setOperations.add(anyString(), anyString())).thenReturn(1L, 0L, 0L);
+            when(redisTemplate.expire(anyString(), anyLong(), any(java.util.concurrent.TimeUnit.class))).thenReturn(true);
+
+            // when: 진입 + ping 2회
+            tracker.markActive(chatRoomId, userId, sessionId);
+            tracker.markActive(chatRoomId, userId, sessionId);
+            tracker.markActive(chatRoomId, userId, sessionId);
+
+            // then: ZSet 점수는 매번 갱신되지만 카운트 증가는 한 번뿐이어야 한다
+            verify(zSetOperations, times(3)).add(anyString(), eq(String.valueOf(userId)), anyDouble());
+            verify(valueOperations, times(1)).increment(anyString());
+        }
+
+        @Test
         @DisplayName("chatRoomId가 null이면 아무것도 하지 않는다")
         void should_doNothing_when_chatRoomIdIsNull() {
             // given
@@ -135,6 +162,8 @@ class RedisChatRoomPresenceTrackerTest {
             when(redisTemplate.opsForValue()).thenReturn(valueOperations);
             when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
             when(redisTemplate.opsForSet()).thenReturn(setOperations);
+            // 이 세션이 실제로 방에 활성 등록돼 있었음을 의미(SREM 반환=1)
+            when(setOperations.remove(anyString(), anyString())).thenReturn(1L);
             when(valueOperations.decrement(anyString())).thenReturn(0L);
             when(zSetOperations.remove(anyString(), anyString())).thenReturn(1L);
             when(redisTemplate.delete(anyString())).thenReturn(true);
@@ -146,6 +175,25 @@ class RedisChatRoomPresenceTrackerTest {
             verify(valueOperations).decrement(anyString());
             verify(zSetOperations).remove(anyString(), eq(String.valueOf(userId)));
             verify(setOperations).remove(anyString(), eq(String.valueOf(chatRoomId)));
+        }
+
+        @Test
+        @DisplayName("이미 비활성 처리된 세션(SREM=0)은 카운트를 감소시키지 않는다")
+        void should_notDecrement_when_sessionNotMember() {
+            // given: 중복 호출(presenceInactive + UNSUBSCRIBE 등)로 이미 제거된 세션
+            Long chatRoomId = 100L;
+            Long userId = 1L;
+            String sessionId = "session-1";
+
+            when(redisTemplate.opsForSet()).thenReturn(setOperations);
+            when(setOperations.remove(anyString(), anyString())).thenReturn(0L);
+
+            // when
+            tracker.markInactive(chatRoomId, userId, sessionId);
+
+            // then: 카운트 감소/ZSet 제거가 일어나지 않아야 한다(멱등성)
+            verify(redisTemplate, never()).opsForValue();
+            verify(zSetOperations, never()).remove(anyString(), anyString());
         }
 
         @Test
