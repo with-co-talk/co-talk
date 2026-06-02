@@ -2,6 +2,7 @@ package com.cotalk.infrastructure.push;
 
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import com.cotalk.domain.port.outbound.PushNotificationSender;
+import com.cotalk.domain.port.outbound.PushNotificationSender.PushTarget;
 import com.cotalk.domain.util.TokenMasker;
 import com.google.firebase.messaging.*;
 import lombok.extern.slf4j.Slf4j;
@@ -73,8 +74,8 @@ public class FcmPushNotificationSender implements PushNotificationSender {
                     .setToken(token)
                     .setNotification(createNotification(title, body, imageUrl))
                     .putAllData(data)
-                    .setAndroidConfig(createAndroidConfig())
-                    .setApnsConfig(createApnsConfig())
+                    .setAndroidConfig(createAndroidConfig(null))
+                    .setApnsConfig(createApnsConfig(null))
                     .build();
 
             String response = firebaseMessaging.send(message);
@@ -135,8 +136,8 @@ public class FcmPushNotificationSender implements PushNotificationSender {
                     .addAllTokens(tokens)
                     .setNotification(createNotification(title, body, imageUrl))
                     .putAllData(data)
-                    .setAndroidConfig(createAndroidConfig())
-                    .setApnsConfig(createApnsConfig())
+                    .setAndroidConfig(createAndroidConfig(null))
+                    .setApnsConfig(createApnsConfig(null))
                     .build();
 
             BatchResponse response = firebaseMessaging.sendEachForMulticast(message);
@@ -262,15 +263,22 @@ public class FcmPushNotificationSender implements PushNotificationSender {
      * Android 8.0(API 26) 이상에서는 채널 ID가 필수이며, 지정하지 않으면
      * 백그라운드 알림이 제대로 표시되지 않을 수 있다.
      *
+     * <p>{@code badge}가 {@code null}이 아니면 알림 개수(notification count)를
+     * best-effort로 설정한다.
+     *
+     * @param badge 알림 개수로 설정할 값 ({@code null}이면 설정하지 않음)
      * @return AndroidConfig 객체
      */
-    private AndroidConfig createAndroidConfig() {
+    private AndroidConfig createAndroidConfig(Integer badge) {
+        AndroidNotification.Builder notificationBuilder = AndroidNotification.builder()
+                .setChannelId("chat_messages")
+                .setSound("default");
+        if (badge != null) {
+            notificationBuilder.setNotificationCount(badge);
+        }
         return AndroidConfig.builder()
                 .setPriority(AndroidConfig.Priority.HIGH)
-                .setNotification(AndroidNotification.builder()
-                        .setChannelId("chat_messages")
-                        .setSound("default")
-                        .build())
+                .setNotification(notificationBuilder.build())
                 .build();
     }
 
@@ -283,16 +291,121 @@ public class FcmPushNotificationSender implements PushNotificationSender {
      *   <li>apns-priority: 10 - 즉시 전송 (5는 절전 모드로 지연될 수 있음)</li>
      * </ul>
      *
+     * <p>{@code badge}가 {@code null}이면 배지를 설정하지 않아 기존 배지를 변경하지 않는다.
+     * {@code null}이 아니면 해당 값으로 앱 아이콘 배지를 설정한다.
+     *
+     * @param badge 앱 아이콘 배지 값 ({@code null}이면 배지를 변경하지 않음)
      * @return ApnsConfig 객체
      */
-    private ApnsConfig createApnsConfig() {
+    private ApnsConfig createApnsConfig(Integer badge) {
+        Aps.Builder apsBuilder = Aps.builder()
+                .setSound("default");
+        if (badge != null) {
+            apsBuilder.setBadge(badge);
+        }
         return ApnsConfig.builder()
                 .putHeader("apns-push-type", "alert")
                 .putHeader("apns-priority", "10")
-                .setAps(Aps.builder()
-                        .setSound("default")
-                        .setBadge(1)
-                        .build())
+                .setAps(apsBuilder.build())
                 .build();
+    }
+
+    /**
+     * 디바이스별로 서로 다른 배지 값을 적용하여 푸시 알림을 전송한다.
+     *
+     * <p>각 대상은 자신의 토큰과 배지 값을 가지며, iOS는 APNs 배지로,
+     * Android는 알림 개수로 best-effort 적용된다. 배지 값이 {@code null}인 대상은
+     * 배지를 변경하지 않는다. FCM의 제한(500개/요청)에 맞춰 자동으로 배치 처리된다.
+     *
+     * @param targets  전송 대상 목록 (각 대상의 토큰과 배지 값)
+     * @param title    알림 제목
+     * @param body     알림 본문
+     * @param data     추가 데이터 맵
+     * @param imageUrl 알림에 표시할 이미지 URL (없으면 null)
+     * @return 성공적으로 전송된 알림 수
+     */
+    @Override
+    @Transactional
+    public int sendEachWithBadge(List<PushTarget> targets, String title, String body, Map<String, String> data, String imageUrl) {
+        if (firebaseMessaging == null) {
+            log.debug("Firebase is not configured. Skipping push notifications.");
+            return 0;
+        }
+
+        if (targets.isEmpty()) {
+            return 0;
+        }
+
+        int successCount = 0;
+        for (int i = 0; i < targets.size(); i += FCM_BATCH_SIZE) {
+            List<PushTarget> batch = targets.subList(i, Math.min(i + FCM_BATCH_SIZE, targets.size()));
+            successCount += sendEachBatch(batch, title, body, data, imageUrl);
+        }
+        return successCount;
+    }
+
+    /**
+     * 대상 배치에 대해 대상별 배지가 적용된 메시지를 전송한다.
+     *
+     * @param targets  전송 대상 목록 (최대 500개)
+     * @param title    알림 제목
+     * @param body     알림 본문
+     * @param data     추가 데이터 맵
+     * @param imageUrl 알림에 표시할 이미지 URL (없으면 null)
+     * @return 성공적으로 전송된 알림 수
+     */
+    private int sendEachBatch(List<PushTarget> targets, String title, String body, Map<String, String> data, String imageUrl) {
+        try {
+            List<Message> messages = new ArrayList<>(targets.size());
+            for (PushTarget target : targets) {
+                messages.add(Message.builder()
+                        .setToken(target.token())
+                        .setNotification(createNotification(title, body, imageUrl))
+                        .putAllData(data)
+                        .setAndroidConfig(createAndroidConfig(target.badge()))
+                        .setApnsConfig(createApnsConfig(target.badge()))
+                        .build());
+            }
+
+            BatchResponse response = firebaseMessaging.sendEach(messages);
+
+            if (response.getFailureCount() > 0) {
+                log.warn("FCM sendEach partial failure: {}/{} failed",
+                        response.getFailureCount(), targets.size());
+                handleEachFailures(targets, response);
+            }
+
+            return response.getSuccessCount();
+
+        } catch (FirebaseMessagingException e) {
+            log.error("FCM sendEach failed", e);
+            return 0;
+        }
+    }
+
+    /**
+     * 대상별 전송 실패를 처리한다.
+     * 유효하지 않은 토큰을 찾아 비활성화한다.
+     *
+     * @param targets  전송된 대상 목록
+     * @param response FCM 배치 응답
+     */
+    private void handleEachFailures(List<PushTarget> targets, BatchResponse response) {
+        List<SendResponse> responses = response.getResponses();
+        List<String> invalidTokens = new ArrayList<>();
+
+        for (int i = 0; i < responses.size(); i++) {
+            SendResponse sendResponse = responses.get(i);
+            if (!sendResponse.isSuccessful()) {
+                FirebaseMessagingException exception = sendResponse.getException();
+                if (exception != null && isInvalidTokenError(exception.getMessagingErrorCode())) {
+                    invalidTokens.add(targets.get(i).token());
+                }
+            }
+        }
+
+        if (!invalidTokens.isEmpty()) {
+            deactivateTokens(invalidTokens);
+        }
     }
 }

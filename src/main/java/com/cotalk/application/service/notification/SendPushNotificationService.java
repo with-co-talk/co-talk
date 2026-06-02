@@ -4,9 +4,11 @@ import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.entity.NotificationSetting;
 import com.cotalk.domain.port.inbound.notification.SendPushNotificationUseCase;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
+import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.NotificationCommandPort;
 import com.cotalk.domain.port.outbound.NotificationSettingRepository;
 import com.cotalk.domain.port.outbound.PushNotificationSender;
+import com.cotalk.domain.port.outbound.PushNotificationSender.PushTarget;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +44,7 @@ public class SendPushNotificationService implements SendPushNotificationUseCase,
     private final PushNotificationSender pushNotificationSender;
     private final NotificationSettingRepository notificationSettingRepository;
     private final TimeProvider timeProvider;
+    private final MessageRepository messageRepository;
 
     /**
      * 새 메시지 알림을 전송한다.
@@ -72,10 +75,6 @@ public class SendPushNotificationService implements SendPushNotificationUseCase,
             return;
         }
 
-        List<String> tokenStrings = tokens.stream()
-                .map(DeviceToken::getToken)
-                .toList();
-
         String previewMode = setting != null ? setting.getNotificationPreviewMode() : PREVIEW_MODE_NAME_AND_MESSAGE;
         String title = resolveTitle(senderNickname, previewMode);
         String body = resolveBody(messageContent, previewMode);
@@ -88,8 +87,16 @@ public class SendPushNotificationService implements SendPushNotificationUseCase,
             data.put("avatarUrl", senderAvatarUrl);
         }
 
-        int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data, senderAvatarUrl);
-        log.info("New message push sent to user {}: {}/{} devices", receiverUserId, sentCount, tokenStrings.size());
+        // 수신자의 전체 채팅방 읽지 않은 메시지 수를 배지로 설정한다.
+        Map<Long, Long> unreadMap = messageRepository.batchCountTotalUnread(List.of(receiverUserId));
+        int badge = unreadMap.getOrDefault(receiverUserId, 0L).intValue();
+
+        List<PushTarget> targets = tokens.stream()
+                .map(token -> new PushTarget(token.getToken(), badge))
+                .toList();
+
+        int sentCount = pushNotificationSender.sendEachWithBadge(targets, title, body, data, senderAvatarUrl);
+        log.info("New message push sent to user {}: {}/{} devices", receiverUserId, sentCount, targets.size());
     }
 
     /**
@@ -134,6 +141,9 @@ public class SendPushNotificationService implements SendPushNotificationUseCase,
                     return setting != null ? setting.getNotificationPreviewMode() : PREVIEW_MODE_NAME_AND_MESSAGE;
                 }));
 
+        // 알림을 받는 모든 사용자의 전체 채팅방 읽지 않은 메시지 수를 한 번에 조회한다.
+        Map<Long, Long> unreadMap = messageRepository.batchCountTotalUnread(allowedUserIds);
+
         // 각 미리보기 모드 그룹별로 알림 전송
         int totalSentCount = 0;
         int totalTokenCount = 0;
@@ -147,10 +157,6 @@ public class SendPushNotificationService implements SendPushNotificationUseCase,
                 log.debug("No active device tokens for users with previewMode {}: {}", previewMode, userIds);
                 continue;
             }
-
-            List<String> tokenStrings = tokens.stream()
-                    .map(DeviceToken::getToken)
-                    .toList();
 
             String title = resolveTitle(senderNickname, previewMode);
             String body = resolveBody(messageContent, previewMode);
@@ -166,12 +172,19 @@ public class SendPushNotificationService implements SendPushNotificationUseCase,
                 data.put("avatarUrl", senderAvatarUrl);
             }
 
-            int sentCount = pushNotificationSender.sendMultiple(tokenStrings, title, body, data, senderAvatarUrl);
+            // 각 토큰을 소유자의 읽지 않은 메시지 수(배지)에 매핑한다.
+            List<PushTarget> targets = tokens.stream()
+                    .map(token -> new PushTarget(
+                            token.getToken(),
+                            unreadMap.getOrDefault(token.getUserId(), 0L).intValue()))
+                    .toList();
+
+            int sentCount = pushNotificationSender.sendEachWithBadge(targets, title, body, data, senderAvatarUrl);
             totalSentCount += sentCount;
-            totalTokenCount += tokenStrings.size();
+            totalTokenCount += targets.size();
 
             log.debug("Sent bulk notification to {} users (previewMode: {}): {}/{} devices",
-                    userIds.size(), previewMode, sentCount, tokenStrings.size());
+                    userIds.size(), previewMode, sentCount, targets.size());
         }
 
         log.info("Bulk new message push sent to {} users (filtered from {}): {}/{} devices",

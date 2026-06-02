@@ -309,6 +309,59 @@ class MessageRepositoryAdapterTest {
     }
 
     @Nested
+    @DisplayName("전체 채팅방 읽지 않은 메시지 카운트 시")
+    class BatchCountTotalUnread {
+
+        @Test
+        @DisplayName("사용자별로 모든 채팅방을 합산한 읽지 않은 메시지 수를 반환한다")
+        void should_returnTotalUnreadPerUser_when_userIdsProvided() {
+            // given - chatRoom(100): user1, user2 모두 참여 / chatRoom2(101): user1만 참여
+            // user1이 chatRoom에 2개, chatRoom2에 1개 발송 → user2는 chatRoom의 2개를 안 읽음
+            messageRepository.save(Message.builder()
+                    .id(10001L).chatRoomId(chatRoom.getId()).senderId(user1.getId())
+                    .content("방1 메시지1").type(MessageType.TEXT).build());
+            messageRepository.save(Message.builder()
+                    .id(10002L).chatRoomId(chatRoom.getId()).senderId(user1.getId())
+                    .content("방1 메시지2").type(MessageType.TEXT).build());
+            messageRepository.save(Message.builder()
+                    .id(10003L).chatRoomId(chatRoom2.getId()).senderId(user1.getId())
+                    .content("방2 메시지1").type(MessageType.TEXT).build());
+
+            // when
+            java.util.Map<Long, Long> result = messageRepository.batchCountTotalUnread(
+                    List.of(user1.getId(), user2.getId()));
+
+            // then - user1은 본인이 보낸 메시지뿐이므로 0, user2는 chatRoom의 2개를 안 읽음
+            assertThat(result).containsEntry(user1.getId(), 0L);
+            assertThat(result).containsEntry(user2.getId(), 2L);
+        }
+
+        @Test
+        @DisplayName("빈 사용자 목록이면 빈 Map을 반환한다")
+        void should_returnEmptyMap_when_emptyUserIds() {
+            // when
+            java.util.Map<Long, Long> result = messageRepository.batchCountTotalUnread(List.of());
+
+            // then
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("읽지 않은 메시지가 없는 사용자는 0으로 채운다")
+        void should_returnZero_when_noUnreadMessages() {
+            // given - 메시지 없음
+
+            // when
+            java.util.Map<Long, Long> result = messageRepository.batchCountTotalUnread(
+                    List.of(user1.getId(), user2.getId()));
+
+            // then
+            assertThat(result).containsEntry(user1.getId(), 0L);
+            assertThat(result).containsEntry(user2.getId(), 0L);
+        }
+    }
+
+    @Nested
     @DisplayName("무한 스크롤 조회 시")
     class FindBeforeMessageId {
 

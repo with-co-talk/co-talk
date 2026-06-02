@@ -223,6 +223,30 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
     List<Object[]> batchCountUnreadMessagesForAllMembers(@Param("chatRoomId") Long chatRoomId);
 
     /**
+     * 여러 사용자에 대해 모든 채팅방을 합산한 총 읽지 않은 메시지 수를 한 번에 조회한다.
+     * (N+1 쿼리 방지용 배치 조회)
+     *
+     * <p>각 사용자의 lastReadMessageId를 기준으로 해당 사용자가 참여한 모든 채팅방에서
+     * 읽지 않은 메시지 수를 합산한다. 본인이 보낸 메시지는 제외하며 삭제된 메시지는 포함하지 않는다.
+     * iOS 앱 아이콘 배지 표시 등에 사용한다.</p>
+     *
+     * @param userIds 사용자 ID 목록
+     * @return 사용자 ID와 총 읽지 않은 메시지 수 배열의 목록 (Object[0]=userId, Object[1]=unreadCount)
+     */
+    @Query(value = """
+        SELECT cm.user_id as userId,
+               COUNT(m.id) as unreadCount
+        FROM chat_room_members cm
+        INNER JOIN messages m ON m.chat_room_id = cm.chat_room_id
+          AND m.is_deleted = false
+          AND m.sender_id <> cm.user_id
+          AND (cm.last_read_message_id IS NULL OR m.id > cm.last_read_message_id)
+        WHERE cm.user_id IN :userIds
+        GROUP BY cm.user_id
+        """, nativeQuery = true)
+    List<Object[]> batchCountTotalUnreadByUserIds(@Param("userIds") List<Long> userIds);
+
+    /**
      * 채팅방에서 특정 유형의 메시지를 페이징하여 조회한다.
      * 미디어 갤러리 기능에서 사진/파일 목록을 불러올 때 사용한다.
      *

@@ -165,6 +165,19 @@ public interface MessageRepository {
     Map<Long, Long> batchCountUnreadMessagesForAllMembers(Long chatRoomId);
 
     /**
+     * 여러 사용자에 대해 모든 채팅방을 합산한 총 읽지 않은 메시지 수를 한 번에 조회한다.
+     * (N+1 쿼리 방지용 배치 조회)
+     *
+     * <p>각 사용자의 lastReadMessageId를 기준으로 해당 사용자가 참여한 모든 채팅방에서
+     * 읽지 않은 메시지 수를 합산한다. 본인이 보낸 메시지는 제외한다.
+     * iOS 앱 아이콘 배지 표시 등에 사용한다.</p>
+     *
+     * @param userIds 사용자 ID 목록
+     * @return 사용자 ID를 키로, 총 읽지 않은 메시지 수를 값으로 하는 Map (읽지 않은 메시지가 없는 사용자는 0)
+     */
+    Map<Long, Long> batchCountTotalUnread(List<Long> userIds);
+
+    /**
      * 채팅방에서 특정 타입의 메시지를 조회한다. (미디어 갤러리용)
      *
      * @param chatRoomId 채팅방 ID

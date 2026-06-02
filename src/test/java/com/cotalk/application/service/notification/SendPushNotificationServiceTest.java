@@ -3,8 +3,10 @@ package com.cotalk.application.service.notification;
 import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.entity.NotificationSetting;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
+import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.NotificationSettingRepository;
 import com.cotalk.domain.port.outbound.PushNotificationSender;
+import com.cotalk.domain.port.outbound.PushNotificationSender.PushTarget;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -43,12 +45,15 @@ class SendPushNotificationServiceTest {
     @Mock
     private TimeProvider timeProvider;
 
+    @Mock
+    private MessageRepository messageRepository;
+
     private SendPushNotificationService sendPushNotificationService;
 
     @BeforeEach
     void setUp() {
         sendPushNotificationService = new SendPushNotificationService(
-                deviceTokenRepository, pushNotificationSender, notificationSettingRepository, timeProvider);
+                deviceTokenRepository, pushNotificationSender, notificationSettingRepository, timeProvider, messageRepository);
 
         // TimeProvider 모킹: 현재 시간 반환
         org.mockito.Mockito.lenient().when(timeProvider.now())
@@ -92,28 +97,30 @@ class SendPushNotificationServiceTest {
             given(notificationSettingRepository.findByUserId(receiverUserId))
                     .willReturn(Optional.of(createDefaultSetting(receiverUserId)));
             given(deviceTokenRepository.findActiveByUserId(receiverUserId)).willReturn(List.of(token));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
+            given(messageRepository.batchCountTotalUnread(List.of(receiverUserId)))
+                    .willReturn(Map.of(receiverUserId, 7L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
 
             // when
             sendPushNotificationService.sendNewMessageNotification(receiverUserId, senderNickname, messageContent, chatRoomId, null);
 
             // then
             @SuppressWarnings("unchecked")
-            ArgumentCaptor<List<String>> tokensCaptor = ArgumentCaptor.forClass(List.class);
+            ArgumentCaptor<List<PushTarget>> targetsCaptor = ArgumentCaptor.forClass(List.class);
             ArgumentCaptor<String> titleCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
 
-            verify(pushNotificationSender).sendMultiple(
-                    tokensCaptor.capture(),
+            verify(pushNotificationSender).sendEachWithBadge(
+                    targetsCaptor.capture(),
                     titleCaptor.capture(),
                     bodyCaptor.capture(),
                     dataCaptor.capture(),
                     nullable(String.class)
             );
 
-            assertThat(tokensCaptor.getValue()).containsExactly("fcm-token-123");
+            assertThat(targetsCaptor.getValue()).containsExactly(new PushTarget("fcm-token-123", 7));
             assertThat(titleCaptor.getValue()).isEqualTo("친구");
             assertThat(bodyCaptor.getValue()).isEqualTo("안녕하세요!");
             assertThat(dataCaptor.getValue()).containsEntry("chatRoomId", "100");
@@ -133,7 +140,7 @@ class SendPushNotificationServiceTest {
             sendPushNotificationService.sendNewMessageNotification(receiverUserId, "친구", "안녕!", 100L, null);
 
             // then
-            verify(pushNotificationSender, never()).sendMultiple(anyList(), anyString(), anyString(), anyMap(), any());
+            verify(pushNotificationSender, never()).sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), any());
         }
 
         @Test
@@ -153,14 +160,16 @@ class SendPushNotificationServiceTest {
             given(notificationSettingRepository.findByUserId(receiverUserId))
                     .willReturn(Optional.of(createDefaultSetting(receiverUserId)));
             given(deviceTokenRepository.findActiveByUserId(receiverUserId)).willReturn(List.of(token));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
+            given(messageRepository.batchCountTotalUnread(List.of(receiverUserId)))
+                    .willReturn(Map.of(receiverUserId, 1L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
 
             // when
             sendPushNotificationService.sendNewMessageNotification(receiverUserId, "친구", longMessage, 100L, null);
 
             // then
             ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
-            verify(pushNotificationSender).sendMultiple(anyList(), anyString(), bodyCaptor.capture(), anyMap(), nullable(String.class));
+            verify(pushNotificationSender).sendEachWithBadge(anyList(), anyString(), bodyCaptor.capture(), anyMap(), nullable(String.class));
 
             assertThat(bodyCaptor.getValue().length()).isLessThanOrEqualTo(103); // 100 + "..."
         }
@@ -181,14 +190,16 @@ class SendPushNotificationServiceTest {
             given(notificationSettingRepository.findByUserId(receiverUserId))
                     .willReturn(Optional.of(createDefaultSetting(receiverUserId)));
             given(deviceTokenRepository.findActiveByUserId(receiverUserId)).willReturn(List.of(token));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
+            given(messageRepository.batchCountTotalUnread(List.of(receiverUserId)))
+                    .willReturn(Map.of(receiverUserId, 1L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
 
             // when
             sendPushNotificationService.sendNewMessageNotification(receiverUserId, "친구", null, 100L, null);
 
             // then
             ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
-            verify(pushNotificationSender).sendMultiple(anyList(), anyString(), bodyCaptor.capture(), anyMap(), nullable(String.class));
+            verify(pushNotificationSender).sendEachWithBadge(anyList(), anyString(), bodyCaptor.capture(), anyMap(), nullable(String.class));
 
             assertThat(bodyCaptor.getValue()).isEmpty();
         }
@@ -210,7 +221,9 @@ class SendPushNotificationServiceTest {
             given(notificationSettingRepository.findByUserId(receiverUserId))
                     .willReturn(Optional.of(createDefaultSetting(receiverUserId)));
             given(deviceTokenRepository.findActiveByUserId(receiverUserId)).willReturn(List.of(token));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), eq(avatarUrl))).willReturn(1);
+            given(messageRepository.batchCountTotalUnread(List.of(receiverUserId)))
+                    .willReturn(Map.of(receiverUserId, 1L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), eq(avatarUrl))).willReturn(1);
 
             // when
             sendPushNotificationService.sendNewMessageNotification(receiverUserId, "친구", "안녕!", 100L, avatarUrl);
@@ -218,7 +231,7 @@ class SendPushNotificationServiceTest {
             // then
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
-            verify(pushNotificationSender).sendMultiple(anyList(), anyString(), anyString(), dataCaptor.capture(), eq(avatarUrl));
+            verify(pushNotificationSender).sendEachWithBadge(anyList(), anyString(), anyString(), dataCaptor.capture(), eq(avatarUrl));
 
             assertThat(dataCaptor.getValue()).containsEntry("avatarUrl", avatarUrl);
         }
@@ -239,7 +252,9 @@ class SendPushNotificationServiceTest {
             given(notificationSettingRepository.findByUserId(receiverUserId))
                     .willReturn(Optional.of(createDefaultSetting(receiverUserId)));
             given(deviceTokenRepository.findActiveByUserId(receiverUserId)).willReturn(List.of(token));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), isNull())).willReturn(1);
+            given(messageRepository.batchCountTotalUnread(List.of(receiverUserId)))
+                    .willReturn(Map.of(receiverUserId, 1L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), isNull())).willReturn(1);
 
             // when
             sendPushNotificationService.sendNewMessageNotification(receiverUserId, "친구", "안녕!", 100L, null);
@@ -247,7 +262,7 @@ class SendPushNotificationServiceTest {
             // then
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
-            verify(pushNotificationSender).sendMultiple(anyList(), anyString(), anyString(), dataCaptor.capture(), isNull());
+            verify(pushNotificationSender).sendEachWithBadge(anyList(), anyString(), anyString(), dataCaptor.capture(), isNull());
 
             assertThat(dataCaptor.getValue()).doesNotContainKey("avatarUrl");
         }
@@ -272,7 +287,7 @@ class SendPushNotificationServiceTest {
 
             // then
             verify(deviceTokenRepository, never()).findActiveByUserId(anyLong());
-            verify(pushNotificationSender, never()).sendMultiple(anyList(), anyString(), anyString(), anyMap(), any());
+            verify(pushNotificationSender, never()).sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), any());
         }
 
         @Test
@@ -296,7 +311,7 @@ class SendPushNotificationServiceTest {
 
             // then
             verify(deviceTokenRepository, never()).findActiveByUserId(anyLong());
-            verify(pushNotificationSender, never()).sendMultiple(anyList(), anyString(), anyString(), anyMap(), any());
+            verify(pushNotificationSender, never()).sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), any());
         }
 
         @Test
@@ -311,13 +326,15 @@ class SendPushNotificationServiceTest {
             given(notificationSettingRepository.findByUserId(receiverUserId))
                     .willReturn(Optional.empty());
             given(deviceTokenRepository.findActiveByUserId(receiverUserId)).willReturn(List.of(token));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
+            given(messageRepository.batchCountTotalUnread(List.of(receiverUserId)))
+                    .willReturn(Map.of(receiverUserId, 1L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
 
             // when
             sendPushNotificationService.sendNewMessageNotification(receiverUserId, "친구", "안녕!", 100L, null);
 
             // then
-            verify(pushNotificationSender).sendMultiple(anyList(), anyString(), anyString(), anyMap(), nullable(String.class));
+            verify(pushNotificationSender).sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), nullable(String.class));
         }
 
         @Test
@@ -338,7 +355,9 @@ class SendPushNotificationServiceTest {
             given(notificationSettingRepository.findByUserId(receiverUserId))
                     .willReturn(Optional.of(setting));
             given(deviceTokenRepository.findActiveByUserId(receiverUserId)).willReturn(List.of(token));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
+            given(messageRepository.batchCountTotalUnread(List.of(receiverUserId)))
+                    .willReturn(Map.of(receiverUserId, 1L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
 
             // when
             sendPushNotificationService.sendNewMessageNotification(receiverUserId, "친구", "비밀 메시지", 100L, null);
@@ -346,7 +365,7 @@ class SendPushNotificationServiceTest {
             // then
             ArgumentCaptor<String> titleCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
-            verify(pushNotificationSender).sendMultiple(anyList(), titleCaptor.capture(), bodyCaptor.capture(), anyMap(), nullable(String.class));
+            verify(pushNotificationSender).sendEachWithBadge(anyList(), titleCaptor.capture(), bodyCaptor.capture(), anyMap(), nullable(String.class));
 
             assertThat(titleCaptor.getValue()).isEqualTo("친구");
             assertThat(bodyCaptor.getValue()).isEqualTo("새 메시지가 도착했습니다.");
@@ -370,7 +389,9 @@ class SendPushNotificationServiceTest {
             given(notificationSettingRepository.findByUserId(receiverUserId))
                     .willReturn(Optional.of(setting));
             given(deviceTokenRepository.findActiveByUserId(receiverUserId)).willReturn(List.of(token));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
+            given(messageRepository.batchCountTotalUnread(List.of(receiverUserId)))
+                    .willReturn(Map.of(receiverUserId, 1L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
 
             // when
             sendPushNotificationService.sendNewMessageNotification(receiverUserId, "친구", "비밀 메시지", 100L, null);
@@ -378,7 +399,7 @@ class SendPushNotificationServiceTest {
             // then
             ArgumentCaptor<String> titleCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
-            verify(pushNotificationSender).sendMultiple(anyList(), titleCaptor.capture(), bodyCaptor.capture(), anyMap(), nullable(String.class));
+            verify(pushNotificationSender).sendEachWithBadge(anyList(), titleCaptor.capture(), bodyCaptor.capture(), anyMap(), nullable(String.class));
 
             assertThat(titleCaptor.getValue()).isEqualTo("Co-Talk");
             assertThat(bodyCaptor.getValue()).isEqualTo("새 메시지가 도착했습니다.");
@@ -516,17 +537,22 @@ class SendPushNotificationServiceTest {
 
             given(deviceTokenRepository.findActiveByUserIds(receiverUserIds))
                     .willReturn(List.of(token1, token2, token3));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), any())).willReturn(3);
+            given(messageRepository.batchCountTotalUnread(receiverUserIds))
+                    .willReturn(Map.of(1L, 4L, 2L, 5L, 3L, 6L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), any())).willReturn(3);
 
             // when
             sendPushNotificationService.sendNewMessageNotificationBulk(receiverUserIds, senderNickname, messageContent, chatRoomId, null);
 
             // then
             @SuppressWarnings("unchecked")
-            ArgumentCaptor<List<String>> tokensCaptor = ArgumentCaptor.forClass(List.class);
-            verify(pushNotificationSender).sendMultiple(tokensCaptor.capture(), anyString(), anyString(), anyMap(), any());
+            ArgumentCaptor<List<PushTarget>> targetsCaptor = ArgumentCaptor.forClass(List.class);
+            verify(pushNotificationSender).sendEachWithBadge(targetsCaptor.capture(), anyString(), anyString(), anyMap(), any());
 
-            assertThat(tokensCaptor.getValue()).containsExactly("token1", "token2", "token3");
+            assertThat(targetsCaptor.getValue()).containsExactly(
+                    new PushTarget("token1", 4),
+                    new PushTarget("token2", 5),
+                    new PushTarget("token3", 6));
         }
 
         @Test
@@ -540,7 +566,7 @@ class SendPushNotificationServiceTest {
 
             // then
             verify(deviceTokenRepository, never()).findActiveByUserIds(anyList());
-            verify(pushNotificationSender, never()).sendMultiple(anyList(), anyString(), anyString(), anyMap(), any());
+            verify(pushNotificationSender, never()).sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), any());
         }
 
         @Test
@@ -557,7 +583,7 @@ class SendPushNotificationServiceTest {
             sendPushNotificationService.sendNewMessageNotificationBulk(receiverUserIds, "발신자", "메시지", 100L, null);
 
             // then
-            verify(pushNotificationSender, never()).sendMultiple(anyList(), anyString(), anyString(), anyMap(), any());
+            verify(pushNotificationSender, never()).sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), any());
         }
 
         @Test
@@ -574,14 +600,16 @@ class SendPushNotificationServiceTest {
                     .id(1L).userId(1L).token("token").deviceType(DeviceToken.DeviceType.ANDROID).build();
 
             given(deviceTokenRepository.findActiveByUserIds(receiverUserIds)).willReturn(List.of(token));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
+            given(messageRepository.batchCountTotalUnread(receiverUserIds))
+                    .willReturn(Map.of(1L, 1L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
 
             // when
             sendPushNotificationService.sendNewMessageNotificationBulk(receiverUserIds, "발신자", longMessage, 100L, null);
 
             // then
             ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
-            verify(pushNotificationSender).sendMultiple(anyList(), anyString(), bodyCaptor.capture(), anyMap(), nullable(String.class));
+            verify(pushNotificationSender).sendEachWithBadge(anyList(), anyString(), bodyCaptor.capture(), anyMap(), nullable(String.class));
 
             assertThat(bodyCaptor.getValue()).endsWith("...");
             assertThat(bodyCaptor.getValue().length()).isLessThanOrEqualTo(103);
@@ -600,14 +628,16 @@ class SendPushNotificationServiceTest {
                     .id(1L).userId(1L).token("token").deviceType(DeviceToken.DeviceType.ANDROID).build();
 
             given(deviceTokenRepository.findActiveByUserIds(receiverUserIds)).willReturn(List.of(token));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
+            given(messageRepository.batchCountTotalUnread(receiverUserIds))
+                    .willReturn(Map.of(1L, 1L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), nullable(String.class))).willReturn(1);
 
             // when
             sendPushNotificationService.sendNewMessageNotificationBulk(receiverUserIds, "발신자", null, 100L, null);
 
             // then
             ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
-            verify(pushNotificationSender).sendMultiple(anyList(), anyString(), bodyCaptor.capture(), anyMap(), nullable(String.class));
+            verify(pushNotificationSender).sendEachWithBadge(anyList(), anyString(), bodyCaptor.capture(), anyMap(), nullable(String.class));
 
             assertThat(bodyCaptor.getValue()).isEmpty();
         }
@@ -637,17 +667,21 @@ class SendPushNotificationServiceTest {
 
             given(deviceTokenRepository.findActiveByUserIds(List.of(1L, 3L)))
                     .willReturn(List.of(token1, token3));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), any())).willReturn(2);
+            given(messageRepository.batchCountTotalUnread(List.of(1L, 3L)))
+                    .willReturn(Map.of(1L, 2L, 3L, 8L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), any())).willReturn(2);
 
             // when
             sendPushNotificationService.sendNewMessageNotificationBulk(receiverUserIds, "발신자", "안녕!", 100L, null);
 
             // then
             @SuppressWarnings("unchecked")
-            ArgumentCaptor<List<String>> tokensCaptor = ArgumentCaptor.forClass(List.class);
-            verify(pushNotificationSender).sendMultiple(tokensCaptor.capture(), anyString(), anyString(), anyMap(), any());
+            ArgumentCaptor<List<PushTarget>> targetsCaptor = ArgumentCaptor.forClass(List.class);
+            verify(pushNotificationSender).sendEachWithBadge(targetsCaptor.capture(), anyString(), anyString(), anyMap(), any());
 
-            assertThat(tokensCaptor.getValue()).containsExactly("token1", "token3");
+            assertThat(targetsCaptor.getValue()).containsExactly(
+                    new PushTarget("token1", 2),
+                    new PushTarget("token3", 8));
         }
 
         @Test
@@ -672,17 +706,19 @@ class SendPushNotificationServiceTest {
 
             given(deviceTokenRepository.findActiveByUserIds(List.of(1L)))
                     .willReturn(List.of(token1));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), any())).willReturn(1);
+            given(messageRepository.batchCountTotalUnread(List.of(1L)))
+                    .willReturn(Map.of(1L, 3L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), any())).willReturn(1);
 
             // when
             sendPushNotificationService.sendNewMessageNotificationBulk(receiverUserIds, "발신자", "안녕!", 100L, null);
 
             // then
             @SuppressWarnings("unchecked")
-            ArgumentCaptor<List<String>> tokensCaptor = ArgumentCaptor.forClass(List.class);
-            verify(pushNotificationSender).sendMultiple(tokensCaptor.capture(), anyString(), anyString(), anyMap(), any());
+            ArgumentCaptor<List<PushTarget>> targetsCaptor = ArgumentCaptor.forClass(List.class);
+            verify(pushNotificationSender).sendEachWithBadge(targetsCaptor.capture(), anyString(), anyString(), anyMap(), any());
 
-            assertThat(tokensCaptor.getValue()).containsExactly("token1");
+            assertThat(targetsCaptor.getValue()).containsExactly(new PushTarget("token1", 3));
         }
 
         @Test
@@ -704,7 +740,7 @@ class SendPushNotificationServiceTest {
 
             // then
             verify(deviceTokenRepository, never()).findActiveByUserIds(anyList());
-            verify(pushNotificationSender, never()).sendMultiple(anyList(), anyString(), anyString(), anyMap(), any());
+            verify(pushNotificationSender, never()).sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), any());
         }
 
         @Test
@@ -724,17 +760,21 @@ class SendPushNotificationServiceTest {
 
             given(deviceTokenRepository.findActiveByUserIds(receiverUserIds))
                     .willReturn(List.of(token1, token2));
-            given(pushNotificationSender.sendMultiple(anyList(), anyString(), anyString(), anyMap(), any())).willReturn(2);
+            given(messageRepository.batchCountTotalUnread(receiverUserIds))
+                    .willReturn(Map.of(1L, 2L, 2L, 9L));
+            given(pushNotificationSender.sendEachWithBadge(anyList(), anyString(), anyString(), anyMap(), any())).willReturn(2);
 
             // when
             sendPushNotificationService.sendNewMessageNotificationBulk(receiverUserIds, "발신자", "안녕!", 100L, null);
 
             // then
             @SuppressWarnings("unchecked")
-            ArgumentCaptor<List<String>> tokensCaptor = ArgumentCaptor.forClass(List.class);
-            verify(pushNotificationSender).sendMultiple(tokensCaptor.capture(), anyString(), anyString(), anyMap(), any());
+            ArgumentCaptor<List<PushTarget>> targetsCaptor = ArgumentCaptor.forClass(List.class);
+            verify(pushNotificationSender).sendEachWithBadge(targetsCaptor.capture(), anyString(), anyString(), anyMap(), any());
 
-            assertThat(tokensCaptor.getValue()).containsExactly("token1", "token2");
+            assertThat(targetsCaptor.getValue()).containsExactly(
+                    new PushTarget("token1", 2),
+                    new PushTarget("token2", 9));
         }
     }
 }
