@@ -42,8 +42,26 @@ jobs:
           MAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}
           MAIL_FROM_NAME=${{ secrets.MAIL_FROM_NAME }}
           EMAIL_SUPPRESSED_DOMAINS=${{ secrets.EMAIL_SUPPRESSED_DOMAINS }}
+          FIREBASE_ENABLED=${{ secrets.FIREBASE_ENABLED }}
+          FIREBASE_CREDENTIALS_PATH=/tmp/firebase-service-account.json
           APP_PORT=8081
           EOF
+
+      - name: Ensure Firebase credentials on host
+        env:
+          FIREBASE_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          CRED_FILE="${HOME}/firebase-service-account.json"
+          if [ -n "${FIREBASE_JSON}" ]; then
+            printf '%s' "${FIREBASE_JSON}" > "${CRED_FILE}"
+            chmod 600 "${CRED_FILE}"
+            echo "Wrote Firebase credentials from GitHub secret."
+          elif [ -f "${CRED_FILE}" ]; then
+            echo "Using existing host credentials at ${CRED_FILE}"
+          else
+            echo "No FIREBASE_SERVICE_ACCOUNT_JSON secret and no host file at ${CRED_FILE}."
+            echo "deploy.sh will fail if FIREBASE_ENABLED=true."
+          fi
 
       - name: Bootstrap (first-time only)
         run: |
@@ -112,6 +130,8 @@ jobs:
           MAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}
           MAIL_FROM_NAME=${{ secrets.MAIL_FROM_NAME }}
           EMAIL_SUPPRESSED_DOMAINS=${{ secrets.EMAIL_SUPPRESSED_DOMAINS }}
+          FIREBASE_ENABLED=${{ secrets.FIREBASE_ENABLED }}
+          FIREBASE_CREDENTIALS_PATH=/tmp/firebase-service-account.json
           APP_PORT=8081
           EOF
 
