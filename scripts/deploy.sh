@@ -302,7 +302,10 @@ bootstrap() {
     log_info "Building cotalk-app:stable image..."
     # headless 러너(서비스 세션)에서 Docker 자격증명 헬퍼(keychain) 접근 실패 방지:
     # 공개 베이스 이미지는 인증이 불필요하므로 빈 DOCKER_CONFIG로 헬퍼 호출을 우회한다.
-    DOCKER_CONFIG="$(mktemp -d)"; printf '{}' > "${DOCKER_CONFIG}/config.json"; export DOCKER_CONFIG
+    DOCKER_CONFIG="$(mktemp -d)"; printf '{}' > "${DOCKER_CONFIG}/config.json"
+    # buildx 등 docker CLI 플러그인은 ~/.docker/cli-plugins 에 있으므로 링크로 유지
+    ln -s "${HOME}/.docker/cli-plugins" "${DOCKER_CONFIG}/cli-plugins" 2>/dev/null || true
+    export DOCKER_CONFIG
     docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null || docker buildx use ci-builder
     docker buildx build --load -t cotalk-app:stable "${PROJECT_ROOT}"
     log_success "Image built: cotalk-app:stable"
@@ -343,7 +346,10 @@ deploy_canary() {
     # headless 러너(서비스 세션)에서 Docker 자격증명 헬퍼(keychain) 접근 실패 방지:
     # 공개 베이스 이미지는 인증이 불필요하므로 빈 DOCKER_CONFIG로 헬퍼 호출을 우회하고
     # docker-container 드라이버 빌더로 빌드한다.
-    DOCKER_CONFIG="$(mktemp -d)"; printf '{}' > "${DOCKER_CONFIG}/config.json"; export DOCKER_CONFIG
+    DOCKER_CONFIG="$(mktemp -d)"; printf '{}' > "${DOCKER_CONFIG}/config.json"
+    # buildx 등 docker CLI 플러그인은 ~/.docker/cli-plugins 에 있으므로 링크로 유지
+    ln -s "${HOME}/.docker/cli-plugins" "${DOCKER_CONFIG}/cli-plugins" 2>/dev/null || true
+    export DOCKER_CONFIG
     docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null || docker buildx use ci-builder
     docker buildx build --load -t cotalk-app:canary "${PROJECT_ROOT}"
     log_success "Image built: cotalk-app:canary"
