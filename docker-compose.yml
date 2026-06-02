@@ -65,6 +65,8 @@ services:
       - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-}
       - TRACING_ENABLED=${TRACING_ENABLED:-true}
       - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+    volumes:
+      - ${FIREBASE_CREDENTIALS_HOST_PATH:-${HOME}/firebase-service-account.json}:/tmp/firebase-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -120,6 +122,8 @@ services:
       - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-}
       - TRACING_ENABLED=${TRACING_ENABLED:-true}
       - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+    volumes:
+      - ${FIREBASE_CREDENTIALS_HOST_PATH:-${HOME}/firebase-service-account.json}:/tmp/firebase-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -175,6 +179,8 @@ services:
       - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-}
       - TRACING_ENABLED=${TRACING_ENABLED:-true}
       - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+    volumes:
+      - ${FIREBASE_CREDENTIALS_HOST_PATH:-${HOME}/firebase-service-account.json}:/tmp/firebase-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -231,6 +237,8 @@ services:
       - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-}
       - TRACING_ENABLED=${TRACING_ENABLED:-true}
       - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+    volumes:
+      - ${FIREBASE_CREDENTIALS_HOST_PATH:-${HOME}/firebase-service-account.json}:/tmp/firebase-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy
