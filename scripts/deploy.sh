@@ -89,6 +89,30 @@ dc_canary() {
 }
 
 # ===========================================
+# Headless Docker Credential Workaround
+# ===========================================
+# self-hosted 러너(launchd 서비스 세션)는 login keychain에 접근할 수 없어
+# Docker Desktop 자격증명 헬퍼 호출이 실패한다. config에 credsStore가 없으면
+# Desktop이 keychain으로 폴백하므로, 빈 자격증명을 반환하는 no-op 헬퍼를
+# credsStore로 지정해 공개 베이스 이미지(temurin/gradle)를 anonymous로 pull한다.
+# buildx 등 CLI 플러그인은 ~/.docker/cli-plugins 에 있으므로 링크로 유지한다.
+prepare_build_docker_config() {
+    DOCKER_CONFIG="$(mktemp -d)"
+    cat > "${DOCKER_CONFIG}/docker-credential-noop" <<'CRED'
+#!/bin/sh
+case "$1" in
+  get) printf '%s' '{"ServerURL":"","Username":"","Secret":""}' ;;
+  *) : ;;
+esac
+CRED
+    chmod +x "${DOCKER_CONFIG}/docker-credential-noop"
+    printf '{"credsStore":"noop"}' > "${DOCKER_CONFIG}/config.json"
+    ln -s "${HOME}/.docker/cli-plugins" "${DOCKER_CONFIG}/cli-plugins" 2>/dev/null || true
+    export DOCKER_CONFIG
+    export PATH="${DOCKER_CONFIG}:${PATH}"
+}
+
+# ===========================================
 # Dependency Check
 # ===========================================
 check_dependencies() {
@@ -300,12 +324,7 @@ bootstrap() {
     fi
 
     log_info "Building cotalk-app:stable image..."
-    # headless 러너(서비스 세션)에서 Docker 자격증명 헬퍼(keychain) 접근 실패 방지:
-    # 공개 베이스 이미지는 인증이 불필요하므로 빈 DOCKER_CONFIG로 헬퍼 호출을 우회한다.
-    DOCKER_CONFIG="$(mktemp -d)"; printf '{}' > "${DOCKER_CONFIG}/config.json"
-    # buildx 등 docker CLI 플러그인은 ~/.docker/cli-plugins 에 있으므로 링크로 유지
-    ln -s "${HOME}/.docker/cli-plugins" "${DOCKER_CONFIG}/cli-plugins" 2>/dev/null || true
-    export DOCKER_CONFIG
+    prepare_build_docker_config
     docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null || docker buildx use ci-builder
     docker buildx build --load -t cotalk-app:stable "${PROJECT_ROOT}"
     log_success "Image built: cotalk-app:stable"
@@ -343,13 +362,7 @@ deploy_canary() {
     check_runtime_env
 
     log_info "Building cotalk-app:canary image..."
-    # headless 러너(서비스 세션)에서 Docker 자격증명 헬퍼(keychain) 접근 실패 방지:
-    # 공개 베이스 이미지는 인증이 불필요하므로 빈 DOCKER_CONFIG로 헬퍼 호출을 우회하고
-    # docker-container 드라이버 빌더로 빌드한다.
-    DOCKER_CONFIG="$(mktemp -d)"; printf '{}' > "${DOCKER_CONFIG}/config.json"
-    # buildx 등 docker CLI 플러그인은 ~/.docker/cli-plugins 에 있으므로 링크로 유지
-    ln -s "${HOME}/.docker/cli-plugins" "${DOCKER_CONFIG}/cli-plugins" 2>/dev/null || true
-    export DOCKER_CONFIG
+    prepare_build_docker_config
     docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null || docker buildx use ci-builder
     docker buildx build --load -t cotalk-app:canary "${PROJECT_ROOT}"
     log_success "Image built: cotalk-app:canary"
