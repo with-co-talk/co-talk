@@ -33,6 +33,9 @@ services:
     container_name: co-talk-app-1
     restart: unless-stopped
     stop_grace_period: 35s
+    # 컨테이너 메모리 제한. UseContainerSupport+MaxRAMPercentage=75%가 이 한도 기준으로
+    # JVM 힙을 약 1.5G로 잡아, 공유 Docker VM에서 힙이 과도하게 커져 OOM-kill 되는 것을 막는다.
+    mem_limit: 2g
     environment:
       - SPRING_PROFILES_ACTIVE=docker,prod
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
@@ -90,6 +93,9 @@ services:
     container_name: co-talk-app-2
     restart: unless-stopped
     stop_grace_period: 35s
+    # 컨테이너 메모리 제한. UseContainerSupport+MaxRAMPercentage=75%가 이 한도 기준으로
+    # JVM 힙을 약 1.5G로 잡아, 공유 Docker VM에서 힙이 과도하게 커져 OOM-kill 되는 것을 막는다.
+    mem_limit: 2g
     environment:
       - SPRING_PROFILES_ACTIVE=docker,prod
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
@@ -147,6 +153,9 @@ services:
     container_name: co-talk-app-3
     restart: unless-stopped
     stop_grace_period: 35s
+    # 컨테이너 메모리 제한. UseContainerSupport+MaxRAMPercentage=75%가 이 한도 기준으로
+    # JVM 힙을 약 1.5G로 잡아, 공유 Docker VM에서 힙이 과도하게 커져 OOM-kill 되는 것을 막는다.
+    mem_limit: 2g
     environment:
       - SPRING_PROFILES_ACTIVE=docker,prod
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
@@ -205,6 +214,9 @@ services:
     profiles: [canary]
     restart: unless-stopped
     stop_grace_period: 35s
+    # 컨테이너 메모리 제한. UseContainerSupport+MaxRAMPercentage=75%가 이 한도 기준으로
+    # JVM 힙을 약 1.5G로 잡아, 공유 Docker VM에서 힙이 과도하게 커져 OOM-kill 되는 것을 막는다.
+    mem_limit: 2g
     environment:
       - SPRING_PROFILES_ACTIVE=docker,prod
       - DB_URL=jdbc:postgresql://postgres:5432/cotalk
