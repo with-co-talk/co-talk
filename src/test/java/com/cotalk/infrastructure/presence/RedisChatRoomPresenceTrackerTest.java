@@ -86,13 +86,24 @@ class RedisChatRoomPresenceTrackerTest {
             when(redisTemplate.expire(anyString(), anyLong(), any(java.util.concurrent.TimeUnit.class))).thenReturn(true);
 
             // when
+            long before = System.currentTimeMillis();
             tracker.markActive(chatRoomId, userId, sessionId);
+            long after = System.currentTimeMillis();
 
-            // then
+            // then: countKey/sessionRooms TTL
             verify(redisTemplate).expire(contains(":rooms"), eq(45000L),
                     eq(java.util.concurrent.TimeUnit.MILLISECONDS));
             verify(redisTemplate).expire(contains(":user:count:"), eq(40000L),
                     eq(java.util.concurrent.TimeUnit.MILLISECONDS));
+
+            // then: 이번 변경의 본질인 ZSet score(만료시각 = now + ROOM_TTL)를 직접 검증한다.
+            // TTL_MILLIS가 잘못 바뀌면(예: 60s로 회귀) 이 범위 검증이 실패한다.
+            org.mockito.ArgumentCaptor<Double> scoreCaptor = org.mockito.ArgumentCaptor.forClass(Double.class);
+            verify(zSetOperations).add(anyString(), eq(String.valueOf(userId)), scoreCaptor.capture());
+            double score = scoreCaptor.getValue();
+            assertThat(score)
+                    .isGreaterThanOrEqualTo((double) (before + PresenceTtl.ROOM_TTL_MILLIS))
+                    .isLessThanOrEqualTo((double) (after + PresenceTtl.ROOM_TTL_MILLIS));
         }
 
         @Test
