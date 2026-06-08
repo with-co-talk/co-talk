@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 인메모리 채팅방 활성 상태 트래커.
@@ -21,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "false")
 public class InMemoryChatRoomPresenceTracker implements ChatRoomPresenceTracker {
 
-    private static final long TTL_MILLIS = TimeUnit.SECONDS.toMillis(30);
+    private static final long TTL_MILLIS = PresenceTtl.ROOM_TTL_MILLIS;
     private static final int MAX_SESSION_ROOMS = 1000;
 
     /**
