@@ -70,6 +70,32 @@ class RedisChatRoomPresenceTrackerTest {
         }
 
         @Test
+        @DisplayName("countKey TTL은 방 TTL(30초)+10초=40초, sessionRooms TTL은 45초로 설정한다")
+        void should_useShortenedTtl_forExpire() {
+            // given: presence ping(20초)이 멈추면 빨리 만료돼야 푸시 억제 버그가 사라진다.
+            Long chatRoomId = 100L;
+            Long userId = 1L;
+            String sessionId = "session-1";
+
+            when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(redisTemplate.opsForSet()).thenReturn(setOperations);
+            when(zSetOperations.add(anyString(), anyString(), anyDouble())).thenReturn(true);
+            when(valueOperations.increment(anyString())).thenReturn(1L);
+            when(setOperations.add(anyString(), anyString())).thenReturn(1L);
+            when(redisTemplate.expire(anyString(), anyLong(), any(java.util.concurrent.TimeUnit.class))).thenReturn(true);
+
+            // when
+            tracker.markActive(chatRoomId, userId, sessionId);
+
+            // then
+            verify(redisTemplate).expire(contains(":rooms"), eq(45000L),
+                    eq(java.util.concurrent.TimeUnit.MILLISECONDS));
+            verify(redisTemplate).expire(contains(":user:count:"), eq(40000L),
+                    eq(java.util.concurrent.TimeUnit.MILLISECONDS));
+        }
+
+        @Test
         @DisplayName("같은 세션의 반복 ping은 세션 카운트를 한 번만 증가시킨다")
         void should_incrementCountOnce_onRepeatedPing_forSameSession() {
             // given: presence ping이 20초마다 markActive를 호출해도 카운트가 누적되면 안 된다.

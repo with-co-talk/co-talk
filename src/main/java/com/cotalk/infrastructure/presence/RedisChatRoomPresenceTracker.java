@@ -38,8 +38,8 @@ public class RedisChatRoomPresenceTracker implements ChatRoomPresenceTracker {
     private static final String SESSION_KEY_PREFIX = "presence:ws:session:";
     private static final String SESSION_ROOMS_SUFFIX = ":rooms";
 
-    private static final long TTL_MILLIS = TimeUnit.SECONDS.toMillis(60);
-    private static final long SESSION_TTL_MILLIS = TimeUnit.SECONDS.toMillis(90);
+    private static final long TTL_MILLIS = TimeUnit.SECONDS.toMillis(30);
+    private static final long SESSION_TTL_MILLIS = TimeUnit.SECONDS.toMillis(45);
 
     private final RedisTemplate<String, String> redisTemplate;
 
@@ -56,7 +56,7 @@ public class RedisChatRoomPresenceTracker implements ChatRoomPresenceTracker {
         // 단, 세션 카운트는 (방, 세션)당 1회만 증가해야 한다.
         // presence ping(20초 주기)도 markActive를 호출하므로, 매번 증가시키면
         // 카운트가 누적되어 markInactive로 0까지 감소하지 못하고 방을 나가도
-        // TTL(60초) 만료 전까지 "보는 중"으로 남아 푸시가 억제되는 버그가 생긴다.
+        // TTL(30초) 만료 전까지 "보는 중"으로 남아 푸시가 억제되는 버그가 생긴다.
         // session -> rooms Set에 처음 추가될 때(SADD 반환=1)만 카운트를 증가시켜 멱등화한다.
         String countKey = userCountKey(chatRoomId, userId);
         if (sessionId != null) {

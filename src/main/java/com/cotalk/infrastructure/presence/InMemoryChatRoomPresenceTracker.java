@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "false")
 public class InMemoryChatRoomPresenceTracker implements ChatRoomPresenceTracker {
 
-    private static final long TTL_MILLIS = TimeUnit.SECONDS.toMillis(60);
+    private static final long TTL_MILLIS = TimeUnit.SECONDS.toMillis(30);
     private static final int MAX_SESSION_ROOMS = 1000;
 
     /**
