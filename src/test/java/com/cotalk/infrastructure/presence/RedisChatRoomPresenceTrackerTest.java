@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -70,9 +71,9 @@ class RedisChatRoomPresenceTrackerTest {
         }
 
         @Test
-        @DisplayName("countKey TTL은 방 TTL(30초)+10초=40초, sessionRooms TTL은 45초로 설정한다")
+        @DisplayName("countKey/sessionRooms expire를 PresenceTtl 상수 값으로 설정한다")
         void should_useShortenedTtl_forExpire() {
-            // given: presence ping(20초)이 멈추면 빨리 만료돼야 푸시 억제 버그가 사라진다.
+            // given: presence ping이 멈추면 엔트리가 빨리 만료돼야 푸시 억제 버그가 사라진다.
             Long chatRoomId = 100L;
             Long userId = 1L;
             String sessionId = "session-1";
@@ -91,14 +92,14 @@ class RedisChatRoomPresenceTrackerTest {
             long after = System.currentTimeMillis();
 
             // then: countKey/sessionRooms TTL
-            verify(redisTemplate).expire(contains(":rooms"), eq(45000L),
+            verify(redisTemplate).expire(contains(":rooms"), eq(PresenceTtl.SESSION_TTL_MILLIS),
                     eq(java.util.concurrent.TimeUnit.MILLISECONDS));
-            verify(redisTemplate).expire(contains(":user:count:"), eq(40000L),
+            verify(redisTemplate).expire(contains(":user:count:"), eq(PresenceTtl.COUNT_KEY_TTL_MILLIS),
                     eq(java.util.concurrent.TimeUnit.MILLISECONDS));
 
             // then: 이번 변경의 본질인 ZSet score(만료시각 = now + ROOM_TTL)를 직접 검증한다.
             // TTL_MILLIS가 잘못 바뀌면(예: 60s로 회귀) 이 범위 검증이 실패한다.
-            org.mockito.ArgumentCaptor<Double> scoreCaptor = org.mockito.ArgumentCaptor.forClass(Double.class);
+            ArgumentCaptor<Double> scoreCaptor = ArgumentCaptor.forClass(Double.class);
             verify(zSetOperations).add(anyString(), eq(String.valueOf(userId)), scoreCaptor.capture());
             double score = scoreCaptor.getValue();
             assertThat(score)
@@ -109,7 +110,7 @@ class RedisChatRoomPresenceTrackerTest {
         @Test
         @DisplayName("같은 세션의 반복 ping은 세션 카운트를 한 번만 증가시킨다")
         void should_incrementCountOnce_onRepeatedPing_forSameSession() {
-            // given: presence ping이 20초마다 markActive를 호출해도 카운트가 누적되면 안 된다.
+            // given: presence ping 주기마다 markActive를 호출해도 카운트가 누적되면 안 된다.
             Long chatRoomId = 100L;
             Long userId = 1L;
             String sessionId = "session-1";
