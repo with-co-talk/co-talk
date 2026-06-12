@@ -74,4 +74,24 @@ public class MessageReactionRepositoryAdapter implements MessageReactionReposito
     public void deleteByMessageId(Long messageId) {
         jpaRepository.deleteByMessageId(messageId);
     }
+
+    /**
+     * 사용자 ID로 해당 사용자가 남긴 모든 리액션을 삭제한다.
+     *
+     * @param userId 사용자 ID
+     */
+    @Override
+    public void deleteByUserId(Long userId) {
+        jpaRepository.deleteByUserId(userId);
+    }
+
+    /**
+     * 특정 발신자가 보낸 메시지에 달린 모든 리액션을 삭제한다.
+     *
+     * @param senderId 메시지 발신자(사용자) ID
+     */
+    @Override
+    public void deleteByMessageSenderId(Long senderId) {
+        jpaRepository.deleteByMessageSenderId(senderId);
+    }
 }

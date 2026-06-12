@@ -10,6 +10,8 @@ import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.domain.port.outbound.HiddenFriendRepository;
+import com.cotalk.domain.port.outbound.MessageReactionRepository;
+import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.NotificationSettingRepository;
 import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
@@ -39,6 +41,12 @@ class DeleteAccountServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private MessageRepository messageRepository;
+
+    @Mock
+    private MessageReactionRepository messageReactionRepository;
 
     @Mock
     private ChatRoomMemberRepository chatRoomMemberRepository;
@@ -88,6 +96,8 @@ class DeleteAccountServiceTest {
         passwordEncoder = new SpringPasswordEncoderAdapter(new BCryptPasswordEncoder());
         service = new DeleteAccountService(
                 userRepository,
+                messageRepository,
+                messageReactionRepository,
                 chatRoomMemberRepository,
                 friendRepository,
                 friendRequestRepository,
@@ -126,11 +136,18 @@ class DeleteAccountServiceTest {
         service.deleteAccount(userId, password);
 
         // then
+        verify(messageReactionRepository).deleteByUserId(userId);
+        verify(messageReactionRepository).deleteByMessageSenderId(userId);
+        verify(reportRepository).deleteByReporterId(userId);
+        verify(reportRepository).deleteByReportedUserId(userId);
+        verify(reportRepository).deleteByReportedMessageSenderId(userId);
+        verify(messageRepository).deleteBySenderId(userId);
         verify(chatRoomMemberRepository).deleteByUserId(userId);
         verify(friendRepository).deleteByUserId(userId);
         verify(friendRequestRepository).deleteByUserId(userId);
         verify(deviceTokenRepository).deleteByUserId(userId);
         verify(passwordResetTokenRepository).deleteByUserId(userId);
+        verify(hiddenFriendRepository).deleteByUserId(userId);
         verify(userRepository).delete(user);
     }
 

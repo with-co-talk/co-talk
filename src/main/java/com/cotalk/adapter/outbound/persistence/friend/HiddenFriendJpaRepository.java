@@ -46,4 +46,14 @@ public interface HiddenFriendJpaRepository extends JpaRepository<HiddenFriend, L
      * @param userId 사용자 ID
      */
     void deleteByUserId(Long userId);
+
+    /**
+     * 사용자 ID 또는 친구 ID로 친구 숨김 정보를 삭제한다.
+     * 회원 탈퇴 시 해당 사용자가 숨긴 레코드(user_id)와
+     * 타인이 해당 사용자를 숨긴 레코드(friend_id)를 모두 정리하는 데 사용한다.
+     *
+     * @param userId 사용자 ID
+     * @param friendId 친구 ID
+     */
+    void deleteByUserIdOrFriendId(Long userId, Long friendId);
 }

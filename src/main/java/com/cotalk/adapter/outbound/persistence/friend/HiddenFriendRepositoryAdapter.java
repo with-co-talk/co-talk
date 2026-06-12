@@ -89,11 +89,13 @@ public class HiddenFriendRepositoryAdapter implements HiddenFriendRepository {
 
     /**
      * 사용자 ID로 모든 친구 숨김 정보를 삭제한다.
+     * 회원 탈퇴 정합성을 위해 해당 사용자가 숨긴 레코드(user_id)뿐 아니라
+     * 타인이 해당 사용자를 숨긴 레코드(friend_id)도 함께 삭제한다.
      *
      * @param userId 사용자 ID
      */
     @Override
     public void deleteByUserId(Long userId) {
-        hiddenFriendJpaRepository.deleteByUserId(userId);
+        hiddenFriendJpaRepository.deleteByUserIdOrFriendId(userId, userId);
     }
 }

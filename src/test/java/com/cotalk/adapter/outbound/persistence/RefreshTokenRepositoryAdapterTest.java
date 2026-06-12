@@ -225,6 +225,39 @@ class RefreshTokenRepositoryAdapterTest {
         }
 
         @Test
+        @DisplayName("사용자의 모든 토큰을 물리적으로 삭제한다")
+        void should_deleteAllTokens_when_userIdProvided() {
+            // given
+            refreshTokenRepository.save(RefreshToken.builder()
+                    .id(100L)
+                    .userId(user.getId())
+                    .token("token-1")
+                    .expiresAt(LocalDateTime.now().plusDays(7))
+                    .revoked(false)
+                    .build());
+            refreshTokenRepository.save(RefreshToken.builder()
+                    .id(101L)
+                    .userId(user.getId())
+                    .token("token-2")
+                    .expiresAt(LocalDateTime.now().plusDays(7))
+                    .revoked(true)
+                    .build());
+
+            entityManager.flush();
+            entityManager.clear();
+
+            // when
+            refreshTokenRepository.deleteByUserId(user.getId());
+
+            entityManager.flush();
+            entityManager.clear();
+
+            // then: revoke 여부와 무관하게 행 자체가 사라져야 한다
+            assertThat(refreshTokenRepository.findByToken("token-1")).isEmpty();
+            assertThat(refreshTokenRepository.findByToken("token-2")).isEmpty();
+        }
+
+        @Test
         @DisplayName("만료된 토큰이 없으면 0을 반환한다")
         void should_returnZero_when_noExpiredTokens() {
             // given
