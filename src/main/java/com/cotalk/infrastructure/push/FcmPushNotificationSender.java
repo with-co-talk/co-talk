@@ -1,6 +1,5 @@
 package com.cotalk.infrastructure.push;
 
-import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import com.cotalk.domain.port.outbound.PushNotificationSender;
 import com.cotalk.domain.port.outbound.PushNotificationSender.PushTarget;
 import com.cotalk.domain.util.TokenMasker;
@@ -8,7 +7,6 @@ import com.google.firebase.messaging.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,9 +21,14 @@ import java.util.Map;
  *
  * <p>대량 전송 시 FCM의 제한(500개/요청)에 맞춰 자동으로 배치 처리된다.
  *
+ * <p>성능: FCM 원격 호출(네트워크, 수백ms~수초)은 트랜잭션 밖에서 수행하고,
+ * 전송 실패로 무효화된 토큰의 비활성화(DB 쓰기)만 {@link InvalidTokenDeactivator}의
+ * 짧은 별도 트랜잭션으로 위임하여 DB 커넥션 점유 시간을 최소화한다.
+ *
  * @author seunggu.lee
  * @see PushNotificationSender
  * @see FcmConfig
+ * @see InvalidTokenDeactivator
  */
 @Slf4j
 @Component
@@ -34,19 +37,19 @@ public class FcmPushNotificationSender implements PushNotificationSender {
     private static final int FCM_BATCH_SIZE = 500;
 
     private final FirebaseMessaging firebaseMessaging;
-    private final DeviceTokenRepository deviceTokenRepository;
+    private final InvalidTokenDeactivator invalidTokenDeactivator;
 
     /**
      * FcmPushNotificationSender를 생성한다.
      *
-     * @param firebaseMessaging     FirebaseMessaging 인스턴스, Firebase가 비활성화된 경우 {@code null}일 수 있음
-     * @param deviceTokenRepository 디바이스 토큰 레포지토리
+     * @param firebaseMessaging      FirebaseMessaging 인스턴스, Firebase가 비활성화된 경우 {@code null}일 수 있음
+     * @param invalidTokenDeactivator 무효 토큰 비활성화 컴포넌트(별도 트랜잭션)
      */
     public FcmPushNotificationSender(
             @Nullable FirebaseMessaging firebaseMessaging,
-            DeviceTokenRepository deviceTokenRepository) {
+            InvalidTokenDeactivator invalidTokenDeactivator) {
         this.firebaseMessaging = firebaseMessaging;
-        this.deviceTokenRepository = deviceTokenRepository;
+        this.invalidTokenDeactivator = invalidTokenDeactivator;
     }
 
     /**
@@ -62,7 +65,6 @@ public class FcmPushNotificationSender implements PushNotificationSender {
      * @return 전송 성공 시 {@code true}, 실패 시 {@code false}
      */
     @Override
-    @Transactional
     public boolean send(String token, String title, String body, Map<String, String> data, String imageUrl) {
         if (firebaseMessaging == null) {
             log.debug("Firebase is not configured. Skipping push notification.");
@@ -101,7 +103,6 @@ public class FcmPushNotificationSender implements PushNotificationSender {
      * @return 성공적으로 전송된 알림 수
      */
     @Override
-    @Transactional
     public int sendMultiple(List<String> tokens, String title, String body, Map<String, String> data, String imageUrl) {
         if (firebaseMessaging == null) {
             log.debug("Firebase is not configured. Skipping push notifications.");
@@ -178,7 +179,7 @@ public class FcmPushNotificationSender implements PushNotificationSender {
         }
 
         if (!invalidTokens.isEmpty()) {
-            deactivateTokens(invalidTokens);
+            invalidTokenDeactivator.deactivateTokens(invalidTokens);
         }
     }
 
@@ -195,7 +196,7 @@ public class FcmPushNotificationSender implements PushNotificationSender {
 
         if (isInvalidTokenError(errorCode)) {
             log.warn("FCM token is invalid or unregistered: {}", TokenMasker.mask(token));
-            deactivateToken(token);
+            invalidTokenDeactivator.deactivateToken(token);
         } else {
             log.error("FCM send failed for token {}: {}", TokenMasker.mask(token), e.getMessage());
         }
@@ -210,32 +211,6 @@ public class FcmPushNotificationSender implements PushNotificationSender {
     private boolean isInvalidTokenError(MessagingErrorCode errorCode) {
         return errorCode == MessagingErrorCode.UNREGISTERED ||
                errorCode == MessagingErrorCode.INVALID_ARGUMENT;
-    }
-
-    /**
-     * 단일 토큰을 비활성화한다.
-     *
-     * @param token 비활성화할 토큰
-     */
-    private void deactivateToken(String token) {
-        deviceTokenRepository.findByToken(token)
-                .ifPresent(deviceToken -> {
-                    deviceToken.deactivate();
-                    deviceTokenRepository.save(deviceToken);
-                    log.info("Deactivated invalid FCM token: {}", TokenMasker.mask(token));
-                });
-    }
-
-    /**
-     * 여러 토큰을 비활성화한다.
-     *
-     * @param tokens 비활성화할 토큰 목록
-     */
-    private void deactivateTokens(List<String> tokens) {
-        for (String token : tokens) {
-            deactivateToken(token);
-        }
-        log.info("Deactivated {} invalid FCM tokens", tokens.size());
     }
 
     /**
@@ -325,7 +300,6 @@ public class FcmPushNotificationSender implements PushNotificationSender {
      * @return 성공적으로 전송된 알림 수
      */
     @Override
-    @Transactional
     public int sendEachWithBadge(List<PushTarget> targets, String title, String body, Map<String, String> data, String imageUrl) {
         if (firebaseMessaging == null) {
             log.debug("Firebase is not configured. Skipping push notifications.");
@@ -405,7 +379,7 @@ public class FcmPushNotificationSender implements PushNotificationSender {
         }
 
         if (!invalidTokens.isEmpty()) {
-            deactivateTokens(invalidTokens);
+            invalidTokenDeactivator.deactivateTokens(invalidTokens);
         }
     }
 }

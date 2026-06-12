@@ -1,7 +1,5 @@
 package com.cotalk.infrastructure.push;
 
-import com.cotalk.domain.entity.DeviceToken;
-import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import com.cotalk.domain.port.outbound.PushNotificationSender.PushTarget;
 import com.google.firebase.messaging.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,7 +14,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,13 +28,13 @@ class FcmPushNotificationSenderTest {
     private FirebaseMessaging firebaseMessaging;
 
     @Mock
-    private DeviceTokenRepository deviceTokenRepository;
+    private InvalidTokenDeactivator invalidTokenDeactivator;
 
     private FcmPushNotificationSender sender;
 
     @BeforeEach
     void setUp() {
-        sender = new FcmPushNotificationSender(firebaseMessaging, deviceTokenRepository);
+        sender = new FcmPushNotificationSender(firebaseMessaging, invalidTokenDeactivator);
     }
 
     @Nested
@@ -49,7 +46,7 @@ class FcmPushNotificationSenderTest {
         void should_ReturnFalse_when_FirebaseNotConfigured() {
             // given
             FcmPushNotificationSender senderWithoutFirebase =
-                    new FcmPushNotificationSender(null, deviceTokenRepository);
+                    new FcmPushNotificationSender(null, invalidTokenDeactivator);
 
             // when
             boolean result = senderWithoutFirebase.send("token", "title", "body", Map.of(), null);
@@ -80,56 +77,39 @@ class FcmPushNotificationSenderTest {
         }
 
         @Test
-        @DisplayName("UNREGISTERED 에러 시 토큰을 비활성화한다")
+        @DisplayName("UNREGISTERED 에러 시 토큰 비활성화를 별도 컴포넌트에 위임한다")
         void should_DeactivateToken_when_UnregisteredError() throws FirebaseMessagingException {
             // given
             String token = "invalid-token";
-            DeviceToken deviceToken = DeviceToken.builder()
-                    .id(1L)
-                    .userId(1L)
-                    .token(token)
-                    .deviceType(DeviceToken.DeviceType.ANDROID)
-                    .active(true)
-                    .build();
 
             FirebaseMessagingException exception = mock(FirebaseMessagingException.class);
             given(exception.getMessagingErrorCode()).willReturn(MessagingErrorCode.UNREGISTERED);
             given(firebaseMessaging.send(any(Message.class))).willThrow(exception);
-            given(deviceTokenRepository.findByToken(token)).willReturn(Optional.of(deviceToken));
 
             // when
             boolean result = sender.send(token, "title", "body", Map.of(), null);
 
-            // then
+            // then: 비활성화는 별도 트랜잭션을 가진 컴포넌트로 위임된다
             assertThat(result).isFalse();
-            verify(deviceTokenRepository).save(deviceToken);
-            assertThat(deviceToken.isActive()).isFalse();
+            verify(invalidTokenDeactivator).deactivateToken(token);
         }
 
         @Test
-        @DisplayName("INVALID_ARGUMENT 에러 시 토큰을 비활성화한다")
+        @DisplayName("INVALID_ARGUMENT 에러 시 토큰 비활성화를 별도 컴포넌트에 위임한다")
         void should_DeactivateToken_when_InvalidArgumentError() throws FirebaseMessagingException {
             // given
             String token = "malformed-token";
-            DeviceToken deviceToken = DeviceToken.builder()
-                    .id(1L)
-                    .userId(1L)
-                    .token(token)
-                    .deviceType(DeviceToken.DeviceType.IOS)
-                    .active(true)
-                    .build();
 
             FirebaseMessagingException exception = mock(FirebaseMessagingException.class);
             given(exception.getMessagingErrorCode()).willReturn(MessagingErrorCode.INVALID_ARGUMENT);
             given(firebaseMessaging.send(any(Message.class))).willThrow(exception);
-            given(deviceTokenRepository.findByToken(token)).willReturn(Optional.of(deviceToken));
 
             // when
             boolean result = sender.send(token, "title", "body", Map.of(), null);
 
             // then
             assertThat(result).isFalse();
-            verify(deviceTokenRepository).save(deviceToken);
+            verify(invalidTokenDeactivator).deactivateToken(token);
         }
 
         @Test
@@ -148,26 +128,7 @@ class FcmPushNotificationSenderTest {
 
             // then
             assertThat(result).isFalse();
-            verify(deviceTokenRepository, never()).findByToken(anyString());
-        }
-
-        @Test
-        @DisplayName("존재하지 않는 토큰은 비활성화를 건너뛴다")
-        void should_SkipDeactivation_when_TokenNotFound() throws FirebaseMessagingException {
-            // given
-            String token = "unknown-token";
-
-            FirebaseMessagingException exception = mock(FirebaseMessagingException.class);
-            given(exception.getMessagingErrorCode()).willReturn(MessagingErrorCode.UNREGISTERED);
-            given(firebaseMessaging.send(any(Message.class))).willThrow(exception);
-            given(deviceTokenRepository.findByToken(token)).willReturn(Optional.empty());
-
-            // when
-            boolean result = sender.send(token, "title", "body", Map.of(), null);
-
-            // then
-            assertThat(result).isFalse();
-            verify(deviceTokenRepository, never()).save(any());
+            verifyNoInteractions(invalidTokenDeactivator);
         }
     }
 
@@ -180,7 +141,7 @@ class FcmPushNotificationSenderTest {
         void should_ReturnZero_when_FirebaseNotConfigured() {
             // given
             FcmPushNotificationSender senderWithoutFirebase =
-                    new FcmPushNotificationSender(null, deviceTokenRepository);
+                    new FcmPushNotificationSender(null, invalidTokenDeactivator);
             List<String> tokens = List.of("token1", "token2");
 
             // when
@@ -245,23 +206,12 @@ class FcmPushNotificationSenderTest {
             given(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class)))
                     .willReturn(batchResponse);
 
-            DeviceToken invalidDeviceToken = DeviceToken.builder()
-                    .id(2L)
-                    .userId(2L)
-                    .token("invalid-token")
-                    .deviceType(DeviceToken.DeviceType.ANDROID)
-                    .active(true)
-                    .build();
-            given(deviceTokenRepository.findByToken("invalid-token"))
-                    .willReturn(Optional.of(invalidDeviceToken));
-
             // when
             int result = sender.sendMultiple(tokens, "title", "body", Map.of(), null);
 
-            // then
+            // then: 무효 토큰만 별도 트랜잭션 컴포넌트로 비활성화 위임
             assertThat(result).isEqualTo(1);
-            verify(deviceTokenRepository).save(invalidDeviceToken);
-            assertThat(invalidDeviceToken.isActive()).isFalse();
+            verify(invalidTokenDeactivator).deactivateTokens(List.of("invalid-token"));
         }
 
         @Test
@@ -332,7 +282,7 @@ class FcmPushNotificationSenderTest {
 
             // then
             assertThat(result).isZero();
-            verify(deviceTokenRepository, never()).findByToken(anyString());
+            verifyNoInteractions(invalidTokenDeactivator);
         }
     }
 
@@ -345,7 +295,7 @@ class FcmPushNotificationSenderTest {
         void should_ReturnZero_when_FirebaseNotConfigured() {
             // given
             FcmPushNotificationSender senderWithoutFirebase =
-                    new FcmPushNotificationSender(null, deviceTokenRepository);
+                    new FcmPushNotificationSender(null, invalidTokenDeactivator);
             List<PushTarget> targets = List.of(new PushTarget("token1", 3));
 
             // when
@@ -417,23 +367,12 @@ class FcmPushNotificationSenderTest {
             given(batchResponse.getResponses()).willReturn(List.of(successResponse, failResponse));
             given(firebaseMessaging.sendEach(anyList())).willReturn(batchResponse);
 
-            DeviceToken invalidDeviceToken = DeviceToken.builder()
-                    .id(2L)
-                    .userId(2L)
-                    .token("invalid-token")
-                    .deviceType(DeviceToken.DeviceType.IOS)
-                    .active(true)
-                    .build();
-            given(deviceTokenRepository.findByToken("invalid-token"))
-                    .willReturn(Optional.of(invalidDeviceToken));
-
             // when
             int result = sender.sendEachWithBadge(targets, "title", "body", Map.of(), null);
 
-            // then
+            // then: 무효 토큰만 별도 트랜잭션 컴포넌트로 비활성화 위임
             assertThat(result).isEqualTo(1);
-            verify(deviceTokenRepository).save(invalidDeviceToken);
-            assertThat(invalidDeviceToken.isActive()).isFalse();
+            verify(invalidTokenDeactivator).deactivateTokens(List.of("invalid-token"));
         }
 
         @Test

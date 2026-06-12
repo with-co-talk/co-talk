@@ -3,11 +3,14 @@ package com.cotalk.adapter.outbound.persistence;
 import com.cotalk.adapter.outbound.persistence.notification.DeviceTokenRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
+import com.cotalk.application.service.notification.DeviceTokenInserter;
+import com.cotalk.application.service.notification.RegisterDeviceTokenService;
 import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.entity.DeviceToken.DeviceType;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.model.Email;
 import com.cotalk.infrastructure.config.JpaAuditingConfig;
+import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -202,6 +205,46 @@ class DeviceTokenRepositoryAdapterTest {
 
             // then
             assertThat(tokens).hasSize(2);
+        }
+    }
+
+    @Nested
+    @DisplayName("토큰 소유자 이전 시 (RegisterDeviceTokenService 통합)")
+    class TransferOwnership {
+
+        @Test
+        @DisplayName("다른 사용자가 같은 토큰을 등록해도 UNIQUE 충돌 없이 소유자가 이전되고 활성화된다")
+        void should_transferOwnershipWithoutUniqueViolation_when_sameTokenRegisteredByAnotherUser() {
+            // given: user1이 토큰을 비활성 상태로 보유
+            RegisterDeviceTokenService service = new RegisterDeviceTokenService(
+                    deviceTokenRepository,
+                    new DeviceTokenInserter(deviceTokenRepository, new SnowflakeIdGenerator(0, 0)));
+            String token = "shared-fcm-token";
+
+            DeviceToken existing = DeviceToken.builder()
+                    .id(500L)
+                    .userId(user1.getId())
+                    .token(token)
+                    .deviceType(DeviceType.ANDROID)
+                    .build();
+            existing.deactivate();
+            deviceTokenRepository.save(existing);
+
+            // when: user2가 동일 토큰을 등록 (이전 케이스)
+            // delete+insert 였다면 flush 순서에 따라 UNIQUE 제약 위반이 발생할 수 있음
+            DeviceToken result = service.register(user2.getId(), token, DeviceType.IOS);
+
+            // then: 예외 없이 소유자/타입/활성 상태가 갱신되고, 동일 토큰의 레코드는 1개만 존재
+            assertThat(result.getUserId()).isEqualTo(user2.getId());
+            assertThat(result.getDeviceType()).isEqualTo(DeviceType.IOS);
+            assertThat(result.isActive()).isTrue();
+
+            Optional<DeviceToken> found = deviceTokenRepository.findByToken(token);
+            assertThat(found).isPresent();
+            assertThat(found.get().getUserId()).isEqualTo(user2.getId());
+            assertThat(found.get().isActive()).isTrue();
+            assertThat(deviceTokenRepository.findByUserId(user1.getId())).isEmpty();
+            assertThat(deviceTokenRepository.findByUserId(user2.getId())).hasSize(1);
         }
     }
 

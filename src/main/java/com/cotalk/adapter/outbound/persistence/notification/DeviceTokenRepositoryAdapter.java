@@ -32,6 +32,17 @@ public class DeviceTokenRepositoryAdapter implements DeviceTokenRepository {
     }
 
     /**
+     * 디바이스 토큰을 저장하고 즉시 flush한다.
+     *
+     * @param deviceToken 저장할 디바이스 토큰 엔티티
+     * @return 저장된 디바이스 토큰 엔티티
+     */
+    @Override
+    public DeviceToken saveAndFlush(DeviceToken deviceToken) {
+        return deviceTokenJpaRepository.saveAndFlush(deviceToken);
+    }
+
+    /**
      * ID로 디바이스 토큰을 조회한다.
      *
      * @param id 디바이스 토큰 ID
