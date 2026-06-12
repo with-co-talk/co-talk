@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.Optional;
 
@@ -119,6 +120,78 @@ class RegisterDeviceTokenServiceTest {
             assertThat(result.getDeviceType()).isEqualTo(newDeviceType);
             assertThat(result.isActive()).isTrue();
             verify(deviceTokenRepository).save(existingToken);
+        }
+
+        @Test
+        @DisplayName("동시 등록 경합 - 신규 INSERT가 UNIQUE 위반 시 재조회 후 같은 사용자로 UPDATE 폴백")
+        void should_fallbackToUpdate_when_concurrentInsertViolatesUniqueForSameUser() {
+            // given: findByToken은 처음엔 empty(신규로 판단) → INSERT 시도가 UNIQUE 위반 →
+            //        재조회 시 다른 요청이 먼저 INSERT한 동일 사용자 레코드가 존재
+            Long userId = 1L;
+            String token = "racing-fcm-token";
+            DeviceToken.DeviceType deviceType = DeviceToken.DeviceType.ANDROID;
+
+            DeviceToken concurrentlyInserted = DeviceToken.builder()
+                    .id(200L)
+                    .userId(userId)
+                    .token(token)
+                    .deviceType(deviceType)
+                    .build();
+            concurrentlyInserted.deactivate();
+
+            given(deviceTokenRepository.findByToken(token))
+                    .willReturn(Optional.empty())          // 최초 조회: 신규로 판단
+                    .willReturn(Optional.of(concurrentlyInserted)); // 폴백 재조회: 경쟁 레코드 발견
+            given(idGenerator.nextId()).willReturn(100L);
+            given(deviceTokenRepository.save(any(DeviceToken.class)))
+                    .willThrow(new DataIntegrityViolationException("duplicate token")) // 신규 INSERT 실패
+                    .willAnswer(invocation -> invocation.getArgument(0));              // 폴백 UPDATE 성공
+
+            // when
+            DeviceToken result = registerDeviceTokenService.register(userId, token, deviceType);
+
+            // then: 새 ID(100L)로 INSERT가 아닌, 기존 경쟁 레코드(200L)를 UPDATE하여 반환
+            assertThat(result.getId()).isEqualTo(200L);
+            assertThat(result.getUserId()).isEqualTo(userId);
+            assertThat(result.getToken()).isEqualTo(token);
+            assertThat(result.isActive()).isTrue();
+            verify(deviceTokenRepository, org.mockito.Mockito.times(2)).findByToken(token);
+            verify(deviceTokenRepository).save(concurrentlyInserted);
+        }
+
+        @Test
+        @DisplayName("동시 등록 경합 - 신규 INSERT가 UNIQUE 위반 시 재조회 후 다른 사용자 레코드를 소유자 이전 UPDATE 폴백")
+        void should_fallbackToTransfer_when_concurrentInsertViolatesUniqueForAnotherUser() {
+            // given: 다른 사용자가 먼저 같은 토큰을 INSERT한 상태에서 우리 INSERT가 UNIQUE 위반
+            Long newUserId = 2L;
+            String token = "racing-fcm-token";
+            DeviceToken.DeviceType newDeviceType = DeviceToken.DeviceType.IOS;
+
+            DeviceToken concurrentlyInserted = DeviceToken.builder()
+                    .id(300L)
+                    .userId(1L) // 다른 사용자
+                    .token(token)
+                    .deviceType(DeviceToken.DeviceType.ANDROID)
+                    .build();
+
+            given(deviceTokenRepository.findByToken(token))
+                    .willReturn(Optional.empty())
+                    .willReturn(Optional.of(concurrentlyInserted));
+            given(idGenerator.nextId()).willReturn(101L);
+            given(deviceTokenRepository.save(any(DeviceToken.class)))
+                    .willThrow(new DataIntegrityViolationException("duplicate token"))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+
+            // when
+            DeviceToken result = registerDeviceTokenService.register(newUserId, token, newDeviceType);
+
+            // then: 경쟁 레코드의 소유자를 우리 사용자로 이전(UPDATE)
+            assertThat(result.getId()).isEqualTo(300L);
+            assertThat(result.getUserId()).isEqualTo(newUserId);
+            assertThat(result.getDeviceType()).isEqualTo(newDeviceType);
+            assertThat(result.isActive()).isTrue();
+            verify(deviceTokenRepository, org.mockito.Mockito.never()).deleteByToken(token);
+            verify(deviceTokenRepository).save(concurrentlyInserted);
         }
     }
 
