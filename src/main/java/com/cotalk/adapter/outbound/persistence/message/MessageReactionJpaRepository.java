@@ -55,9 +55,13 @@ public interface MessageReactionJpaRepository extends JpaRepository<MessageReact
      * 메시지를 물리적으로 삭제하기 전에, 해당 메시지를 참조하는 리액션의
      * 외래키 제약 위반을 방지하기 위해 사용한다.
      *
+     * <p>벌크 삭제 JPQL은 1차 캐시(영속성 컨텍스트)를 우회하므로,
+     * 같은 트랜잭션 내 후속 작업이 삭제된 리액션을 stale 상태로 읽지 않도록
+     * {@code flushAutomatically}/{@code clearAutomatically}로 실행 전 flush, 실행 후 clear를 보장한다.</p>
+     *
      * @param senderId 메시지 발신자(사용자) ID
      */
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("DELETE FROM MessageReaction r WHERE r.messageId IN " +
            "(SELECT m.id FROM Message m WHERE m.senderId = :senderId)")
     void deleteByMessageSenderId(@Param("senderId") Long senderId);
