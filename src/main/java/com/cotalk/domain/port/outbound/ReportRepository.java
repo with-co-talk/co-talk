@@ -118,4 +118,21 @@ public interface ReportRepository {
      * @param reporterId 신고자 ID
      */
     void deleteByReporterId(Long reporterId);
+
+    /**
+     * 특정 사용자가 신고당한 모든 신고를 삭제한다.
+     * 회원 탈퇴 시 해당 사용자를 가리키는 피신고 기록을 정리하는 데 사용한다.
+     *
+     * @param reportedUserId 피신고자 ID
+     */
+    void deleteByReportedUserId(Long reportedUserId);
+
+    /**
+     * 특정 발신자가 보낸 메시지를 대상으로 한 모든 신고를 삭제한다.
+     * 회원 탈퇴로 해당 사용자의 메시지를 삭제하기 전에,
+     * 그 메시지를 가리키는 신고 기록(reported_message_id)을 먼저 정리하는 데 사용한다.
+     *
+     * @param senderId 메시지 발신자(사용자) ID
+     */
+    void deleteByReportedMessageSenderId(Long senderId);
 }

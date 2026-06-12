@@ -300,4 +300,14 @@ public class MessageRepositoryAdapter implements MessageRepository {
     public List<Message> findMessagesWithLinkPreview(Long chatRoomId, org.springframework.data.domain.Pageable pageable) {
         return messageJpaRepository.findMessagesWithLinkPreview(chatRoomId, pageable);
     }
+
+    /**
+     * 발신자 ID로 해당 사용자가 보낸 모든 메시지를 삭제한다.
+     *
+     * @param senderId 발신자(사용자) ID
+     */
+    @Override
+    public void deleteBySenderId(Long senderId) {
+        messageJpaRepository.deleteBySenderId(senderId);
+    }
 }

@@ -53,4 +53,21 @@ public interface MessageReactionRepository {
      * @param messageId 메시지 ID
      */
     void deleteByMessageId(Long messageId);
+
+    /**
+     * 특정 사용자가 남긴 모든 반응을 삭제한다.
+     * 회원 탈퇴 시 사용자가 남긴 메시지 반응을 정리하는 데 사용한다.
+     *
+     * @param userId 사용자 ID
+     */
+    void deleteByUserId(Long userId);
+
+    /**
+     * 특정 발신자가 보낸 메시지에 달린 모든 반응을 삭제한다.
+     * 회원 탈퇴로 해당 사용자의 메시지를 삭제하기 전에,
+     * 타인이 그 메시지에 남긴 반응을 먼저 정리하는 데 사용한다.
+     *
+     * @param senderId 메시지 발신자(사용자) ID
+     */
+    void deleteByMessageSenderId(Long senderId);
 }

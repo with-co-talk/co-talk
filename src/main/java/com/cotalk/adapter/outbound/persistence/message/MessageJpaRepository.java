@@ -273,4 +273,11 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
     List<Message> findMessagesWithLinkPreview(
             @Param("chatRoomId") Long chatRoomId,
             Pageable pageable);
+
+    /**
+     * 발신자 ID로 해당 사용자가 보낸 모든 메시지를 물리적으로 삭제한다.
+     *
+     * @param senderId 발신자(사용자) ID
+     */
+    void deleteBySenderId(Long senderId);
 }

@@ -4,6 +4,9 @@ import com.cotalk.domain.entity.Report;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -80,4 +83,23 @@ public interface ReportJpaRepository extends JpaRepository<Report, Long> {
      * @param reporterId 신고자 ID
      */
     void deleteByReporterId(Long reporterId);
+
+    /**
+     * 피신고자 ID로 모든 신고를 삭제한다.
+     *
+     * @param reportedUserId 피신고자 ID
+     */
+    void deleteByReportedUserId(Long reportedUserId);
+
+    /**
+     * 특정 발신자가 보낸 메시지를 대상으로 한 모든 신고를 삭제한다.
+     * 메시지를 물리적으로 삭제하기 전에, 해당 메시지를 참조하는 신고의
+     * 외래키 제약 위반을 방지하기 위해 사용한다.
+     *
+     * @param senderId 메시지 발신자(사용자) ID
+     */
+    @Modifying
+    @Query("DELETE FROM Report r WHERE r.reportedMessageId IN " +
+           "(SELECT m.id FROM Message m WHERE m.senderId = :senderId)")
+    void deleteByReportedMessageSenderId(@Param("senderId") Long senderId);
 }

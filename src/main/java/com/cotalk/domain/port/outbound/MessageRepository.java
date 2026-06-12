@@ -195,4 +195,12 @@ public interface MessageRepository {
      * @return 링크 미리보기가 있는 메시지 목록 (최신순)
      */
     List<Message> findMessagesWithLinkPreview(Long chatRoomId, org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * 특정 발신자가 보낸 모든 메시지를 삭제한다.
+     * 회원 탈퇴 시 사용자가 보낸 메시지를 정리하는 데 사용한다.
+     *
+     * @param senderId 발신자(사용자) ID
+     */
+    void deleteBySenderId(Long senderId);
 }

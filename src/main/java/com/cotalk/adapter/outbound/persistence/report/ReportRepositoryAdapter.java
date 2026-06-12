@@ -164,4 +164,24 @@ public class ReportRepositoryAdapter implements ReportRepository {
     public void deleteByReporterId(Long reporterId) {
         reportJpaRepository.deleteByReporterId(reporterId);
     }
+
+    /**
+     * 피신고자 ID로 모든 신고를 삭제한다.
+     *
+     * @param reportedUserId 피신고자 ID
+     */
+    @Override
+    public void deleteByReportedUserId(Long reportedUserId) {
+        reportJpaRepository.deleteByReportedUserId(reportedUserId);
+    }
+
+    /**
+     * 특정 발신자가 보낸 메시지를 대상으로 한 모든 신고를 삭제한다.
+     *
+     * @param senderId 메시지 발신자(사용자) ID
+     */
+    @Override
+    public void deleteByReportedMessageSenderId(Long senderId) {
+        reportJpaRepository.deleteByReportedMessageSenderId(senderId);
+    }
 }
