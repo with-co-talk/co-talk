@@ -35,3 +35,7 @@ ALTER TABLE hidden_friends
 ALTER TABLE hidden_friends
     ADD CONSTRAINT fk_hidden_friends_friend
     FOREIGN KEY (friend_id) REFERENCES users(id);
+
+ALTER TABLE refresh_tokens
+    ADD CONSTRAINT fk_refresh_tokens_user
+    FOREIGN KEY (user_id) REFERENCES users(id);

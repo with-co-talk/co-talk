@@ -25,6 +25,7 @@ import com.cotalk.domain.entity.HiddenFriend;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.Message.MessageType;
 import com.cotalk.domain.entity.MessageReaction;
+import com.cotalk.domain.entity.RefreshToken;
 import com.cotalk.domain.entity.Report;
 import com.cotalk.domain.entity.Report.ReportReason;
 import com.cotalk.domain.entity.Report.ReportStatus;
@@ -35,6 +36,7 @@ import com.cotalk.domain.port.outbound.HiddenFriendRepository;
 import com.cotalk.domain.port.outbound.MessageReactionRepository;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.PasswordEncoderPort;
+import com.cotalk.domain.port.outbound.RefreshTokenRepository;
 import com.cotalk.domain.port.outbound.ReportRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.infrastructure.config.JpaAuditingConfig;
@@ -52,6 +54,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
+
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -120,6 +124,12 @@ class DeleteAccountServiceFkIntegrationTest {
 
     @Autowired
     private HiddenFriendRepository hiddenFriendRepository;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private RefreshTokenRepositoryAdapter refreshTokenRepositoryAdapter;
 
     @Autowired
     private UserRepositoryAdapter userRepositoryAdapter;
@@ -250,6 +260,17 @@ class DeleteAccountServiceFkIntegrationTest {
                 .friendId(otherUser.getId())
                 .build());
 
+        // 탈퇴 대상 사용자의 Refresh Token (refresh_tokens.user_id -> leavingUser)
+        // revoke(플래그)만으로는 fk_refresh_tokens_user 제약 때문에 탈퇴 시 FK 위반이 발생하므로,
+        // 탈퇴 경로가 행을 실제 삭제하는지 검증하기 위한 픽스처.
+        refreshTokenRepositoryAdapter.save(RefreshToken.builder()
+                .id(3000L)
+                .userId(leavingUser.getId())
+                .token("leaving-user-refresh-token")
+                .expiresAt(LocalDateTime.now().plusDays(7))
+                .revoked(false)
+                .build());
+
         // 영속성 컨텍스트를 비워 이후 조회가 실제 DB 상태를 반영하도록 한다.
         entityManager.flush();
         entityManager.clear();
@@ -284,6 +305,10 @@ class DeleteAccountServiceFkIntegrationTest {
         // 탈퇴 사용자를 숨긴 타인 레코드(friend_id) 및 탈퇴 사용자가 숨긴 레코드(user_id) 모두 삭제됨
         assertThat(hiddenFriendRepository.findByUserId(otherUser.getId())).isEmpty();
         assertThat(hiddenFriendRepository.findByUserId(leavingUser.getId())).isEmpty();
+
+        // 탈퇴 사용자의 Refresh Token이 (revoke가 아니라) 실제로 삭제됨.
+        // 행이 남아 있으면 위 deleteAccount 호출이 fk_refresh_tokens_user 위반으로 롤백되었을 것이다.
+        assertThat(refreshTokenRepository.findByToken("leaving-user-refresh-token")).isEmpty();
     }
 
     /**
