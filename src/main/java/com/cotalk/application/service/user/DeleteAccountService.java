@@ -24,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class DeleteAccountService implements DeleteAccountUseCase {
 
     private final UserRepository userRepository;
+    private final MessageRepository messageRepository;
+    private final MessageReactionRepository messageReactionRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final FriendRepository friendRepository;
     private final FriendRequestRepository friendRequestRepository;
@@ -79,7 +81,26 @@ public class DeleteAccountService implements DeleteAccountUseCase {
     }
 
     private void deleteUserData(Long userId, User user) {
-        // 관련 데이터 삭제 (순서 중요 - 외래키 제약)
+        // 관련 데이터 삭제 (순서 중요 - 외래키 제약: 자식 → 부모 순)
+
+        // 1) 메시지 반응 정리
+        //    - 이 사용자가 남긴 반응 (message_reactions.user_id)
+        //    - 이 사용자의 메시지에 타인이 남긴 반응 (messages 삭제 전 선행 정리)
+        messageReactionRepository.deleteByUserId(userId);
+        messageReactionRepository.deleteByMessageSenderId(userId);
+
+        // 2) 신고 정리
+        //    - 이 사용자가 한 신고 (reports.reporter_id)
+        //    - 이 사용자를 대상으로 한 신고 (reports.reported_user_id)
+        //    - 이 사용자의 메시지를 대상으로 한 신고 (reports.reported_message_id, messages 삭제 전 선행 정리)
+        reportRepository.deleteByReporterId(userId);
+        reportRepository.deleteByReportedUserId(userId);
+        reportRepository.deleteByReportedMessageSenderId(userId);
+
+        // 3) 이 사용자가 보낸 메시지 삭제 (messages.sender_id)
+        //    위 반응/신고를 먼저 정리했으므로 이 시점에 안전하게 삭제 가능
+        messageRepository.deleteBySenderId(userId);
+
         chatRoomMemberRepository.deleteByUserId(userId);
         friendRepository.deleteByUserId(userId);
         friendRequestRepository.deleteByUserId(userId);
@@ -88,7 +109,7 @@ public class DeleteAccountService implements DeleteAccountUseCase {
         emailVerificationTokenRepository.deleteByUserId(userId);
         blockRepository.deleteByBlockerId(userId);
         blockRepository.deleteByBlockedId(userId);
-        reportRepository.deleteByReporterId(userId);
+        // 이 사용자가 숨긴 레코드(user_id)와 타인이 이 사용자를 숨긴 레코드(friend_id)를 모두 삭제
         hiddenFriendRepository.deleteByUserId(userId);
         notificationSettingRepository.deleteByUserId(userId);
         termsAgreementRepository.deleteByUserId(userId);
