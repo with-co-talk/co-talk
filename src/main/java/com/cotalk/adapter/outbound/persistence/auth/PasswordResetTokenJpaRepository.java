@@ -27,14 +27,18 @@ public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordR
     Optional<PasswordResetToken> findByToken(String token);
 
     /**
-     * 이메일과 인증 코드로 비밀번호 재설정 토큰을 조회한다.
+     * 이메일로 가장 최근에 발급된 미사용 인증 코드 토큰을 조회한다.
+     * <p>
+     * 인증 코드를 조회 조건에서 제외하여 코드 불일치 시에도 토큰을 찾아
+     * 실패 횟수를 집계할 수 있도록 한다. 사용 완료(used)된 토큰은 제외한다.
+     * </p>
      *
      * @param email 이메일 주소
-     * @param verificationCode 6자리 인증 코드
      * @return 비밀번호 재설정 토큰 (Optional)
      */
-    @Query("SELECT t FROM PasswordResetToken t WHERE t.email = :email AND t.verificationCode = :code")
-    Optional<PasswordResetToken> findByEmailAndVerificationCode(@Param("email") Email email, @Param("code") String code);
+    @Query("SELECT t FROM PasswordResetToken t WHERE t.email = :email AND t.verificationCode IS NOT NULL "
+            + "AND t.usedAt IS NULL ORDER BY t.id DESC LIMIT 1")
+    Optional<PasswordResetToken> findLatestActiveByEmail(@Param("email") Email email);
 
     /**
      * 사용자 ID로 비밀번호 재설정 토큰을 삭제한다.

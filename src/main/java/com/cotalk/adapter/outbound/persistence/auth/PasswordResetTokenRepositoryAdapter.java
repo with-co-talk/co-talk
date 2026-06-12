@@ -44,15 +44,14 @@ public class PasswordResetTokenRepositoryAdapter implements PasswordResetTokenRe
     }
 
     /**
-     * 이메일과 인증 코드로 비밀번호 재설정 토큰을 조회한다.
+     * 이메일로 가장 최근에 발급된 미사용 비밀번호 재설정 토큰을 조회한다.
      *
      * @param email 이메일 주소
-     * @param verificationCode 6자리 인증 코드
      * @return 비밀번호 재설정 토큰 (Optional)
      */
     @Override
-    public Optional<PasswordResetToken> findByEmailAndVerificationCode(String email, String verificationCode) {
-        return jpaRepository.findByEmailAndVerificationCode(new Email(email), verificationCode);
+    public Optional<PasswordResetToken> findLatestActiveByEmail(String email) {
+        return jpaRepository.findLatestActiveByEmail(new Email(email));
     }
 
     /**

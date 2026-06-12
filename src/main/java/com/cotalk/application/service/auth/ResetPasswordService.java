@@ -128,21 +128,45 @@ public class ResetPasswordService implements ResetPasswordUseCase {
      */
     @Override
     public void verifyCode(String email, String code) {
-        PasswordResetToken token = tokenRepository.findByEmailAndVerificationCode(email, code)
+        PasswordResetToken token = tokenRepository.findLatestActiveByEmail(email)
                 .orElseThrow(InvalidPasswordResetTokenException::invalidCode);
 
+        verifyCodeOnToken(token, code);
+    }
+
+    /**
+     * 토큰에 대해 인증 코드를 검증한다.
+     * <p>
+     * 잠금 → 만료/사용됨 → 코드 일치 순으로 검사한다.
+     * 인증 코드가 일치하지 않으면 실패 횟수를 증가시켜 저장하고,
+     * 최대 허용 횟수를 초과하면 토큰을 무효화한다. 이를 통해 6자리 코드에 대한
+     * 무차별 대입 공격을 차단한다.
+     * </p>
+     *
+     * @param token 검증 대상 토큰
+     * @param code  사용자가 입력한 인증 코드
+     * @throws InvalidPasswordResetTokenException 코드가 유효하지 않은 경우
+     */
+    private void verifyCodeOnToken(PasswordResetToken token, String code) {
         if (token.isMaxAttemptsExceeded(MAX_VERIFY_ATTEMPTS)) {
             throw InvalidPasswordResetTokenException.maxAttemptsExceeded();
         }
 
-        if (!token.isValid(timeProvider.now())) {
+        if (token.isExpired(timeProvider.now())) {
+            throw InvalidPasswordResetTokenException.expired();
+        }
+        if (token.isUsed()) {
+            throw InvalidPasswordResetTokenException.alreadyUsed();
+        }
+
+        if (!token.matchesCode(code)) {
             token.incrementFailedAttempts();
             tokenRepository.save(token);
 
-            if (token.isExpired(timeProvider.now())) {
-                throw InvalidPasswordResetTokenException.expired();
+            if (token.isMaxAttemptsExceeded(MAX_VERIFY_ATTEMPTS)) {
+                throw InvalidPasswordResetTokenException.maxAttemptsExceeded();
             }
-            throw InvalidPasswordResetTokenException.alreadyUsed();
+            throw InvalidPasswordResetTokenException.invalidCode();
         }
     }
 
@@ -158,12 +182,11 @@ public class ResetPasswordService implements ResetPasswordUseCase {
      */
     @Override
     public void resetPasswordWithCode(String email, String code, String newPassword) {
-        PasswordResetToken resetToken = tokenRepository.findByEmailAndVerificationCode(email, code)
+        PasswordResetToken resetToken = tokenRepository.findLatestActiveByEmail(email)
                 .orElseThrow(InvalidPasswordResetTokenException::notFound);
 
-        if (resetToken.isMaxAttemptsExceeded(MAX_VERIFY_ATTEMPTS)) {
-            throw InvalidPasswordResetTokenException.maxAttemptsExceeded();
-        }
+        // 코드 일치 여부를 도메인에서 검증한다. 불일치 시 실패 횟수를 집계하여 무차별 대입을 차단한다.
+        verifyCodeOnToken(resetToken, code);
 
         validateToken(resetToken);
         validatePasswordStrength(newPassword);
