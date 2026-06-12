@@ -3,7 +3,6 @@ package com.cotalk.application.service.notification;
 import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.port.inbound.notification.RegisterDeviceTokenUseCase;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
-import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.util.TokenMasker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,7 @@ import java.util.Optional;
 public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
 
     private final DeviceTokenRepository deviceTokenRepository;
-    private final IdGenerator idGenerator;
+    private final DeviceTokenInserter deviceTokenInserter;
 
     /**
      * 디바이스 토큰을 등록한다.
@@ -40,10 +39,19 @@ public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
      *
      * <p>동시성 처리: 두 요청이 거의 동시에 동일한 신규 토큰을 등록하면 양쪽 모두
      * {@code findByToken}에서 empty를 읽고 각자 새 레코드를 INSERT하여 한쪽이
-     * {@code token} UNIQUE 제약을 위반한다. 이때 발생하는
-     * {@link DataIntegrityViolationException}을 잡아 동일 트랜잭션을 롤백시키지 않고
-     * 재조회 후 UPDATE 경로로 폴백하여, 경쟁에서 진 요청도 정상적으로 등록 결과를
-     * 반환한다. ({@code AddMessageReactionService}의 UNIQUE + 예외 폴백 패턴과 동일)</p>
+     * {@code token} UNIQUE 제약을 위반한다. 신규 INSERT는
+     * {@link DeviceTokenInserter#insertNew}({@code REQUIRES_NEW})로 분리되어 있어,
+     * 위반 시 그 <b>독립 트랜잭션만 롤백</b>되고 이 {@code register}의 바깥 트랜잭션은
+     * 오염되지 않는다. 발생한 {@link DataIntegrityViolationException}을 잡아 깨끗한
+     * 상태에서 재조회 후 UPDATE 경로(소유자 이전/활성화)로 폴백하여, 경쟁에서 진
+     * 요청도 정상적으로 등록 결과를 반환한다.</p>
+     *
+     * <p>{@code DeviceToken}은 {@code @Id} 수동 할당(Snowflake)이라 {@code save()}가
+     * {@code merge()}를 타고 INSERT/UNIQUE 위반이 커밋까지 지연되는 특성이 있어,
+     * {@code @GeneratedValue(IDENTITY)} + read-only 폴백인
+     * {@code AddMessageReactionService} 패턴을 그대로 쓸 수 없다. 이 차이 때문에
+     * 신규 INSERT를 별도 트랜잭션 경계로 분리하고 즉시 flush한다.
+     * 자세한 근거는 {@link DeviceTokenInserter} JavaDoc 참고.</p>
      *
      * @param userId     사용자 ID
      * @param token      디바이스 토큰
@@ -88,6 +96,12 @@ public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
     /**
      * 신규 토큰을 등록하되, 동시 INSERT로 인한 UNIQUE 위반 시 재조회 후 UPDATE로 폴백한다.
      *
+     * <p>실제 INSERT는 {@link DeviceTokenInserter#insertNew}의 {@code REQUIRES_NEW}
+     * 트랜잭션에서 수행되고 즉시 flush된다. 동시 경합으로 {@code token} UNIQUE 위반이
+     * 발생하면 그 독립 트랜잭션만 롤백되고 {@link DataIntegrityViolationException}이
+     * 전파되며, 이 메서드(및 바깥 {@code register} 트랜잭션)는 rollback-only로
+     * 오염되지 않으므로 안전하게 재조회→UPDATE 폴백을 수행할 수 있다.</p>
+     *
      * @param userId     사용자 ID
      * @param token      디바이스 토큰
      * @param deviceType 디바이스 타입
@@ -95,17 +109,11 @@ public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
      */
     private DeviceToken registerNewTokenSafely(Long userId, String token, DeviceToken.DeviceType deviceType) {
         try {
-            DeviceToken newToken = DeviceToken.builder()
-                    .id(idGenerator.nextId())
-                    .userId(userId)
-                    .token(token)
-                    .deviceType(deviceType)
-                    .build();
-
-            log.info("New device token registered for user: {}, type: {}", userId, deviceType);
-            return deviceTokenRepository.save(newToken);
+            return deviceTokenInserter.insertNew(userId, token, deviceType);
         } catch (DataIntegrityViolationException e) {
-            // 동시 등록 경합: 다른 요청이 같은 토큰을 먼저 INSERT함 → 재조회 후 UPDATE로 폴백
+            // 동시 등록 경합: 다른 요청이 같은 토큰을 먼저 INSERT함.
+            // 신규 INSERT는 REQUIRES_NEW 경계에서 롤백되었으므로 바깥 트랜잭션은 깨끗하다.
+            // 깨끗한 상태에서 재조회 후 UPDATE(소유자 이전/활성화)로 폴백한다.
             log.debug("Concurrent device token registration detected, falling back to update for user: {}", userId);
             DeviceToken existing = deviceTokenRepository.findByToken(token)
                     .orElseThrow(() -> new IllegalStateException(

@@ -22,6 +22,20 @@ public interface DeviceTokenRepository {
     DeviceToken save(DeviceToken deviceToken);
 
     /**
+     * 디바이스 토큰을 저장하고 즉시 영속성 컨텍스트를 flush한다.
+     *
+     * <p>{@code DeviceToken}은 {@code @Id}를 수동 할당(Snowflake)하므로 Spring Data
+     * {@code save()}가 {@code persist()}가 아닌 {@code merge()}를 타게 되어, 기본 AUTO
+     * flush 모드에서는 INSERT(및 {@code token} UNIQUE 위반)가 트랜잭션 커밋 시점까지
+     * 지연된다. 동시 등록 경합 시 위반 예외를 호출자의 {@code try/catch} 경계 안에서
+     * 동기적으로 surface시키려면 이 메서드로 즉시 flush해야 한다.</p>
+     *
+     * @param deviceToken 저장할 디바이스 토큰
+     * @return 저장된 디바이스 토큰
+     */
+    DeviceToken saveAndFlush(DeviceToken deviceToken);
+
+    /**
      * ID로 디바이스 토큰을 조회한다.
      *
      * @param id 디바이스 토큰 ID
