@@ -113,7 +113,9 @@ public class DeleteAccountService implements DeleteAccountUseCase {
         hiddenFriendRepository.deleteByUserId(userId);
         notificationSettingRepository.deleteByUserId(userId);
         termsAgreementRepository.deleteByUserId(userId);
-        refreshTokenRepository.revokeAllByUserId(userId);
+        // refresh_tokens.user_id에 fk_refresh_tokens_user(cascade 없음) 제약이 있어
+        // revoke(플래그만 변경)로는 user 삭제 시 FK 위반이 발생한다. 행을 실제 삭제한다.
+        refreshTokenRepository.deleteByUserId(userId);
         profileHistoryRepository.deleteByUserId(userId);
 
         // 사용자 삭제

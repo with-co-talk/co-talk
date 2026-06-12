@@ -44,6 +44,16 @@ public interface RefreshTokenRepository {
     void revokeAllByUserId(Long userId);
 
     /**
+     * 사용자의 모든 Refresh Token을 물리적으로 삭제한다.
+     *
+     * <p>회원 탈퇴 시 {@code fk_refresh_tokens_user}(cascade 없음) 제약 위반을
+     * 방지하기 위해, 폐기(revoke)가 아닌 실제 삭제가 필요한 경우 사용한다.</p>
+     *
+     * @param userId 사용자 ID
+     */
+    void deleteByUserId(Long userId);
+
+    /**
      * 만료된 모든 Refresh Token을 삭제한다.
      * 스케줄러에서 주기적으로 호출하여 정리한다.
      *

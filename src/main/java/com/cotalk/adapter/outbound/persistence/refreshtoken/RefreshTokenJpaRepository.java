@@ -42,6 +42,20 @@ public interface RefreshTokenJpaRepository extends JpaRepository<RefreshToken, L
     void revokeAllByUserId(@Param("userId") Long userId);
 
     /**
+     * 사용자의 모든 Refresh Token을 물리적으로 삭제한다.
+     *
+     * <p>회원 탈퇴 시 {@code refresh_tokens.user_id}에 걸린
+     * {@code fk_refresh_tokens_user}(cascade 없음) 제약 위반을 방지하기 위해
+     * 사용자 삭제 이전에 토큰 행을 실제로 제거한다.</p>
+     *
+     * @param userId 사용자 ID
+     * @return 삭제된 토큰 수
+     */
+    @Modifying
+    @Query("DELETE FROM RefreshToken r WHERE r.userId = :userId")
+    int deleteByUserId(@Param("userId") Long userId);
+
+    /**
      * 만료된 토큰을 삭제한다.
      *
      * @param now 현재 시간

@@ -56,6 +56,14 @@ public class RefreshTokenRepositoryAdapter implements RefreshTokenRepository {
      * {@inheritDoc}
      */
     @Override
+    public void deleteByUserId(Long userId) {
+        jpaRepository.deleteByUserId(userId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public int deleteExpiredTokens() {
         return jpaRepository.deleteByExpiresAtBefore(LocalDateTime.now());
     }
