@@ -3,6 +3,7 @@ package com.cotalk.adapter.outbound.persistence;
 import com.cotalk.adapter.outbound.persistence.notification.DeviceTokenRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
+import com.cotalk.application.service.notification.DeviceTokenInserter;
 import com.cotalk.application.service.notification.RegisterDeviceTokenService;
 import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.entity.DeviceToken.DeviceType;
@@ -216,7 +217,8 @@ class DeviceTokenRepositoryAdapterTest {
         void should_transferOwnershipWithoutUniqueViolation_when_sameTokenRegisteredByAnotherUser() {
             // given: user1이 토큰을 비활성 상태로 보유
             RegisterDeviceTokenService service = new RegisterDeviceTokenService(
-                    deviceTokenRepository, new SnowflakeIdGenerator(0, 0));
+                    deviceTokenRepository,
+                    new DeviceTokenInserter(deviceTokenRepository, new SnowflakeIdGenerator(0, 0)));
             String token = "shared-fcm-token";
 
             DeviceToken existing = DeviceToken.builder()

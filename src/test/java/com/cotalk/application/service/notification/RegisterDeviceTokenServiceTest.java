@@ -2,7 +2,6 @@ package com.cotalk.application.service.notification;
 
 import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
-import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -19,6 +18,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+/**
+ * {@link RegisterDeviceTokenService} 단위 테스트.
+ *
+ * <p>이 단위 테스트는 mock 기반으로 <b>라우팅/위임 로직</b>(기존 토큰 분기, 신규 INSERT
+ * 위임, UNIQUE 위반 시 폴백 경로 선택)만 검증한다. 신규 INSERT는 별도 빈
+ * {@link DeviceTokenInserter}({@code REQUIRES_NEW})에 위임되므로, 실제 트랜잭션 거동
+ * (REQUIRES_NEW 경계에서의 위반 롤백 → 바깥 트랜잭션 비오염 → 폴백 UPDATE 커밋 성공)은
+ * 실제 H2 UNIQUE 제약을 사용하는 {@code RegisterDeviceTokenServiceConcurrencyTest}
+ * ({@code @DataJpaTest})에서 검증한다.</p>
+ */
 @ExtendWith(MockitoExtension.class)
 class RegisterDeviceTokenServiceTest {
 
@@ -26,13 +35,13 @@ class RegisterDeviceTokenServiceTest {
     private DeviceTokenRepository deviceTokenRepository;
 
     @Mock
-    private SnowflakeIdGenerator idGenerator;
+    private DeviceTokenInserter deviceTokenInserter;
 
     private RegisterDeviceTokenService registerDeviceTokenService;
 
     @BeforeEach
     void setUp() {
-        registerDeviceTokenService = new RegisterDeviceTokenService(deviceTokenRepository, idGenerator);
+        registerDeviceTokenService = new RegisterDeviceTokenService(deviceTokenRepository, deviceTokenInserter);
     }
 
     @Nested
@@ -40,25 +49,31 @@ class RegisterDeviceTokenServiceTest {
     class Register {
 
         @Test
-        @DisplayName("새 토큰 등록 성공")
-        void should_registerNewToken_when_tokenNotExists() {
+        @DisplayName("새 토큰 등록은 DeviceTokenInserter(REQUIRES_NEW)에 위임한다")
+        void should_delegateToInserter_when_tokenNotExists() {
             // given
             Long userId = 1L;
             String token = "new-fcm-token";
             DeviceToken.DeviceType deviceType = DeviceToken.DeviceType.ANDROID;
 
+            DeviceToken inserted = DeviceToken.builder()
+                    .id(100L)
+                    .userId(userId)
+                    .token(token)
+                    .deviceType(deviceType)
+                    .build();
+
             given(deviceTokenRepository.findByToken(token)).willReturn(Optional.empty());
-            given(idGenerator.nextId()).willReturn(100L);
-            given(deviceTokenRepository.save(any(DeviceToken.class))).willAnswer(invocation -> invocation.getArgument(0));
+            given(deviceTokenInserter.insertNew(userId, token, deviceType)).willReturn(inserted);
 
             // when
             DeviceToken result = registerDeviceTokenService.register(userId, token, deviceType);
 
-            // then
+            // then: 신규 INSERT는 inserter에 위임되고, 서비스가 직접 save()로 INSERT하지 않는다
             assertThat(result.getUserId()).isEqualTo(userId);
             assertThat(result.getToken()).isEqualTo(token);
-            assertThat(result.getDeviceType()).isEqualTo(deviceType);
-            assertThat(result.isActive()).isTrue();
+            verify(deviceTokenInserter).insertNew(userId, token, deviceType);
+            verify(deviceTokenRepository, org.mockito.Mockito.never()).save(any(DeviceToken.class));
         }
 
         @Test
@@ -83,8 +98,9 @@ class RegisterDeviceTokenServiceTest {
             // when
             DeviceToken result = registerDeviceTokenService.register(userId, token, deviceType);
 
-            // then
+            // then: 기존 레코드 재사용 경로는 inserter를 거치지 않는다
             assertThat(result.isActive()).isTrue();
+            verify(deviceTokenInserter, org.mockito.Mockito.never()).insertNew(any(), any(), any());
         }
 
         @Test
@@ -111,8 +127,7 @@ class RegisterDeviceTokenServiceTest {
 
             // then: UNIQUE 충돌을 유발할 수 있는 delete는 호출되지 않아야 한다
             verify(deviceTokenRepository, org.mockito.Mockito.never()).deleteByToken(token);
-            // 새 엔티티를 만들지 않으므로 ID 생성도 호출되지 않는다 (동일 레코드 재사용)
-            verify(idGenerator, org.mockito.Mockito.never()).nextId();
+            verify(deviceTokenInserter, org.mockito.Mockito.never()).insertNew(any(), any(), any());
             // 기존 레코드의 ID를 유지한 채 소유자/타입/활성 상태만 갱신
             assertThat(result.getId()).isEqualTo(100L);
             assertThat(result.getUserId()).isEqualTo(newUserId);
@@ -123,10 +138,10 @@ class RegisterDeviceTokenServiceTest {
         }
 
         @Test
-        @DisplayName("동시 등록 경합 - 신규 INSERT가 UNIQUE 위반 시 재조회 후 같은 사용자로 UPDATE 폴백")
-        void should_fallbackToUpdate_when_concurrentInsertViolatesUniqueForSameUser() {
-            // given: findByToken은 처음엔 empty(신규로 판단) → INSERT 시도가 UNIQUE 위반 →
-            //        재조회 시 다른 요청이 먼저 INSERT한 동일 사용자 레코드가 존재
+        @DisplayName("신규 INSERT가 UNIQUE 위반 시 재조회 후 같은 사용자로 UPDATE 폴백 경로를 탄다")
+        void should_routeToReactivateFallback_when_inserterThrowsForSameUser() {
+            // given: inserter(REQUIRES_NEW)가 UNIQUE 위반을 던지면(독립 트랜잭션에서 롤백됨),
+            //        바깥 트랜잭션은 깨끗하므로 재조회 후 UPDATE 폴백을 수행
             Long userId = 1L;
             String token = "racing-fcm-token";
             DeviceToken.DeviceType deviceType = DeviceToken.DeviceType.ANDROID;
@@ -140,28 +155,26 @@ class RegisterDeviceTokenServiceTest {
             concurrentlyInserted.deactivate();
 
             given(deviceTokenRepository.findByToken(token))
-                    .willReturn(Optional.empty())          // 최초 조회: 신규로 판단
-                    .willReturn(Optional.of(concurrentlyInserted)); // 폴백 재조회: 경쟁 레코드 발견
-            given(idGenerator.nextId()).willReturn(100L);
-            given(deviceTokenRepository.save(any(DeviceToken.class)))
-                    .willThrow(new DataIntegrityViolationException("duplicate token")) // 신규 INSERT 실패
-                    .willAnswer(invocation -> invocation.getArgument(0));              // 폴백 UPDATE 성공
+                    .willReturn(Optional.empty())                    // 최초 조회: 신규로 판단
+                    .willReturn(Optional.of(concurrentlyInserted));  // 폴백 재조회: 경쟁 레코드 발견
+            given(deviceTokenInserter.insertNew(userId, token, deviceType))
+                    .willThrow(new DataIntegrityViolationException("duplicate token"));
+            given(deviceTokenRepository.save(any(DeviceToken.class))).willAnswer(invocation -> invocation.getArgument(0));
 
             // when
             DeviceToken result = registerDeviceTokenService.register(userId, token, deviceType);
 
-            // then: 새 ID(100L)로 INSERT가 아닌, 기존 경쟁 레코드(200L)를 UPDATE하여 반환
+            // then: 새 ID로 INSERT가 아닌, 기존 경쟁 레코드(200L)를 UPDATE하여 반환
             assertThat(result.getId()).isEqualTo(200L);
             assertThat(result.getUserId()).isEqualTo(userId);
-            assertThat(result.getToken()).isEqualTo(token);
             assertThat(result.isActive()).isTrue();
             verify(deviceTokenRepository, org.mockito.Mockito.times(2)).findByToken(token);
             verify(deviceTokenRepository).save(concurrentlyInserted);
         }
 
         @Test
-        @DisplayName("동시 등록 경합 - 신규 INSERT가 UNIQUE 위반 시 재조회 후 다른 사용자 레코드를 소유자 이전 UPDATE 폴백")
-        void should_fallbackToTransfer_when_concurrentInsertViolatesUniqueForAnotherUser() {
+        @DisplayName("신규 INSERT가 UNIQUE 위반 시 다른 사용자 레코드를 소유자 이전 UPDATE 폴백 경로를 탄다")
+        void should_routeToTransferFallback_when_inserterThrowsForAnotherUser() {
             // given: 다른 사용자가 먼저 같은 토큰을 INSERT한 상태에서 우리 INSERT가 UNIQUE 위반
             Long newUserId = 2L;
             String token = "racing-fcm-token";
@@ -177,10 +190,9 @@ class RegisterDeviceTokenServiceTest {
             given(deviceTokenRepository.findByToken(token))
                     .willReturn(Optional.empty())
                     .willReturn(Optional.of(concurrentlyInserted));
-            given(idGenerator.nextId()).willReturn(101L);
-            given(deviceTokenRepository.save(any(DeviceToken.class)))
-                    .willThrow(new DataIntegrityViolationException("duplicate token"))
-                    .willAnswer(invocation -> invocation.getArgument(0));
+            given(deviceTokenInserter.insertNew(newUserId, token, newDeviceType))
+                    .willThrow(new DataIntegrityViolationException("duplicate token"));
+            given(deviceTokenRepository.save(any(DeviceToken.class))).willAnswer(invocation -> invocation.getArgument(0));
 
             // when
             DeviceToken result = registerDeviceTokenService.register(newUserId, token, newDeviceType);
