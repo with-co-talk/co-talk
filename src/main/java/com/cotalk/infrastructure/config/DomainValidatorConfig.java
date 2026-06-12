@@ -3,6 +3,7 @@ package com.cotalk.infrastructure.config;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
+import com.cotalk.domain.validator.FileMessageValidator;
 import com.cotalk.domain.validator.MessageValidator;
 import com.cotalk.domain.validator.UserValidator;
 import org.springframework.context.annotation.Bean;
@@ -28,5 +29,10 @@ public class DomainValidatorConfig {
     @Bean
     public ChatRoomMemberValidator chatRoomMemberValidator(ChatRoomMemberRepository chatRoomMemberRepository) {
         return new ChatRoomMemberValidator(chatRoomMemberRepository);
+    }
+
+    @Bean
+    public FileMessageValidator fileMessageValidator() {
+        return new FileMessageValidator();
     }
 }
