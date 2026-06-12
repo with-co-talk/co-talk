@@ -87,30 +87,38 @@ class RegisterDeviceTokenServiceTest {
         }
 
         @Test
-        @DisplayName("토큰이 다른 사용자에게 있으면 새 사용자로 이전")
+        @DisplayName("토큰이 다른 사용자에게 있으면 delete+insert 없이 기존 레코드를 UPDATE하여 새 사용자로 이전")
         void should_transferToken_when_tokenBelongsToAnotherUser() {
             // given
             Long newUserId = 2L;
             String token = "existing-fcm-token";
-            DeviceToken.DeviceType deviceType = DeviceToken.DeviceType.ANDROID;
+            DeviceToken.DeviceType newDeviceType = DeviceToken.DeviceType.IOS;
 
             DeviceToken existingToken = DeviceToken.builder()
                     .id(100L)
                     .userId(1L)  // 다른 사용자
                     .token(token)
-                    .deviceType(deviceType)
+                    .deviceType(DeviceToken.DeviceType.ANDROID)
                     .build();
+            existingToken.deactivate();
 
             given(deviceTokenRepository.findByToken(token)).willReturn(Optional.of(existingToken));
-            given(idGenerator.nextId()).willReturn(200L);
             given(deviceTokenRepository.save(any(DeviceToken.class))).willAnswer(invocation -> invocation.getArgument(0));
 
             // when
-            DeviceToken result = registerDeviceTokenService.register(newUserId, token, deviceType);
+            DeviceToken result = registerDeviceTokenService.register(newUserId, token, newDeviceType);
 
-            // then
-            verify(deviceTokenRepository).deleteByToken(token);
+            // then: UNIQUE 충돌을 유발할 수 있는 delete는 호출되지 않아야 한다
+            verify(deviceTokenRepository, org.mockito.Mockito.never()).deleteByToken(token);
+            // 새 엔티티를 만들지 않으므로 ID 생성도 호출되지 않는다 (동일 레코드 재사용)
+            verify(idGenerator, org.mockito.Mockito.never()).nextId();
+            // 기존 레코드의 ID를 유지한 채 소유자/타입/활성 상태만 갱신
+            assertThat(result.getId()).isEqualTo(100L);
             assertThat(result.getUserId()).isEqualTo(newUserId);
+            assertThat(result.getToken()).isEqualTo(token);
+            assertThat(result.getDeviceType()).isEqualTo(newDeviceType);
+            assertThat(result.isActive()).isTrue();
+            verify(deviceTokenRepository).save(existingToken);
         }
     }
 

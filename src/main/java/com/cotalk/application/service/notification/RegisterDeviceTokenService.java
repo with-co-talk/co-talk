@@ -31,7 +31,11 @@ public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
      * 디바이스 토큰을 등록한다.
      * 동일한 토큰이 이미 존재하는 경우:
      * - 같은 사용자: 토큰을 재활성화
-     * - 다른 사용자: 기존 토큰 삭제 후 새로 등록
+     * - 다른 사용자: 기존 레코드의 소유자를 새 사용자로 이전(UPDATE)하여 재활성화
+     *
+     * <p>토큰 컬럼은 UNIQUE 제약을 가지므로, 소유자 이전 시 기존 레코드를 삭제 후
+     * 동일 토큰으로 새 레코드를 INSERT하면 Hibernate flush 순서에 따라 UNIQUE 위반이
+     * 발생할 수 있다. 이를 회피하기 위해 기존 레코드를 그대로 UPDATE한다.</p>
      *
      * @param userId     사용자 ID
      * @param token      디바이스 토큰
@@ -44,17 +48,19 @@ public class RegisterDeviceTokenService implements RegisterDeviceTokenUseCase {
 
         if (existingToken.isPresent()) {
             DeviceToken existing = existingToken.get();
-            
+
             // 같은 사용자면 활성화만
             if (existing.getUserId().equals(userId)) {
                 existing.updateToken(token);
                 log.info("Device token reactivated for user: {}", userId);
                 return deviceTokenRepository.save(existing);
             }
-            
-            // 다른 사용자면 기존 토큰 삭제 후 새로 생성
-            deviceTokenRepository.deleteByToken(token);
-            log.info("Device token transferred from user {} to user {}", existing.getUserId(), userId);
+
+            // 다른 사용자면 기존 레코드의 소유자를 이전(UPDATE) — delete+insert UNIQUE 충돌 회피
+            Long previousUserId = existing.getUserId();
+            existing.transferTo(userId, deviceType);
+            log.info("Device token transferred from user {} to user {}", previousUserId, userId);
+            return deviceTokenRepository.save(existing);
         }
 
         DeviceToken newToken = DeviceToken.builder()

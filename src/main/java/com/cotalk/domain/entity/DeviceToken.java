@@ -63,6 +63,20 @@ public class DeviceToken extends BaseEntity {
     }
 
     /**
+     * 토큰의 소유자를 이전하고 활성화한다.
+     * 동일 토큰을 다른 사용자가 등록할 때, 기존 레코드를 삭제 후 재생성하는 대신
+     * 소유자(userId)와 디바이스 타입을 갱신하여 UNIQUE 제약 충돌을 회피한다.
+     *
+     * @param newUserId    새 소유자 사용자 ID
+     * @param newDeviceType 새 디바이스 타입
+     */
+    public void transferTo(Long newUserId, DeviceType newDeviceType) {
+        this.userId = newUserId;
+        this.deviceType = newDeviceType;
+        this.active = true;
+    }
+
+    /**
      * 디바이스 유형을 나타내는 열거형.
      *
      * @author seunggu.lee
