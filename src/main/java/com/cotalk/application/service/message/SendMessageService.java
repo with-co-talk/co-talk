@@ -15,6 +15,7 @@ import com.cotalk.domain.port.outbound.NotificationCommandPort;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.util.HtmlSanitizer;
+import com.cotalk.domain.validator.FileMessageValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,6 +50,7 @@ public class SendMessageService implements SendMessageUseCase {
     private final MessageBroadcastService messageBroadcastService;
     private final TransactionTemplate transactionTemplate;
     private final TimeProvider timeProvider;
+    private final FileMessageValidator fileMessageValidator;
 
     /**
      * 텍스트 메시지를 전송한다.
@@ -109,6 +111,11 @@ public class SendMessageService implements SendMessageUseCase {
 
     @Override
     public SendResult sendFileMessageWithContext(Long chatRoomId, Long senderId, FileMessageCommand command) {
+        // 서버사이드 검증: 클라이언트가 보낸 contentType/fileUrl을 신뢰하지 않고 재검증한다.
+        // - contentType: 업로드 허용 MIME 목록 재검증
+        // - fileUrl/thumbnailUrl: 본 서버 업로드 경로(uploads/{senderId}/...) 소유 여부 검증
+        fileMessageValidator.validate(senderId, command.contentType(), command.fileUrl(), command.thumbnailUrl());
+
         Message message = Message.builder()
                 .id(idGenerator.nextId())
                 .chatRoomId(chatRoomId)

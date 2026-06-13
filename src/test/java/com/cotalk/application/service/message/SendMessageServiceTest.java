@@ -83,7 +83,8 @@ class SendMessageServiceTest {
         sendMessageService = new SendMessageService(
                 messageRepository, chatRoomMemberRepository, userRepository, idGenerator,
                 notificationCommandPort, chatRoomPresenceTracker, customMetrics,
-                messageLinkPreviewService, messageBroadcastService, transactionTemplate, timeProvider);
+                messageLinkPreviewService, messageBroadcastService, transactionTemplate, timeProvider,
+                new com.cotalk.domain.validator.FileMessageValidator());
 
         // TransactionTemplate: 콜백을 즉시 실행 (트랜잭션 없이 동기 실행)
         lenient().when(transactionTemplate.execute(any(TransactionCallback.class)))
@@ -266,11 +267,11 @@ class SendMessageServiceTest {
                     .build();
 
             SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
-                    "https://storage.example.com/image.jpg",
+                    "http://localhost:8080/files/uploads/2/abc.jpg",
                     "photo.jpg",
                     1024L,
                     "image/jpeg",
-                    "https://storage.example.com/thumb.jpg"
+                    "http://localhost:8080/files/uploads/2/thumb.jpg"
             );
 
             given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
@@ -284,9 +285,9 @@ class SendMessageServiceTest {
 
             // then
             assertThat(result.getType()).isEqualTo(Message.MessageType.IMAGE);
-            assertThat(result.getFileUrl()).isEqualTo("https://storage.example.com/image.jpg");
+            assertThat(result.getFileUrl()).isEqualTo("http://localhost:8080/files/uploads/2/abc.jpg");
             assertThat(result.getFileName()).isEqualTo("photo.jpg");
-            assertThat(result.getThumbnailUrl()).isEqualTo("https://storage.example.com/thumb.jpg");
+            assertThat(result.getThumbnailUrl()).isEqualTo("http://localhost:8080/files/uploads/2/thumb.jpg");
         }
 
         @Test
@@ -311,7 +312,7 @@ class SendMessageServiceTest {
                     .build();
 
             SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
-                    "https://storage.example.com/doc.pdf",
+                    "http://localhost:8080/files/uploads/2/doc.pdf",
                     "document.pdf",
                     2048L,
                     "application/pdf",
@@ -329,50 +330,29 @@ class SendMessageServiceTest {
 
             // then
             assertThat(result.getType()).isEqualTo(Message.MessageType.FILE);
-            assertThat(result.getFileUrl()).isEqualTo("https://storage.example.com/doc.pdf");
+            assertThat(result.getFileUrl()).isEqualTo("http://localhost:8080/files/uploads/2/doc.pdf");
             assertThat(result.getFileName()).isEqualTo("document.pdf");
         }
 
         @Test
-        @DisplayName("contentType이 null인 경우 FILE 타입으로 처리")
-        void should_CreateFileMessage_when_contentTypeIsNull() {
+        @DisplayName("contentType이 null이면 허용 목록에 없으므로 거부한다")
+        void should_RejectFile_when_contentTypeIsNull() {
             // given
             Long chatRoomId = 1L;
             Long senderId = 2L;
-            Long messageId = 100L;
-
-            ChatRoomMember member = ChatRoomMember.builder()
-                    .id(10L)
-                    .chatRoomId(chatRoomId)
-                    .userId(senderId)
-                    .build();
-
-            User sender = User.builder()
-                    .id(senderId)
-                    .email(new Email("sender@test.com"))
-                    .nickname("발신자")
-                    .passwordHash("hash")
-                    .build();
 
             SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
-                    "https://storage.example.com/file",
+                    "http://localhost:8080/files/uploads/2/file.bin",
                     "unknown.file",
                     1024L,
-                    null, // contentType이 null
+                    null, // contentType이 null → 허용 목록 밖
                     null
             );
 
-            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
-                    .willReturn(List.of(member));
-            given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
-            given(idGenerator.nextId()).willReturn(messageId);
-            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
-
-            // when
-            Message result = sendMessageService.sendFileMessage(chatRoomId, senderId, command);
-
-            // then
-            assertThat(result.getType()).isEqualTo(Message.MessageType.FILE);
+            // when & then
+            assertThatThrownBy(() -> sendMessageService.sendFileMessage(chatRoomId, senderId, command))
+                    .isInstanceOf(com.cotalk.domain.exception.FileUploadException.class);
+            verify(messageRepository, never()).save(any(Message.class));
         }
 
         @Test
@@ -393,7 +373,7 @@ class SendMessageServiceTest {
                     .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
 
             SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
-                    "https://storage.example.com/image.jpg",
+                    "http://localhost:8080/files/uploads/2/abc.jpg",
                     "photo.jpg",
                     1024L,
                     "image/jpeg",
@@ -422,7 +402,7 @@ class SendMessageServiceTest {
             Long senderId = 2L;
 
             SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
-                    "https://storage.example.com/image.jpg",
+                    "http://localhost:8080/files/uploads/2/abc.jpg",
                     "photo.jpg",
                     1024L,
                     "image/jpeg",
@@ -436,6 +416,127 @@ class SendMessageServiceTest {
             // when & then
             assertThatThrownBy(() -> sendMessageService.sendFileMessage(chatRoomId, senderId, command))
                     .isInstanceOf(ChatRoomAccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("허용 목록 밖 contentType이면 거부한다")
+        void should_RejectFile_when_contentTypeNotAllowed() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+
+            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+                    "http://localhost:8080/files/uploads/2/evil.exe",
+                    "evil.exe",
+                    1024L,
+                    "application/x-msdownload", // 허용 목록 밖
+                    null
+            );
+
+            // when & then
+            assertThatThrownBy(() -> sendMessageService.sendFileMessage(chatRoomId, senderId, command))
+                    .isInstanceOf(com.cotalk.domain.exception.FileUploadException.class);
+            verify(messageRepository, never()).save(any(Message.class));
+        }
+
+        @Test
+        @DisplayName("uploads 경로가 없는 외부/위조 fileUrl이면 거부한다")
+        void should_RejectFile_when_externalFileUrl() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+
+            // 본 서버 업로드 객체 경로(uploads/{senderId}/...)가 전혀 없는 외부 URL
+            SendMessageUseCase.FileMessageCommand external = new SendMessageUseCase.FileMessageCommand(
+                    "https://evil.example.com/malware.jpg",
+                    "photo.jpg",
+                    1024L,
+                    "image/jpeg",
+                    null
+            );
+
+            // when & then
+            assertThatThrownBy(() -> sendMessageService.sendFileMessage(chatRoomId, senderId, external))
+                    .isInstanceOf(com.cotalk.domain.exception.FileUploadException.class);
+            verify(messageRepository, never()).save(any(Message.class));
+        }
+
+        @Test
+        @DisplayName("타인 소유 업로드 경로(fileUrl)면 거부한다")
+        void should_RejectFile_when_otherUserUploadPath() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+
+            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+                    "http://localhost:8080/files/uploads/999/abc.jpg", // 타인(999) 경로
+                    "photo.jpg",
+                    1024L,
+                    "image/jpeg",
+                    null
+            );
+
+            // when & then
+            assertThatThrownBy(() -> sendMessageService.sendFileMessage(chatRoomId, senderId, command))
+                    .isInstanceOf(com.cotalk.domain.exception.FileUploadException.class);
+            verify(messageRepository, never()).save(any(Message.class));
+        }
+
+        @Test
+        @DisplayName("경로 탈출(..)이 포함된 fileUrl이면 거부한다")
+        void should_RejectFile_when_pathTraversal() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+
+            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+                    "http://localhost:8080/files/uploads/2/../999/secret.jpg",
+                    "secret.jpg",
+                    1024L,
+                    "image/jpeg",
+                    null
+            );
+
+            // when & then
+            assertThatThrownBy(() -> sendMessageService.sendFileMessage(chatRoomId, senderId, command))
+                    .isInstanceOf(com.cotalk.domain.exception.FileUploadException.class);
+            verify(messageRepository, never()).save(any(Message.class));
+        }
+
+        @Test
+        @DisplayName("정상 업로드 URL과 허용 contentType이면 통과한다")
+        void should_AcceptFile_when_validUploadUrlAndContentType() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+            Long messageId = 100L;
+
+            ChatRoomMember member = ChatRoomMember.builder()
+                    .id(10L).chatRoomId(chatRoomId).userId(senderId).build();
+            User sender = User.builder()
+                    .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
+
+            // InMemoryFileStorage가 반환하는 실제 형식: {baseUrl}/uploads/{userId}/{uuid}.ext
+            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+                    "http://localhost:8080/files/uploads/2/3f9-uuid.jpg",
+                    "photo.jpg",
+                    1024L,
+                    "image/jpeg",
+                    "http://localhost:8080/files/uploads/2/3f9-thumb.jpg"
+            );
+
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId)).willReturn(List.of(member));
+            given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
+            given(idGenerator.nextId()).willReturn(messageId);
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+            // when
+            Message result = sendMessageService.sendFileMessage(chatRoomId, senderId, command);
+
+            // then
+            assertThat(result.getType()).isEqualTo(Message.MessageType.IMAGE);
+            assertThat(result.getFileUrl()).isEqualTo("http://localhost:8080/files/uploads/2/3f9-uuid.jpg");
+            verify(messageRepository).save(any(Message.class));
         }
     }
 

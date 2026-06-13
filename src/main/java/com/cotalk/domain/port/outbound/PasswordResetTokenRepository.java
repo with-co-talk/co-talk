@@ -29,13 +29,28 @@ public interface PasswordResetTokenRepository {
     Optional<PasswordResetToken> findByToken(String token);
 
     /**
-     * 이메일과 인증 코드로 비밀번호 재설정 토큰을 조회한다.
+     * 이메일로 가장 최근에 발급된 미사용 비밀번호 재설정 토큰을 조회한다.
+     * <p>
+     * 인증 코드를 조회 키에서 제외하여, 코드 불일치 시에도 토큰을 찾아
+     * 실패 횟수를 집계할 수 있도록 한다.
+     * </p>
      *
      * @param email 이메일 주소
-     * @param verificationCode 6자리 인증 코드
      * @return 조회된 비밀번호 재설정 토큰 (Optional)
      */
-    Optional<PasswordResetToken> findByEmailAndVerificationCode(String email, String verificationCode);
+    Optional<PasswordResetToken> findLatestActiveByEmail(String email);
+
+    /**
+     * 인증 코드 실패 횟수를 원자적으로 1 증가시키고, 증가 후의 실패 횟수를 반환한다.
+     * <p>
+     * 동시 오답 요청에서 read-modify-write 경합으로 발생하는 lost-update를 방지하여
+     * 잠금(최대 시도 횟수) 우회를 차단한다.
+     * </p>
+     *
+     * @param tokenId 대상 토큰 ID
+     * @return 증가 후의 실패 횟수
+     */
+    int incrementFailedAttemptsAndGet(Long tokenId);
 
     /**
      * 특정 사용자의 모든 비밀번호 재설정 토큰을 삭제한다.

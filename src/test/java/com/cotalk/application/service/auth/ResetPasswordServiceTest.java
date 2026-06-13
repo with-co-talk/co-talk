@@ -228,7 +228,7 @@ class ResetPasswordServiceTest {
                 .expiresAt(FIXED_NOW.plusMinutes(30))
                 .build();
 
-        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+        given(tokenRepository.findLatestActiveByEmail(email)).willReturn(Optional.of(token));
         given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when & then
@@ -236,13 +236,13 @@ class ResetPasswordServiceTest {
     }
 
     @Test
-    @DisplayName("일치하는 토큰이 없으면 invalidCode 예외가 발생한다")
+    @DisplayName("활성 토큰이 없으면 invalidCode 예외가 발생한다")
     void should_throwInvalidCode_when_codeNotFound() {
         // given
         String email = "user@example.com";
         String code = "123456";
 
-        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.empty());
+        given(tokenRepository.findLatestActiveByEmail(email)).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> service.verifyCode(email, code))
@@ -251,7 +251,7 @@ class ResetPasswordServiceTest {
     }
 
     @Test
-    @DisplayName("만료된 토큰으로 verifyCode 호출 시 expired 예외가 발생하고 failedAttempts가 증가한다")
+    @DisplayName("만료된 토큰으로 verifyCode 호출 시 expired 예외가 발생한다")
     void should_throwExpired_when_codeExpired() {
         // given
         String email = "user@example.com";
@@ -265,15 +265,77 @@ class ResetPasswordServiceTest {
                 .expiresAt(FIXED_NOW.minusMinutes(1))
                 .build();
 
-        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+        given(tokenRepository.findLatestActiveByEmail(email)).willReturn(Optional.of(token));
         given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when & then
         assertThatThrownBy(() -> service.verifyCode(email, code))
                 .isInstanceOf(InvalidPasswordResetTokenException.class)
                 .hasMessageContaining("만료");
+    }
 
-        verify(tokenRepository).save(any(PasswordResetToken.class));
+    @Test
+    @DisplayName("잘못된 코드로 verifyCode 호출 시 invalidCode 예외가 발생하고 failedAttempts가 원자적으로 증가한다")
+    void should_incrementFailedAttempts_when_wrongCode() {
+        // given
+        String email = "user@example.com";
+        String wrongCode = "000000";
+
+        PasswordResetToken token = PasswordResetToken.builder()
+                .id(1L)
+                .token("some-token")
+                .userId(10L)
+                .email(new Email(email))
+                .verificationCode("123456")
+                .expiresAt(FIXED_NOW.plusMinutes(30))
+                .build();
+
+        given(tokenRepository.findLatestActiveByEmail(email)).willReturn(Optional.of(token));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
+        // 원자적 증가 후 실패 횟수 1 반환
+        given(tokenRepository.incrementFailedAttemptsAndGet(1L)).willReturn(1);
+
+        // when & then
+        assertThatThrownBy(() -> service.verifyCode(email, wrongCode))
+                .isInstanceOf(InvalidPasswordResetTokenException.class)
+                .hasMessageContaining("일치");
+
+        // 원자적 UPDATE로 실패 횟수를 증가시켰는지 검증(lost-update 방지)
+        verify(tokenRepository).incrementFailedAttemptsAndGet(1L);
+    }
+
+    @Test
+    @DisplayName("잘못된 코드 5회 입력 시 토큰이 잠겨 maxAttemptsExceeded 예외가 발생한다")
+    void should_lockToken_when_wrongCodeFiveTimes() {
+        // given
+        String email = "user@example.com";
+        String wrongCode = "000000";
+
+        PasswordResetToken token = PasswordResetToken.builder()
+                .id(1L)
+                .token("some-token")
+                .userId(10L)
+                .email(new Email(email))
+                .verificationCode("123456")
+                .expiresAt(FIXED_NOW.plusMinutes(30))
+                .build();
+
+        given(tokenRepository.findLatestActiveByEmail(email)).willReturn(Optional.of(token));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
+        // 원자적 증가가 호출될 때마다 1,2,3,4,5 를 반환(DB 상태 시뮬레이션)
+        given(tokenRepository.incrementFailedAttemptsAndGet(1L))
+                .willReturn(1, 2, 3, 4, 5);
+
+        // when: 4회 오답은 invalidCode, 5회째 오답은 잠금(초과)
+        for (int i = 0; i < 4; i++) {
+            assertThatThrownBy(() -> service.verifyCode(email, wrongCode))
+                    .isInstanceOf(InvalidPasswordResetTokenException.class)
+                    .hasMessageContaining("일치");
+        }
+
+        assertThatThrownBy(() -> service.verifyCode(email, wrongCode))
+                .isInstanceOf(InvalidPasswordResetTokenException.class)
+                .hasMessageContaining("초과");
     }
 
     @Test
@@ -292,7 +354,7 @@ class ResetPasswordServiceTest {
                 .failedAttempts(5)
                 .build();
 
-        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+        given(tokenRepository.findLatestActiveByEmail(email)).willReturn(Optional.of(token));
 
         // when & then
         assertThatThrownBy(() -> service.verifyCode(email, code))
@@ -316,7 +378,7 @@ class ResetPasswordServiceTest {
                 .usedAt(FIXED_NOW.minusMinutes(5))
                 .build();
 
-        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+        given(tokenRepository.findLatestActiveByEmail(email)).willReturn(Optional.of(token));
         given(timeProvider.now()).willReturn(FIXED_NOW);
 
         // when & then
@@ -348,7 +410,7 @@ class ResetPasswordServiceTest {
                 .passwordHash("oldHash")
                 .build();
 
-        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+        given(tokenRepository.findLatestActiveByEmail(email)).willReturn(Optional.of(token));
         given(userRepository.findById(10L)).willReturn(Optional.of(user));
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
         given(timeProvider.now()).willReturn(FIXED_NOW);
@@ -382,7 +444,7 @@ class ResetPasswordServiceTest {
                 .failedAttempts(5)
                 .build();
 
-        given(tokenRepository.findByEmailAndVerificationCode(email, code)).willReturn(Optional.of(token));
+        given(tokenRepository.findLatestActiveByEmail(email)).willReturn(Optional.of(token));
 
         // when & then
         assertThatThrownBy(() -> service.resetPasswordWithCode(email, code, "NewPassword1!"))

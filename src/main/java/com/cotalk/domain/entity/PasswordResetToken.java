@@ -147,6 +147,20 @@ public class PasswordResetToken extends BaseEntity {
     }
 
     /**
+     * 주어진 인증 코드가 이 토큰의 인증 코드와 일치하는지 확인한다.
+     * <p>
+     * 인증 코드를 조회 키로 사용하지 않고 도메인에서 비교함으로써,
+     * 잘못된 코드 입력도 실패 횟수에 집계하여 무차별 대입을 차단한다.
+     * </p>
+     *
+     * @param code 사용자가 입력한 인증 코드
+     * @return 인증 코드가 존재하고 일치하면 true, 그렇지 않으면 false
+     */
+    public boolean matchesCode(String code) {
+        return this.verificationCode != null && this.verificationCode.equals(code);
+    }
+
+    /**
      * 최대 허용 실패 횟수를 초과했는지 확인한다.
      *
      * @param maxAttempts 최대 허용 실패 횟수
