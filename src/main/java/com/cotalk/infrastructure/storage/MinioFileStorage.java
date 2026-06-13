@@ -16,6 +16,7 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.Optional;
 
 /**
  * MinIO 기반 파일 저장소 구현체.
@@ -160,14 +161,50 @@ public class MinioFileStorage implements FileStorage {
 
             log.info("File uploaded successfully: {}", fileName);
 
-            // Return public URL or generate one
-            if (publicUrl != null && !publicUrl.isEmpty()) {
-                return publicUrl + "/" + bucketName + "/" + fileName;
-            }
-            return generatePresignedUrl(fileName, 60 * 24 * 7); // 7 days default
+            return resolveUrl(fileName);
         } catch (Exception e) {
             log.error("Failed to upload file: {}", fileName, e);
             throw FileUploadException.uploadFailed(e);
+        }
+    }
+
+    /**
+     * 저장 객체 키로부터 접근 URL을 재구성한다.
+     * 공개 URL이 설정되어 있으면 {@code publicUrl/bucket/objectKey} 직접 URL을,
+     * 없으면 7일 유효기간의 Pre-signed URL을 반환한다.
+     * 업로드 시 반환하는 URL과 동일한 규칙을 사용한다.
+     *
+     * @param objectKey 저장 객체 키
+     * @return 접근 가능한 URL
+     */
+    @Override
+    public String resolveUrl(String objectKey) {
+        if (publicUrl != null && !publicUrl.isEmpty()) {
+            return publicUrl + "/" + bucketName + "/" + objectKey;
+        }
+        return generatePresignedUrl(objectKey, 60 * 24 * 7); // 7 days default
+    }
+
+    /**
+     * MinIO에 저장된 객체의 메타데이터(MIME 타입·크기)를 조회한다.
+     *
+     * @param objectKey 저장 객체 키
+     * @return 객체 메타데이터. 존재하지 않으면 빈 Optional
+     */
+    @Override
+    public Optional<StoredObjectMetadata> getMetadata(String objectKey) {
+        try {
+            HeadObjectResponse head = s3Client.headObject(HeadObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectKey)
+                    .build());
+            long size = head.contentLength() != null ? head.contentLength() : -1L;
+            return Optional.of(new StoredObjectMetadata(head.contentType(), size));
+        } catch (NoSuchKeyException e) {
+            return Optional.empty();
+        } catch (Exception e) {
+            log.warn("Failed to fetch object metadata for key '{}': {}", objectKey, e.getMessage());
+            return Optional.empty();
         }
     }
 

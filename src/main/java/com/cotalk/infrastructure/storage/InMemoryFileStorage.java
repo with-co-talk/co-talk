@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -32,6 +33,7 @@ public class InMemoryFileStorage implements FileStorage {
     public static final String BASE_URL = "http://localhost:8080/files";
 
     private final Map<String, byte[]> storage = new ConcurrentHashMap<>();
+    private final Map<String, String> contentTypes = new ConcurrentHashMap<>();
     private final String baseUrl;
 
     /**
@@ -57,10 +59,40 @@ public class InMemoryFileStorage implements FileStorage {
         try {
             byte[] data = inputStream.readAllBytes();
             storage.put(fileName, data);
-            return baseUrl + "/" + fileName;
+            if (contentType != null) {
+                contentTypes.put(fileName, contentType);
+            }
+            return resolveUrl(fileName);
         } catch (Exception e) {
             throw new RuntimeException("Failed to read file", e);
         }
+    }
+
+    /**
+     * 저장 객체 키로부터 접근 URL을 재구성한다.
+     * 업로드 시 반환하는 URL과 동일하게 {@code baseUrl/objectKey} 형태를 반환한다.
+     *
+     * @param objectKey 저장 객체 키
+     * @return 접근 가능한 URL
+     */
+    @Override
+    public String resolveUrl(String objectKey) {
+        return baseUrl + "/" + objectKey;
+    }
+
+    /**
+     * 메모리에 저장된 객체의 메타데이터(MIME 타입·크기)를 조회한다.
+     *
+     * @param objectKey 저장 객체 키
+     * @return 객체 메타데이터. 존재하지 않으면 빈 Optional
+     */
+    @Override
+    public Optional<StoredObjectMetadata> getMetadata(String objectKey) {
+        byte[] data = storage.get(objectKey);
+        if (data == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new StoredObjectMetadata(contentTypes.get(objectKey), data.length));
     }
 
     /**
@@ -71,6 +103,7 @@ public class InMemoryFileStorage implements FileStorage {
     @Override
     public void delete(String fileName) {
         storage.remove(fileName);
+        contentTypes.remove(fileName);
     }
 
     /**
@@ -114,5 +147,6 @@ public class InMemoryFileStorage implements FileStorage {
      */
     public void clear() {
         storage.clear();
+        contentTypes.clear();
     }
 }
