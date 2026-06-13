@@ -707,7 +707,7 @@ class SendMessageServiceTest {
         }
 
         @Test
-        @DisplayName("썸네일 object-id도 소유 검증 후 URL을 재구성한다")
+        @DisplayName("썸네일 object-id는 본문 힌트 없이 자기 메타로 resolve된다")
         void should_ResolveThumbnailObjectId_when_Provided() {
             // given
             Long chatRoomId = 1L;
@@ -719,13 +719,16 @@ class SendMessageServiceTest {
             User sender = User.builder()
                     .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
 
+            // 본문은 video/mp4 + 큰 size, 썸네일은 별개의 image/jpeg 객체.
+            // 본문 힌트가 썸네일 resolve로 새면 썸네일 메타가 본문(video, 1024)으로 오염된다.
             SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
-                    "uploads/2/abc.jpg", "uploads/2/thumb.jpg", null, "photo.jpg", 1024L, null, null);
+                    "uploads/2/abc.mp4", "uploads/2/thumb.jpg", null, "video.mp4", 1024L, "video/mp4", null);
 
-            given(fileObjectResolver.resolve(eq(senderId), eq("uploads/2/abc.jpg"), nullable(String.class), any()))
+            given(fileObjectResolver.resolve(eq(senderId), eq("uploads/2/abc.mp4"), nullable(String.class), any()))
                     .willReturn(new com.cotalk.domain.service.FileObjectResolver.ResolvedFileObject(
-                            "http://localhost:8080/files/uploads/2/abc.jpg", "image/jpeg", 1024L));
-            given(fileObjectResolver.resolve(eq(senderId), eq("uploads/2/thumb.jpg"), nullable(String.class), any()))
+                            "http://localhost:8080/files/uploads/2/abc.mp4", "video/mp4", 1024L));
+            // 썸네일은 힌트 없는 2-인자 오버로드로 호출되어야 한다(자기 메타로 재구성).
+            given(fileObjectResolver.resolve(eq(senderId), eq("uploads/2/thumb.jpg")))
                     .willReturn(new com.cotalk.domain.service.FileObjectResolver.ResolvedFileObject(
                             "http://localhost:8080/files/uploads/2/thumb.jpg", "image/jpeg", 256L));
 
@@ -737,8 +740,11 @@ class SendMessageServiceTest {
             // when
             Message result = sendMessageService.sendFileMessage(chatRoomId, senderId, command);
 
-            // then
+            // then: 썸네일은 본문 힌트 없이(2-인자 오버로드) resolve되어야 한다(메타 오염 방지)
             assertThat(result.getThumbnailUrl()).isEqualTo("http://localhost:8080/files/uploads/2/thumb.jpg");
+            verify(fileObjectResolver).resolve(eq(senderId), eq("uploads/2/thumb.jpg"));
+            verify(fileObjectResolver, never())
+                    .resolve(eq(senderId), eq("uploads/2/thumb.jpg"), nullable(String.class), any());
         }
     }
 

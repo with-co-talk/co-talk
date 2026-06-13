@@ -162,9 +162,11 @@ public class SendMessageService implements SendMessageUseCase {
 
         String thumbnailUrl = null;
         if (command.thumbnailObjectId() != null && !command.thumbnailObjectId().isBlank()) {
-            // 썸네일도 소유·존재 검증 후 URL 재구성(타입 힌트는 본문과 동일 정책으로 둔다)
+            // 썸네일은 본문과 별개의 저장 객체(자기 contentType/size 메타를 가진다)이므로,
+            // 본문 힌트를 넘기지 않고 자기 메타로 resolve한다. 본문 힌트를 넘기면 저장소 메타가
+            // 부재한 경우 썸네일이 본문 메타(예: video/mp4 크기)로 오염될 수 있다.
             thumbnailUrl = fileObjectResolver
-                    .resolve(senderId, command.thumbnailObjectId(), command.contentType(), command.fileSize())
+                    .resolve(senderId, command.thumbnailObjectId())
                     .fileUrl();
         }
         return new ResolvedFileMeta(resolved.fileUrl(), resolved.contentType(), resolved.fileSize(), thumbnailUrl);
