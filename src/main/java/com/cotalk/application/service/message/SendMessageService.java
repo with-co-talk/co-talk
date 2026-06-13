@@ -1,12 +1,14 @@
 package com.cotalk.application.service.message;
 
 import com.cotalk.domain.constants.MessageConstants;
+import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.Message.MessageType;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
@@ -15,6 +17,7 @@ import com.cotalk.domain.port.outbound.NotificationCommandPort;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.util.HtmlSanitizer;
+import com.cotalk.domain.validator.BlockValidator;
 import com.cotalk.domain.validator.FileMessageValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +44,7 @@ public class SendMessageService implements SendMessageUseCase {
 
     private final MessageRepository messageRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final ChatRoomRepository chatRoomRepository;
     private final UserRepository userRepository;
     private final IdGenerator idGenerator;
     private final NotificationCommandPort notificationCommandPort;
@@ -51,6 +55,7 @@ public class SendMessageService implements SendMessageUseCase {
     private final TransactionTemplate transactionTemplate;
     private final TimeProvider timeProvider;
     private final FileMessageValidator fileMessageValidator;
+    private final BlockValidator blockValidator;
 
     /**
      * 텍스트 메시지를 전송한다.
@@ -166,6 +171,9 @@ public class SendMessageService implements SendMessageUseCase {
                 throw new com.cotalk.domain.exception.ChatRoomAccessDeniedException(chatRoomId, senderId);
             }
 
+            // 1:1(DIRECT) 채팅방에서 상대와 차단 관계면 메시지 전송 거부 (양방향)
+            validateNotBlockedInDirectChat(chatRoomId, senderId, members);
+
             // 내용 검증
             message.validateContent();
 
@@ -196,6 +204,36 @@ public class SendMessageService implements SendMessageUseCase {
 
         customMetrics.stopMessageProcessingTimer(timerSample);
         return result;
+    }
+
+    /**
+     * 1:1(DIRECT) 채팅방에서 발신자와 상대방 사이에 차단 관계가 없는지 검증한다.
+     * <p>
+     * 멤버가 정확히 2명인 방만 후보로 보고, 채팅방 타입이 DIRECT인 경우에만 상대를 식별하여
+     * 양방향 차단 검사를 수행한다. SELF(1명) · 그룹(3명 이상)이나 멤버 수가 2가 아닌 방은
+     * 차단 검사 범위에서 제외한다(그룹 정책은 이번 범위 외).
+     * </p>
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param senderId 발신자 ID
+     * @param members 사전 조회된 채팅방 멤버 목록
+     */
+    private void validateNotBlockedInDirectChat(Long chatRoomId, Long senderId, List<ChatRoomMember> members) {
+        // 멤버 2명이 아니면 DIRECT가 아니므로 추가 조회 없이 통과 (SELF/그룹)
+        if (members.size() != 2) {
+            return;
+        }
+
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId).orElse(null);
+        if (chatRoom == null || !chatRoom.isDirectChat()) {
+            return;
+        }
+
+        members.stream()
+                .map(ChatRoomMember::getUserId)
+                .filter(userId -> !userId.equals(senderId))
+                .findFirst()
+                .ifPresent(otherUserId -> blockValidator.validateNotBlocked(senderId, otherUserId));
     }
 
     /**

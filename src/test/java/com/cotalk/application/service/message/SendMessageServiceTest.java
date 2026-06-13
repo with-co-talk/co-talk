@@ -1,11 +1,14 @@
 package com.cotalk.application.service.message;
 
+import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.model.Email;
+import com.cotalk.domain.exception.BlockedRelationshipException;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
@@ -49,6 +52,9 @@ class SendMessageServiceTest {
     private ChatRoomMemberRepository chatRoomMemberRepository;
 
     @Mock
+    private ChatRoomRepository chatRoomRepository;
+
+    @Mock
     private UserRepository userRepository;
 
     @Mock
@@ -75,16 +81,19 @@ class SendMessageServiceTest {
     @Mock
     private TimeProvider timeProvider;
 
+    @Mock
+    private com.cotalk.domain.validator.BlockValidator blockValidator;
+
     private SendMessageService sendMessageService;
 
     @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() {
         sendMessageService = new SendMessageService(
-                messageRepository, chatRoomMemberRepository, userRepository, idGenerator,
+                messageRepository, chatRoomMemberRepository, chatRoomRepository, userRepository, idGenerator,
                 notificationCommandPort, chatRoomPresenceTracker, customMetrics,
                 messageLinkPreviewService, messageBroadcastService, transactionTemplate, timeProvider,
-                new com.cotalk.domain.validator.FileMessageValidator());
+                new com.cotalk.domain.validator.FileMessageValidator(), blockValidator);
 
         // TransactionTemplate: 콜백을 즉시 실행 (트랜잭션 없이 동기 실행)
         lenient().when(transactionTemplate.execute(any(TransactionCallback.class)))
@@ -209,6 +218,68 @@ class SendMessageServiceTest {
             // when & then
             assertThatThrownBy(() -> sendMessageService.sendMessage(chatRoomId, senderId, "메시지"))
                     .isInstanceOf(ChatRoomAccessDeniedException.class);
+        }
+
+        @Test
+        @DisplayName("1:1 채팅방에서 상대와 차단 관계면 메시지 전송이 거부된다 (양방향)")
+        void should_ThrowException_when_BlockedInDirectChat() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+            Long receiverId = 3L;
+
+            ChatRoomMember senderMember = ChatRoomMember.builder()
+                    .id(10L).chatRoomId(chatRoomId).userId(senderId).build();
+            ChatRoomMember receiverMember = ChatRoomMember.builder()
+                    .id(11L).chatRoomId(chatRoomId).userId(receiverId).build();
+
+            User sender = User.builder()
+                    .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
+
+            ChatRoom directRoom = ChatRoom.builder()
+                    .id(chatRoomId).type(ChatRoom.ChatRoomType.DIRECT).build();
+
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
+                    .willReturn(List.of(senderMember, receiverMember));
+            given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
+            given(chatRoomRepository.findById(chatRoomId)).willReturn(Optional.of(directRoom));
+            org.mockito.BDDMockito.willThrow(new BlockedRelationshipException())
+                    .given(blockValidator).validateNotBlocked(senderId, receiverId);
+
+            // when & then
+            assertThatThrownBy(() -> sendMessageService.sendMessage(chatRoomId, senderId, "메시지"))
+                    .isInstanceOf(BlockedRelationshipException.class);
+            verify(messageRepository, never()).save(any(Message.class));
+        }
+
+        @Test
+        @DisplayName("그룹 채팅방(멤버 3명)에서는 차단 검사를 하지 않는다")
+        void should_NotCheckBlock_when_GroupChat() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+            Long messageId = 100L;
+
+            ChatRoomMember m1 = ChatRoomMember.builder().id(10L).chatRoomId(chatRoomId).userId(senderId).build();
+            ChatRoomMember m2 = ChatRoomMember.builder().id(11L).chatRoomId(chatRoomId).userId(3L).build();
+            ChatRoomMember m3 = ChatRoomMember.builder().id(12L).chatRoomId(chatRoomId).userId(4L).build();
+
+            User sender = User.builder()
+                    .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
+
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
+                    .willReturn(List.of(m1, m2, m3));
+            given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
+            given(idGenerator.nextId()).willReturn(messageId);
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+            // when
+            sendMessageService.sendMessage(chatRoomId, senderId, "메시지");
+
+            // then - 멤버 3명이므로 차단 검사/방 조회 없이 정상 전송
+            verify(blockValidator, never()).validateNotBlocked(anyLong(), anyLong());
+            verify(chatRoomRepository, never()).findById(anyLong());
+            verify(messageRepository).save(any(Message.class));
         }
 
         @Test
