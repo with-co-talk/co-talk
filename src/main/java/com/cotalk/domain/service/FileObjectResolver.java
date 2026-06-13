@@ -138,13 +138,21 @@ public class FileObjectResolver {
     }
 
     /**
-     * 저장소 메타데이터의 size를 우선 사용하고, 없으면 힌트로 폴백한다(폴백도 없으면 0).
+     * 저장소 메타데이터의 size를 우선 사용하고, 없으면 힌트로 폴백한다.
+     * <p>
+     * 저장소 메타도 없고 클라이언트 힌트도 없으면 size를 확정할 수 없으므로 예외를 던진다.
+     * contentType과 동일하게 "확정 불가 시 거부" 정책을 적용하여, 0과 같은 의미 없는 값이
+     * 조용히 저장되는 것을 막는다.
+     * </p>
      */
     private long resolveFileSize(StoredObjectMetadata metadata, Long hintFileSize) {
         if (metadata != null && metadata.fileSize() >= 0) {
             return metadata.fileSize();
         }
-        return hintFileSize != null ? hintFileSize : 0L;
+        if (hintFileSize != null) {
+            return hintFileSize;
+        }
+        throw new FileUploadException("파일 크기를 확인할 수 없습니다.");
     }
 
     /**

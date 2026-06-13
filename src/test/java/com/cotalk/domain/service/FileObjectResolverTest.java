@@ -127,6 +127,17 @@ class FileObjectResolverTest {
             assertThatThrownBy(() -> resolver.resolve(42L, objectId, null, null))
                     .isInstanceOf(FileUploadException.class);
         }
+
+        @Test
+        @DisplayName("메타데이터가 없고 contentType 힌트는 있으나 size 힌트가 없으면 예외를 던진다")
+        void should_Throw_when_NoMetadataAndNoSizeHint() {
+            // size를 확정할 수 없을 때 조용히 0L로 두지 않고 contentType과 동일하게 거부한다.
+            String objectId = "uploads/42/no-meta.png";
+            fileStorage.putWithoutMetadata(objectId);
+
+            assertThatThrownBy(() -> resolver.resolve(42L, objectId, "image/png", null))
+                    .isInstanceOf(FileUploadException.class);
+        }
     }
 
     /**
