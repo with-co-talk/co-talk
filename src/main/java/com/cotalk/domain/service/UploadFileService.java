@@ -114,7 +114,9 @@ public class UploadFileService implements UploadFileUseCase {
                     command.fileSize()
             );
 
+            // storagePath(=저장 객체 키)가 곧 불투명 식별자(object-id)다.
             return new FileUploadResult(
+                    storagePath,
                     fileUrl,
                     extractFileName(storagePath),
                     command.contentType(),

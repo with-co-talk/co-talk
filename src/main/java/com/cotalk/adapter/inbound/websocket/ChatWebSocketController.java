@@ -142,7 +142,10 @@ public class ChatWebSocketController {
     public void sendFileMessage(@Payload FileMessageRequest request, StompHeaderAccessor headerAccessor) {
         Long authenticatedUserId = extractUserId(headerAccessor);
 
-        if (request == null || request.roomId() == null || request.fileUrl() == null || request.fileUrl().isBlank()) {
+        // 파일 소스: 신규(object-id) 또는 기존(fileUrl) 중 하나는 반드시 있어야 한다(하위호환).
+        boolean hasObjectId = request != null && request.objectId() != null && !request.objectId().isBlank();
+        boolean hasFileUrl = request != null && request.fileUrl() != null && !request.fileUrl().isBlank();
+        if (request == null || request.roomId() == null || (!hasObjectId && !hasFileUrl)) {
             log.warn("Invalid file message request from user {}: {}", authenticatedUserId, request);
             return;
         }
@@ -160,6 +163,8 @@ public class ChatWebSocketController {
         log.debug("Received file message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
 
         FileMessageCommand command = new FileMessageCommand(
+                request.objectId(),
+                request.thumbnailObjectId(),
                 request.fileUrl(),
                 request.fileName(),
                 request.fileSize(),
@@ -365,11 +370,31 @@ public class ChatWebSocketController {
             return false;
         }
 
-        // contentType 검증: 허용 목록에 있는지 확인
-        if (request.contentType() == null) {
-            return false;
+        // object-id 방식: contentType은 서버(resolver)가 저장 메타로 재구성하므로 여기서는 선택(생략 가능).
+        //   - contentType 미제공: 통과(서버가 재구성)
+        //   - contentType 제공: 허용 목록 검증 유지(위조 차단)
+        // 기존(fileUrl) 방식: contentType 필수 + 허용 목록 검증.
+        boolean contentTypeOptional = request.usesObjectId();
+        return isContentTypeAcceptable(request.contentType(), contentTypeOptional);
+    }
+
+    /**
+     * contentType이 메시지 전송에 허용되는 상태인지 확인합니다.
+     * <p>
+     * {@code optional}이 true(object-id 방식)면 contentType 미제공은 통과하고, 제공된 경우에만
+     * 허용 목록을 검증합니다(서버 resolver가 저장 메타로 재구성). {@code optional}이 false(fileUrl 방식)면
+     * contentType은 필수이며 허용 목록 검증을 통과해야 합니다.
+     * </p>
+     *
+     * @param contentType 검증할 content type (null 허용)
+     * @param optional    contentType 생략 가능 여부(object-id 방식이면 true)
+     * @return 허용되면 true, 그렇지 않으면 false
+     */
+    private boolean isContentTypeAcceptable(String contentType, boolean optional) {
+        if (contentType == null) {
+            return optional;
         }
-        return isAllowedContentType(request.contentType());
+        return isAllowedContentType(contentType);
     }
 
     /**

@@ -60,6 +60,7 @@ class FileControllerTest {
             );
 
             FileUploadResult result = new FileUploadResult(
+                    "uploads/1/abc123.jpg",
                     "https://storage.example.com/uploads/1/abc123.jpg",
                     "abc123.jpg",
                     "image/jpeg",
@@ -72,6 +73,7 @@ class FileControllerTest {
             mockMvc.perform(multipart("/api/v1/files/upload")
                             .file(file))
                     .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.objectId").value(result.objectId()))
                     .andExpect(jsonPath("$.fileUrl").value(result.fileUrl()))
                     .andExpect(jsonPath("$.fileName").value(result.fileName()))
                     .andExpect(jsonPath("$.contentType").value("image/jpeg"))
@@ -92,6 +94,7 @@ class FileControllerTest {
             );
 
             FileUploadResult result = new FileUploadResult(
+                    "uploads/1/abc123.pdf",
                     "https://storage.example.com/uploads/1/abc123.pdf",
                     "abc123.pdf",
                     "application/pdf",

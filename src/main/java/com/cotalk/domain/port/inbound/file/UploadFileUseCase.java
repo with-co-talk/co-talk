@@ -38,12 +38,15 @@ public interface UploadFileUseCase {
     /**
      * 파일 업로드 결과.
      *
-     * @param fileUrl 업로드된 파일 URL
+     * @param objectId 업로드된 객체의 불투명 식별자(저장 객체 키). 파일 메시지 전송 시 이 값을 보내면
+     *                 서버가 소유·존재를 검증하고 URL/메타를 재구성한다(클라이언트 URL 위조 방지).
+     * @param fileUrl 업로드된 파일 URL(하위호환용. 신규 클라이언트는 {@code objectId}만 사용 권장)
      * @param fileName 저장된 파일명
      * @param contentType 파일 MIME 타입
      * @param fileSize 파일 크기
      */
     record FileUploadResult(
+            String objectId,
             String fileUrl,
             String fileName,
             String contentType,

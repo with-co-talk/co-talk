@@ -8,6 +8,8 @@ import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import com.cotalk.domain.validator.FileMessageValidator;
 import com.cotalk.domain.validator.MessageValidator;
 import com.cotalk.domain.validator.UserValidator;
+import com.cotalk.domain.port.outbound.FileStorage;
+import com.cotalk.domain.service.FileObjectResolver;
 import com.cotalk.infrastructure.config.properties.MinioProperties;
 import com.cotalk.infrastructure.storage.InMemoryFileStorage;
 import org.springframework.context.annotation.Bean;
@@ -75,6 +77,21 @@ public class DomainValidatorConfig {
             allowedBaseUrls.add(InMemoryFileStorage.BASE_URL);
         }
         return new FileMessageValidator(allowedBaseUrls);
+    }
+
+    /**
+     * 불투명 식별자(object-id) 기반 파일 메시지 메타 재구성기 빈.
+     * <p>
+     * 업로드가 발급한 저장 객체 키만으로 소유·존재를 검증하고 URL/메타를 재구성한다.
+     * 파일 저장소 포트({@link FileStorage})에 의존한다.
+     * </p>
+     *
+     * @param fileStorage 파일 저장소 포트(MinIO 또는 InMemory)
+     * @return FileObjectResolver
+     */
+    @Bean
+    public FileObjectResolver fileObjectResolver(FileStorage fileStorage) {
+        return new FileObjectResolver(fileStorage);
     }
 
     private void addBaseWithBucket(List<String> target, String baseUrl, String bucket) {
