@@ -59,6 +59,7 @@ public class FileController {
         FileUploadResult result = uploadFileUseCase.uploadFile(command);
 
         return ResponseEntity.ok(FileUploadResponse.of(
+                result.objectId(),
                 result.fileUrl(),
                 result.fileName(),
                 result.contentType(),
