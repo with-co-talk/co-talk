@@ -33,8 +33,21 @@ import java.util.List;
  * <p>동시성 제어:
  * <ul>
  *   <li>분산락: 동일 채팅방에 대한 동시 퇴장 방지</li>
- *   <li>마지막 멤버 퇴장 시 채팅방 삭제가 원자적으로 처리됨</li>
  * </ul>
+ *
+ * <p><b>빈 채팅방 보존 정책</b>: 마지막 멤버가 나가도 채팅방과 메시지 이력은
+ * 삭제하지 않고 보존한다. 이는 의도된 도메인 규칙으로, 다음을 위해 필요하다.
+ * <ul>
+ *   <li>재초대 재사용: 1:1 채팅방에서 상대방이 나간 뒤에도 남은 멤버가
+ *       {@code ReinviteDirectChatMemberService}로 같은 방에 다시 초대할 수 있으며,
+ *       이때 기존 메시지 이력이 그대로 유지되어야 한다.</li>
+ *   <li>이력/감사: 대화 기록 보존.</li>
+ * </ul>
+ *
+ * <p><b>운영 영향</b>: 멤버가 0명인 빈 방이 누적될 수 있다(특히 그룹 채팅에서
+ * 재초대 경로가 없을 때). 보관 비용이 문제가 되면 배치성 정리 작업(예: 일정 기간
+ * 멤버 0명 + 신규 메시지 없음인 방을 연관 데이터와 함께 삭제)을 별도로 도입한다.
+ * 퇴장 경로에서 동기 삭제하지 않는 이유는 위 재사용/이력 규칙 때문이다.
  *
  * @author seunggu.lee
  */
@@ -55,16 +68,19 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
 
     /**
      * 채팅방에서 나간다.
-     * 마지막 멤버가 나가면 채팅방도 함께 삭제된다.
+     * 마지막 멤버가 나가도 채팅방과 메시지 이력은 보존된다(재초대 재사용/이력 목적).
+     * 자세한 보존 정책은 클래스 JavaDoc 참고.
      *
      * <p>동시성 처리:
      * <ul>
      *   <li>채팅방 단위 분산락으로 동시 퇴장 방지</li>
-     *   <li>멤버 삭제와 채팅방 삭제가 원자적으로 실행</li>
+     *   <li>멤버 삭제와 시스템 메시지 처리가 단일 트랜잭션 내에서 실행</li>
      * </ul>
      *
      * @param chatRoomId 채팅방 ID
      * @param userId     나가는 사용자 ID
+     * @throws ChatRoomNotFoundException     채팅방이 존재하지 않는 경우
+     * @throws InvalidChatRoomException      나와의 채팅방(SELF)에서 나가려는 경우
      * @throws ChatRoomAccessDeniedException 해당 채팅방의 멤버가 아닌 경우
      */
     @Override
@@ -103,11 +119,14 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
         chatRoomMemberRepository.delete(member);
         log.info("User left chat room: userId={}, chatRoomId={}", userId, chatRoomId);
 
-        // 남은 멤버 확인 및 채팅방 삭제 (원자적 처리)
+        // 남은 멤버 확인
         List<ChatRoomMember> remainingMembers = chatRoomMemberRepository.findByChatRoomId(chatRoomId);
 
         if (remainingMembers.isEmpty()) {
-            log.info("Chat room has no remaining members: chatRoomId={}", chatRoomId);
+            // 빈 방 보존 정책: 마지막 멤버가 나가도 방/메시지 이력은 삭제하지 않는다.
+            // 재초대(ReinviteDirectChatMemberService) 재사용 및 이력 보존을 위함.
+            // (운영상 빈 방 누적은 별도 배치 정리로 처리 — 클래스 JavaDoc 참고)
+            log.info("Chat room has no remaining members; retained for reinvite/history: chatRoomId={}", chatRoomId);
         } else {
             // 시스템 메시지 생성 및 브로드캐스트 (남은 멤버가 있을 때만)
             sendLeaveSystemMessage(chatRoomId, userId, userNickname, remainingMembers);

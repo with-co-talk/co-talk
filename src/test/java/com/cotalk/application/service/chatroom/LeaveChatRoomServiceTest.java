@@ -181,7 +181,7 @@ class LeaveChatRoomServiceTest {
     }
 
     @Test
-    @DisplayName("마지막 멤버가 나가면 채팅방은 유지되고 시스템 메시지 없이 처리")
+    @DisplayName("마지막 멤버가 나가도 채팅방과 메시지 이력은 보존된다(재초대 재사용/이력 목적, JavaDoc-구현 일치)")
     void should_keepChatRoom_when_lastMemberLeaves() {
         // given
         Long chatRoomId = 100L;
@@ -210,10 +210,13 @@ class LeaveChatRoomServiceTest {
         // when
         service.leaveChatRoom(chatRoomId, userId);
 
-        // then
+        // then: 멤버만 삭제되고, 빈 방/메시지 이력은 보존되어야 한다.
         verify(chatRoomMemberRepository).delete(member);
+        // 빈 방 보존 정책: 채팅방을 삭제하지 않는다(재초대 재사용/이력 보존).
         verify(chatRoomRepository, never()).delete(any(ChatRoom.class));
+        // 남은 멤버가 없으므로 퇴장 시스템 메시지/브로드캐스트도 발생하지 않는다.
         verify(messageRepository, never()).save(any(Message.class));
+        verify(chatMessageBroker, never()).publish(any(), any());
     }
 
     /**
