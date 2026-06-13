@@ -1,12 +1,14 @@
 package com.cotalk.application.service.message;
 
 import com.cotalk.domain.constants.MessageConstants;
+import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.Message.MessageType;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
@@ -15,6 +17,7 @@ import com.cotalk.domain.port.outbound.NotificationCommandPort;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.util.HtmlSanitizer;
+import com.cotalk.domain.validator.BlockValidator;
 import com.cotalk.domain.validator.FileMessageValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +44,7 @@ public class SendMessageService implements SendMessageUseCase {
 
     private final MessageRepository messageRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final ChatRoomRepository chatRoomRepository;
     private final UserRepository userRepository;
     private final IdGenerator idGenerator;
     private final NotificationCommandPort notificationCommandPort;
@@ -51,6 +55,7 @@ public class SendMessageService implements SendMessageUseCase {
     private final TransactionTemplate transactionTemplate;
     private final TimeProvider timeProvider;
     private final FileMessageValidator fileMessageValidator;
+    private final BlockValidator blockValidator;
 
     /**
      * 텍스트 메시지를 전송한다.
@@ -166,6 +171,9 @@ public class SendMessageService implements SendMessageUseCase {
                 throw new com.cotalk.domain.exception.ChatRoomAccessDeniedException(chatRoomId, senderId);
             }
 
+            // 1:1(DIRECT) 채팅방에서 상대와 차단 관계면 메시지 전송 거부 (양방향)
+            validateNotBlockedInDirectChat(chatRoomId, senderId, members);
+
             // 내용 검증
             message.validateContent();
 
@@ -196,6 +204,47 @@ public class SendMessageService implements SendMessageUseCase {
 
         customMetrics.stopMessageProcessingTimer(timerSample);
         return result;
+    }
+
+    /**
+     * 1:1(DIRECT) 채팅방에서 발신자와 상대방 사이에 차단 관계가 없는지 검증한다.
+     * <p>
+     * 상대(발신자 외 다른 멤버)를 먼저 식별한 뒤, 채팅방 타입이 DIRECT인 경우에만 양방향
+     * 차단 검사를 수행한다. 상대가 없는 방(SELF, 혹은 1:1 방에서 상대가 나가 발신자 1명만
+     * 남은 상태)은 차단을 적용할 대상 자체가 없으므로 검사 없이 통과한다. 이때 상대가 다시
+     * 들어오는 재초대 경로({@code ReinviteDirectChatMemberService})에서 차단을 별도로
+     * 검증하므로 우회가 발생하지 않는다.
+     * </p>
+     * <p>
+     * 성능: 발신자 외 멤버가 존재할 때만 채팅방 타입 확인용 {@code findById}를 1회 수행한다.
+     * 멤버 엔티티({@link ChatRoomMember})에는 방 타입 정보가 없어 사전 조회 컨텍스트에서 타입을
+     * 얻을 수 없으므로, DIRECT 여부 판정에는 채팅방 조회가 필요하다. 단, 그룹(멤버 3명 이상)은
+     * 1:1이 정책 범위 밖이라 조회 없이 통과시켜 불필요한 쿼리를 피한다.
+     * </p>
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param senderId 발신자 ID
+     * @param members 사전 조회된 채팅방 멤버 목록
+     */
+    private void validateNotBlockedInDirectChat(Long chatRoomId, Long senderId, List<ChatRoomMember> members) {
+        // 발신자 외 멤버(상대 후보)들. 상대가 없으면(SELF/1명 잔류) 검사 대상 자체가 없어 통과.
+        List<Long> otherUserIds = members.stream()
+                .map(ChatRoomMember::getUserId)
+                .filter(userId -> !userId.equals(senderId))
+                .toList();
+
+        // 상대가 정확히 1명일 때만 1:1(DIRECT) 후보. 0명(SELF/잔류) 또는 2명 이상(그룹)은
+        // 추가 조회 없이 통과시켜 불필요한 쿼리를 피한다(그룹 차단 정책은 이번 범위 외).
+        if (otherUserIds.size() != 1) {
+            return;
+        }
+
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId).orElse(null);
+        if (chatRoom == null || !chatRoom.isDirectChat()) {
+            return;
+        }
+
+        blockValidator.validateNotBlocked(senderId, otherUserIds.get(0));
     }
 
     /**

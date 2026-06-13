@@ -6,6 +6,8 @@ import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserEventBroker;
+import com.cotalk.domain.exception.BlockedRelationshipException;
+import com.cotalk.domain.validator.BlockValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +43,9 @@ class CreateChatRoomServiceTest {
 
     @Mock
     private UserEventBroker userEventBroker;
+
+    @Mock
+    private BlockValidator blockValidator;
 
     @InjectMocks
     private CreateChatRoomService createChatRoomService;
@@ -130,6 +135,26 @@ class CreateChatRoomServiceTest {
 
         // then
         verify(userEventBroker).publishChatListUpdate(eq(userId1), any());
+    }
+
+    @Test
+    @DisplayName("차단 관계가 있으면 1:1 채팅방 생성이 거부된다 (양방향)")
+    void should_throwException_when_blocked() {
+        // given
+        Long userId1 = 1L;
+        Long userId2 = 2L;
+
+        org.mockito.BDDMockito.willThrow(new BlockedRelationshipException())
+                .given(blockValidator).validateNotBlocked(userId1, userId2);
+
+        // when & then
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> createChatRoomService.createChatRoom(userId1, userId2))
+                .isInstanceOf(BlockedRelationshipException.class);
+
+        // 차단 시 채팅방/멤버는 생성되지 않아야 한다
+        verify(chatRoomRepository, times(0)).save(any(ChatRoom.class));
+        verify(chatRoomMemberRepository, times(0)).save(any(ChatRoomMember.class));
     }
 
     @Test

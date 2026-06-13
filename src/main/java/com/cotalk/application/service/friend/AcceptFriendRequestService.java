@@ -9,6 +9,7 @@ import com.cotalk.domain.port.outbound.DistributedLockPort;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.validator.BlockValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -34,6 +35,7 @@ public class AcceptFriendRequestService implements AcceptFriendRequestUseCase {
     private final IdGenerator idGenerator;
     private final DistributedLockPort lockExecutor;
     private final TransactionTemplate transactionTemplate;
+    private final BlockValidator blockValidator;
 
     /**
      * 친구 요청을 수락한다.
@@ -51,6 +53,7 @@ public class AcceptFriendRequestService implements AcceptFriendRequestUseCase {
      * @return 생성된 친구 관계 ID
      * @throws FriendNotFoundException       친구 요청을 찾을 수 없는 경우
      * @throws InvalidFriendRequestException 본인이 받은 요청이 아니거나 이미 처리된 요청인 경우
+     * @throws com.cotalk.domain.exception.BlockedRelationshipException 요청자-수신자 사이에 차단 관계가 존재하는 경우
      */
     @Override
     public Long acceptFriendRequest(Long receiverId, Long requestId) {
@@ -79,6 +82,11 @@ public class AcceptFriendRequestService implements AcceptFriendRequestUseCase {
         if (!friendRequest.isPending()) {
             throw new InvalidFriendRequestException("이미 처리된 친구 요청입니다.");
         }
+
+        // 차단 관계 검증 (양방향): 요청 전송 후 어느 한쪽이 상대를 차단한 경우 수락을 거부하여
+        // 전송 경로(SendFriendRequestService)에 적용된 차단 정책을 수락 경로에서도 일관되게 유지한다.
+        // 분산락 + 트랜잭션 경계 안에서 검사하여 동시성을 보장한다.
+        blockValidator.validateNotBlocked(friendRequest.getRequesterId(), friendRequest.getReceiverId());
 
         friendRequest.accept();
         friendRequestRepository.save(friendRequest);

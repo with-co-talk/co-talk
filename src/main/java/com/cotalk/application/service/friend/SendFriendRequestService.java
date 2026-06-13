@@ -9,6 +9,7 @@ import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.NotificationCommandPort;
+import com.cotalk.domain.validator.BlockValidator;
 import com.cotalk.domain.validator.UserValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
     private final FriendRequestRepository friendRequestRepository;
     private final FriendRepository friendRepository;
     private final UserValidator userValidator;
+    private final BlockValidator blockValidator;
     private final IdGenerator idGenerator;
     private final DistributedLockPort lockExecutor;
     private final NotificationCommandPort notificationCommandPort;
@@ -79,6 +81,9 @@ public class SendFriendRequestService implements SendFriendRequestUseCase {
      * @return 생성된 친구 요청 ID
      */
     protected Long createFriendRequest(Long requesterId, Long receiverId) {
+        // 차단 관계 검증 (양방향): 한쪽이라도 차단했으면 친구 요청 거부
+        blockValidator.validateNotBlocked(requesterId, receiverId);
+
         // 이미 친구인지 확인
         if (friendRepository.existsByUserIdAndFriendId(requesterId, receiverId)) {
             throw new InvalidFriendRequestException("이미 친구입니다.");

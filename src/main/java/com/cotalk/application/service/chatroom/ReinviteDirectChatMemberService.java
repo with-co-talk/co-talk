@@ -18,6 +18,7 @@ import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.validator.BlockValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,6 +46,7 @@ public class ReinviteDirectChatMemberService implements ReinviteDirectChatMember
     private final MessageRepository messageRepository;
     private final ChatMessageBroker chatMessageBroker;
     private final UserEventBroker userEventBroker;
+    private final BlockValidator blockValidator;
 
     /**
      * 1:1 채팅방에서 나간 상대방을 재초대한다.
@@ -82,6 +84,9 @@ public class ReinviteDirectChatMemberService implements ReinviteDirectChatMember
         // 5. 재초대할 사용자 존재 확인
         User invitee = userRepository.findById(inviteeId)
                 .orElseThrow(() -> new UserNotFoundException(inviteeId));
+
+        // 5-1. 차단 관계 검증 (양방향): 초대자-피초대자 사이에 차단이 있으면 재초대 거부
+        blockValidator.validateNotBlocked(inviterId, inviteeId);
 
         // 6. 새 멤버 추가
         ChatRoomMember newMember = ChatRoomMember.builder()
