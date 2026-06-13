@@ -1,7 +1,9 @@
 package com.cotalk.infrastructure.config;
 
+import com.cotalk.domain.port.outbound.BlockRepository;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.validator.BlockValidator;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import com.cotalk.domain.validator.FileMessageValidator;
 import com.cotalk.domain.validator.MessageValidator;
@@ -34,6 +36,18 @@ public class DomainValidatorConfig {
     @Bean
     public ChatRoomMemberValidator chatRoomMemberValidator(ChatRoomMemberRepository chatRoomMemberRepository) {
         return new ChatRoomMemberValidator(chatRoomMemberRepository);
+    }
+
+    /**
+     * 차단 관계 검증기 빈.
+     * 메시지 전송 · 친구 요청 · 1:1 채팅방 생성/재초대 시 양방향 차단 관계를 검증한다.
+     *
+     * @param blockRepository 차단 레포지토리 포트
+     * @return 차단 관계 검증기
+     */
+    @Bean
+    public BlockValidator blockValidator(BlockRepository blockRepository) {
+        return new BlockValidator(blockRepository);
     }
 
     /**
