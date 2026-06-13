@@ -4,6 +4,7 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
+import com.cotalk.domain.port.outbound.FileStorage;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,13 +38,16 @@ class DeleteMessageServiceTest {
     @Mock
     private TimeProvider timeProvider;
 
+    @Mock
+    private FileStorage fileStorage;
+
     private DeleteMessageService service;
 
     private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, 1, 1, 12, 0);
 
     @BeforeEach
     void setUp() {
-        service = new DeleteMessageService(messageRepository, chatMessageBroker, timeProvider);
+        service = new DeleteMessageService(messageRepository, chatMessageBroker, timeProvider, fileStorage);
     }
 
     @Test
@@ -136,9 +141,9 @@ class DeleteMessageServiceTest {
     }
 
     @Test
-    @DisplayName("5분 초과된 메시지 삭제 시 예외")
-    void should_throwException_when_messageOlderThan5Minutes() {
-        // given
+    @DisplayName("작성 후 5분이 지나도 본인 메시지는 삭제할 수 있다")
+    void should_deleteMessage_when_olderThan5Minutes() {
+        // given - 본인 삭제(소프트 삭제)는 시간 제한 없이 허용한다.
         Long messageId = 100L;
         Long userId = 1L;
 
@@ -155,11 +160,131 @@ class DeleteMessageServiceTest {
         ReflectionTestUtils.setField(message, "createdAt", FIXED_NOW.minusMinutes(6));
 
         given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(messageRepository.save(any(Message.class))).willAnswer(inv -> inv.getArgument(0));
         given(timeProvider.now()).willReturn(FIXED_NOW);
 
-        // when & then
-        assertThatThrownBy(() -> service.deleteMessage(messageId, userId))
-                .isInstanceOf(ResourceAccessDeniedException.class)
-                .hasMessageContaining("5분");
+        // when
+        service.deleteMessage(messageId, userId);
+
+        // then
+        assertThat(message.isDeleted()).isTrue();
+        assertThat(message.getDeletedAt()).isEqualTo(FIXED_NOW);
+        verify(messageRepository).save(message);
+    }
+
+    @Test
+    @DisplayName("파일 메시지 삭제 시 스토리지 원본을 정리한다")
+    void should_cleanupStorage_when_deletingFileMessage() {
+        // given
+        Long messageId = 100L;
+        Long userId = 1L;
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(10L)
+                .senderId(userId)
+                .content("file.pdf")
+                .type(Message.MessageType.FILE)
+                .fileUrl("http://localhost:9000/cotalk/uploads/1/abcd-1234.pdf")
+                .fileName("file.pdf")
+                .deleted(false)
+                .build();
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(messageRepository.save(any(Message.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
+
+        // when
+        service.deleteMessage(messageId, userId);
+
+        // then - URL이 가리키는 스토리지 객체 키(uploads/...)를 삭제해야 한다.
+        verify(fileStorage).delete("uploads/1/abcd-1234.pdf");
+    }
+
+    @Test
+    @DisplayName("파일 메시지 삭제 시 썸네일이 있으면 함께 정리한다")
+    void should_cleanupThumbnail_when_deletingImageMessageWithThumbnail() {
+        // given
+        Long messageId = 100L;
+        Long userId = 1L;
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(10L)
+                .senderId(userId)
+                .content("image.png")
+                .type(Message.MessageType.IMAGE)
+                .fileUrl("http://localhost:9000/cotalk/uploads/1/image-key.png")
+                .thumbnailUrl("http://localhost:9000/cotalk/uploads/1/thumb-key.png")
+                .deleted(false)
+                .build();
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(messageRepository.save(any(Message.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
+
+        // when
+        service.deleteMessage(messageId, userId);
+
+        // then
+        verify(fileStorage).delete("uploads/1/image-key.png");
+        verify(fileStorage).delete("uploads/1/thumb-key.png");
+    }
+
+    @Test
+    @DisplayName("텍스트 메시지 삭제 시에는 스토리지를 호출하지 않는다")
+    void should_notTouchStorage_when_deletingTextMessage() {
+        // given
+        Long messageId = 100L;
+        Long userId = 1L;
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(10L)
+                .senderId(userId)
+                .content("텍스트 메시지")
+                .type(Message.MessageType.TEXT)
+                .deleted(false)
+                .build();
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(messageRepository.save(any(Message.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
+
+        // when
+        service.deleteMessage(messageId, userId);
+
+        // then
+        verify(fileStorage, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("스토리지 정리에 실패해도 메시지 삭제 자체는 성공한다")
+    void should_succeedDelete_when_storageCleanupFails() {
+        // given
+        Long messageId = 100L;
+        Long userId = 1L;
+
+        Message message = Message.builder()
+                .id(messageId)
+                .chatRoomId(10L)
+                .senderId(userId)
+                .content("file.pdf")
+                .type(Message.MessageType.FILE)
+                .fileUrl("http://localhost:9000/cotalk/uploads/1/key.pdf")
+                .deleted(false)
+                .build();
+
+        given(messageRepository.findById(messageId)).willReturn(Optional.of(message));
+        given(messageRepository.save(any(Message.class))).willAnswer(inv -> inv.getArgument(0));
+        given(timeProvider.now()).willReturn(FIXED_NOW);
+        org.mockito.BDDMockito.willThrow(new RuntimeException("storage down"))
+                .given(fileStorage).delete(any());
+
+        // when & then - 예외가 전파되지 않고 삭제가 완료된다.
+        service.deleteMessage(messageId, userId);
+
+        assertThat(message.isDeleted()).isTrue();
+        verify(messageRepository).save(message);
     }
 }
