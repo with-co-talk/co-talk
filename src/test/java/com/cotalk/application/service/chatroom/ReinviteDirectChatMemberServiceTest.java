@@ -4,11 +4,13 @@ import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.exception.BlockedRelationshipException;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.model.Email;
 import com.cotalk.domain.exception.ChatRoomNotFoundException;
 import com.cotalk.domain.exception.InvalidChatRoomException;
 import com.cotalk.domain.exception.UserNotFoundException;
+import com.cotalk.domain.validator.BlockValidator;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
@@ -68,6 +70,9 @@ class ReinviteDirectChatMemberServiceTest {
     @Mock
     private UserEventBroker userEventBroker;
 
+    @Mock
+    private BlockValidator blockValidator;
+
     private ReinviteDirectChatMemberService service;
 
     @BeforeEach
@@ -79,7 +84,8 @@ class ReinviteDirectChatMemberServiceTest {
                 idGenerator,
                 messageRepository,
                 chatMessageBroker,
-                userEventBroker
+                userEventBroker,
+                blockValidator
         );
     }
 
@@ -240,6 +246,40 @@ class ReinviteDirectChatMemberServiceTest {
 
         // 멤버 저장이 호출되지 않아야 함
         verify(chatRoomMemberRepository, never()).save(any(ChatRoomMember.class));
+    }
+
+    @Test
+    @DisplayName("초대자-피초대자 간 차단 관계가 있으면 재초대 거부 (양방향)")
+    void should_throwException_when_blocked() {
+        // given
+        Long roomId = 100L;
+        Long inviterId = 1L;
+        Long inviteeId = 2L;
+
+        User invitee = User.builder()
+                .id(inviteeId)
+                .nickname("재초대유저")
+                .email(new Email("reinvite@test.com"))
+                .build();
+
+        given(chatRoomRepository.findById(roomId))
+                .willReturn(Optional.of(createDirectChatRoom(roomId)));
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, inviterId))
+                .willReturn(Optional.of(createChatRoomMember(1L, roomId, inviterId)));
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, inviteeId))
+                .willReturn(Optional.empty());
+        given(userRepository.findById(inviteeId))
+                .willReturn(Optional.of(invitee));
+        org.mockito.BDDMockito.willThrow(new BlockedRelationshipException())
+                .given(blockValidator).validateNotBlocked(inviterId, inviteeId);
+
+        // when & then
+        assertThatThrownBy(() -> service.reinviteMember(roomId, inviterId, inviteeId))
+                .isInstanceOf(BlockedRelationshipException.class);
+
+        // 차단 시 멤버 추가/시스템 메시지가 발생하지 않아야 한다
+        verify(chatRoomMemberRepository, never()).save(any(ChatRoomMember.class));
+        verify(messageRepository, never()).save(any(Message.class));
     }
 
     /**

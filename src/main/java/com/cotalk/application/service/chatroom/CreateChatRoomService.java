@@ -9,6 +9,7 @@ import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
+import com.cotalk.domain.validator.BlockValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -32,6 +33,7 @@ public class CreateChatRoomService implements CreateChatRoomUseCase {
     private final IdGenerator idGenerator;
     private final TimeProvider timeProvider;
     private final UserEventBroker userEventBroker;
+    private final BlockValidator blockValidator;
 
     /**
      * 1:1 채팅방을 생성한다.
@@ -55,6 +57,9 @@ public class CreateChatRoomService implements CreateChatRoomUseCase {
         if (userId1.equals(userId2)) {
             return createSelfChatRoom(userId1);
         }
+
+        // 1:1 채팅방 생성 시 차단 관계 검증 (양방향): 한쪽이라도 차단했으면 거부
+        blockValidator.validateNotBlocked(userId1, userId2);
 
         Optional<ChatRoom> existingRoom = chatRoomRepository.findDirectChatRoomByUserIds(userId1, userId2);
         if (existingRoom.isPresent()) {
