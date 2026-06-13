@@ -25,6 +25,12 @@ import java.util.concurrent.ConcurrentHashMap;
 @ConditionalOnProperty(name = "minio.enabled", havingValue = "false", matchIfMissing = true)
 public class InMemoryFileStorage implements FileStorage {
 
+    /**
+     * 인메모리 저장소가 업로드 응답으로 반환하는 URL의 베이스.
+     * 파일 메시지 URL 검증(host 화이트리스트)에서 이 값을 허용 베이스로 사용한다.
+     */
+    public static final String BASE_URL = "http://localhost:8080/files";
+
     private final Map<String, byte[]> storage = new ConcurrentHashMap<>();
     private final String baseUrl;
 
@@ -33,7 +39,7 @@ public class InMemoryFileStorage implements FileStorage {
      * 기본 URL을 {@code http://localhost:8080/files}로 설정한다.
      */
     public InMemoryFileStorage() {
-        this.baseUrl = "http://localhost:8080/files";
+        this.baseUrl = BASE_URL;
     }
 
     /**

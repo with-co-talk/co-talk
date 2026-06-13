@@ -6,8 +6,13 @@ import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import com.cotalk.domain.validator.FileMessageValidator;
 import com.cotalk.domain.validator.MessageValidator;
 import com.cotalk.domain.validator.UserValidator;
+import com.cotalk.infrastructure.config.properties.MinioProperties;
+import com.cotalk.infrastructure.storage.InMemoryFileStorage;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 도메인 검증기 빈 설정.
@@ -31,8 +36,40 @@ public class DomainValidatorConfig {
         return new ChatRoomMemberValidator(chatRoomMemberRepository);
     }
 
+    /**
+     * 파일 메시지 검증기 빈.
+     * <p>
+     * 실제 파일 저장소가 업로드 응답으로 반환하는 URL의 베이스 주소를 화이트리스트로 주입한다.
+     * MinIO 활성화 시 공개 URL({@code minio.public-url}) + 엔드포인트({@code minio.endpoint})에
+     * 버킷 경로를 붙인 베이스를, 비활성화(InMemory) 시 인메모리 베이스 URL을 허용한다.
+     * 이를 통해 외부 호스트가 동일한 path를 흉내 내더라도 host 불일치로 거부한다.
+     * </p>
+     *
+     * @param minioProperties MinIO 설정(베이스 URL/버킷 추출용)
+     * @return host 화이트리스트가 적용된 FileMessageValidator
+     */
     @Bean
-    public FileMessageValidator fileMessageValidator() {
-        return new FileMessageValidator();
+    public FileMessageValidator fileMessageValidator(MinioProperties minioProperties) {
+        List<String> allowedBaseUrls = new ArrayList<>();
+        if (minioProperties.enabled()) {
+            String bucket = minioProperties.bucket();
+            // MinIO URL: {publicUrl|endpoint}/{bucket}/uploads/{userId}/{file}
+            addBaseWithBucket(allowedBaseUrls, minioProperties.publicUrl(), bucket);
+            addBaseWithBucket(allowedBaseUrls, minioProperties.endpoint(), bucket);
+        } else {
+            // InMemory URL: {baseUrl}/uploads/{userId}/{file}
+            allowedBaseUrls.add(InMemoryFileStorage.BASE_URL);
+        }
+        return new FileMessageValidator(allowedBaseUrls);
+    }
+
+    private void addBaseWithBucket(List<String> target, String baseUrl, String bucket) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return;
+        }
+        String normalized = baseUrl.endsWith("/")
+                ? baseUrl.substring(0, baseUrl.length() - 1)
+                : baseUrl;
+        target.add(normalized + "/" + bucket);
     }
 }
