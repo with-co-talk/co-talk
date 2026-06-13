@@ -17,6 +17,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -89,7 +90,8 @@ public class DeleteMessageService implements DeleteMessageUseCase {
         log.info("Message deleted: messageId={}, userId={}", messageId, userId);
 
         // 채팅방 참여자들에게 메시지 삭제 이벤트 브로드캐스트
-        publishMessageDeletedEvent(message.getChatRoomId(), messageId, userId);
+        // 삭제 시각(now)을 그대로 넘겨 message.delete(now)와 이벤트 시각을 단일 타임스탬프로 일관화한다.
+        publishMessageDeletedEvent(message.getChatRoomId(), messageId, userId, now);
 
         // 파일/이미지 메시지면 스토리지 원본을 트랜잭션 밖(커밋 이후)에서 정리한다.
         scheduleStorageCleanup(message, messageId);
@@ -194,6 +196,11 @@ public class DeleteMessageService implements DeleteMessageUseCase {
                 return key.toString();
             }
         }
+
+        // URL은 존재하나 업로드 키 규칙(uploads/{userId}/{file})에 맞지 않아 키를 추출하지 못한 경우.
+        // 조용히 null을 반환하면 정리 대상에서 누락돼 고아 객체가 추적 없이 누적되므로 로그를 남긴다
+        // (경로 규칙 변경/레거시 마이그레이션 URL 등 사후 추적용).
+        log.warn("Could not extract upload object key from file URL; storage object may be left orphaned: {}", url);
         return null;
     }
 
@@ -221,8 +228,9 @@ public class DeleteMessageService implements DeleteMessageUseCase {
      * @param chatRoomId 채팅방 ID
      * @param messageId  삭제된 메시지 ID
      * @param deletedBy  삭제한 사용자 ID
+     * @param deletedAt  삭제 시각 (소프트 삭제에 사용한 시각과 동일한 값을 전달해 일관성 유지)
      */
-    private void publishMessageDeletedEvent(Long chatRoomId, Long messageId, Long deletedBy) {
+    private void publishMessageDeletedEvent(Long chatRoomId, Long messageId, Long deletedBy, LocalDateTime deletedAt) {
         String eventId = "message-deleted:" + chatRoomId + ":" + messageId;
 
         chatMessageBroker.publishRoomEvent(
@@ -234,7 +242,7 @@ public class DeleteMessageService implements DeleteMessageUseCase {
                         chatRoomId,
                         messageId,
                         deletedBy,
-                        timeProvider.now().toInstant(ZoneOffset.UTC).toEpochMilli()
+                        deletedAt.toInstant(ZoneOffset.UTC).toEpochMilli()
                 )
         );
 
