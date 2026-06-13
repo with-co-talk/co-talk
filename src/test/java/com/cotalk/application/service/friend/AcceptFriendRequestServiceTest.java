@@ -2,11 +2,13 @@ package com.cotalk.application.service.friend;
 
 import com.cotalk.domain.entity.Friend;
 import com.cotalk.domain.entity.FriendRequest;
+import com.cotalk.domain.exception.BlockedRelationshipException;
 import com.cotalk.domain.exception.FriendNotFoundException;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.port.outbound.DistributedLockPort;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
+import com.cotalk.domain.validator.BlockValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,7 +28,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -48,13 +52,17 @@ class AcceptFriendRequestServiceTest {
     @Mock
     private TransactionTemplate transactionTemplate;
 
+    @Mock
+    private BlockValidator blockValidator;
+
     private AcceptFriendRequestService acceptFriendRequestService;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
         acceptFriendRequestService = new AcceptFriendRequestService(
-                friendRequestRepository, friendRepository, idGenerator, lockExecutor, transactionTemplate);
+                friendRequestRepository, friendRepository, idGenerator, lockExecutor, transactionTemplate,
+                blockValidator);
 
         // 분산락 모킹: 락 획득 후 바로 실행
         lenient().when(lockExecutor.executeWithLock(anyString(), any(Supplier.class)))
@@ -161,5 +169,32 @@ class AcceptFriendRequestServiceTest {
         // when & then
         assertThatThrownBy(() -> acceptFriendRequestService.acceptFriendRequest(receiverId, requestId))
                 .isInstanceOf(InvalidFriendRequestException.class);
+    }
+
+    @Test
+    @DisplayName("요청 전송 후 차단 관계가 성립한 경우 수락 시 예외 발생하고 친구 관계가 생성되지 않음")
+    void should_throwException_when_blockedRelationshipExistsOnAccept() {
+        // given: A(requester) -> B(receiver) PENDING 요청 후, 어느 한쪽이 상대를 차단한 상황
+        Long requesterId = 1L;
+        Long receiverId = 2L;
+        Long requestId = 100L;
+
+        FriendRequest friendRequest = FriendRequest.builder()
+                .id(requestId)
+                .requesterId(requesterId)
+                .receiverId(receiverId)
+                .status(FriendRequest.RequestStatus.PENDING)
+                .build();
+
+        given(friendRequestRepository.findById(requestId)).willReturn(Optional.of(friendRequest));
+        willThrow(new BlockedRelationshipException())
+                .given(blockValidator).validateNotBlocked(requesterId, receiverId);
+
+        // when & then: 차단 검사에서 거부되어 친구 관계가 성립하지 않음 (차단 우회 방지)
+        assertThatThrownBy(() -> acceptFriendRequestService.acceptFriendRequest(receiverId, requestId))
+                .isInstanceOf(BlockedRelationshipException.class);
+
+        verify(friendRepository, never()).save(any(Friend.class));
+        assertThat(friendRequest.isPending()).isTrue();
     }
 }
