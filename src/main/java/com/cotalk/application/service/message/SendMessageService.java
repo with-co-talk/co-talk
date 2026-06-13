@@ -209,9 +209,17 @@ public class SendMessageService implements SendMessageUseCase {
     /**
      * 1:1(DIRECT) 채팅방에서 발신자와 상대방 사이에 차단 관계가 없는지 검증한다.
      * <p>
-     * 멤버가 정확히 2명인 방만 후보로 보고, 채팅방 타입이 DIRECT인 경우에만 상대를 식별하여
-     * 양방향 차단 검사를 수행한다. SELF(1명) · 그룹(3명 이상)이나 멤버 수가 2가 아닌 방은
-     * 차단 검사 범위에서 제외한다(그룹 정책은 이번 범위 외).
+     * 상대(발신자 외 다른 멤버)를 먼저 식별한 뒤, 채팅방 타입이 DIRECT인 경우에만 양방향
+     * 차단 검사를 수행한다. 상대가 없는 방(SELF, 혹은 1:1 방에서 상대가 나가 발신자 1명만
+     * 남은 상태)은 차단을 적용할 대상 자체가 없으므로 검사 없이 통과한다. 이때 상대가 다시
+     * 들어오는 재초대 경로({@code ReinviteDirectChatMemberService})에서 차단을 별도로
+     * 검증하므로 우회가 발생하지 않는다.
+     * </p>
+     * <p>
+     * 성능: 발신자 외 멤버가 존재할 때만 채팅방 타입 확인용 {@code findById}를 1회 수행한다.
+     * 멤버 엔티티({@link ChatRoomMember})에는 방 타입 정보가 없어 사전 조회 컨텍스트에서 타입을
+     * 얻을 수 없으므로, DIRECT 여부 판정에는 채팅방 조회가 필요하다. 단, 그룹(멤버 3명 이상)은
+     * 1:1이 정책 범위 밖이라 조회 없이 통과시켜 불필요한 쿼리를 피한다.
      * </p>
      *
      * @param chatRoomId 채팅방 ID
@@ -219,8 +227,15 @@ public class SendMessageService implements SendMessageUseCase {
      * @param members 사전 조회된 채팅방 멤버 목록
      */
     private void validateNotBlockedInDirectChat(Long chatRoomId, Long senderId, List<ChatRoomMember> members) {
-        // 멤버 2명이 아니면 DIRECT가 아니므로 추가 조회 없이 통과 (SELF/그룹)
-        if (members.size() != 2) {
+        // 발신자 외 멤버(상대 후보)들. 상대가 없으면(SELF/1명 잔류) 검사 대상 자체가 없어 통과.
+        List<Long> otherUserIds = members.stream()
+                .map(ChatRoomMember::getUserId)
+                .filter(userId -> !userId.equals(senderId))
+                .toList();
+
+        // 상대가 정확히 1명일 때만 1:1(DIRECT) 후보. 0명(SELF/잔류) 또는 2명 이상(그룹)은
+        // 추가 조회 없이 통과시켜 불필요한 쿼리를 피한다(그룹 차단 정책은 이번 범위 외).
+        if (otherUserIds.size() != 1) {
             return;
         }
 
@@ -229,11 +244,7 @@ public class SendMessageService implements SendMessageUseCase {
             return;
         }
 
-        members.stream()
-                .map(ChatRoomMember::getUserId)
-                .filter(userId -> !userId.equals(senderId))
-                .findFirst()
-                .ifPresent(otherUserId -> blockValidator.validateNotBlocked(senderId, otherUserId));
+        blockValidator.validateNotBlocked(senderId, otherUserIds.get(0));
     }
 
     /**

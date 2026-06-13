@@ -283,6 +283,36 @@ class SendMessageServiceTest {
         }
 
         @Test
+        @DisplayName("1:1 채팅방에서 상대가 나가 발신자만 남은 경우 차단 검사 없이 전송된다(검사 대상 없음)")
+        void should_NotCheckBlock_when_DirectChatHasOnlySender() {
+            // given: 1:1(DIRECT) 방이지만 상대가 나가 발신자 1명만 남은 상태(재초대 전)
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+            Long messageId = 100L;
+
+            ChatRoomMember senderMember = ChatRoomMember.builder()
+                    .id(10L).chatRoomId(chatRoomId).userId(senderId).build();
+
+            User sender = User.builder()
+                    .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
+
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId))
+                    .willReturn(List.of(senderMember)); // 발신자만 남음
+            given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
+            given(idGenerator.nextId()).willReturn(messageId);
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+            // when
+            sendMessageService.sendMessage(chatRoomId, senderId, "메시지");
+
+            // then - 상대(검사 대상)가 없으므로 차단 검사/방 조회 없이 정상 전송
+            // (상대가 다시 들어오는 재초대 경로에서 차단을 검증하므로 우회가 아님)
+            verify(blockValidator, never()).validateNotBlocked(anyLong(), anyLong());
+            verify(chatRoomRepository, never()).findById(anyLong());
+            verify(messageRepository).save(any(Message.class));
+        }
+
+        @Test
         @DisplayName("빈 메시지 내용이면 예외가 발생한다")
         void should_ThrowException_when_EmptyContent() {
             // given
