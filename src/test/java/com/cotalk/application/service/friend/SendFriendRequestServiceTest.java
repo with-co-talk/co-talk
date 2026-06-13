@@ -3,12 +3,14 @@ package com.cotalk.application.service.friend;
 import com.cotalk.domain.entity.FriendRequest;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.model.Email;
+import com.cotalk.domain.exception.BlockedRelationshipException;
 import com.cotalk.domain.exception.InvalidFriendRequestException;
 import com.cotalk.domain.exception.SelfActionNotAllowedException;
 import com.cotalk.domain.exception.UserNotFoundException;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import com.cotalk.domain.port.outbound.NotificationCommandPort;
+import com.cotalk.domain.validator.BlockValidator;
 import com.cotalk.domain.validator.UserValidator;
 import com.cotalk.infrastructure.id.SnowflakeIdGenerator;
 import com.cotalk.infrastructure.lock.DistributedLockExecutor;
@@ -51,6 +53,9 @@ class SendFriendRequestServiceTest {
     private UserValidator userValidator;
 
     @Mock
+    private BlockValidator blockValidator;
+
+    @Mock
     private SnowflakeIdGenerator idGenerator;
 
     @Mock
@@ -68,7 +73,7 @@ class SendFriendRequestServiceTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         sendFriendRequestService = new SendFriendRequestService(
-                friendRequestRepository, friendRepository, userValidator, idGenerator, lockExecutor,
+                friendRequestRepository, friendRepository, userValidator, blockValidator, idGenerator, lockExecutor,
                 notificationCommandPort, transactionTemplate);
 
         // 분산락 모킹: 락 획득 후 바로 실행 (lenient로 불필요한 stub 경고 방지)
@@ -224,6 +229,29 @@ class SendFriendRequestServiceTest {
 
         // then
         verify(notificationCommandPort).sendFriendRequestNotification(receiverId, requesterNickname);
+    }
+
+    @Test
+    @DisplayName("차단 관계가 있으면 친구 요청 시 예외 발생 (양방향)")
+    void should_throwException_when_blocked() {
+        // given
+        Long requesterId = 1L;
+        Long receiverId = 2L;
+
+        doNothing().when(userValidator).validateNotSelfAction(requesterId, receiverId, "친구 요청");
+        given(userValidator.validateUserExists(receiverId)).willReturn(
+                User.builder().id(receiverId).email(new Email("test@example.com")).nickname("test").passwordHash("hash").build()
+        );
+        willThrow(new BlockedRelationshipException())
+                .given(blockValidator).validateNotBlocked(requesterId, receiverId);
+
+        // when & then
+        assertThatThrownBy(() -> sendFriendRequestService.sendFriendRequest(requesterId, receiverId))
+                .isInstanceOf(BlockedRelationshipException.class);
+
+        // 차단 시 친구 요청은 저장되지 않아야 한다
+        org.mockito.Mockito.verify(friendRequestRepository, org.mockito.Mockito.never())
+                .save(any(FriendRequest.class));
     }
 
     @Test
