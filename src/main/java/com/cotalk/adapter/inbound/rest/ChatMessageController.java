@@ -94,6 +94,8 @@ public class ChatMessageController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @Valid @RequestBody SendFileMessageRequest request) {
         SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+                request.objectId(),
+                request.thumbnailObjectId(),
                 request.fileUrl(),
                 request.fileName(),
                 request.fileSize(),

@@ -155,6 +155,8 @@ class ChatWebSocketControllerTest {
         // given
         FileMessageRequest request = new FileMessageRequest(
                 100L,
+                null,
+                null,
                 "https://storage.example.com/file.pdf",
                 "document.pdf",
                 1024L,
@@ -207,6 +209,8 @@ class ChatWebSocketControllerTest {
         // given
         FileMessageRequest request = new FileMessageRequest(
                 100L,
+                null,
+                null,
                 "https://storage.example.com/image.jpg",
                 "photo.jpg",
                 2048L,
@@ -320,6 +324,8 @@ class ChatWebSocketControllerTest {
         String tooLongFileName = "a".repeat(256) + ".jpg";
         FileMessageRequest request = new FileMessageRequest(
                 100L,
+                null,
+                null,
                 "https://storage.example.com/image.jpg",
                 tooLongFileName,
                 1024L,
@@ -340,6 +346,8 @@ class ChatWebSocketControllerTest {
         // given
         FileMessageRequest request = new FileMessageRequest(
                 100L,
+                null,
+                null,
                 "https://storage.example.com/image.jpg",
                 "",
                 1024L,
@@ -360,6 +368,8 @@ class ChatWebSocketControllerTest {
         // given
         FileMessageRequest request = new FileMessageRequest(
                 100L,
+                null,
+                null,
                 "https://storage.example.com/malicious.exe",
                 "malicious.exe",
                 1024L,
@@ -399,6 +409,8 @@ class ChatWebSocketControllerTest {
         // given
         FileMessageRequest request = new FileMessageRequest(
                 100L,
+                null,
+                null,
                 "https://storage.example.com/file.pdf",
                 "document.pdf",
                 1024L,

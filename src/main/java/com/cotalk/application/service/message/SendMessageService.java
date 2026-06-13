@@ -16,6 +16,7 @@ import com.cotalk.domain.port.outbound.MetricsPort;
 import com.cotalk.domain.port.outbound.NotificationCommandPort;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.port.outbound.UserRepository;
+import com.cotalk.domain.service.FileObjectResolver;
 import com.cotalk.domain.util.HtmlSanitizer;
 import com.cotalk.domain.validator.BlockValidator;
 import com.cotalk.domain.validator.FileMessageValidator;
@@ -55,6 +56,7 @@ public class SendMessageService implements SendMessageUseCase {
     private final TransactionTemplate transactionTemplate;
     private final TimeProvider timeProvider;
     private final FileMessageValidator fileMessageValidator;
+    private final FileObjectResolver fileObjectResolver;
     private final BlockValidator blockValidator;
 
     /**
@@ -116,30 +118,93 @@ public class SendMessageService implements SendMessageUseCase {
 
     @Override
     public SendResult sendFileMessageWithContext(Long chatRoomId, Long senderId, FileMessageCommand command) {
-        // 서버사이드 검증: 클라이언트가 보낸 contentType/fileUrl을 신뢰하지 않고 재검증한다.
-        // - contentType: 업로드 허용 MIME 목록 재검증
-        // - fileUrl/thumbnailUrl: 본 서버 업로드 경로(uploads/{senderId}/...) 소유 여부 검증
-        fileMessageValidator.validate(senderId, command.contentType(), command.fileUrl(), command.thumbnailUrl());
+        // 하위호환: 두 방식을 모두 수용한다.
+        // - 신규(object-id): 클라이언트는 업로드가 발급한 불투명 식별자만 보낸다. 서버가 소유·존재를
+        //   검증하고 fileUrl/contentType/size를 저장 메타로 재구성한다(클라이언트 URL/타입 위조 차단).
+        // - 기존(fileUrl): 클라이언트가 보낸 contentType/fileUrl을 #166 서버사이드 화이트리스트로 재검증한다.
+        ResolvedFileMeta meta = command.usesObjectId()
+                ? resolveByObjectId(senderId, command)
+                : validateByFileUrl(senderId, command);
+
+        MessageType messageType = resolveMessageType(meta.contentType());
 
         Message message = Message.builder()
                 .id(idGenerator.nextId())
                 .chatRoomId(chatRoomId)
                 .senderId(senderId)
                 .content(command.fileName())
-                .type(command.getMessageType())
-                .fileUrl(command.fileUrl())
+                .type(messageType)
+                .fileUrl(meta.fileUrl())
                 .fileName(command.fileName())
-                .fileSize(command.fileSize())
-                .fileContentType(command.contentType())
-                .thumbnailUrl(command.thumbnailUrl())
+                .fileSize(meta.fileSize())
+                .fileContentType(meta.contentType())
+                .thumbnailUrl(meta.thumbnailUrl())
                 .build();
 
-        String notificationContent = command.getMessageType() == MessageType.IMAGE
+        String notificationContent = messageType == MessageType.IMAGE
                 ? "📷 사진을 보냈습니다."
                 : "📎 파일을 보냈습니다: " + command.fileName();
 
         return doSendMessage(chatRoomId, senderId, message, notificationContent);
     }
+
+    /**
+     * 불투명 식별자(object-id) 방식으로 파일 메타를 재구성한다.
+     * 본문/썸네일 모두 소유·존재 검증 후 서버가 URL을 재구성한다.
+     *
+     * @param senderId 발신자 ID
+     * @param command  파일 메시지 명령(object-id 포함)
+     * @return 서버가 재구성한 파일 메타
+     */
+    private ResolvedFileMeta resolveByObjectId(Long senderId, FileMessageCommand command) {
+        FileObjectResolver.ResolvedFileObject resolved =
+                fileObjectResolver.resolve(senderId, command.objectId(), command.contentType(), command.fileSize());
+
+        String thumbnailUrl = null;
+        if (command.thumbnailObjectId() != null && !command.thumbnailObjectId().isBlank()) {
+            // 썸네일도 소유·존재 검증 후 URL 재구성(타입 힌트는 본문과 동일 정책으로 둔다)
+            thumbnailUrl = fileObjectResolver
+                    .resolve(senderId, command.thumbnailObjectId(), command.contentType(), command.fileSize())
+                    .fileUrl();
+        }
+        return new ResolvedFileMeta(resolved.fileUrl(), resolved.contentType(), resolved.fileSize(), thumbnailUrl);
+    }
+
+    /**
+     * 기존 방식(fileUrl 직접 전송)으로 파일 메타를 검증한다(#166 화이트리스트).
+     *
+     * @param senderId 발신자 ID
+     * @param command  파일 메시지 명령(fileUrl 포함)
+     * @return 클라이언트가 보낸 값을 검증한 파일 메타
+     */
+    private ResolvedFileMeta validateByFileUrl(Long senderId, FileMessageCommand command) {
+        fileMessageValidator.validate(senderId, command.contentType(), command.fileUrl(), command.thumbnailUrl());
+        return new ResolvedFileMeta(
+                command.fileUrl(), command.contentType(), command.fileSize(), command.thumbnailUrl());
+    }
+
+    /**
+     * contentType으로 메시지 타입을 결정한다.
+     *
+     * @param contentType MIME 타입
+     * @return 이미지면 IMAGE, 그 외 FILE
+     */
+    private MessageType resolveMessageType(String contentType) {
+        if (contentType != null && contentType.startsWith("image/")) {
+            return MessageType.IMAGE;
+        }
+        return MessageType.FILE;
+    }
+
+    /**
+     * 두 전송 방식의 검증·재구성 결과를 공통 표현으로 담는 내부 값 객체.
+     *
+     * @param fileUrl      최종 파일 URL(서버 재구성 또는 검증된 클라이언트 값)
+     * @param contentType  최종 contentType
+     * @param fileSize     최종 파일 크기
+     * @param thumbnailUrl 최종 썸네일 URL(없으면 null)
+     */
+    private record ResolvedFileMeta(String fileUrl, String contentType, long fileSize, String thumbnailUrl) {}
 
     /**
      * 메시지 저장을 위한 공통 로직을 실행하고, 사전 조회한 컨텍스트를 함께 반환한다.

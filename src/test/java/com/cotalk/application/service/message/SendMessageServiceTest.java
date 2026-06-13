@@ -84,6 +84,9 @@ class SendMessageServiceTest {
     @Mock
     private com.cotalk.domain.validator.BlockValidator blockValidator;
 
+    @Mock
+    private com.cotalk.domain.service.FileObjectResolver fileObjectResolver;
+
     private SendMessageService sendMessageService;
 
     @SuppressWarnings("unchecked")
@@ -93,7 +96,7 @@ class SendMessageServiceTest {
                 messageRepository, chatRoomMemberRepository, chatRoomRepository, userRepository, idGenerator,
                 notificationCommandPort, chatRoomPresenceTracker, customMetrics,
                 messageLinkPreviewService, messageBroadcastService, transactionTemplate, timeProvider,
-                new com.cotalk.domain.validator.FileMessageValidator(), blockValidator);
+                new com.cotalk.domain.validator.FileMessageValidator(), fileObjectResolver, blockValidator);
 
         // TransactionTemplate: 콜백을 즉시 실행 (트랜잭션 없이 동기 실행)
         lenient().when(transactionTemplate.execute(any(TransactionCallback.class)))
@@ -367,7 +370,7 @@ class SendMessageServiceTest {
                     .passwordHash("hash")
                     .build();
 
-            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+            SendMessageUseCase.FileMessageCommand command = SendMessageUseCase.FileMessageCommand.ofUrl(
                     "http://localhost:8080/files/uploads/2/abc.jpg",
                     "photo.jpg",
                     1024L,
@@ -412,7 +415,7 @@ class SendMessageServiceTest {
                     .passwordHash("hash")
                     .build();
 
-            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+            SendMessageUseCase.FileMessageCommand command = SendMessageUseCase.FileMessageCommand.ofUrl(
                     "http://localhost:8080/files/uploads/2/doc.pdf",
                     "document.pdf",
                     2048L,
@@ -442,7 +445,7 @@ class SendMessageServiceTest {
             Long chatRoomId = 1L;
             Long senderId = 2L;
 
-            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+            SendMessageUseCase.FileMessageCommand command = SendMessageUseCase.FileMessageCommand.ofUrl(
                     "http://localhost:8080/files/uploads/2/file.bin",
                     "unknown.file",
                     1024L,
@@ -473,7 +476,7 @@ class SendMessageServiceTest {
             User sender = User.builder()
                     .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
 
-            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+            SendMessageUseCase.FileMessageCommand command = SendMessageUseCase.FileMessageCommand.ofUrl(
                     "http://localhost:8080/files/uploads/2/abc.jpg",
                     "photo.jpg",
                     1024L,
@@ -502,7 +505,7 @@ class SendMessageServiceTest {
             Long chatRoomId = 1L;
             Long senderId = 2L;
 
-            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+            SendMessageUseCase.FileMessageCommand command = SendMessageUseCase.FileMessageCommand.ofUrl(
                     "http://localhost:8080/files/uploads/2/abc.jpg",
                     "photo.jpg",
                     1024L,
@@ -526,7 +529,7 @@ class SendMessageServiceTest {
             Long chatRoomId = 1L;
             Long senderId = 2L;
 
-            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+            SendMessageUseCase.FileMessageCommand command = SendMessageUseCase.FileMessageCommand.ofUrl(
                     "http://localhost:8080/files/uploads/2/evil.exe",
                     "evil.exe",
                     1024L,
@@ -548,7 +551,7 @@ class SendMessageServiceTest {
             Long senderId = 2L;
 
             // 본 서버 업로드 객체 경로(uploads/{senderId}/...)가 전혀 없는 외부 URL
-            SendMessageUseCase.FileMessageCommand external = new SendMessageUseCase.FileMessageCommand(
+            SendMessageUseCase.FileMessageCommand external = SendMessageUseCase.FileMessageCommand.ofUrl(
                     "https://evil.example.com/malware.jpg",
                     "photo.jpg",
                     1024L,
@@ -569,7 +572,7 @@ class SendMessageServiceTest {
             Long chatRoomId = 1L;
             Long senderId = 2L;
 
-            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+            SendMessageUseCase.FileMessageCommand command = SendMessageUseCase.FileMessageCommand.ofUrl(
                     "http://localhost:8080/files/uploads/999/abc.jpg", // 타인(999) 경로
                     "photo.jpg",
                     1024L,
@@ -590,7 +593,7 @@ class SendMessageServiceTest {
             Long chatRoomId = 1L;
             Long senderId = 2L;
 
-            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+            SendMessageUseCase.FileMessageCommand command = SendMessageUseCase.FileMessageCommand.ofUrl(
                     "http://localhost:8080/files/uploads/2/../999/secret.jpg",
                     "secret.jpg",
                     1024L,
@@ -618,7 +621,7 @@ class SendMessageServiceTest {
                     .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
 
             // InMemoryFileStorage가 반환하는 실제 형식: {baseUrl}/uploads/{userId}/{uuid}.ext
-            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+            SendMessageUseCase.FileMessageCommand command = SendMessageUseCase.FileMessageCommand.ofUrl(
                     "http://localhost:8080/files/uploads/2/3f9-uuid.jpg",
                     "photo.jpg",
                     1024L,
@@ -638,6 +641,104 @@ class SendMessageServiceTest {
             assertThat(result.getType()).isEqualTo(Message.MessageType.IMAGE);
             assertThat(result.getFileUrl()).isEqualTo("http://localhost:8080/files/uploads/2/3f9-uuid.jpg");
             verify(messageRepository).save(any(Message.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("불투명 식별자(object-id) 파일 메시지 전송 시")
+    class ObjectIdFileMessage {
+
+        @Test
+        @DisplayName("object-id로 전송하면 서버가 재구성한 URL/메타로 메시지를 저장한다")
+        void should_ReconstructMetaFromObjectId_when_ObjectIdProvided() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+            Long messageId = 100L;
+
+            ChatRoomMember member = ChatRoomMember.builder()
+                    .id(10L).chatRoomId(chatRoomId).userId(senderId).build();
+            User sender = User.builder()
+                    .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
+
+            // 클라이언트는 fileUrl/contentType 없이 object-id만 보낸다(여기선 size 힌트만 동반)
+            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+                    "uploads/2/abc.jpg", null, null, "photo.jpg", 1024L, null, null);
+
+            // 서버(resolver)가 소유·존재 검증 후 URL/메타를 재구성
+            given(fileObjectResolver.resolve(eq(senderId), eq("uploads/2/abc.jpg"), nullable(String.class), any()))
+                    .willReturn(new com.cotalk.domain.service.FileObjectResolver.ResolvedFileObject(
+                            "http://localhost:8080/files/uploads/2/abc.jpg", "image/jpeg", 1024L));
+
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId)).willReturn(List.of(member));
+            given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
+            given(idGenerator.nextId()).willReturn(messageId);
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+            // when
+            Message result = sendMessageService.sendFileMessage(chatRoomId, senderId, command);
+
+            // then: 서버가 재구성한 값으로 저장됨 (클라가 URL/타입을 주지 않았어도)
+            assertThat(result.getType()).isEqualTo(Message.MessageType.IMAGE);
+            assertThat(result.getFileUrl()).isEqualTo("http://localhost:8080/files/uploads/2/abc.jpg");
+            assertThat(result.getFileContentType()).isEqualTo("image/jpeg");
+            assertThat(result.getFileSize()).isEqualTo(1024L);
+            assertThat(result.getFileName()).isEqualTo("photo.jpg");
+            verify(messageRepository).save(any(Message.class));
+        }
+
+        @Test
+        @DisplayName("타인 소유 object-id면 resolver가 거부하여 저장되지 않는다")
+        void should_Reject_when_ObjectIdOwnedByAnotherUser() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+
+            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+                    "uploads/999/secret.jpg", null, null, "secret.jpg", 1024L, null, null);
+
+            given(fileObjectResolver.resolve(eq(senderId), eq("uploads/999/secret.jpg"), nullable(String.class), any()))
+                    .willThrow(new com.cotalk.domain.exception.FileUploadException("신뢰할 수 없는 파일 식별자입니다"));
+
+            // when & then
+            assertThatThrownBy(() -> sendMessageService.sendFileMessage(chatRoomId, senderId, command))
+                    .isInstanceOf(com.cotalk.domain.exception.FileUploadException.class);
+            verify(messageRepository, never()).save(any(Message.class));
+        }
+
+        @Test
+        @DisplayName("썸네일 object-id도 소유 검증 후 URL을 재구성한다")
+        void should_ResolveThumbnailObjectId_when_Provided() {
+            // given
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+            Long messageId = 100L;
+
+            ChatRoomMember member = ChatRoomMember.builder()
+                    .id(10L).chatRoomId(chatRoomId).userId(senderId).build();
+            User sender = User.builder()
+                    .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
+
+            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+                    "uploads/2/abc.jpg", "uploads/2/thumb.jpg", null, "photo.jpg", 1024L, null, null);
+
+            given(fileObjectResolver.resolve(eq(senderId), eq("uploads/2/abc.jpg"), nullable(String.class), any()))
+                    .willReturn(new com.cotalk.domain.service.FileObjectResolver.ResolvedFileObject(
+                            "http://localhost:8080/files/uploads/2/abc.jpg", "image/jpeg", 1024L));
+            given(fileObjectResolver.resolve(eq(senderId), eq("uploads/2/thumb.jpg"), nullable(String.class), any()))
+                    .willReturn(new com.cotalk.domain.service.FileObjectResolver.ResolvedFileObject(
+                            "http://localhost:8080/files/uploads/2/thumb.jpg", "image/jpeg", 256L));
+
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId)).willReturn(List.of(member));
+            given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
+            given(idGenerator.nextId()).willReturn(messageId);
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+            // when
+            Message result = sendMessageService.sendFileMessage(chatRoomId, senderId, command);
+
+            // then
+            assertThat(result.getThumbnailUrl()).isEqualTo("http://localhost:8080/files/uploads/2/thumb.jpg");
         }
     }
 

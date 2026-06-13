@@ -120,7 +120,7 @@ class ChatMessageControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_validImageMessage() throws Exception {
             // given
-            SendFileMessageRequest request = new SendFileMessageRequest(
+            SendFileMessageRequest request = SendFileMessageRequest.of(
                     100L,
                     "https://example.com/image.png",
                     "image.png",
@@ -162,7 +162,7 @@ class ChatMessageControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_returnCreated_when_validFileMessage() throws Exception {
             // given
-            SendFileMessageRequest request = new SendFileMessageRequest(
+            SendFileMessageRequest request = SendFileMessageRequest.of(
                     100L,
                     "https://example.com/file.pdf",
                     "document.pdf",

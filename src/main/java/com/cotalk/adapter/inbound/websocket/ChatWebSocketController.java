@@ -142,7 +142,10 @@ public class ChatWebSocketController {
     public void sendFileMessage(@Payload FileMessageRequest request, StompHeaderAccessor headerAccessor) {
         Long authenticatedUserId = extractUserId(headerAccessor);
 
-        if (request == null || request.roomId() == null || request.fileUrl() == null || request.fileUrl().isBlank()) {
+        // 파일 소스: 신규(object-id) 또는 기존(fileUrl) 중 하나는 반드시 있어야 한다(하위호환).
+        boolean hasObjectId = request != null && request.objectId() != null && !request.objectId().isBlank();
+        boolean hasFileUrl = request != null && request.fileUrl() != null && !request.fileUrl().isBlank();
+        if (request == null || request.roomId() == null || (!hasObjectId && !hasFileUrl)) {
             log.warn("Invalid file message request from user {}: {}", authenticatedUserId, request);
             return;
         }
@@ -160,6 +163,8 @@ public class ChatWebSocketController {
         log.debug("Received file message from authenticated user {} to room {}", authenticatedUserId, request.roomId());
 
         FileMessageCommand command = new FileMessageCommand(
+                request.objectId(),
+                request.thumbnailObjectId(),
                 request.fileUrl(),
                 request.fileName(),
                 request.fileSize(),
@@ -365,7 +370,13 @@ public class ChatWebSocketController {
             return false;
         }
 
-        // contentType 검증: 허용 목록에 있는지 확인
+        // object-id 방식: contentType은 서버가 저장 메타로 재구성하므로 여기서는 선택.
+        // 단, contentType이 제공된 경우엔 허용 목록 검증을 유지한다.
+        if (request.usesObjectId()) {
+            return request.contentType() == null || isAllowedContentType(request.contentType());
+        }
+
+        // 기존(fileUrl) 방식: contentType 필수 + 허용 목록 검증
         if (request.contentType() == null) {
             return false;
         }
