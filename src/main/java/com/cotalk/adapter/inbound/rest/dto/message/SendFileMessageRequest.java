@@ -48,14 +48,32 @@ public record SendFileMessageRequest(
 ) {
 
     /**
+     * 불투명 식별자(object-id) 방식 여부.
+     *
+     * @return {@code objectId}가 존재하면 true
+     */
+    public boolean usesObjectId() {
+        return hasText(objectId);
+    }
+
+    /**
      * {@code objectId} 또는 {@code fileUrl} 중 하나는 반드시 제공되어야 한다.
      *
      * @return 둘 중 하나라도 존재하면 true
      */
     @AssertTrue(message = "objectId 또는 fileUrl 중 하나는 필수입니다.")
     public boolean isFileSourceProvided() {
-        return (objectId != null && !objectId.isBlank())
-                || (fileUrl != null && !fileUrl.isBlank());
+        return usesObjectId() || hasText(fileUrl);
+    }
+
+    /**
+     * 문자열이 null/공백이 아닌 실제 값을 가지는지 확인한다.
+     *
+     * @param value 검사할 문자열
+     * @return null도 공백도 아니면 true
+     */
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     /**

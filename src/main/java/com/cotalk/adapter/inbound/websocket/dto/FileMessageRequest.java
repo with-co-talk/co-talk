@@ -36,6 +36,16 @@ public record FileMessageRequest(
      * @return {@code objectId}가 존재하면 true
      */
     public boolean usesObjectId() {
-        return objectId != null && !objectId.isBlank();
+        return hasText(objectId);
+    }
+
+    /**
+     * 문자열이 null/공백이 아닌 실제 값을 가지는지 확인한다.
+     *
+     * @param value 검사할 문자열
+     * @return null도 공백도 아니면 true
+     */
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }
