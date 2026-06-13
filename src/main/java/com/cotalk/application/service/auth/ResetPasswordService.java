@@ -160,10 +160,11 @@ public class ResetPasswordService implements ResetPasswordUseCase {
         }
 
         if (!token.matchesCode(code)) {
-            token.incrementFailedAttempts();
-            tokenRepository.save(token);
+            // 동시 오답 요청의 lost-update를 방지하기 위해 DB 레벨에서 원자적으로 증가시키고
+            // 증가 후의 실제 실패 횟수를 기준으로 잠금 여부를 판단한다.
+            int updatedFailedAttempts = tokenRepository.incrementFailedAttemptsAndGet(token.getId());
 
-            if (token.isMaxAttemptsExceeded(MAX_VERIFY_ATTEMPTS)) {
+            if (updatedFailedAttempts >= MAX_VERIFY_ATTEMPTS) {
                 throw InvalidPasswordResetTokenException.maxAttemptsExceeded();
             }
             throw InvalidPasswordResetTokenException.invalidCode();

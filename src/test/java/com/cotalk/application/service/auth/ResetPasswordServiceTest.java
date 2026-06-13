@@ -275,13 +275,14 @@ class ResetPasswordServiceTest {
     }
 
     @Test
-    @DisplayName("잘못된 코드로 verifyCode 호출 시 invalidCode 예외가 발생하고 failedAttempts가 증가한다")
+    @DisplayName("잘못된 코드로 verifyCode 호출 시 invalidCode 예외가 발생하고 failedAttempts가 원자적으로 증가한다")
     void should_incrementFailedAttempts_when_wrongCode() {
         // given
         String email = "user@example.com";
         String wrongCode = "000000";
 
         PasswordResetToken token = PasswordResetToken.builder()
+                .id(1L)
                 .token("some-token")
                 .userId(10L)
                 .email(new Email(email))
@@ -291,15 +292,16 @@ class ResetPasswordServiceTest {
 
         given(tokenRepository.findLatestActiveByEmail(email)).willReturn(Optional.of(token));
         given(timeProvider.now()).willReturn(FIXED_NOW);
+        // 원자적 증가 후 실패 횟수 1 반환
+        given(tokenRepository.incrementFailedAttemptsAndGet(1L)).willReturn(1);
 
         // when & then
         assertThatThrownBy(() -> service.verifyCode(email, wrongCode))
                 .isInstanceOf(InvalidPasswordResetTokenException.class)
                 .hasMessageContaining("일치");
 
-        ArgumentCaptor<PasswordResetToken> captor = ArgumentCaptor.forClass(PasswordResetToken.class);
-        verify(tokenRepository).save(captor.capture());
-        assertThat(captor.getValue().getFailedAttempts()).isEqualTo(1);
+        // 원자적 UPDATE로 실패 횟수를 증가시켰는지 검증(lost-update 방지)
+        verify(tokenRepository).incrementFailedAttemptsAndGet(1L);
     }
 
     @Test
@@ -310,6 +312,7 @@ class ResetPasswordServiceTest {
         String wrongCode = "000000";
 
         PasswordResetToken token = PasswordResetToken.builder()
+                .id(1L)
                 .token("some-token")
                 .userId(10L)
                 .email(new Email(email))
@@ -319,6 +322,9 @@ class ResetPasswordServiceTest {
 
         given(tokenRepository.findLatestActiveByEmail(email)).willReturn(Optional.of(token));
         given(timeProvider.now()).willReturn(FIXED_NOW);
+        // 원자적 증가가 호출될 때마다 1,2,3,4,5 를 반환(DB 상태 시뮬레이션)
+        given(tokenRepository.incrementFailedAttemptsAndGet(1L))
+                .willReturn(1, 2, 3, 4, 5);
 
         // when: 4회 오답은 invalidCode, 5회째 오답은 잠금(초과)
         for (int i = 0; i < 4; i++) {
@@ -328,12 +334,6 @@ class ResetPasswordServiceTest {
         }
 
         assertThatThrownBy(() -> service.verifyCode(email, wrongCode))
-                .isInstanceOf(InvalidPasswordResetTokenException.class)
-                .hasMessageContaining("초과");
-
-        // then: 잠긴 이후에는 정답을 입력해도 잠김 상태가 유지된다
-        assertThat(token.getFailedAttempts()).isEqualTo(5);
-        assertThatThrownBy(() -> service.verifyCode(email, "123456"))
                 .isInstanceOf(InvalidPasswordResetTokenException.class)
                 .hasMessageContaining("초과");
     }

@@ -41,6 +41,18 @@ public interface PasswordResetTokenRepository {
     Optional<PasswordResetToken> findLatestActiveByEmail(String email);
 
     /**
+     * 인증 코드 실패 횟수를 원자적으로 1 증가시키고, 증가 후의 실패 횟수를 반환한다.
+     * <p>
+     * 동시 오답 요청에서 read-modify-write 경합으로 발생하는 lost-update를 방지하여
+     * 잠금(최대 시도 횟수) 우회를 차단한다.
+     * </p>
+     *
+     * @param tokenId 대상 토큰 ID
+     * @return 증가 후의 실패 횟수
+     */
+    int incrementFailedAttemptsAndGet(Long tokenId);
+
+    /**
      * 특정 사용자의 모든 비밀번호 재설정 토큰을 삭제한다.
      *
      * @param userId 사용자 ID

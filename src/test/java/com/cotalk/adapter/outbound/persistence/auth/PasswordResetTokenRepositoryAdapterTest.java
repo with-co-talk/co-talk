@@ -135,4 +135,37 @@ class PasswordResetTokenRepositoryAdapterTest {
             assertThat(timeCaptor.getValue()).isBeforeOrEqualTo(LocalDateTime.now());
         }
     }
+
+    @Nested
+    @DisplayName("incrementFailedAttemptsAndGet 메서드")
+    class IncrementFailedAttemptsAndGetMethod {
+
+        @Test
+        @DisplayName("원자적으로 증가시킨 뒤 갱신된 실패 횟수를 반환한다")
+        void should_incrementAtomically_andReturnUpdatedCount() {
+            // given
+            when(jpaRepository.findFailedAttemptsById(1L)).thenReturn(Optional.of(3));
+
+            // when
+            int result = adapter.incrementFailedAttemptsAndGet(1L);
+
+            // then: 원자적 UPDATE 후 최신 값 재조회
+            verify(jpaRepository).incrementFailedAttempts(1L);
+            verify(jpaRepository).findFailedAttemptsById(1L);
+            assertThat(result).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("토큰이 없으면 0을 반환한다")
+        void should_returnZero_when_tokenNotFound() {
+            // given
+            when(jpaRepository.findFailedAttemptsById(1L)).thenReturn(Optional.empty());
+
+            // when
+            int result = adapter.incrementFailedAttemptsAndGet(1L);
+
+            // then
+            assertThat(result).isZero();
+        }
+    }
 }

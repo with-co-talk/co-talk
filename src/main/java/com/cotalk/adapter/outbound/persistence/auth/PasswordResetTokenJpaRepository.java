@@ -55,4 +55,29 @@ public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordR
     @Modifying
     @Query("DELETE FROM PasswordResetToken t WHERE t.expiresAt < :now")
     void deleteExpiredTokens(LocalDateTime now);
+
+    /**
+     * 인증 코드 실패 횟수를 원자적으로 1 증가시킨다.
+     * <p>
+     * 동시 오답 요청에서 read-modify-write 경합으로 인한 lost-update를 방지하기 위해
+     * DB 레벨의 원자적 조건부 UPDATE({@code SET failed_attempts = failed_attempts + 1})를 사용한다.
+     * 기존 {@code ChatRoomMember} 읽음 처리 등에서 쓰는 원자적 UPDATE 패턴과 동일하다.
+     * </p>
+     *
+     * @param id 대상 토큰 ID
+     * @return 갱신된 행 수(정상 시 1)
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE PasswordResetToken t SET t.failedAttempts = t.failedAttempts + 1 WHERE t.id = :id")
+    int incrementFailedAttempts(@Param("id") Long id);
+
+    /**
+     * 토큰의 현재 실패 횟수를 조회한다.
+     * 원자적 증가({@link #incrementFailedAttempts(Long)}) 직후 최신 값을 다시 읽기 위해 사용한다.
+     *
+     * @param id 대상 토큰 ID
+     * @return 현재 실패 횟수 (토큰이 없으면 Optional.empty)
+     */
+    @Query("SELECT t.failedAttempts FROM PasswordResetToken t WHERE t.id = :id")
+    Optional<Integer> findFailedAttemptsById(@Param("id") Long id);
 }
