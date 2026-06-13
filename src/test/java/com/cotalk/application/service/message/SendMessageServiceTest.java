@@ -642,6 +642,42 @@ class SendMessageServiceTest {
             assertThat(result.getFileUrl()).isEqualTo("http://localhost:8080/files/uploads/2/3f9-uuid.jpg");
             verify(messageRepository).save(any(Message.class));
         }
+
+        @Test
+        @DisplayName("기존(fileUrl) 방식에서 fileSize가 null이어도 NPE 없이 허용한다(하위호환)")
+        void should_AllowNullFileSize_when_fileUrlWithNullSize() {
+            // given: WS FileMessageRequest.fileSize는 Long이며 bean validation이 없어 null이 올 수 있다.
+            // 이 PR 이전 fileUrl 경로는 Message.fileSize(=Long)에 null을 그대로 저장해 허용했다.
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+            Long messageId = 100L;
+
+            ChatRoomMember member = ChatRoomMember.builder()
+                    .id(10L).chatRoomId(chatRoomId).userId(senderId).build();
+            User sender = User.builder()
+                    .id(senderId).email(new Email("sender@test.com")).nickname("발신자").passwordHash("hash").build();
+
+            SendMessageUseCase.FileMessageCommand command = SendMessageUseCase.FileMessageCommand.ofUrl(
+                    "http://localhost:8080/files/uploads/2/3f9-uuid.jpg",
+                    "photo.jpg",
+                    null, // fileSize null → 이전엔 허용, 회귀 시 ResolvedFileMeta 언박싱에서 NPE
+                    "image/jpeg",
+                    null
+            );
+
+            given(chatRoomMemberRepository.findByChatRoomId(chatRoomId)).willReturn(List.of(member));
+            given(userRepository.findById(senderId)).willReturn(Optional.of(sender));
+            given(idGenerator.nextId()).willReturn(messageId);
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+            // when
+            Message result = sendMessageService.sendFileMessage(chatRoomId, senderId, command);
+
+            // then: NPE 없이 저장되고 fileSize는 null로 보존된다(이전 동작)
+            assertThat(result.getFileSize()).isNull();
+            assertThat(result.getFileUrl()).isEqualTo("http://localhost:8080/files/uploads/2/3f9-uuid.jpg");
+            verify(messageRepository).save(any(Message.class));
+        }
     }
 
     @Nested
@@ -699,6 +735,27 @@ class SendMessageServiceTest {
 
             given(fileObjectResolver.resolve(eq(senderId), eq("uploads/999/secret.jpg"), nullable(String.class), any()))
                     .willThrow(new com.cotalk.domain.exception.FileUploadException("신뢰할 수 없는 파일 식별자입니다"));
+
+            // when & then
+            assertThatThrownBy(() -> sendMessageService.sendFileMessage(chatRoomId, senderId, command))
+                    .isInstanceOf(com.cotalk.domain.exception.FileUploadException.class);
+            verify(messageRepository, never()).save(any(Message.class));
+        }
+
+        @Test
+        @DisplayName("object-id 경로는 size를 확정할 수 없으면 엄격하게 거부한다(fileUrl 하위호환과 구분)")
+        void should_RejectStrictly_when_ObjectIdSizeUnconfirmed() {
+            // given: object-id 경로는 fileUrl 하위호환과 달리 size 확정 불가 시 엄격하게 거부한다(1b762c6).
+            // null fileSize 허용은 오직 기존 fileUrl 경로에 한정된다.
+            Long chatRoomId = 1L;
+            Long senderId = 2L;
+
+            SendMessageUseCase.FileMessageCommand command = new SendMessageUseCase.FileMessageCommand(
+                    "uploads/2/abc.jpg", null, null, "photo.jpg", null, null, null);
+
+            // 저장소 메타도 없고 size 힌트도 null → resolver가 "파일 크기를 확인할 수 없습니다"로 거부
+            given(fileObjectResolver.resolve(eq(senderId), eq("uploads/2/abc.jpg"), nullable(String.class), nullable(Long.class)))
+                    .willThrow(new com.cotalk.domain.exception.FileUploadException("파일 크기를 확인할 수 없습니다."));
 
             // when & then
             assertThatThrownBy(() -> sendMessageService.sendFileMessage(chatRoomId, senderId, command))

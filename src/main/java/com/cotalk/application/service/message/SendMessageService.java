@@ -201,12 +201,17 @@ public class SendMessageService implements SendMessageUseCase {
     /**
      * 두 전송 방식의 검증·재구성 결과를 공통 표현으로 담는 내부 값 객체.
      *
+     * <p>{@code fileSize}는 nullable({@code Long})이다. object-id 경로는 size 확정 불가 시
+     * {@link FileObjectResolver}가 예외로 거부하므로 항상 non-null이지만, 기존(fileUrl) 하위호환
+     * 경로는 클라이언트가 size를 생략(null)할 수 있어 그대로 허용한다(이 PR 이전 동작 유지).
+     * {@code Message.fileSize} 역시 nullable이라 null이 그대로 저장된다.</p>
+     *
      * @param fileUrl      최종 파일 URL(서버 재구성 또는 검증된 클라이언트 값)
      * @param contentType  최종 contentType
-     * @param fileSize     최종 파일 크기
+     * @param fileSize     최종 파일 크기(fileUrl 하위호환 경로에서는 null 허용)
      * @param thumbnailUrl 최종 썸네일 URL(없으면 null)
      */
-    private record ResolvedFileMeta(String fileUrl, String contentType, long fileSize, String thumbnailUrl) {}
+    private record ResolvedFileMeta(String fileUrl, String contentType, Long fileSize, String thumbnailUrl) {}
 
     /**
      * 메시지 저장을 위한 공통 로직을 실행하고, 사전 조회한 컨텍스트를 함께 반환한다.
