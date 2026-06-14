@@ -15,4 +15,8 @@ CREATE TABLE IF NOT EXISTS message_search_tokens (
 );
 
 -- 토큰 → message 역방향 조회용 (검색 쿼리의 워크호스). 신규 테이블이라 CONCURRENTLY 불필요.
-CREATE INDEX IF NOT EXISTS idx_mst_token ON message_search_tokens(token);
+-- 1단계 쿼리는 `WHERE token IN (...) GROUP BY message_id HAVING COUNT(DISTINCT token)=:n` 형태라,
+-- (token) 단일 인덱스만으로는 매칭 행마다 message_id를 위해 힙(PK)을 다시 들춰야 한다.
+-- (token, message_id) 복합 인덱스는 두 컬럼이 모두 인덱스에 있어 인덱스-온리 스캔(커버링)으로
+-- 그룹/집계를 끝낼 수 있다(PK가 (message_id, token)이라 이 정렬 순서를 별도로 제공).
+CREATE INDEX IF NOT EXISTS idx_mst_token_message ON message_search_tokens(token, message_id);
