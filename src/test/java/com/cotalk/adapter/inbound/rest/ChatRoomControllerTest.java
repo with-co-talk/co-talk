@@ -273,6 +273,34 @@ class ChatRoomControllerTest {
                     .andExpect(jsonPath("$.members").isArray())
                     .andExpect(jsonPath("$.members.length()").value(0));
         }
+
+        @Test
+        @DisplayName("page/size 파라미터를 보내도 무시하고 전체 멤버를 반환한다 (가짜 페이지네이션 제거)")
+        @WithMockCustomUser(userId = 1L)
+        void should_returnAllMembers_when_pageParamsProvided() throws Exception {
+            // given
+            Long roomId = 100L;
+            Long userId = 1L;
+
+            List<GetChatRoomMembersUseCase.MemberInfo> members = List.of(
+                    new GetChatRoomMembersUseCase.MemberInfo(
+                            1L, "관리자", null, ChatRoomMember.MemberRole.ADMIN),
+                    new GetChatRoomMembersUseCase.MemberInfo(
+                            2L, "멤버1", null, ChatRoomMember.MemberRole.MEMBER),
+                    new GetChatRoomMembersUseCase.MemberInfo(
+                            3L, "멤버2", null, ChatRoomMember.MemberRole.MEMBER)
+            );
+
+            given(getChatRoomMembersUseCase.getChatRoomMembers(roomId, userId)).willReturn(members);
+
+            // when & then: 과거 page=1,size=1 이면 인메모리 컷으로 1명만 반환됐으나 이제 전체 반환
+            mockMvc.perform(get("/api/v1/chat/rooms/{roomId}/members", roomId)
+                            .param("page", "1")
+                            .param("size", "1"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.members.length()").value(3))
+                    .andExpect(jsonPath("$.members[0].role").value("ADMIN"));
+        }
     }
 
     @Nested
