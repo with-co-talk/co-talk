@@ -1,0 +1,19 @@
+-- 메시지 검색용 GIN tsvector 인덱스(idx_messages_content_search) 제거.
+--
+-- 배경:
+--   메시지 검색 쿼리(MessageJpaRepository.searchByKeywordInChatRoom /
+--   searchByKeywordInUserChatRooms)는 부분 일치(substring) UX를 위해
+--   `LOWER(content) LIKE LOWER('%keyword%')` 선행 와일드카드 패턴을 사용한다.
+--   선행 와일드카드 LIKE는 어떤 인덱스도 사용할 수 없으며, 특히 to_tsvector
+--   GIN 인덱스(전문 검색, 단어 단위 매칭)와는 매칭 방식 자체가 다르다.
+--
+--   또한 인덱스가 'simple' 설정으로 생성되어 한국어/CJK 본문을 형태소 단위로
+--   토큰화하지 못하므로(공백 분리 수준) 전문 검색으로 전환하더라도 검색 품질이
+--   오히려 저하된다.
+--
+--   결과적으로 이 GIN 인덱스는 어떤 쿼리에서도 사용되지 않는 "죽은 인덱스"이며,
+--   메시지 INSERT/UPDATE마다 tsvector 계산 및 GIN 유지 비용만 발생시킨다.
+--
+-- 조치: 쓰기 오버헤드를 제거하기 위해 인덱스를 삭제한다.
+--   부분 일치 검색 UX는 LIKE 방식 그대로 유지된다.
+DROP INDEX IF EXISTS idx_messages_content_search;
