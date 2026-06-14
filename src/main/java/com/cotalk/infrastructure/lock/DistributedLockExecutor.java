@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
@@ -47,8 +48,25 @@ public class DistributedLockExecutor implements DistributedLockPort {
 
     private static final String LOCK_PREFIX = "lock:";
 
+    /**
+     * NoOp 모드에서 동일 경고가 호출마다 폭주하는 것을 막기 위한 최소 로깅 간격(ms).
+     * Redis 다운 시 락 사용처(친구수락·방나가기 등)가 다발 호출돼도 이 간격당 한 번만 경고한다.
+     */
+    private static final long NOOP_WARN_INTERVAL_MILLIS = 60_000L;
+
     private final RedissonClient redissonClient;
     private final boolean failClosed;
+
+    /**
+     * NoOp 경고를 마지막으로 남긴 시각(epoch ms). 레이트리밋용.
+     * 아직 경고하지 않았음을 나타내는 센티넬 {@code -1}로 초기화해 진입 후 첫 호출은 즉시 경고한다.
+     */
+    private final AtomicLong lastNoOpWarnAt = new AtomicLong(NEVER_WARNED);
+
+    /**
+     * {@link #lastNoOpWarnAt} 센티넬: 아직 NoOp 경고를 남기지 않은 상태.
+     */
+    private static final long NEVER_WARNED = -1L;
 
     /**
      * DistributedLockExecutor 생성자.
@@ -117,8 +135,7 @@ public class DistributedLockExecutor implements DistributedLockPort {
                 throw new DistributedLockException(
                         "분산락이 비활성화되어(Redis 미가용) 작업을 거부합니다 (fail-closed): " + lockKey);
             }
-            log.warn("분산락 비활성(NoOp): 락 없이 작업을 실행합니다. 동시성 보호가 적용되지 않습니다. key={}",
-                    lockKey);
+            warnNoOpRateLimited(lockKey);
             return supplier.get();
         }
 
@@ -141,6 +158,27 @@ public class DistributedLockExecutor implements DistributedLockPort {
                 lock.unlock();
                 log.debug("Distributed lock released: {}", lockKey);
             }
+        }
+    }
+
+    /**
+     * NoOp 강등 상태에서의 경고를 레이트리밋하여 남긴다.
+     *
+     * <p>Redis 다운 시 락 사용처(친구수락·방나가기 등)가 다발 호출돼도 동일 경고가 폭주하지
+     * 않도록, {@link #NOOP_WARN_INTERVAL_MILLIS} 간격당 최대 한 번만 {@code log.warn}을 남긴다.
+     * 진입 직후 첫 호출은 즉시 경고한다. 강등 사실의 지속적 가시성은 헬스 인디케이터가 담당한다.</p>
+     *
+     * @param lockKey 락 키 (로그 표시용)
+     */
+    private void warnNoOpRateLimited(String lockKey) {
+        long now = System.currentTimeMillis();
+        long last = lastNoOpWarnAt.get();
+        if (last != NEVER_WARNED && now - last < NOOP_WARN_INTERVAL_MILLIS) {
+            return;
+        }
+        if (lastNoOpWarnAt.compareAndSet(last, now)) {
+            log.warn("분산락 비활성(NoOp): 락 없이 작업을 실행합니다. 동시성 보호가 적용되지 않습니다. "
+                    + "(최근 {}초 내 동일 경고는 생략) key={}", NOOP_WARN_INTERVAL_MILLIS / 1000, lockKey);
         }
     }
 
