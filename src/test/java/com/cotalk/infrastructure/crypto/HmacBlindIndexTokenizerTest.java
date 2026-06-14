@@ -36,7 +36,7 @@ class HmacBlindIndexTokenizerTest {
                 new AppProperties.Terms("1.0", "1.0"),
                 new AppProperties.Encryption("dGhpc2lzYXRlc3RrZXlmb3JkZXZlbG9wbWVudG9ubHk=", false),
                 new AppProperties.Swagger("http://localhost:8080", "API 서버"),
-                new AppProperties.Search(secret)
+                AppProperties.Search.of(secret)
         );
     }
 
@@ -148,7 +148,7 @@ class HmacBlindIndexTokenizerTest {
     void should_throw_when_secretNull() {
         // AppProperties.Search compact 생성자가 null→""로 치환하므로, 빈 시크릿 거부 경로로 수렴해야 한다.
         // (설정 누락 시 빈 시크릿으로 조용히 동작하는 보안 구멍이 없음을 보장)
-        assertThat(new AppProperties.Search(null).blindIndexSecret()).isEmpty();
+        assertThat(AppProperties.Search.of(null).blindIndexSecret()).isEmpty();
         assertThatThrownBy(() -> new HmacBlindIndexTokenizer(appPropertiesWithSecret(null)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("blind-index-secret");

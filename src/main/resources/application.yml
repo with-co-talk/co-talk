@@ -156,6 +156,13 @@ app:
     # AES 암호화 키와 완전히 분리된 별도 시크릿. 프로덕션: 반드시 환경변수로 설정 (기본값 없음)
     # 키 생성: openssl rand -base64 32
     blind-index-secret: ${BLIND_INDEX_SECRET}  # 필수 환경변수 - 기본값 없음 (보안)
+    # 기존 메시지 검색 토큰 백필(PR2, 1회성 관리 작업). 기본 비활성 — 실수 실행 방지.
+    # 운영: 백필 윈도우에서만 SEARCH_BACKFILL_ENABLED=true로 기동, 완료 후 다시 false.
+    backfill:
+      enabled: ${SEARCH_BACKFILL_ENABLED:false}             # true면 기동 시 1회 백필 실행
+      chunk-size: ${SEARCH_BACKFILL_CHUNK_SIZE:500}         # 한 트랜잭션 당 메시지 수
+      throttle-millis: ${SEARCH_BACKFILL_THROTTLE_MILLIS:0} # 청크 사이 슬립(부하 제어)
+      skip-existing: ${SEARCH_BACKFILL_SKIP_EXISTING:true}  # 이미 토큰이 있는 메시지는 건너뜀
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   redis:
