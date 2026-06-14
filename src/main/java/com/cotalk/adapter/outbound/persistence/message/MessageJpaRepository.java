@@ -313,4 +313,18 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @param senderId 발신자(사용자) ID
      */
     void deleteBySenderId(Long senderId);
+
+    /**
+     * 검색 토큰 백필 대상이 되는 TEXT(미삭제) 메시지를 {@code id} 오름차순 커서 청크로 조회한다. (PR2)
+     *
+     * <p>조건: {@code id > afterId AND type = 'TEXT' AND is_deleted = false}.
+     * 대량 데이터를 메모리에 한 번에 올리지 않도록 {@code afterId} 커서 + {@code Pageable} limit로
+     * 제한된 범위만 조회한다. 반환 메시지의 {@code content}는 JPA 컨버터로 이미 복호화된 평문이다.</p>
+     *
+     * @param afterId  이 ID보다 큰 메시지만 조회 (커서)
+     * @param pageable 청크 크기(limit) 정보
+     * @return id 오름차순 TEXT 미삭제 메시지 목록
+     */
+    @Query("SELECT m FROM Message m WHERE m.id > :afterId AND m.type = com.cotalk.domain.entity.Message.MessageType.TEXT AND m.deleted = false ORDER BY m.id ASC")
+    List<Message> findTextMessagesForBackfill(@Param("afterId") long afterId, Pageable pageable);
 }

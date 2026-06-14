@@ -21,4 +21,12 @@ public interface MessageSearchTokenJpaRepository
     @Modifying
     @Query("DELETE FROM MessageSearchTokenJpaEntity t WHERE t.messageId = :messageId")
     void deleteByMessageId(@Param("messageId") Long messageId);
+
+    /**
+     * 특정 메시지에 검색 토큰이 1개 이상 존재하는지 확인한다. (백필 skip-existing 최적화용)
+     *
+     * @param messageId 메시지 ID
+     * @return 토큰이 존재하면 {@code true}
+     */
+    boolean existsByMessageId(Long messageId);
 }
