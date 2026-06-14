@@ -1,5 +1,6 @@
 package com.cotalk.infrastructure.lock;
 
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -8,11 +9,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("DistributedLockExecutor - NoOp 모드 (RedissonClient 없음)")
 class NoOpDistributedLockExecutorTest {
 
-    private final DistributedLockExecutor executor = new DistributedLockExecutor(null);
+    private static AppProperties appProperties(boolean failClosed) {
+        return new AppProperties(null, null, null, null, null, null, null, null,
+                new AppProperties.Lock(failClosed));
+    }
+
+    private final DistributedLockExecutor executor =
+            new DistributedLockExecutor(null, appProperties(false));
 
     @Nested
     @DisplayName("executeWithLock - Supplier")
@@ -153,6 +161,70 @@ class NoOpDistributedLockExecutorTest {
 
             // then
             assertThat(counter.get()).isEqualTo(threadCount);
+        }
+    }
+
+    @Nested
+    @DisplayName("상태 노출")
+    class StateExposure {
+
+        @Test
+        @DisplayName("RedissonClient가 없으면 isNoOpMode()는 true다")
+        void should_reportNoOpMode_when_redissonAbsent() {
+            assertThat(executor.isNoOpMode()).isTrue();
+            assertThat(executor.isFailClosed()).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("fail-closed=true (RedissonClient 없음)")
+    class FailClosed {
+
+        private final DistributedLockExecutor failClosedExecutor =
+                new DistributedLockExecutor(null, appProperties(true));
+
+        @Test
+        @DisplayName("락 보호가 필요한 Supplier 실행 시 예외를 던지고 작업을 실행하지 않는다")
+        void should_throw_when_supplierAndFailClosed() {
+            // given
+            AtomicInteger counter = new AtomicInteger(0);
+
+            // when & then
+            assertThatThrownBy(() -> failClosedExecutor.executeWithLock("test-lock", () -> {
+                counter.incrementAndGet();
+                return 42;
+            }))
+                    .isInstanceOf(DistributedLockException.class)
+                    .hasMessageContaining("fail-closed");
+            assertThat(counter.get()).isZero();
+        }
+
+        @Test
+        @DisplayName("파라미터가 있는 executeWithLock도 예외를 던진다")
+        void should_throw_when_supplierWithParamsAndFailClosed() {
+            assertThatThrownBy(() -> failClosedExecutor.executeWithLock(
+                    "test-lock", 100L, 200L, TimeUnit.MILLISECONDS, () -> "result"))
+                    .isInstanceOf(DistributedLockException.class);
+        }
+
+        @Test
+        @DisplayName("Runnable 실행 시에도 예외를 던지고 작업을 실행하지 않는다")
+        void should_throw_when_runnableAndFailClosed() {
+            // given
+            AtomicInteger counter = new AtomicInteger(0);
+
+            // when & then
+            assertThatThrownBy(
+                    () -> failClosedExecutor.executeWithLock("test-lock", counter::incrementAndGet))
+                    .isInstanceOf(DistributedLockException.class);
+            assertThat(counter.get()).isZero();
+        }
+
+        @Test
+        @DisplayName("isNoOpMode()는 true, isFailClosed()는 true다")
+        void should_reportState() {
+            assertThat(failClosedExecutor.isNoOpMode()).isTrue();
+            assertThat(failClosedExecutor.isFailClosed()).isTrue();
         }
     }
 }

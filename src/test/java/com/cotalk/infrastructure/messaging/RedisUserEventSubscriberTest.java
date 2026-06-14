@@ -53,7 +53,8 @@ class RedisUserEventSubscriberTest {
                 new AppProperties.Terms("1.0", "1.0"),
                 new AppProperties.Encryption("", true),
                 new AppProperties.Swagger("http://localhost:8080", "API 서버"),
-                AppProperties.Search.of("dGVzdC1ibGluZC1pbmRleC1zZWNyZXQtZm9yLXVuaXQtdGVzdHM=")
+                AppProperties.Search.of("dGVzdC1ibGluZC1pbmRleC1zZWNyZXQtZm9yLXVuaXQtdGVzdHM="),
+                new AppProperties.Lock(false)
         );
     }
 

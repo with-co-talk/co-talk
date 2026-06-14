@@ -9,6 +9,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 
+import com.cotalk.infrastructure.config.properties.AppProperties;
+
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -37,7 +39,12 @@ class DistributedLockExecutorTest {
 
     @BeforeEach
     void setUp() {
-        lockExecutor = new DistributedLockExecutor(redissonClient);
+        lockExecutor = new DistributedLockExecutor(redissonClient, appProperties(false));
+    }
+
+    private static AppProperties appProperties(boolean failClosed) {
+        return new AppProperties(null, null, null, null, null, null, null, null,
+                new AppProperties.Lock(failClosed));
     }
 
     @Test

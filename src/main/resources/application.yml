@@ -165,6 +165,11 @@ app:
       skip-existing: ${SEARCH_BACKFILL_SKIP_EXISTING:true}  # 이미 토큰이 있는 메시지는 건너뜀
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  lock:
+    # 분산락(Redisson)이 비활성(기동 시 Redis 미가용)일 때의 정책.
+    # false(기본, 하위호환): NoOp — 락 없이 즉시 실행하되 호출마다 경고 (동시성 보호 사라짐).
+    # true(운영 권장): fail-closed — 락 보호 작업을 예외로 거부해 무방비 실행을 차단.
+    fail-closed: ${LOCK_FAIL_CLOSED:false}
   redis:
     channel-prefix: ${REDIS_CHANNEL_PREFIX:chat:room:}
   email:

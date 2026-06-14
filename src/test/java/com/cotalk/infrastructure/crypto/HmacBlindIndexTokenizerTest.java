@@ -36,7 +36,8 @@ class HmacBlindIndexTokenizerTest {
                 new AppProperties.Terms("1.0", "1.0"),
                 new AppProperties.Encryption("dGhpc2lzYXRlc3RrZXlmb3JkZXZlbG9wbWVudG9ubHk=", false),
                 new AppProperties.Swagger("http://localhost:8080", "API 서버"),
-                AppProperties.Search.of(secret)
+                AppProperties.Search.of(secret),
+                new AppProperties.Lock(false)
         );
     }
 
