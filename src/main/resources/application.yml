@@ -44,6 +44,11 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
         use_sql_comments: true
+        # 대량 INSERT(메시지 검색 토큰 등)를 JDBC batch로 묶어 round-trip 절감
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
     open-in-view: false
 
   # Flyway 설정 (데이터베이스 마이그레이션)
