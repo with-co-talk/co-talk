@@ -4,8 +4,10 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.exception.ResourceAccessDeniedException;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
+import com.cotalk.domain.port.outbound.BlindIndexTokenizer;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.MessageSearchTokenRepository;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import com.cotalk.domain.util.HtmlSanitizer;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,8 @@ import java.time.ZoneOffset;
 public class UpdateMessageService implements UpdateMessageUseCase {
 
     private final MessageRepository messageRepository;
+    private final MessageSearchTokenRepository messageSearchTokenRepository;
+    private final BlindIndexTokenizer blindIndexTokenizer;
     private final ChatMessageBroker chatMessageBroker;
     private final TimeProvider timeProvider;
 
@@ -65,6 +69,11 @@ public class UpdateMessageService implements UpdateMessageUseCase {
         // XSS 방지 + 메시지 수정
         message.updateContent(HtmlSanitizer.stripAllTags(newContent));
         Message updated = messageRepository.save(message);
+
+        // 블라인드 인덱스 재토큰화 (delete-then-insert) — 수정된 본문 기준으로 검색 토큰 갱신.
+        // @Transactional 경계 안에서 수행되어 본문/토큰이 일관되게 커밋된다. TEXT만 수정 가능하므로 항상 토큰화 대상.
+        messageSearchTokenRepository.deleteByMessageId(updated.getId());
+        messageSearchTokenRepository.saveTokens(updated.getId(), blindIndexTokenizer.tokenize(updated.getContent()));
 
         log.info("Message updated: messageId={}, userId={}", messageId, userId);
 
