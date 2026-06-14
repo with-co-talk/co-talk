@@ -688,7 +688,7 @@ class GlobalExceptionHandlerTest {
     class HandleIllegalArgumentException {
 
         @Test
-        @DisplayName("IllegalArgumentException은 400 BAD_REQUEST 반환")
+        @DisplayName("의도된 한국어 도메인 메시지는 그대로 노출한다")
         void should_returnBadRequest_when_illegalArgument() {
             // given
             IllegalArgumentException exception = new IllegalArgumentException("잘못된 인자입니다.");
@@ -701,6 +701,63 @@ class GlobalExceptionHandlerTest {
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().code()).isEqualTo("INVALID_ARGUMENT");
             assertThat(response.getBody().error()).isEqualTo("잘못된 인자입니다.");
+        }
+
+        @Test
+        @DisplayName("프레임워크/JDK 영문 메시지는 고정 한국어 메시지로 치환한다")
+        void should_maskEnglishMessage_when_frameworkIllegalArgument() {
+            // given: Spring PageRequest 음수 page 등에서 발생하는 영문 메시지
+            IllegalArgumentException exception =
+                    new IllegalArgumentException("Page index must not be less than zero");
+
+            // when
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleIllegalArgumentException(exception);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().code()).isEqualTo("INVALID_ARGUMENT");
+            assertThat(response.getBody().error()).isEqualTo("요청 값이 올바르지 않습니다.");
+            assertThat(response.getBody().error()).doesNotContain("Page index");
+        }
+
+        @Test
+        @DisplayName("메시지가 null이어도 고정 한국어 메시지를 반환한다")
+        void should_maskNullMessage_when_illegalArgument() {
+            // given
+            IllegalArgumentException exception = new IllegalArgumentException();
+
+            // when
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleIllegalArgumentException(exception);
+
+            // then
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().error()).isEqualTo("요청 값이 올바르지 않습니다.");
+        }
+    }
+
+    @Nested
+    @DisplayName("ConstraintViolationException 처리")
+    class HandleConstraintViolationException {
+
+        @Test
+        @DisplayName("프레임워크 영문 상세는 노출하지 않고 고정 한국어 메시지를 반환한다")
+        void should_maskDetail_when_constraintViolation() {
+            // given: 메시지에 영문 프레임워크 상세가 섞인 경우
+            jakarta.validation.ConstraintViolationException exception =
+                    new jakarta.validation.ConstraintViolationException(
+                            "getChatRoomMembers.page: must be greater than or equal to 0", null);
+
+            // when
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleConstraintViolation(exception);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().code()).isEqualTo("CONSTRAINT_VIOLATION");
+            assertThat(response.getBody().error()).isEqualTo("요청 값이 올바르지 않습니다.");
+            assertThat(response.getBody().error()).doesNotContain("must be greater");
+            assertThat(response.getBody().error()).doesNotContain("getChatRoomMembers");
         }
     }
 

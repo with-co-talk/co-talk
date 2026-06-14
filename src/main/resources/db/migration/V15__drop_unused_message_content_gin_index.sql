@@ -1,0 +1,29 @@
+-- 메시지 검색용 GIN tsvector 인덱스(idx_messages_content_search) 제거.
+--
+-- 배경:
+--   메시지 검색 쿼리(MessageJpaRepository.searchByKeywordInChatRoom /
+--   searchByKeywordInUserChatRooms)는 부분 일치(substring) UX를 위해
+--   `LOWER(content) LIKE LOWER('%keyword%')` 선행 와일드카드 패턴을 사용한다.
+--   선행 와일드카드 LIKE는 어떤 인덱스도 사용할 수 없으며, 특히 to_tsvector
+--   GIN 인덱스(전문 검색, 단어 단위 매칭)와는 매칭 방식 자체가 다르다.
+--
+--   또한 인덱스가 'simple' 설정으로 생성되어 한국어/CJK 본문을 형태소 단위로
+--   토큰화하지 못하므로(공백 분리 수준) 전문 검색으로 전환하더라도 검색 품질이
+--   오히려 저하된다.
+--
+--   결과적으로 이 GIN 인덱스는 어떤 쿼리에서도 사용되지 않는 "죽은 인덱스"이며,
+--   메시지 INSERT/UPDATE마다 tsvector 계산 및 GIN 유지 비용만 발생시킨다.
+--
+-- 조치: 쓰기 오버헤드를 제거하기 위해 인덱스를 삭제한다.
+--   부분 일치 검색 UX는 LIKE 방식 그대로 유지된다.
+--
+-- 운영 참고(잠금):
+--   일반 DROP INDEX는 대상 테이블에 짧은 ACCESS EXCLUSIVE 락을 잡으므로, 쓰기
+--   트래픽이 많은 messages 테이블에서는 배포 순간 read/write가 잠깐 블록될 수 있다.
+--   무중단을 원하면 DROP INDEX CONCURRENTLY가 있으나 트랜잭션 밖에서만 실행 가능하고,
+--   Flyway는 마이그레이션을 트랜잭션으로 감싸므로 이 파일을 비-트랜잭션
+--   (executeInTransaction=false)으로 분리해야 한다. GIN 인덱스 DROP 자체는 메타데이터
+--   변경이라 보통 즉시 끝나므로 본 PR에서는 일반 DROP을 유지한다(컨벤션: V2 인덱스도
+--   비-CONCURRENTLY). 대규모 운영 배포에서 락 노출이 우려되면 트래픽이 적은 시간대에
+--   적용하거나 위 CONCURRENTLY 방식으로 전환을 검토할 것.
+DROP INDEX IF EXISTS idx_messages_content_search;

@@ -129,9 +129,10 @@ public class FriendController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        int safeSize = Math.min(size, 100);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
         Page<User> friendPage = getFriendListUseCase.getFriendList(
-                principal.getUserId(), PageRequest.of(page, safeSize));
+                principal.getUserId(), PageRequest.of(safePage, safeSize));
         List<FriendDto> friendDtos = friendPage.getContent().stream()
                 .map(FriendDto::from)
                 .toList();
@@ -169,10 +170,11 @@ public class FriendController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        int safeSize = Math.min(size, 100);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
         Long userId = principal.getUserId();
         Page<FriendRequest> requestPage = getReceivedFriendRequestsUseCase
-                .getReceivedFriendRequests(userId, PageRequest.of(page, safeSize));
+                .getReceivedFriendRequests(userId, PageRequest.of(safePage, safeSize));
 
         // 빈 페이지일 때 early return
         if (requestPage.isEmpty()) {
@@ -234,10 +236,11 @@ public class FriendController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        int safeSize = Math.min(size, 100);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
         Long userId = principal.getUserId();
         Page<FriendRequest> requestPage = getSentFriendRequestsUseCase
-                .getSentFriendRequests(userId, PageRequest.of(page, safeSize));
+                .getSentFriendRequests(userId, PageRequest.of(safePage, safeSize));
 
         // 빈 페이지일 때 early return
         if (requestPage.isEmpty()) {

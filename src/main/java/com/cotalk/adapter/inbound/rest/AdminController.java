@@ -62,8 +62,9 @@ public class AdminController {
     public ResponseEntity<AdminReportsResponse> getPendingReports(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        int safeSize = Math.min(size, 100);
-        Page<Report> reportPage = adminUseCase.getPendingReports(PageRequest.of(page, safeSize));
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Page<Report> reportPage = adminUseCase.getPendingReports(PageRequest.of(safePage, safeSize));
         List<AdminReportDto> reportDtos = reportPage.getContent().stream()
                 .map(AdminReportDto::from)
                 .toList();
@@ -131,8 +132,9 @@ public class AdminController {
             @RequestParam(required = false) User.UserStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        int safeSize = Math.min(size, 100);
-        Pageable pageable = PageRequest.of(page, safeSize);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(safePage, safeSize);
         Page<User> userPage = status == null
                 ? adminUseCase.getAllUsers(pageable)
                 : adminUseCase.getUsersByStatus(status, pageable);
