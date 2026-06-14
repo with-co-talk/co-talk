@@ -1,6 +1,7 @@
 package com.cotalk.infrastructure.config;
 
 import com.cotalk.application.service.message.MessageSearchBackfillService;
+import com.cotalk.application.service.message.MessageSearchBackfillService.BackfillInterruptedException;
 import com.cotalk.application.service.message.MessageSearchBackfillService.BackfillOptions;
 import com.cotalk.application.service.message.MessageSearchBackfillService.BackfillResult;
 import com.cotalk.infrastructure.config.properties.AppProperties;
@@ -63,11 +64,21 @@ public class MessageSearchBackfillRunner implements ApplicationRunner {
 
         try {
             BackfillResult result = backfillService.backfill(options);
-            log.info("=== 백필 완료: scanned={}, indexed={}, skipped={}, 마지막 커서 id={} ===",
+            log.info("=== 백필 상태=SUCCESS(완료): scanned={}, indexed={}, skipped={}, 마지막 커서 id={} ===",
                     result.scanned(), result.indexed(), result.skipped(), result.lastCursorId());
+        } catch (BackfillInterruptedException e) {
+            // 백필이 중간에 실패해 일부만 반영됨. "완료"로 오인하지 않도록 상태=PARTIAL로 명확히 보고하고,
+            // 진행분/마지막 커서를 노출한다. 기동 실패로 번지지 않게 흡수하되(재실행 안전 — idempotent),
+            // 운영자가 재실행으로 재개해야 함을 강조한다.
+            BackfillResult partial = e.partialResult();
+            log.error("=== 백필 상태=PARTIAL(중단/실패): 끝까지 완료되지 못했습니다. "
+                            + "scanned={}, indexed={}, skipped={}, 마지막 커서 id={}. "
+                            + "idempotent하므로 재실행으로 재개 필요. ===",
+                    partial.scanned(), partial.indexed(), partial.skipped(), partial.lastCursorId(), e.getCause());
         } catch (RuntimeException e) {
-            // 기동 실패로 번지지 않도록 백필 실패는 로그로 남기고 흡수한다(재실행 안전 — idempotent).
-            log.error("=== 백필 실행 중 오류 발생. idempotent하므로 재실행으로 재개 가능합니다. ===", e);
+            // 백필 시작 전/조회 단계 등에서의 예기치 못한 실패. 진행 통계 없이 상태=FAILED로 보고.
+            log.error("=== 백필 상태=FAILED(실패): 진행 통계 없이 중단되었습니다. "
+                    + "idempotent하므로 재실행으로 재개 가능합니다. ===", e);
         }
     }
 }
