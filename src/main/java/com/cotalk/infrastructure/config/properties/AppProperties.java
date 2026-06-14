@@ -14,6 +14,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param terms         약관 버전 설정
  * @param encryption    암호화 설정
  * @param swagger       Swagger UI 설정
+ * @param search        메시지 검색(블라인드 인덱스) 설정
  * @author seunggu.lee
  */
 @ConfigurationProperties(prefix = "app")
@@ -24,7 +25,8 @@ public record AppProperties(
         PasswordReset passwordReset,
         Terms terms,
         Encryption encryption,
-        Swagger swagger
+        Swagger swagger,
+        Search search
 ) {
     private static final Logger log = LoggerFactory.getLogger(AppProperties.class);
     /**
@@ -105,6 +107,23 @@ public record AppProperties(
     }
 
     /**
+     * 메시지 검색(블라인드 인덱스) 설정.
+     *
+     * <p>{@code blindIndexSecret}은 HMAC-SHA256 트라이그램 토큰 생성용 시크릿(Base64)이며,
+     * AES 암호화 키({@link Encryption#key()})와 완전히 분리된 별도 시크릿이다.
+     * 프로덕션에서는 반드시 환경변수로 주입해야 하며 기본값이 없다(보안).</p>
+     *
+     * @param blindIndexSecret 블라인드 인덱스 HMAC 시크릿 (Base64, 기본값 없음)
+     */
+    public record Search(String blindIndexSecret) {
+        public Search {
+            if (blindIndexSecret == null) {
+                blindIndexSecret = "";
+            }
+        }
+    }
+
+    /**
      * Swagger UI 설정.
      *
      * @param serverUrl         서버 URL
@@ -148,6 +167,9 @@ public record AppProperties(
         }
         if (swagger == null) {
             swagger = new Swagger("http://localhost:8080", "API 서버");
+        }
+        if (search == null) {
+            search = new Search("");
         }
     }
 }

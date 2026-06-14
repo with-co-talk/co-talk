@@ -53,3 +53,6 @@ app:
   encryption:
     key: dGhpc2lzYXRlc3RrZXlmb3JkZXZlbG9wbWVudG9ubHk=
     enabled: false  # 테스트에서는 암호화 비활성화 (검색 테스트 등)
+  search:
+    # 블라인드 인덱스 HMAC 시크릿 (테스트 고정 더미값)
+    blind-index-secret: dGVzdC1ibGluZC1pbmRleC1zZWNyZXQtZm9yLXVuaXQtdGVzdHM=

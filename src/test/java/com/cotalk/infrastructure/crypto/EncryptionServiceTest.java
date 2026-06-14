@@ -38,7 +38,8 @@ class EncryptionServiceTest {
                 new AppProperties.PasswordReset(30),
                 new AppProperties.Terms("1.0", "1.0"),
                 new AppProperties.Encryption(encryptionKey, enabled),
-                new AppProperties.Swagger("http://localhost:8080", "API 서버")
+                new AppProperties.Swagger("http://localhost:8080", "API 서버"),
+                new AppProperties.Search("dGVzdC1ibGluZC1pbmRleC1zZWNyZXQtZm9yLXVuaXQtdGVzdHM=")
         );
     }
 

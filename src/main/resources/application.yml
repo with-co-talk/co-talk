@@ -146,6 +146,11 @@ app:
     # 키 생성: openssl rand -base64 32
     key: ${ENCRYPTION_KEY}  # 필수 환경변수 - 기본값 없음 (보안)
     enabled: ${ENCRYPTION_ENABLED:true}
+  search:
+    # 블라인드 인덱스(HMAC 트라이그램 토큰) 시크릿 (Base64, 32바이트 권장)
+    # AES 암호화 키와 완전히 분리된 별도 시크릿. 프로덕션: 반드시 환경변수로 설정 (기본값 없음)
+    # 키 생성: openssl rand -base64 32
+    blind-index-secret: ${BLIND_INDEX_SECRET}  # 필수 환경변수 - 기본값 없음 (보안)
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   redis:

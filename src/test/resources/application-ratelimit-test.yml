@@ -65,3 +65,5 @@ app:
   encryption:
     key: dGhpc2lzYXRlc3RrZXlmb3JkZXZlbG9wbWVudG9ubHk=
     enabled: false
+  search:
+    blind-index-secret: dGVzdC1ibGluZC1pbmRleC1zZWNyZXQtZm9yLXVuaXQtdGVzdHM=
