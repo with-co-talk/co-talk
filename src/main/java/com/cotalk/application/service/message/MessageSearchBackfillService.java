@@ -27,8 +27,12 @@ import java.util.Set;
  *       토큰 PK가 {@code (message_id, token)}이라 중복 적재가 발생하지 않으며, 몇 번을 다시 돌려도
  *       결과가 동일하다.</li>
  *   <li><b>중단 복구</b>: 진행 커서가 {@code id} 기반이라 마지막으로 처리한 ID부터 재개하면 그대로
- *       이어진다(매 실행은 0부터 시작하되 처리 완료분은 idempotent로 재처리, 작은 데이터면 단순).
- *       처리 진행 로그로 마지막 커서를 추적할 수 있다.</li>
+ *       이어진다. 다만 커서를 영속화하지 않아 매 실행은 항상 {@code cursor=0}부터 시작하되,
+ *       이미 처리된 메시지는 {@code skipExisting}(청크당 1회 배치 IN 조회)로 복호화/HMAC 없이
+ *       건너뛰어 재처리 비용이 낮다. 이는 본 작업이 <b>1회성 관리 작업</b>이고 delete-then-insert로
+ *       완전 idempotent하기 때문에 택한 의도적 단순화다(상태 테이블 도입의 운영 복잡도 회피).
+ *       <b>한계:</b> 매우 큰 데이터에서 중단 후 재기동하면 처음부터 다시 스캔하므로(처리분은 skip)
+ *       완료까지 시간이 더 걸릴 수 있다. 진행 로그의 "마지막 커서 id"로 진척도를 추적한다.</li>
  *   <li><b>부하 제어</b>: {@code skipExisting=true}면 이미 토큰이 있는 메시지(신규 PR1 적재분)는
  *       복호화/HMAC 없이 건너뛴다. 청크마다 {@code throttleMillis}만큼 슬립해 운영 윈도우 부하를 낮춘다.</li>
  * </ul>
@@ -86,30 +90,39 @@ public class MessageSearchBackfillService {
         long indexed = 0L;
         long skipped = 0L;
 
-        while (true) {
-            List<Message> chunk = backfillPort.findTextMessagesForBackfill(cursor, opts.chunkSize());
-            if (chunk.isEmpty()) {
-                break;
+        try {
+            while (true) {
+                List<Message> chunk = backfillPort.findTextMessagesForBackfill(cursor, opts.chunkSize());
+                if (chunk.isEmpty()) {
+                    break;
+                }
+
+                ChunkResult chunkResult = processChunk(chunk, opts);
+                scanned += chunk.size();
+                indexed += chunkResult.indexed();
+                skipped += chunkResult.skipped();
+                cursor = chunkResult.lastId();
+
+                log.info("백필 진행: 누적 scanned={}, indexed={}, skipped={}, 마지막 커서 id={}",
+                        scanned, indexed, skipped, cursor);
+
+                throttle(opts.throttleMillis());
+
+                // 마지막 청크(요청 크기 미만)면 더 이상 조회할 게 없으므로 종료
+                if (chunk.size() < opts.chunkSize()) {
+                    break;
+                }
             }
-
-            ChunkResult chunkResult = processChunk(chunk, opts);
-            scanned += chunk.size();
-            indexed += chunkResult.indexed();
-            skipped += chunkResult.skipped();
-            cursor = chunkResult.lastId();
-
-            log.info("백필 진행: 누적 scanned={}, indexed={}, skipped={}, 마지막 커서 id={}",
-                    scanned, indexed, skipped, cursor);
-
-            throttle(opts.throttleMillis());
-
-            // 마지막 청크(요청 크기 미만)면 더 이상 조회할 게 없으므로 종료
-            if (chunk.size() < opts.chunkSize()) {
-                break;
-            }
+        } catch (RuntimeException e) {
+            // 청크 처리 중 실패: 이 청크는 트랜잭션 롤백되어 미반영이므로, 직전 청크까지의 진행분을
+            // completed=false로 반환한다. 운영자가 "완료"로 오인하지 않도록 가시성을 확보하고,
+            // idempotent(skipExisting)이라 재실행으로 마지막 커서 이후를 다시 이어갈 수 있다.
+            BackfillResult partial = new BackfillResult(scanned, indexed, skipped, cursor, false);
+            log.error("메시지 검색 토큰 백필 중단(실패): {} — 재실행으로 재개 가능(idempotent)", partial, e);
+            throw new BackfillInterruptedException(partial, e);
         }
 
-        BackfillResult result = new BackfillResult(scanned, indexed, skipped, cursor);
+        BackfillResult result = new BackfillResult(scanned, indexed, skipped, cursor, true);
         log.info("메시지 검색 토큰 백필 완료: {}", result);
         return result;
     }
@@ -122,14 +135,21 @@ public class MessageSearchBackfillService {
      * @return 이 청크의 색인/스킵 건수와 마지막 메시지 ID
      */
     private ChunkResult processChunk(List<Message> chunk, BackfillOptions options) {
-        ChunkResult fallback = new ChunkResult(0L, 0L, chunk.get(chunk.size() - 1).getId());
-        ChunkResult result = transactionTemplate.execute(status -> {
+        // skip-existing N+1 방지: 청크의 message_id들을 한 번의 IN 쿼리로 미리 조회한다.
+        // (skipExisting=false면 조회 자체를 생략한다.)
+        Set<Long> existingTokenIds = options.skipExisting()
+                ? backfillPort.findExistingTokenMessageIds(chunk.stream().map(Message::getId).toList())
+                : Set.of();
+
+        // 콜백은 항상 non-null ChunkResult를 반환하고, TransactionTemplate은 콜백 반환값을
+        // 그대로 돌려주므로(예외 시 throw) 여기서 result는 절대 null이 아니다.
+        return transactionTemplate.execute(status -> {
             long indexed = 0L;
             long skipped = 0L;
             long lastId = 0L;
             for (Message message : chunk) {
                 lastId = message.getId();
-                if (options.skipExisting() && backfillPort.hasTokens(message.getId())) {
+                if (options.skipExisting() && existingTokenIds.contains(message.getId())) {
                     skipped++;
                     continue;
                 }
@@ -143,7 +163,6 @@ public class MessageSearchBackfillService {
             }
             return new ChunkResult(indexed, skipped, lastId);
         });
-        return result == null ? fallback : result;
     }
 
     private void throttle(long throttleMillis) {
@@ -205,10 +224,46 @@ public class MessageSearchBackfillService {
     /**
      * 백필 결과 요약.
      *
-     * @param scanned   조회(스캔)한 총 메시지 수
-     * @param indexed   토큰을 적재한 메시지 수
-     * @param skipped   이미 토큰이 있어 건너뛴 메시지 수
-     * @param lastCursorId 마지막으로 처리한 메시지 ID(중단/재개 추적용)
+     * @param scanned      조회(스캔)한 총 메시지 수
+     * @param indexed      토큰을 적재한 메시지 수
+     * @param skipped      이미 토큰이 있어 건너뛴 메시지 수
+     * @param lastCursorId 마지막으로 처리(커밋)한 메시지 ID(중단/재개 추적용)
+     * @param completed    전체 백필이 끝까지 정상 완료되었는지 여부.
+     *                     {@code false}면 중간에 실패해 진행분만 반영된 상태(재실행 필요)
      */
-    public record BackfillResult(long scanned, long indexed, long skipped, long lastCursorId) {}
+    public record BackfillResult(long scanned, long indexed, long skipped, long lastCursorId, boolean completed) {}
+
+    /**
+     * 백필이 중간에 실패해 끝까지 완료되지 못했음을 나타내는 예외.
+     *
+     * <p>실패 시점까지의 부분 진행 결과({@link #partialResult()})를 함께 담아, 운영자가 진행분과
+     * 마지막 커서를 확인하고 재실행(idempotent)으로 재개할 수 있게 한다. 호출자(러너)는 이를
+     * "완료"가 아닌 "중단/실패"로 명확히 구분해 보고해야 한다.</p>
+     *
+     * @author seunggu.lee
+     */
+    public static class BackfillInterruptedException extends RuntimeException {
+
+        private final transient BackfillResult partialResult;
+
+        /**
+         * 부분 결과와 원인 예외로 중단 예외를 만든다.
+         *
+         * @param partialResult 실패 시점까지의 진행 결과({@code completed=false})
+         * @param cause         원인 예외
+         */
+        public BackfillInterruptedException(BackfillResult partialResult, Throwable cause) {
+            super("백필이 중간에 중단되었습니다: " + partialResult, cause);
+            this.partialResult = partialResult;
+        }
+
+        /**
+         * 실패 시점까지의 부분 진행 결과를 반환한다.
+         *
+         * @return 부분 결과({@code completed=false})
+         */
+        public BackfillResult partialResult() {
+            return partialResult;
+        }
+    }
 }

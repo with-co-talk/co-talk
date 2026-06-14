@@ -1,5 +1,6 @@
 package com.cotalk.application.service.message;
 
+import com.cotalk.application.service.message.MessageSearchBackfillService.BackfillInterruptedException;
 import com.cotalk.application.service.message.MessageSearchBackfillService.BackfillOptions;
 import com.cotalk.application.service.message.MessageSearchBackfillService.BackfillResult;
 import com.cotalk.domain.entity.Message;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -114,12 +116,14 @@ class MessageSearchBackfillServiceTest {
         Message m1 = textMessage(10L, "이미 토큰 있음");
         Message m2 = textMessage(20L, "토큰 없음 신규");
         given(backfillPort.findTextMessagesForBackfill(0L, 500)).willReturn(List.of(m1, m2));
-        given(backfillPort.hasTokens(10L)).willReturn(true);
-        given(backfillPort.hasTokens(20L)).willReturn(false);
+        // 청크의 message_id들을 한 번에 배치 조회(N+1 방지). 10L만 토큰 존재.
+        given(backfillPort.findExistingTokenMessageIds(List.of(10L, 20L))).willReturn(Set.of(10L));
         given(blindIndexTokenizer.tokenize("토큰 없음 신규")).willReturn(Set.of("x"));
 
         BackfillResult result = service.backfill(new BackfillOptions(500, 0L, true));
 
+        // 단건 hasTokens가 아니라 청크당 1회 배치 조회만 일어난다(N+1 제거).
+        verify(backfillPort, times(1)).findExistingTokenMessageIds(List.of(10L, 20L));
         verify(blindIndexTokenizer, never()).tokenize("이미 토큰 있음");
         verify(messageSearchTokenRepository, never()).deleteByMessageId(10L);
         verify(messageSearchTokenRepository).deleteByMessageId(20L);
@@ -138,7 +142,8 @@ class MessageSearchBackfillServiceTest {
 
         service.backfill(new BackfillOptions(500, 0L, false));
 
-        verify(backfillPort, never()).hasTokens(anyLong());
+        // skipExisting=false면 배치 존재 조회 자체를 생략한다(불필요한 SELECT 회피).
+        verify(backfillPort, never()).findExistingTokenMessageIds(any());
         verify(messageSearchTokenRepository).deleteByMessageId(10L);
     }
 
@@ -196,5 +201,42 @@ class MessageSearchBackfillServiceTest {
 
         assertThat(result.scanned()).isZero();
         verify(backfillPort).findTextMessagesForBackfill(0L, 1);
+    }
+
+    @Test
+    @DisplayName("정상 완료 시 결과의 completed=true 로 끝까지 완료됐음을 표시한다")
+    void should_markCompletedTrue_onSuccess() {
+        Message m1 = textMessage(10L, "정상 완료 메시지");
+        given(backfillPort.findTextMessagesForBackfill(0L, 500)).willReturn(List.of(m1));
+        given(blindIndexTokenizer.tokenize(any())).willReturn(Set.of("t"));
+
+        BackfillResult result = service.backfill(new BackfillOptions(500, 0L, false));
+
+        assertThat(result.completed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("청크 처리 중 실패하면 직전까지의 진행분을 담은 BackfillInterruptedException(completed=false)을 던진다")
+    void should_throwInterrupted_withPartialResult_onChunkFailure() {
+        Message m1 = textMessage(10L, "성공 청크");
+        Message m2 = textMessage(20L, "실패 청크");
+        // chunkSize=1: 첫 청크[m1] 성공 → 둘째 청크[m2]에서 토큰화 실패
+        given(backfillPort.findTextMessagesForBackfill(0L, 1)).willReturn(List.of(m1));
+        given(backfillPort.findTextMessagesForBackfill(10L, 1)).willReturn(List.of(m2));
+        given(blindIndexTokenizer.tokenize("성공 청크")).willReturn(Set.of("t1"));
+        given(blindIndexTokenizer.tokenize("실패 청크"))
+                .willThrow(new IllegalStateException("토큰화 실패"));
+
+        BackfillInterruptedException ex = catchThrowableOfType(
+                () -> service.backfill(new BackfillOptions(1, 0L, false)),
+                BackfillInterruptedException.class);
+
+        assertThat(ex).isNotNull();
+        BackfillResult partial = ex.partialResult();
+        // 첫 청크(m1)는 반영, 실패한 둘째 청크(m2)는 롤백되어 미반영. completed=false 로 가시화.
+        assertThat(partial.completed()).isFalse();
+        assertThat(partial.scanned()).isEqualTo(1L);
+        assertThat(partial.indexed()).isEqualTo(1L);
+        assertThat(partial.lastCursorId()).isEqualTo(10L);
     }
 }

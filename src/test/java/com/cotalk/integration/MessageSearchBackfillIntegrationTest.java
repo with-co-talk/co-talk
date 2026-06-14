@@ -197,7 +197,39 @@ class MessageSearchBackfillIntegrationTest {
         assertThat(result.scanned()).isEqualTo(1L);
         assertThat(result.skipped()).isEqualTo(1L);
         assertThat(result.indexed()).isZero();
+        assertThat(result.completed()).isTrue();
         assertThat(searchMessageUseCase.searchInChatRoom(roomId, sender, "신규메시지", 0, 20)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("skipExisting=true: 토큰 있는 메시지는 건너뛰고 토큰 없는 레거시 메시지만 배치 조회 후 색인한다")
+    void should_skipExistingAndIndexOnlyLegacy_withBatchLookup() {
+        Long sender = createUser("c2@test.com", "민지");
+        Long roomId = createRoomWithMembers(sender);
+
+        // (1) 토큰이 이미 있는 신규 메시지 (PR1 경로)
+        Message withTokens = sendMessageUseCase.sendMessage(roomId, sender, "이미색인 신규메시지 본문");
+        // (2) 토큰 없는 레거시 메시지 — 이 메시지의 토큰만 비워 "토큰 없음" 상태로 만든다.
+        Message legacy = sendMessageUseCase.sendMessage(roomId, sender, "레거시메시지 백필대상 본문");
+        jdbcTemplate.update("DELETE FROM message_search_tokens WHERE message_id = ?", legacy.getId());
+
+        // 사전 상태: 토큰 있는 메시지만 검색됨, 레거시는 검색 0건
+        assertThat(searchMessageUseCase.searchInChatRoom(roomId, sender, "이미색인", 0, 20)).hasSize(1);
+        assertThat(searchMessageUseCase.searchInChatRoom(roomId, sender, "레거시메시지", 0, 20)).isEmpty();
+
+        BackfillResult result = backfillService.backfill(new BackfillOptions(500, 0L, true));
+
+        // 2건 스캔(배치 IN 조회) → 토큰 있는 1건 skip, 레거시 1건만 색인
+        assertThat(result.scanned()).isEqualTo(2L);
+        assertThat(result.skipped()).isEqualTo(1L);
+        assertThat(result.indexed()).isEqualTo(1L);
+        assertThat(result.completed()).isTrue();
+
+        // 레거시 메시지가 색인되어 검색됨, 기존 메시지도 여전히 검색됨
+        List<Message> legacyHits = searchMessageUseCase.searchInChatRoom(roomId, sender, "레거시메시지", 0, 20);
+        assertThat(legacyHits).extracting(Message::getId).containsExactly(legacy.getId());
+        assertThat(searchMessageUseCase.searchInChatRoom(roomId, sender, "이미색인", 0, 20))
+                .extracting(Message::getId).containsExactly(withTokens.getId());
     }
 
     @Test
