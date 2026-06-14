@@ -7,11 +7,13 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.Message.MessageType;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
+import com.cotalk.domain.port.outbound.BlindIndexTokenizer;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.domain.port.outbound.ChatRoomPresenceTracker;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.MessageSearchTokenRepository;
 import com.cotalk.domain.port.outbound.MetricsPort;
 import com.cotalk.domain.port.outbound.NotificationCommandPort;
 import com.cotalk.domain.port.outbound.TimeProvider;
@@ -44,6 +46,8 @@ import java.util.Set;
 public class SendMessageService implements SendMessageUseCase {
 
     private final MessageRepository messageRepository;
+    private final MessageSearchTokenRepository messageSearchTokenRepository;
+    private final BlindIndexTokenizer blindIndexTokenizer;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final UserRepository userRepository;
@@ -253,6 +257,10 @@ public class SendMessageService implements SendMessageUseCase {
             Message savedMessage = messageRepository.save(message);
             customMetrics.incrementMessagesSent();
 
+            // 블라인드 인덱스 검색 토큰 적재 (같은 트랜잭션 — 부분 저장 방지)
+            // TEXT 메시지만 토큰화한다(FILE/IMAGE/SYSTEM 제외). 입력은 암호화 전 평문(sanitizedContent).
+            indexSearchTokens(savedMessage);
+
             // 발신자는 자신이 보낸 메시지를 읽은 것으로 간주하여 lastReadMessageId 업데이트
             LocalDateTime now = timeProvider.now();
             int updated = chatRoomMemberRepository.updateLastReadMessageIdIfNewer(
@@ -276,6 +284,22 @@ public class SendMessageService implements SendMessageUseCase {
 
         customMetrics.stopMessageProcessingTimer(timerSample);
         return result;
+    }
+
+    /**
+     * 메시지의 검색 토큰을 적재한다. TEXT 메시지만 대상으로 한다.
+     *
+     * <p>호출 시점은 메시지 저장 직후, 같은 트랜잭션 경계 안이어야 한다(부분 저장 방지).
+     * 토큰화 입력은 암호화 전 평문 본문이며, 토큰화 결과가 비어있으면(3글자 미만 등) 적재하지 않는다.</p>
+     *
+     * @param savedMessage 저장된 메시지
+     */
+    private void indexSearchTokens(Message savedMessage) {
+        if (!savedMessage.isText()) {
+            return;
+        }
+        Set<String> tokens = blindIndexTokenizer.tokenize(savedMessage.getContent());
+        messageSearchTokenRepository.saveTokens(savedMessage.getId(), tokens);
     }
 
     /**

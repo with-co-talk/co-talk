@@ -3,8 +3,10 @@ package com.cotalk.application.service.message;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.exception.ResourceAccessDeniedException;
+import com.cotalk.domain.port.outbound.BlindIndexTokenizer;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.MessageRepository;
+import com.cotalk.domain.port.outbound.MessageSearchTokenRepository;
 import com.cotalk.domain.port.outbound.TimeProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +33,12 @@ class UpdateMessageServiceTest {
     private MessageRepository messageRepository;
 
     @Mock
+    private MessageSearchTokenRepository messageSearchTokenRepository;
+
+    @Mock
+    private BlindIndexTokenizer blindIndexTokenizer;
+
+    @Mock
     private ChatMessageBroker chatMessageBroker;
 
     @Mock
@@ -42,7 +50,8 @@ class UpdateMessageServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new UpdateMessageService(messageRepository, chatMessageBroker, timeProvider);
+        service = new UpdateMessageService(messageRepository, messageSearchTokenRepository,
+                blindIndexTokenizer, chatMessageBroker, timeProvider);
     }
 
     @Test

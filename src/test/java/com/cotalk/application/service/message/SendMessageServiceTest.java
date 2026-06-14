@@ -49,6 +49,12 @@ class SendMessageServiceTest {
     private MessageRepository messageRepository;
 
     @Mock
+    private com.cotalk.domain.port.outbound.MessageSearchTokenRepository messageSearchTokenRepository;
+
+    @Mock
+    private com.cotalk.domain.port.outbound.BlindIndexTokenizer blindIndexTokenizer;
+
+    @Mock
     private ChatRoomMemberRepository chatRoomMemberRepository;
 
     @Mock
@@ -93,10 +99,14 @@ class SendMessageServiceTest {
     @BeforeEach
     void setUp() {
         sendMessageService = new SendMessageService(
-                messageRepository, chatRoomMemberRepository, chatRoomRepository, userRepository, idGenerator,
+                messageRepository, messageSearchTokenRepository, blindIndexTokenizer,
+                chatRoomMemberRepository, chatRoomRepository, userRepository, idGenerator,
                 notificationCommandPort, chatRoomPresenceTracker, customMetrics,
                 messageLinkPreviewService, messageBroadcastService, transactionTemplate, timeProvider,
                 new com.cotalk.domain.validator.FileMessageValidator(), fileObjectResolver, blockValidator);
+
+        // 기본 토큰화 동작 (lenient): TEXT 메시지 전송 시 호출됨
+        lenient().when(blindIndexTokenizer.tokenize(anyString())).thenReturn(Set.of("tok"));
 
         // TransactionTemplate: 콜백을 즉시 실행 (트랜잭션 없이 동기 실행)
         lenient().when(transactionTemplate.execute(any(TransactionCallback.class)))
