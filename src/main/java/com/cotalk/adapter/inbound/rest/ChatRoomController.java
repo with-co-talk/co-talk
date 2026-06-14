@@ -90,9 +90,10 @@ public class ChatRoomController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        int safeSize = Math.min(size, 100);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
         Page<ChatRoomSummary> chatRoomPage = getChatRoomsUseCase.getChatRooms(
-                principal.getUserId(), PageRequest.of(page, safeSize));
+                principal.getUserId(), PageRequest.of(safePage, safeSize));
         List<ChatRoomDto> roomDtos = chatRoomPage.getContent().stream()
                 .map(ChatRoomDto::from)
                 .toList();
@@ -118,25 +119,23 @@ public class ChatRoomController {
     /**
      * 채팅방 멤버 목록을 조회합니다.
      *
+     * <p>채팅방 멤버 수는 유한하고 응답 DTO에 페이지 메타데이터(total/page/hasNext)가
+     * 없으므로, 관리자 우선 정렬을 유지한 전체 멤버 목록을 단건으로 반환합니다.
+     * (이전의 page/size 파라미터는 전체 로딩 후 인메모리 컷이라 실제 DB 페이지네이션이
+     * 아니었고, 응답에 페이지 메타데이터도 없어 클라이언트가 활용할 수 없었으므로 제거.)</p>
+     *
      * @param principal 인증된 사용자 정보
      * @param roomId    채팅방 ID
-     * @param page 페이지 번호 (기본값: 0)
-     * @param size 페이지 크기 (기본값: 20, 최대: 100)
-     * @return 멤버 목록
+     * @return 멤버 목록 (관리자 우선 정렬)
      */
-    @Operation(summary = "채팅방 멤버 목록 조회", description = "채팅방의 멤버 목록을 조회합니다.")
+    @Operation(summary = "채팅방 멤버 목록 조회", description = "채팅방의 전체 멤버 목록을 관리자 우선 정렬로 조회합니다.")
     @GetMapping("/{roomId}/members")
     public ResponseEntity<ChatRoomMembersResponse> getChatRoomMembers(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long roomId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        int safeSize = Math.min(size, 100);
+            @PathVariable Long roomId) {
         List<GetChatRoomMembersUseCase.MemberInfo> members =
                 getChatRoomMembersUseCase.getChatRoomMembers(roomId, principal.getUserId());
         List<ChatRoomMemberDto> memberDtos = members.stream()
-                .skip((long) page * safeSize)
-                .limit(safeSize)
                 .map(ChatRoomMemberDto::from)
                 .toList();
         return ResponseEntity.ok(ChatRoomMembersResponse.of(memberDtos));

@@ -33,6 +33,38 @@ import java.time.LocalDateTime;
 public class GlobalExceptionHandler {
 
     /**
+     * 프레임워크 내부 영문 메시지를 가릴 때 사용하는 고정 한국어 메시지.
+     */
+    private static final String DEFAULT_INVALID_REQUEST_MESSAGE = "요청 값이 올바르지 않습니다.";
+
+    /**
+     * 예외 메시지를 클라이언트에 노출하기 전 위생 처리한다.
+     *
+     * <p>도메인/애플리케이션 계층이 의도적으로 던지는 메시지는 한국어(한글 포함)이므로
+     * 그대로 노출하고, 한글이 전혀 없는 메시지(프레임워크/JDK 영문 내부 메시지)는
+     * 정보 노출 방지를 위해 고정 한국어 메시지로 치환한다.</p>
+     *
+     * @param rawMessage 원본 예외 메시지 (null 가능)
+     * @return 노출 가능한 메시지
+     */
+    private static String sanitizeClientMessage(String rawMessage) {
+        if (rawMessage == null || rawMessage.isBlank() || !containsHangul(rawMessage)) {
+            return DEFAULT_INVALID_REQUEST_MESSAGE;
+        }
+        return rawMessage;
+    }
+
+    /**
+     * 문자열에 한글 음절이 포함되어 있는지 확인한다.
+     *
+     * @param text 검사할 문자열
+     * @return 한글 포함 여부
+     */
+    private static boolean containsHangul(String text) {
+        return text.codePoints().anyMatch(cp -> cp >= 0xAC00 && cp <= 0xD7A3);
+    }
+
+    /**
      * Rate Limit 초과 예외를 처리한다.
      *
      * @param e Rate Limit 초과 예외
@@ -127,14 +159,21 @@ public class GlobalExceptionHandler {
     /**
      * 잘못된 인자 예외를 처리한다.
      *
+     * <p>도메인/애플리케이션 계층이 의도적으로 던지는 한국어 메시지는 그대로 노출하지만,
+     * Spring/JDK 등 프레임워크 내부에서 발생하는 영문 메시지(예: 음수 page에 대한
+     * {@code "Page index must not be less than zero"})는 정보 노출 방지를 위해
+     * 고정 한국어 메시지로 치환한다. prod의 {@code include-message: never} 설정과
+     * 일관되도록 한다.</p>
+     *
      * @param e 잘못된 인자 예외
      * @return 400 Bad Request 응답
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("Invalid argument: {}", e.getMessage());
+        String message = sanitizeClientMessage(e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(e.getMessage(), "INVALID_ARGUMENT", LocalDateTime.now()));
+                .body(new ErrorResponse(message, "INVALID_ARGUMENT", LocalDateTime.now()));
     }
 
     /**
@@ -158,9 +197,11 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException e) {
+        // e.getMessage()에는 "method.param: must be greater than or equal to 0" 같은
+        // 프레임워크 내부 영문 상세가 포함되므로 클라이언트에 그대로 노출하지 않는다.
         log.warn("제약 조건 위반: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(e.getMessage(), "CONSTRAINT_VIOLATION", LocalDateTime.now()));
+                .body(new ErrorResponse(DEFAULT_INVALID_REQUEST_MESSAGE, "CONSTRAINT_VIOLATION", LocalDateTime.now()));
     }
 
     /**
