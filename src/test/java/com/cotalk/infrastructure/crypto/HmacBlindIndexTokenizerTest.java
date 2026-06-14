@@ -142,4 +142,22 @@ class HmacBlindIndexTokenizerTest {
         assertThatThrownBy(() -> new HmacBlindIndexTokenizer(appPropertiesWithSecret("")))
                 .isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    @DisplayName("시크릿이 null(미설정)이면 — AppProperties가 \"\"로 치환해도 — 생성 시 fail-fast로 거부한다")
+    void should_throw_when_secretNull() {
+        // AppProperties.Search compact 생성자가 null→""로 치환하므로, 빈 시크릿 거부 경로로 수렴해야 한다.
+        // (설정 누락 시 빈 시크릿으로 조용히 동작하는 보안 구멍이 없음을 보장)
+        assertThat(new AppProperties.Search(null).blindIndexSecret()).isEmpty();
+        assertThatThrownBy(() -> new HmacBlindIndexTokenizer(appPropertiesWithSecret(null)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("blind-index-secret");
+    }
+
+    @Test
+    @DisplayName("공백만 있는 시크릿도 fail-fast로 거부한다")
+    void should_throw_when_secretBlank() {
+        assertThatThrownBy(() -> new HmacBlindIndexTokenizer(appPropertiesWithSecret("   ")))
+                .isInstanceOf(IllegalStateException.class);
+    }
 }
