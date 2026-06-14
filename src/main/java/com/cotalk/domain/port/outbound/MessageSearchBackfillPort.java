@@ -3,6 +3,7 @@ package com.cotalk.domain.port.outbound;
 import com.cotalk.domain.entity.Message;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 기존 암호화 메시지의 검색 토큰 백필을 위한 아웃바운드 포트.
@@ -34,14 +35,18 @@ public interface MessageSearchBackfillPort {
     List<Message> findTextMessagesForBackfill(long afterId, int chunkSize);
 
     /**
-     * 특정 메시지에 이미 검색 토큰이 적재되어 있는지 확인한다.
+     * 주어진 메시지 ID 집합 중 이미 검색 토큰이 적재된 ID들을 한 번의 쿼리로 조회한다.
      *
      * <p>"이미 토큰이 있는 메시지는 건너뛰기(skip-existing)" 최적화에 사용한다. 백필 자체는
      * delete-then-insert로 항상 idempotent하지만, 신규 메시지(PR1)로 이미 토큰이 있는 메시지의
      * 불필요한 복호화/HMAC 재계산을 피해 대량 데이터에서 부하를 줄인다.</p>
      *
-     * @param messageId 확인할 메시지 ID
-     * @return 토큰이 1개 이상 존재하면 {@code true}
+     * <p><b>N+1 방지:</b> 청크의 메시지마다 단건 존재 조회를 하면 청크 크기만큼 SELECT가
+     * 발생한다. 이 메서드는 청크의 모든 message_id를 {@code IN} 절로 한 번에 조회해 청크당
+     * SELECT를 1회로 줄인다. 빈 입력이면 빈 집합을 반환한다.</p>
+     *
+     * @param messageIds 확인할 메시지 ID 목록(보통 한 청크)
+     * @return 토큰이 1개 이상 존재하는 메시지 ID 집합
      */
-    boolean hasTokens(long messageId);
+    Set<Long> findExistingTokenMessageIds(List<Long> messageIds);
 }

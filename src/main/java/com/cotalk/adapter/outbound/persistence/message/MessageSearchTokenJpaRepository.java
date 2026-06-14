@@ -5,6 +5,9 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
+
 /**
  * 메시지 검색 토큰 JPA 리포지토리.
  *
@@ -23,10 +26,14 @@ public interface MessageSearchTokenJpaRepository
     void deleteByMessageId(@Param("messageId") Long messageId);
 
     /**
-     * 특정 메시지에 검색 토큰이 1개 이상 존재하는지 확인한다. (백필 skip-existing 최적화용)
+     * 주어진 메시지 ID들 중 검색 토큰이 1개 이상 존재하는 ID를 한 번의 {@code IN} 쿼리로 조회한다.
+     * (백필 skip-existing N+1 방지용)
      *
-     * @param messageId 메시지 ID
-     * @return 토큰이 존재하면 {@code true}
+     * <p>청크의 모든 message_id를 한 번에 조회해 청크당 SELECT를 1회로 줄인다.</p>
+     *
+     * @param messageIds 확인할 메시지 ID 목록
+     * @return 토큰이 존재하는 message_id의 distinct 목록
      */
-    boolean existsByMessageId(Long messageId);
+    @Query("SELECT DISTINCT t.messageId FROM MessageSearchTokenJpaEntity t WHERE t.messageId IN :messageIds")
+    List<Long> findExistingTokenMessageIds(@Param("messageIds") Collection<Long> messageIds);
 }

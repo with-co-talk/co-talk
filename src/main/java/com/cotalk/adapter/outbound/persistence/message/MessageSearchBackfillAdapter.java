@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 기존 메시지 검색 토큰 백필용 영속성 어댑터 (PR2).
@@ -36,13 +37,19 @@ public class MessageSearchBackfillAdapter implements MessageSearchBackfillPort {
     }
 
     /**
-     * 메시지에 검색 토큰이 이미 존재하는지 확인한다.
+     * 주어진 메시지 ID 집합 중 이미 검색 토큰이 적재된 ID들을 한 번의 {@code IN} 쿼리로 조회한다.
      *
-     * @param messageId 메시지 ID
-     * @return 토큰이 존재하면 {@code true}
+     * <p>청크당 SELECT 1회로 skip-existing N+1을 제거한다. 빈 입력이면 DB 조회 없이 빈 집합을
+     * 반환한다(빈 {@code IN} 절 회피).</p>
+     *
+     * @param messageIds 확인할 메시지 ID 목록
+     * @return 토큰이 존재하는 메시지 ID 집합
      */
     @Override
-    public boolean hasTokens(long messageId) {
-        return messageSearchTokenJpaRepository.existsByMessageId(messageId);
+    public Set<Long> findExistingTokenMessageIds(List<Long> messageIds) {
+        if (messageIds == null || messageIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(messageSearchTokenJpaRepository.findExistingTokenMessageIds(messageIds));
     }
 }
