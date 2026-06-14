@@ -114,13 +114,45 @@ public record AppProperties(
      * 프로덕션에서는 반드시 환경변수로 주입해야 하며 기본값이 없다(보안).</p>
      *
      * @param blindIndexSecret 블라인드 인덱스 HMAC 시크릿 (Base64, 기본값 없음)
+     * @param backfill         기존 메시지 검색 토큰 백필(1회성 관리 작업) 설정
      */
-    public record Search(String blindIndexSecret) {
+    public record Search(String blindIndexSecret, Backfill backfill) {
         public Search {
             if (blindIndexSecret == null) {
                 blindIndexSecret = "";
             }
+            if (backfill == null) {
+                backfill = new Backfill(false, 0, 0L, true);
+            }
         }
+
+        /**
+         * 백필 설정을 생략하고 시크릿만으로 {@link Search}를 만든다(백필 기본 비활성).
+         *
+         * <p>{@code @ConfigurationProperties} 생성자 바인딩이 모호해지지 않도록(단일 생성자 유지)
+         * 별도 생성자가 아닌 정적 팩터리로 제공한다. 테스트/수동 생성용.</p>
+         *
+         * @param blindIndexSecret 블라인드 인덱스 HMAC 시크릿
+         * @return 백필 기본값(비활성)을 가진 {@link Search}
+         */
+        public static Search of(String blindIndexSecret) {
+            return new Search(blindIndexSecret, null);
+        }
+    }
+
+    /**
+     * 기존 암호화 메시지 검색 토큰 백필(PR2) 설정.
+     *
+     * <p>대량 데이터를 복호화→토큰화→적재하는 1회성 관리 작업이라 실수 실행을 막기 위해
+     * 기본 비활성({@code enabled=false})이다. 운영에서는 {@code app.search.backfill.enabled=true}로
+     * 명시적으로 켜고, 청크 크기/throttle로 부하를 제어한다.</p>
+     *
+     * @param enabled        애플리케이션 기동 시 백필 자동 실행 여부 (기본 false — 안전)
+     * @param chunkSize      한 청크(=한 트랜잭션) 당 메시지 수 (0/음수면 서비스 기본 500)
+     * @param throttleMillis 청크 사이 슬립(ms). 운영 부하 제어용 (기본 0 = 슬립 없음)
+     * @param skipExisting   이미 토큰이 있는 메시지(신규 PR1 적재분)는 건너뛸지 여부 (기본 true)
+     */
+    public record Backfill(boolean enabled, int chunkSize, long throttleMillis, boolean skipExisting) {
     }
 
     /**
@@ -169,7 +201,7 @@ public record AppProperties(
             swagger = new Swagger("http://localhost:8080", "API 서버");
         }
         if (search == null) {
-            search = new Search("");
+            search = new Search("", null);
         }
     }
 }
