@@ -110,16 +110,16 @@ public class MessageRepositoryAdapter implements MessageRepository {
      * @param chatRoomId 채팅방 ID
      * @param tokens 키워드 토큰 집합
      * @param tokenCount 토큰 개수
-     * @param page 페이지 번호
-     * @param size 조회 크기 (over-fetch 한도)
+     * @param offset 조회 시작 오프셋 (사용자 page 기준)
+     * @param limit 조회 윈도우 크기 (over-fetch 한도)
      * @return 토큰 조건을 만족하는 메시지 목록
      */
     @Override
-    public List<Message> searchByTokensInChatRoom(Long chatRoomId, List<String> tokens, long tokenCount, int page, int size) {
+    public List<Message> searchByTokensInChatRoom(Long chatRoomId, List<String> tokens, long tokenCount, long offset, int limit) {
         if (tokens == null || tokens.isEmpty()) {
             return List.of();
         }
-        return messageJpaRepository.searchByTokensInChatRoom(chatRoomId, tokens, tokenCount, PageRequest.of(page, size));
+        return messageJpaRepository.searchByTokensInChatRoom(chatRoomId, tokens, tokenCount, OffsetLimitPageable.of(offset, limit));
     }
 
     /**
@@ -128,16 +128,16 @@ public class MessageRepositoryAdapter implements MessageRepository {
      * @param userId 사용자 ID
      * @param tokens 키워드 토큰 집합
      * @param tokenCount 토큰 개수
-     * @param page 페이지 번호
-     * @param size 조회 크기 (over-fetch 한도)
+     * @param offset 조회 시작 오프셋 (사용자 page 기준)
+     * @param limit 조회 윈도우 크기 (over-fetch 한도)
      * @return 토큰 조건을 만족하는 메시지 목록
      */
     @Override
-    public List<Message> searchByTokensInUserChatRooms(Long userId, List<String> tokens, long tokenCount, int page, int size) {
+    public List<Message> searchByTokensInUserChatRooms(Long userId, List<String> tokens, long tokenCount, long offset, int limit) {
         if (tokens == null || tokens.isEmpty()) {
             return List.of();
         }
-        return messageJpaRepository.searchByTokensInUserChatRooms(userId, tokens, tokenCount, PageRequest.of(page, size));
+        return messageJpaRepository.searchByTokensInUserChatRooms(userId, tokens, tokenCount, OffsetLimitPageable.of(offset, limit));
     }
 
     /**

@@ -81,7 +81,8 @@ public class SearchMessageService implements SearchMessageUseCase {
         }
 
         List<Message> candidates = messageRepository.searchByTokensInChatRoom(
-                chatRoomId, List.copyOf(tokens), tokens.size(), page, fetchSize(clampedSize));
+                chatRoomId, List.copyOf(tokens), tokens.size(),
+                fetchOffset(page, clampedSize), fetchLimit(clampedSize));
         return finalFilter(candidates, trimmed, clampedSize);
     }
 
@@ -111,7 +112,8 @@ public class SearchMessageService implements SearchMessageUseCase {
         }
 
         List<Message> candidates = messageRepository.searchByTokensInUserChatRooms(
-                userId, List.copyOf(tokens), tokens.size(), page, fetchSize(clampedSize));
+                userId, List.copyOf(tokens), tokens.size(),
+                fetchOffset(page, clampedSize), fetchLimit(clampedSize));
         return finalFilter(candidates, trimmed, clampedSize);
     }
 
@@ -137,8 +139,20 @@ public class SearchMessageService implements SearchMessageUseCase {
         return keyword == null || keyword.trim().isEmpty();
     }
 
+    /**
+     * 키워드 길이를 검증한다.
+     *
+     * <p>토큰화 파이프라인({@code normalize})은 내부 공백/제어문자까지 제거하므로,
+     * 동일한 정규화를 적용한 뒤 코드포인트 수로 3글자 미만을 판정한다.
+     * (예: "a b"는 trim만으로는 3글자지만 normalize 후 "ab"=2글자라 트라이그램이 0개가 되어
+     * 조용한 빈 결과가 된다 — 이를 명시적 거부로 전환한다.)</p>
+     *
+     * @param trimmed 앞뒤 공백을 제거한 키워드
+     * @throws IllegalArgumentException 정규화 후 3글자 미만인 경우
+     */
     private void validateKeywordLength(String trimmed) {
-        if (trimmed.codePointCount(0, trimmed.length()) < MIN_KEYWORD_LENGTH) {
+        String normalized = blindIndexTokenizer.normalize(trimmed);
+        if (normalized.codePointCount(0, normalized.length()) < MIN_KEYWORD_LENGTH) {
             throw new IllegalArgumentException("검색어는 3글자 이상 입력해야 합니다.");
         }
     }
@@ -147,7 +161,26 @@ public class SearchMessageService implements SearchMessageUseCase {
         return Math.min(Math.max(size, 1), 100);
     }
 
-    private int fetchSize(int clampedSize) {
+    /**
+     * 1단계 조회의 시작 오프셋. 사용자 page 기준(page * clampedSize)이어야 over-fetch가
+     * 윈도우 크기만 키우고 오프셋은 어긋나지 않는다.
+     *
+     * @param page        사용자 페이지 번호
+     * @param clampedSize 클램프된 페이지 크기
+     * @return 조회 시작 오프셋
+     */
+    private long fetchOffset(int page, int clampedSize) {
+        return (long) page * clampedSize;
+    }
+
+    /**
+     * 1단계 조회의 윈도우 크기(limit). 2단계 복호화 substring 검증에서 행이 줄어들 수 있어
+     * size보다 넉넉히(over-fetch) 가져온다.
+     *
+     * @param clampedSize 클램프된 페이지 크기
+     * @return over-fetch limit
+     */
+    private int fetchLimit(int clampedSize) {
         return Math.min(clampedSize * OVER_FETCH_MULTIPLIER, 300);
     }
 }

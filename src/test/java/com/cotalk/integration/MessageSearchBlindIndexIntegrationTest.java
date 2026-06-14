@@ -235,6 +235,40 @@ class MessageSearchBlindIndexIntegrationTest {
     }
 
     @Test
+    @DisplayName("page>0 페이징이 사용자 페이지 기준 오프셋으로 동작한다 (over-fetch 윈도우와 무관하게 누락/중복 없음)")
+    void should_paginateCorrectly_when_pageGreaterThanZero() {
+        Long sender = createUser("p@test.com", "페이지");
+        Long roomId = createRoomWithMembers(sender);
+
+        // 10건 저장 (createdAt DESC 정렬 — 나중에 보낸 것이 앞).
+        for (int i = 0; i < 10; i++) {
+            sendMessageUseCase.sendMessage(roomId, sender, "회의시간 메시지 " + i);
+        }
+
+        // page=0, size=3 → 첫 3건. page=1 → 다음 3건. 겹치지 않아야 한다.
+        List<Message> page0 = searchMessageUseCase.searchInChatRoom(roomId, sender, "회의시간", 0, 3);
+        List<Message> page1 = searchMessageUseCase.searchInChatRoom(roomId, sender, "회의시간", 1, 3);
+        List<Message> page2 = searchMessageUseCase.searchInChatRoom(roomId, sender, "회의시간", 2, 3);
+
+        assertThat(page0).hasSize(3);
+        assertThat(page1).hasSize(3);
+        assertThat(page2).hasSize(3);
+
+        List<Long> ids0 = page0.stream().map(Message::getId).toList();
+        List<Long> ids1 = page1.stream().map(Message::getId).toList();
+        List<Long> ids2 = page2.stream().map(Message::getId).toList();
+
+        // 페이지 간 중복 없음 (버그 시: page1 오프셋이 9가 되어 누락/중복 발생)
+        assertThat(ids0).doesNotContainAnyElementsOf(ids1);
+        assertThat(ids1).doesNotContainAnyElementsOf(ids2);
+        assertThat(ids0).doesNotContainAnyElementsOf(ids2);
+
+        // 세 페이지 합쳐 9개 distinct (전체 10개 중 연속된 윈도우)
+        assertThat(java.util.stream.Stream.of(ids0, ids1, ids2)
+                .flatMap(List::stream).distinct().count()).isEqualTo(9L);
+    }
+
+    @Test
     @DisplayName("메시지 수정 시 재토큰화되어 새 키워드로 검색되고 옛 키워드로는 검색되지 않는다")
     void should_reTokenize_onUpdate() {
         Long sender = createUser("h@test.com", "거북이");

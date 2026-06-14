@@ -92,11 +92,11 @@ public interface MessageRepository {
      * @param chatRoomId 채팅방 ID
      * @param tokens     키워드를 토큰화한 토큰 집합
      * @param tokenCount 토큰 개수 (모든 토큰 포함 조건)
-     * @param page       페이지 번호 (0부터 시작)
-     * @param size       조회 크기 (over-fetch 한도)
+     * @param offset     조회 시작 오프셋 (사용자 page 기준: page * size)
+     * @param limit      조회 윈도우 크기 (over-fetch 한도)
      * @return 토큰 조건을 만족하는 메시지 목록 (최신순)
      */
-    List<Message> searchByTokensInChatRoom(Long chatRoomId, List<String> tokens, long tokenCount, int page, int size);
+    List<Message> searchByTokensInChatRoom(Long chatRoomId, List<String> tokens, long tokenCount, long offset, int limit);
 
     /**
      * 사용자가 속한 모든 채팅방에서 블라인드 인덱스 토큰으로 메시지를 검색한다. (2단계 검색의 1단계)
@@ -106,11 +106,11 @@ public interface MessageRepository {
      * @param userId     사용자 ID
      * @param tokens     키워드를 토큰화한 토큰 집합
      * @param tokenCount 토큰 개수 (모든 토큰 포함 조건)
-     * @param page       페이지 번호 (0부터 시작)
-     * @param size       조회 크기 (over-fetch 한도)
+     * @param offset     조회 시작 오프셋 (사용자 page 기준: page * size)
+     * @param limit      조회 윈도우 크기 (over-fetch 한도)
      * @return 토큰 조건을 만족하는 메시지 목록 (최신순)
      */
-    List<Message> searchByTokensInUserChatRooms(Long userId, List<String> tokens, long tokenCount, int page, int size);
+    List<Message> searchByTokensInUserChatRooms(Long userId, List<String> tokens, long tokenCount, long offset, int limit);
 
     /**
      * 전체 메시지 수를 조회한다.

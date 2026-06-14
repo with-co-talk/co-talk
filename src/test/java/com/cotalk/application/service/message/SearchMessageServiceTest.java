@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import org.mockito.ArgumentCaptor;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,6 +28,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 
 /**
  * {@link SearchMessageService} 단위 테스트.
@@ -54,11 +57,19 @@ class SearchMessageServiceTest {
      * normalize는 소문자+공백제거, tokenizeQuery는 비어있지 않은 토큰을 돌려준다.
      */
     private void stubTokenizer(String keyword) {
+        stubNormalize();
+        lenient().when(tokenizer.tokenizeQuery(keyword)).thenReturn(Set.of("tok1", "tok2"));
+    }
+
+    /**
+     * normalize 스텁: 실제 구현과 동일하게 소문자+공백제거, null→"".
+     * 길이 가드가 normalize 결과를 사용하므로(조용한 빈 결과 방지) 거부 경로 테스트에도 필요하다.
+     */
+    private void stubNormalize() {
         lenient().when(tokenizer.normalize(any())).thenAnswer(inv -> {
             String s = inv.getArgument(0);
             return s == null ? "" : s.toLowerCase().replaceAll("\\s+", "");
         });
-        lenient().when(tokenizer.tokenizeQuery(keyword)).thenReturn(Set.of("tok1", "tok2"));
     }
 
     @Test
@@ -73,7 +84,7 @@ class SearchMessageServiceTest {
         Message m2 = Message.builder().id(2L).chatRoomId(chatRoomId).senderId(200L).content("안녕하세요 반가워요").build();
 
         given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
-        given(messageRepository.searchByTokensInChatRoom(eq(chatRoomId), any(), anyLong(), anyInt(), anyInt()))
+        given(messageRepository.searchByTokensInChatRoom(eq(chatRoomId), any(), anyLong(), anyLong(), anyInt()))
                 .willReturn(List.of(m1, m2));
 
         List<Message> result = searchMessageService.searchInChatRoom(chatRoomId, userId, keyword, 0, 20);
@@ -96,7 +107,7 @@ class SearchMessageServiceTest {
                 .content("비밀 얘기, 전화번호 알려줘").build(); // '비밀번호' 연속 아님
 
         given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
-        given(messageRepository.searchByTokensInChatRoom(eq(chatRoomId), any(), anyLong(), anyInt(), anyInt()))
+        given(messageRepository.searchByTokensInChatRoom(eq(chatRoomId), any(), anyLong(), anyLong(), anyInt()))
                 .willReturn(List.of(hit, falsePositive));
 
         List<Message> result = searchMessageService.searchInChatRoom(chatRoomId, userId, keyword, 0, 20);
@@ -145,6 +156,7 @@ class SearchMessageServiceTest {
     void should_rejectKeyword_when_shorterThanThreeChars(int len, String keyword) {
         Long chatRoomId = 1L;
         Long userId = 100L;
+        stubNormalize();
 
         given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
 
@@ -156,6 +168,7 @@ class SearchMessageServiceTest {
     @Test
     @DisplayName("전체 채팅방 검색에서도 3글자 미만 키워드는 거부한다")
     void should_rejectKeyword_when_shortInAllChatRooms() {
+        stubNormalize();
         assertThatThrownBy(() -> searchMessageService.searchAcrossAllChatRooms(100L, "가나", 0, 20))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("3글자");
@@ -179,7 +192,7 @@ class SearchMessageServiceTest {
         Message m1 = Message.builder().id(1L).chatRoomId(1L).senderId(100L).content("회의시간 알려주세요").build();
         Message m2 = Message.builder().id(2L).chatRoomId(2L).senderId(200L).content("회의시간 정했어요").build();
 
-        given(messageRepository.searchByTokensInUserChatRooms(eq(userId), any(), anyLong(), anyInt(), anyInt()))
+        given(messageRepository.searchByTokensInUserChatRooms(eq(userId), any(), anyLong(), anyLong(), anyInt()))
                 .willReturn(List.of(m1, m2));
 
         List<Message> result = searchMessageService.searchAcrossAllChatRooms(userId, keyword, 0, 20);
@@ -199,7 +212,7 @@ class SearchMessageServiceTest {
         Message deleted = Message.builder().id(2L).chatRoomId(chatRoomId).senderId(200L).content("회의시간 변경").deleted(true).build();
 
         given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
-        given(messageRepository.searchByTokensInChatRoom(eq(chatRoomId), any(), anyLong(), anyInt(), anyInt()))
+        given(messageRepository.searchByTokensInChatRoom(eq(chatRoomId), any(), anyLong(), anyLong(), anyInt()))
                 .willReturn(List.of(alive, deleted));
 
         List<Message> result = searchMessageService.searchInChatRoom(chatRoomId, userId, keyword, 0, 20);
@@ -221,11 +234,69 @@ class SearchMessageServiceTest {
         Message c = Message.builder().id(3L).chatRoomId(chatRoomId).senderId(100L).content("회의시간 3").build();
 
         given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
-        given(messageRepository.searchByTokensInChatRoom(eq(chatRoomId), any(), anyLong(), anyInt(), anyInt()))
+        given(messageRepository.searchByTokensInChatRoom(eq(chatRoomId), any(), anyLong(), anyLong(), anyInt()))
                 .willReturn(List.of(a, b, c));
 
         List<Message> result = searchMessageService.searchInChatRoom(chatRoomId, userId, keyword, 0, 2);
 
         assertThat(result).hasSize(2).extracting(Message::getId).containsExactly(1L, 2L);
+    }
+
+    @Test
+    @DisplayName("page>0이면 오프셋이 page*size(=윈도우 크기가 아니라 사용자 페이지 기준)로 전달된다")
+    void should_useUserPageOffset_when_pageGreaterThanZero() {
+        Long chatRoomId = 1L;
+        Long userId = 100L;
+        String keyword = "회의시간";
+        stubTokenizer(keyword);
+
+        given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
+        given(messageRepository.searchByTokensInChatRoom(eq(chatRoomId), any(), anyLong(), anyLong(), anyInt()))
+                .willReturn(List.of());
+
+        // page=2, size=20 → offset은 2*20=40 이어야 한다 (over-fetch 윈도우 60이 아니라).
+        searchMessageService.searchInChatRoom(chatRoomId, userId, keyword, 2, 20);
+
+        ArgumentCaptor<Long> offsetCaptor = ArgumentCaptor.forClass(Long.class);
+        ArgumentCaptor<Integer> limitCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(messageRepository).searchByTokensInChatRoom(
+                eq(chatRoomId), any(), anyLong(), offsetCaptor.capture(), limitCaptor.capture());
+
+        assertThat(offsetCaptor.getValue()).isEqualTo(40L);
+        assertThat(limitCaptor.getValue()).isEqualTo(60); // over-fetch = size * 3
+    }
+
+    @Test
+    @DisplayName("전체 채팅방 검색도 page>0에서 사용자 페이지 기준 오프셋을 사용한다")
+    void should_useUserPageOffset_inAllChatRooms_when_pageGreaterThanZero() {
+        Long userId = 100L;
+        String keyword = "회의시간";
+        stubTokenizer(keyword);
+
+        given(messageRepository.searchByTokensInUserChatRooms(eq(userId), any(), anyLong(), anyLong(), anyInt()))
+                .willReturn(List.of());
+
+        searchMessageService.searchAcrossAllChatRooms(userId, keyword, 3, 10);
+
+        ArgumentCaptor<Long> offsetCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(messageRepository).searchByTokensInUserChatRooms(
+                eq(userId), any(), anyLong(), offsetCaptor.capture(), anyInt());
+
+        assertThat(offsetCaptor.getValue()).isEqualTo(30L); // 3 * 10
+    }
+
+    @Test
+    @DisplayName("내부 공백 제거(normalize) 후 3글자 미만이면 거부한다 (\"a b\"=2글자) — 조용한 빈 결과 방지")
+    void should_rejectKeyword_when_normalizedLengthBelowThree() {
+        Long chatRoomId = 1L;
+        Long userId = 100L;
+        // normalize는 공백을 제거하므로 "a b" → "ab"(2글자) → 트라이그램 0개가 되어야 한다.
+        stubNormalize();
+
+        given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)).willReturn(true);
+
+        assertThatThrownBy(() -> searchMessageService.searchInChatRoom(chatRoomId, userId, "a b", 0, 20))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("3글자");
     }
 }
