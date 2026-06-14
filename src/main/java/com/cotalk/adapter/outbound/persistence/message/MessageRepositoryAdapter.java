@@ -105,31 +105,39 @@ public class MessageRepositoryAdapter implements MessageRepository {
     }
 
     /**
-     * 특정 채팅방에서 키워드로 메시지를 검색한다.
+     * 특정 채팅방에서 블라인드 인덱스 토큰으로 메시지를 검색한다. (1단계)
      *
      * @param chatRoomId 채팅방 ID
-     * @param keyword 검색 키워드
+     * @param tokens 키워드 토큰 집합
+     * @param tokenCount 토큰 개수
      * @param page 페이지 번호
-     * @param size 페이지 크기
-     * @return 검색된 메시지 목록
+     * @param size 조회 크기 (over-fetch 한도)
+     * @return 토큰 조건을 만족하는 메시지 목록
      */
     @Override
-    public List<Message> searchByKeywordInChatRoom(Long chatRoomId, String keyword, int page, int size) {
-        return messageJpaRepository.searchByKeywordInChatRoom(chatRoomId, keyword, PageRequest.of(page, size));
+    public List<Message> searchByTokensInChatRoom(Long chatRoomId, List<String> tokens, long tokenCount, int page, int size) {
+        if (tokens == null || tokens.isEmpty()) {
+            return List.of();
+        }
+        return messageJpaRepository.searchByTokensInChatRoom(chatRoomId, tokens, tokenCount, PageRequest.of(page, size));
     }
 
     /**
-     * 사용자가 참여한 모든 채팅방에서 키워드로 메시지를 검색한다.
+     * 사용자가 참여한 모든 채팅방에서 블라인드 인덱스 토큰으로 메시지를 검색한다. (1단계)
      *
      * @param userId 사용자 ID
-     * @param keyword 검색 키워드
+     * @param tokens 키워드 토큰 집합
+     * @param tokenCount 토큰 개수
      * @param page 페이지 번호
-     * @param size 페이지 크기
-     * @return 검색된 메시지 목록
+     * @param size 조회 크기 (over-fetch 한도)
+     * @return 토큰 조건을 만족하는 메시지 목록
      */
     @Override
-    public List<Message> searchByKeywordInUserChatRooms(Long userId, String keyword, int page, int size) {
-        return messageJpaRepository.searchByKeywordInUserChatRooms(userId, keyword, PageRequest.of(page, size));
+    public List<Message> searchByTokensInUserChatRooms(Long userId, List<String> tokens, long tokenCount, int page, int size) {
+        if (tokens == null || tokens.isEmpty()) {
+            return List.of();
+        }
+        return messageJpaRepository.searchByTokensInUserChatRooms(userId, tokens, tokenCount, PageRequest.of(page, size));
     }
 
     /**

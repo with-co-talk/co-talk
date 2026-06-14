@@ -4,6 +4,9 @@ import com.cotalk.adapter.outbound.persistence.chatroom.ChatRoomMemberRepository
 import com.cotalk.adapter.outbound.persistence.chatroom.ChatRoomRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.message.MessageRepositoryAdapter;
+import com.cotalk.adapter.outbound.persistence.message.MessageSearchTokenJpaEntity;
+import com.cotalk.adapter.outbound.persistence.message.MessageSearchTokenJpaRepository;
+import com.cotalk.adapter.outbound.persistence.message.MessageSearchTokenRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.ChatRoom;
 import com.cotalk.domain.entity.ChatRoom.ChatRoomType;
@@ -35,13 +38,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import({MessageRepositoryAdapter.class, ChatRoomRepositoryAdapter.class,
+@Import({MessageRepositoryAdapter.class, MessageSearchTokenRepositoryAdapter.class, ChatRoomRepositoryAdapter.class,
         ChatRoomMemberRepositoryAdapter.class, UserRepositoryAdapter.class, UserMapper.class, JpaAuditingConfig.class})
 @DisplayName("MessageRepositoryAdapter")
 class MessageRepositoryAdapterTest {
 
     @Autowired
     private MessageRepositoryAdapter messageRepository;
+
+    @Autowired
+    private MessageSearchTokenJpaRepository tokenJpaRepository;
 
     @Autowired
     private ChatRoomRepositoryAdapter chatRoomRepository;
@@ -420,82 +426,70 @@ class MessageRepositoryAdapterTest {
     @DisplayName("메시지 검색 시")
     class Search {
 
-        @Test
-        @DisplayName("특정 채팅방에서 키워드로 메시지를 검색한다")
-        void should_searchMessages_when_keywordProvided() {
-            // given
-            messageRepository.save(Message.builder()
-                    .id(10001L)
-                    .chatRoomId(chatRoom.getId())
-                    .senderId(user1.getId())
-                    .content("안녕하세요 반갑습니다")
-                    .type(MessageType.TEXT)
-                    .build());
-            messageRepository.save(Message.builder()
-                    .id(10002L)
-                    .chatRoomId(chatRoom.getId())
-                    .senderId(user2.getId())
-                    .content("네 안녕하세요")
-                    .type(MessageType.TEXT)
-                    .build());
-            messageRepository.save(Message.builder()
-                    .id(10003L)
-                    .chatRoomId(chatRoom.getId())
-                    .senderId(user1.getId())
-                    .content("오늘 날씨 좋네요")
-                    .type(MessageType.TEXT)
-                    .build());
-
-            // when
-            List<Message> results = messageRepository.searchByKeywordInChatRoom(
-                    chatRoom.getId(), "안녕", 0, 10);
-
-            // then
-            assertThat(results).hasSize(2);
+        private void token(Long messageId, String... tokens) {
+            for (String t : tokens) {
+                tokenJpaRepository.save(MessageSearchTokenJpaEntity.of(messageId, t));
+            }
         }
 
         @Test
-        @DisplayName("사용자가 참여한 모든 채팅방에서 키워드로 검색한다")
+        @DisplayName("특정 채팅방에서 토큰으로 메시지를 검색한다 (모든 토큰 포함)")
+        void should_searchMessages_when_tokensProvided() {
+            // given: 두 메시지는 "안녕"의 토큰을 모두 보유, 세 번째는 무관
+            messageRepository.save(Message.builder()
+                    .id(10001L).chatRoomId(chatRoom.getId()).senderId(user1.getId())
+                    .content("안녕하세요 반갑습니다").type(MessageType.TEXT).build());
+            token(10001L, "t-an");
+            messageRepository.save(Message.builder()
+                    .id(10002L).chatRoomId(chatRoom.getId()).senderId(user2.getId())
+                    .content("네 안녕하세요").type(MessageType.TEXT).build());
+            token(10002L, "t-an");
+            messageRepository.save(Message.builder()
+                    .id(10003L).chatRoomId(chatRoom.getId()).senderId(user1.getId())
+                    .content("오늘 날씨 좋네요").type(MessageType.TEXT).build());
+            token(10003L, "t-weather");
+
+            // when
+            List<Message> results = messageRepository.searchByTokensInChatRoom(
+                    chatRoom.getId(), List.of("t-an"), 1, 0, 10);
+
+            // then
+            assertThat(results).extracting(Message::getId).containsExactlyInAnyOrder(10001L, 10002L);
+        }
+
+        @Test
+        @DisplayName("사용자가 참여한 모든 채팅방에서 토큰으로 검색한다")
         void should_searchAcrossChatRooms_when_userIdProvided() {
             // given
             messageRepository.save(Message.builder()
-                    .id(10001L)
-                    .chatRoomId(chatRoom.getId())
-                    .senderId(user1.getId())
-                    .content("프로젝트 관련 내용입니다")
-                    .type(MessageType.TEXT)
-                    .build());
+                    .id(10001L).chatRoomId(chatRoom.getId()).senderId(user1.getId())
+                    .content("프로젝트 관련 내용입니다").type(MessageType.TEXT).build());
+            token(10001L, "t-proj");
             messageRepository.save(Message.builder()
-                    .id(10002L)
-                    .chatRoomId(chatRoom2.getId())
-                    .senderId(user1.getId())
-                    .content("프로젝트 일정 공유드립니다")
-                    .type(MessageType.TEXT)
-                    .build());
+                    .id(10002L).chatRoomId(chatRoom2.getId()).senderId(user1.getId())
+                    .content("프로젝트 일정 공유드립니다").type(MessageType.TEXT).build());
+            token(10002L, "t-proj");
 
             // when
-            List<Message> results = messageRepository.searchByKeywordInUserChatRooms(
-                    user1.getId(), "프로젝트", 0, 10);
+            List<Message> results = messageRepository.searchByTokensInUserChatRooms(
+                    user1.getId(), List.of("t-proj"), 1, 0, 10);
 
             // then
             assertThat(results).hasSize(2);
         }
 
         @Test
-        @DisplayName("검색 결과가 없으면 빈 목록을 반환한다")
+        @DisplayName("토큰 조건을 만족하는 메시지가 없으면 빈 목록을 반환한다")
         void should_returnEmptyList_when_noResults() {
             // given
             messageRepository.save(Message.builder()
-                    .id(10001L)
-                    .chatRoomId(chatRoom.getId())
-                    .senderId(user1.getId())
-                    .content("테스트 메시지")
-                    .type(MessageType.TEXT)
-                    .build());
+                    .id(10001L).chatRoomId(chatRoom.getId()).senderId(user1.getId())
+                    .content("테스트 메시지").type(MessageType.TEXT).build());
+            token(10001L, "t-test");
 
             // when
-            List<Message> results = messageRepository.searchByKeywordInChatRoom(
-                    chatRoom.getId(), "존재하지않는키워드", 0, 10);
+            List<Message> results = messageRepository.searchByTokensInChatRoom(
+                    chatRoom.getId(), List.of("t-nonexistent"), 1, 0, 10);
 
             // then
             assertThat(results).isEmpty();

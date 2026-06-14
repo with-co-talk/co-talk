@@ -84,26 +84,33 @@ public interface MessageRepository {
     List<Message> findByChatRoomIdBeforeMessageId(Long chatRoomId, Long beforeMessageId, int size);
 
     /**
-     * 특정 채팅방 내에서 키워드로 메시지를 검색한다.
+     * 특정 채팅방 내에서 블라인드 인덱스 토큰으로 메시지를 검색한다. (2단계 검색의 1단계)
+     *
+     * <p>키워드의 모든 트라이그램 토큰을 포함하는 메시지를 조회한다. 토큰 AND 매칭은
+     * substring을 보장하지 않으므로, 호출 측(서비스)에서 복호화 후 substring 최종 검증을 수행한다.</p>
      *
      * @param chatRoomId 채팅방 ID
-     * @param keyword    검색 키워드
+     * @param tokens     키워드를 토큰화한 토큰 집합
+     * @param tokenCount 토큰 개수 (모든 토큰 포함 조건)
      * @param page       페이지 번호 (0부터 시작)
-     * @param size       페이지 크기
-     * @return 검색된 메시지 목록 (최신순)
+     * @param size       조회 크기 (over-fetch 한도)
+     * @return 토큰 조건을 만족하는 메시지 목록 (최신순)
      */
-    List<Message> searchByKeywordInChatRoom(Long chatRoomId, String keyword, int page, int size);
+    List<Message> searchByTokensInChatRoom(Long chatRoomId, List<String> tokens, long tokenCount, int page, int size);
 
     /**
-     * 사용자가 속한 모든 채팅방에서 키워드로 메시지를 검색한다.
+     * 사용자가 속한 모든 채팅방에서 블라인드 인덱스 토큰으로 메시지를 검색한다. (2단계 검색의 1단계)
      *
-     * @param userId  사용자 ID
-     * @param keyword 검색 키워드
-     * @param page    페이지 번호 (0부터 시작)
-     * @param size    페이지 크기
-     * @return 검색된 메시지 목록 (최신순)
+     * <p>멤버십 한정 + 토큰 AND 매칭. 복호화 substring 최종 검증은 호출 측에서 수행한다.</p>
+     *
+     * @param userId     사용자 ID
+     * @param tokens     키워드를 토큰화한 토큰 집합
+     * @param tokenCount 토큰 개수 (모든 토큰 포함 조건)
+     * @param page       페이지 번호 (0부터 시작)
+     * @param size       조회 크기 (over-fetch 한도)
+     * @return 토큰 조건을 만족하는 메시지 목록 (최신순)
      */
-    List<Message> searchByKeywordInUserChatRooms(Long userId, String keyword, int page, int size);
+    List<Message> searchByTokensInUserChatRooms(Long userId, List<String> tokens, long tokenCount, int page, int size);
 
     /**
      * 전체 메시지 수를 조회한다.

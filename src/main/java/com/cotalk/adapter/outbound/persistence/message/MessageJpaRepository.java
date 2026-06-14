@@ -105,31 +105,64 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
             Pageable pageable);
 
     /**
-     * 특정 채팅방에서 키워드로 메시지를 검색한다.
+     * 특정 채팅방에서 블라인드 인덱스 토큰으로 메시지를 검색한다. (2단계 검색의 1단계)
+     *
+     * <p>키워드의 모든 트라이그램 토큰을 포함하는 메시지(= {@code COUNT(DISTINCT token) = :tokenCount})를
+     * 조회한다. 토큰 AND 매칭은 substring을 보장하지 않으므로, 호출 측에서 복호화 후
+     * {@code normalize(content).contains(normalize(keyword))} 최종 검증(2단계)을 수행해야 한다.</p>
      *
      * @param chatRoomId 채팅방 ID
-     * @param keyword 검색 키워드
-     * @param pageable 페이지 정보
-     * @return 검색된 메시지 목록
+     * @param tokens     키워드를 토큰화한 토큰 집합
+     * @param tokenCount 토큰 개수 (모든 토큰 포함 조건)
+     * @param pageable   페이지 정보 (over-fetch 권장)
+     * @return 토큰 조건을 만족하는 메시지 목록 (최신순)
      */
-    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.deleted = false AND LOWER(m.content) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY m.createdAt DESC")
-    List<Message> searchByKeywordInChatRoom(
+    @Query("""
+        SELECT m FROM Message m
+        WHERE m.chatRoomId = :chatRoomId
+          AND m.deleted = false
+          AND m.id IN (
+            SELECT t.messageId FROM MessageSearchTokenJpaEntity t
+            WHERE t.token IN :tokens
+            GROUP BY t.messageId
+            HAVING COUNT(DISTINCT t.token) = :tokenCount
+          )
+        ORDER BY m.createdAt DESC
+        """)
+    List<Message> searchByTokensInChatRoom(
             @Param("chatRoomId") Long chatRoomId,
-            @Param("keyword") String keyword,
+            @Param("tokens") List<String> tokens,
+            @Param("tokenCount") long tokenCount,
             Pageable pageable);
 
     /**
-     * 사용자가 참여한 모든 채팅방에서 키워드로 메시지를 검색한다.
+     * 사용자가 참여한 모든 채팅방에서 블라인드 인덱스 토큰으로 메시지를 검색한다. (2단계 검색의 1단계)
      *
-     * @param userId 사용자 ID
-     * @param keyword 검색 키워드
-     * @param pageable 페이지 정보
-     * @return 검색된 메시지 목록
+     * <p>{@link #searchByTokensInChatRoom}과 동일한 토큰 AND 매칭에 멤버십(cm 서브쿼리) 한정을 결합한다.
+     * 복호화 substring 최종 검증(2단계)은 호출 측에서 수행한다.</p>
+     *
+     * @param userId     사용자 ID
+     * @param tokens     키워드를 토큰화한 토큰 집합
+     * @param tokenCount 토큰 개수 (모든 토큰 포함 조건)
+     * @param pageable   페이지 정보 (over-fetch 권장)
+     * @return 토큰 조건을 만족하는 메시지 목록 (최신순)
      */
-    @Query("SELECT m FROM Message m WHERE m.chatRoomId IN (SELECT cm.chatRoomId FROM ChatRoomMember cm WHERE cm.userId = :userId) AND m.deleted = false AND LOWER(m.content) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY m.createdAt DESC")
-    List<Message> searchByKeywordInUserChatRooms(
+    @Query("""
+        SELECT m FROM Message m
+        WHERE m.chatRoomId IN (SELECT cm.chatRoomId FROM ChatRoomMember cm WHERE cm.userId = :userId)
+          AND m.deleted = false
+          AND m.id IN (
+            SELECT t.messageId FROM MessageSearchTokenJpaEntity t
+            WHERE t.token IN :tokens
+            GROUP BY t.messageId
+            HAVING COUNT(DISTINCT t.token) = :tokenCount
+          )
+        ORDER BY m.createdAt DESC
+        """)
+    List<Message> searchByTokensInUserChatRooms(
             @Param("userId") Long userId,
-            @Param("keyword") String keyword,
+            @Param("tokens") List<String> tokens,
+            @Param("tokenCount") long tokenCount,
             Pageable pageable);
 
     /**
