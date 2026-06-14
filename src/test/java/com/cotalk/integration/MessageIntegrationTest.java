@@ -206,10 +206,10 @@ class MessageIntegrationTest {
     }
 
     @Test
-    @DisplayName("메시지 검색")
+    @DisplayName("메시지 검색 (블라인드 인덱스 3글자 이상 부분일치)")
     void should_searchMessages() throws Exception {
-        // 1. 여러 메시지 전송
-        String[] messages = {"안녕하세요", "반갑습니다", "오늘 날씨가 좋네요", "안녕히 가세요"};
+        // 1. 여러 메시지 전송 — 두 메시지가 "안녕하세" 3-gram을 공유
+        String[] messages = {"안녕하세요", "반갑습니다", "오늘 날씨가 좋네요", "다들 안녕하세 인사"};
         setSecurityContext(user1Id);
         for (String msg : messages) {
             SendMessageRequest request = new SendMessageRequest(chatRoomId, msg);
@@ -219,16 +219,35 @@ class MessageIntegrationTest {
                     .andExpect(status().isCreated());
         }
 
-        // 2. "안녕" 키워드로 검색
+        // 2. "안녕하세" 키워드로 검색 (3글자 이상 — 블라인드 인덱스 부분일치)
+        setSecurityContext(user1Id);
+        mockMvc.perform(get("/api/v1/messages/search")
+                        .param("chatRoomId", chatRoomId.toString())
+                        .param("keyword", "안녕하세")
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.messages").isArray())
+                .andExpect(jsonPath("$.messages.length()").value(2));
+    }
+
+    @Test
+    @DisplayName("3글자 미만 검색어는 400을 반환한다")
+    void should_returnBadRequest_when_keywordTooShort() throws Exception {
+        SendMessageRequest request = new SendMessageRequest(chatRoomId, "안녕하세요");
+        setSecurityContext(user1Id);
+        mockMvc.perform(post("/api/v1/chat/messages")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+
         setSecurityContext(user1Id);
         mockMvc.perform(get("/api/v1/messages/search")
                         .param("chatRoomId", chatRoomId.toString())
                         .param("keyword", "안녕")
                         .param("page", "0")
                         .param("size", "20"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.messages").isArray())
-                .andExpect(jsonPath("$.messages.length()").value(2));
+                .andExpect(status().isBadRequest());
     }
 
     @Test

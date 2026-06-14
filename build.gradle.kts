@@ -95,6 +95,7 @@ dependencies {
     testImplementation(platform("org.testcontainers:testcontainers-bom:1.20.1"))
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql") // 암호화 ON 검색 통합테스트 (prod 동등 Flyway 검증)
     testImplementation("org.awaitility:awaitility:4.2.0") // 비동기 테스트 대기
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
