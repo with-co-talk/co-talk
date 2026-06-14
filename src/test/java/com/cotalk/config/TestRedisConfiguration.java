@@ -1,5 +1,6 @@
 package com.cotalk.config;
 
+import com.cotalk.infrastructure.config.properties.AppProperties;
 import com.cotalk.infrastructure.lock.DistributedLockExecutor;
 import com.cotalk.infrastructure.security.SecurityContextHelper;
 import org.redisson.api.RLock;
@@ -158,7 +159,8 @@ public class TestRedisConfiguration {
     private static class TestDistributedLockExecutor extends DistributedLockExecutor {
 
         public TestDistributedLockExecutor() {
-            super(null);
+            super(null, new AppProperties(null, null, null, null, null, null, null, null,
+                    new AppProperties.Lock(false)));
         }
 
         @Override

@@ -15,6 +15,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param encryption    암호화 설정
  * @param swagger       Swagger UI 설정
  * @param search        메시지 검색(블라인드 인덱스) 설정
+ * @param lock          분산락 설정
  * @author seunggu.lee
  */
 @ConfigurationProperties(prefix = "app")
@@ -26,7 +27,8 @@ public record AppProperties(
         Terms terms,
         Encryption encryption,
         Swagger swagger,
-        Search search
+        Search search,
+        Lock lock
 ) {
     private static final Logger log = LoggerFactory.getLogger(AppProperties.class);
     /**
@@ -156,6 +158,26 @@ public record AppProperties(
     }
 
     /**
+     * 분산락 설정.
+     *
+     * <p>{@code failClosed}는 Redisson(RedissonClient)이 없어 분산락이 NoOp(락 없이 즉시 실행)로
+     * 강등되는 상황을 다루는 정책 스위치다.</p>
+     * <ul>
+     *   <li>{@code false}(기본): 하위호환. NoOp 진입 시 경고만 남기고 락 없이 작업을 실행한다.
+     *       기존 기동 동작(Redis 미가용 시에도 앱 정상 동작)을 보존한다.</li>
+     *   <li>{@code true}(운영 권장): fail-closed. NoOp 상태에서 락 보호가 필요한 작업을 실행하면
+     *       {@code DistributedLockException}을 던져 동시성 보호가 조용히 사라지는 것을 차단한다.</li>
+     * </ul>
+     *
+     * <p>기본값을 {@code false}로 둔 이유: 기존 테스트/로컬/CI 환경(Redis 없이 기동 후 NoOp 동작에
+     * 의존)을 깨지 않기 위함이다. 운영에서는 {@code app.lock.fail-closed=true}로 명시적으로 켠다.</p>
+     *
+     * @param failClosed NoOp 강등 시 예외를 던질지 여부 (기본 false — 하위호환)
+     */
+    public record Lock(boolean failClosed) {
+    }
+
+    /**
      * Swagger UI 설정.
      *
      * @param serverUrl         서버 URL
@@ -202,6 +224,9 @@ public record AppProperties(
         }
         if (search == null) {
             search = new Search("", null);
+        }
+        if (lock == null) {
+            lock = new Lock(false);
         }
     }
 }
