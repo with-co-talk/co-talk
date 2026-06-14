@@ -238,4 +238,72 @@ class GetLinkPreviewServiceTest {
                     .doesNotThrowAnyException();
         }
     }
+
+    /**
+     * DNS 핀(검증-연결 IP 일치) 메커니즘 단위 테스트.
+     * <p>
+     * fetch 직전 검증한 IP를 {@link PinnedHostResolver}에 등록하면, JVM 전역에 설치된
+     * {@link PinnedHostResolverProvider}가 해당 호스트의 모든 DNS 조회를 등록 IP로만 해석한다.
+     * 이로써 검증 시점과 실제 연결 시점의 IP가 항상 일치하여 DNS rebinding(TOCTOU)을 차단한다.
+     * 핀이 없는 호스트는 플랫폼 리졸버로 위임되어 정상 외부 사이트 조회가 깨지지 않는다.
+     * </p>
+     */
+    @Nested
+    @DisplayName("DNS 핀 (검증-연결 IP 일치 보장)")
+    class HostPinning {
+
+        @org.junit.jupiter.api.AfterEach
+        void cleanup() {
+            PinnedHostResolver.clear();
+        }
+
+        @Test
+        @DisplayName("핀 등록 시 InetAddress.getAllByName이 등록된 IP만 반환 (검증=연결 IP)")
+        void should_resolveToPinnedIp_when_hostPinned() throws Exception {
+            // given: 실제 DNS에는 존재하지 않는 가짜 호스트를 검증 IP로 고정
+            String fakeHost = "pinned-fetch-target.cotalk-test.invalid";
+            InetAddress validatedIp = InetAddress.getByName("203.0.113.42"); // TEST-NET-3
+            PinnedHostResolver.pin(fakeHost, validatedIp);
+
+            // when: JDK 네트워크 스택의 표준 진입점으로 조회
+            InetAddress[] resolved = InetAddress.getAllByName(fakeHost);
+
+            // then: 검증에 사용한 바로 그 IP 하나만 반환된다 (실제 연결도 이 IP로 핀됨)
+            assertThat(resolved).hasSize(1);
+            assertThat(resolved[0].getHostAddress()).isEqualTo("203.0.113.42");
+        }
+
+        @Test
+        @DisplayName("핀 해제 후에는 미등록 호스트로 취급되어 더 이상 강제 해석되지 않음")
+        void should_notResolveToPinnedIp_when_cleared() throws Exception {
+            // given
+            String fakeHost = "pinned-fetch-target.cotalk-test.invalid";
+            PinnedHostResolver.pin(fakeHost, InetAddress.getByName("203.0.113.42"));
+
+            // when
+            PinnedHostResolver.clear();
+
+            // then: 핀이 사라졌으므로 레지스트리 조회는 null
+            assertThat(PinnedHostResolver.lookup(fakeHost)).isNull();
+        }
+
+        @Test
+        @DisplayName("호스트명 대소문자 무관하게 핀이 적용됨")
+        void should_pinCaseInsensitively() throws Exception {
+            InetAddress validatedIp = InetAddress.getByName("198.51.100.7"); // TEST-NET-2
+            PinnedHostResolver.pin("MixedCase.Example.Invalid", validatedIp);
+
+            assertThat(PinnedHostResolver.lookup("mixedcase.example.invalid"))
+                    .isEqualTo(validatedIp);
+        }
+
+        @Test
+        @DisplayName("핀이 없는 정상 외부 호스트는 플랫폼 리졸버로 위임되어 정상 조회됨 (회귀 방지)")
+        void should_delegateToPlatform_when_notPinned() throws Exception {
+            // given: 아무 핀도 등록하지 않음
+            // when & then: 잘 알려진 공인 호스트는 플랫폼 DNS로 정상 해석되어야 한다
+            InetAddress[] resolved = InetAddress.getAllByName("dns.google");
+            assertThat(resolved).isNotEmpty();
+        }
+    }
 }

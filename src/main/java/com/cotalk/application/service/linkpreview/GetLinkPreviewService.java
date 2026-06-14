@@ -10,20 +10,13 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
-import javax.net.ssl.SNIHostName;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
-import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.List;
 
 /**
  * URL에서 링크 미리보기 정보를 추출하는 서비스.
@@ -156,9 +149,18 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase, LinkPreview
     /**
      * 호스트를 1회 DNS 조회·검증한 뒤, 검증에 사용한 그 IP로 연결을 고정(pin)하여 요청을 실행한다.
      * <p>
-     * 연결 IP를 검증된 IP로 고정하기 때문에, 검증과 실제 fetch 사이에 DNS 응답이 바뀌어도
-     * 내부 주소로 우회되지 않는다(DNS rebinding 방어). 검증된 IP 리터럴로 연결하되
-     * {@code Host} 헤더에는 원본 호스트를 보존하여 가상 호스팅·TLS SNI 동작을 유지한다.
+     * 검증된 IP를 현재 스레드의 {@link PinnedHostResolver}에 등록하고 <b>원본 호스트명 URL</b> 그대로
+     * fetch한다. JVM 전역에 설치된 {@link PinnedHostResolverProvider}가 이 fetch 동안 해당 호스트의
+     * 모든 DNS 조회를 등록된 IP로만 해석하므로, 검증 시점 IP와 실제 연결 시점 IP가 항상 일치한다
+     * (DNS rebinding·TOCTOU 차단). 원본 호스트명 URL을 사용하기 때문에 가상 호스팅용 {@code Host}
+     * 헤더와 TLS SNI/인증서 검증은 HTTP·HTTPS 모두 JDK 기본 경로로 정상 동작한다.
+     * </p>
+     * <p>
+     * 이전 구현(HTTP: IP 리터럴 + 수동 {@code Host} 헤더, HTTPS: 커스텀 {@code SSLSocketFactory})의
+     * 두 가지 결함을 함께 제거한다. (1) JDK {@code HttpURLConnection}은 {@code Host}를 제한 헤더로
+     * 취급해 {@code sun.net.http.allowRestrictedHeaders} 없이는 수동 {@code Host} 헤더를 무시하므로,
+     * IP 리터럴 연결 시 가상 호스팅이 깨졌다. (2) DNS 핀을 리졸버 단계로 끌어올려 스킴 분기 없이
+     * 단일 경로로 검증-연결 IP 일치를 보장한다.
      * </p>
      *
      * @param targetUrl 요청할 URL
@@ -182,40 +184,20 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase, LinkPreview
         // 호스트명 기반 1차 차단(localhost 등) + DNS 조회 후 검증된 단일 IP 확보.
         InetAddress pinnedIp = resolveAndValidate(host);
 
-        if (scheme.equalsIgnoreCase("https")) {
-            // HTTPS: 원본 호스트명 URL을 유지하여 SNI·인증서 검증을 보존하되,
-            // 소켓 연결만 검증된 IP로 고정하는 SSLSocketFactory를 주입한다(연결 IP 핀).
+        // 현재 스레드에서 이 호스트를 검증된 IP로 고정한 뒤, 원본 호스트명 URL을 그대로 fetch한다.
+        // 리졸버가 연결 시점 DNS를 검증 IP로 강제하므로 Host 헤더·SNI는 JDK 기본 경로로 정상 처리된다.
+        PinnedHostResolver.pin(host, pinnedIp);
+        try {
             return Jsoup.connect(targetUrl)
                     .userAgent(USER_AGENT)
                     .timeout(TIMEOUT_MILLIS)
                     .followRedirects(false)
                     .ignoreContentType(true)
-                    .sslSocketFactory(new PinnedSslSocketFactory(
-                            (SSLSocketFactory) SSLSocketFactory.getDefault(), pinnedIp, TIMEOUT_MILLIS))
                     .execute();
+        } finally {
+            // 핀은 항상 호출 스레드 한정이며, fetch 종료 즉시 해제하여 다른 조회에 영향을 주지 않는다.
+            PinnedHostResolver.clear();
         }
-
-        // HTTP: 검증된 IP 리터럴로 URL을 재구성하여 연결을 고정하고, Host 헤더로 원본 호스트 보존.
-        String ipLiteral = pinnedIp.getHostAddress();
-        // IPv6 리터럴은 대괄호로 감싼다.
-        String ipAuthority = ipLiteral.contains(":") ? "[" + ipLiteral + "]" : ipLiteral;
-        if (uri.getPort() != -1) {
-            ipAuthority = ipAuthority + ":" + uri.getPort();
-        }
-
-        String pathAndQuery = (uri.getRawPath() == null ? "" : uri.getRawPath())
-                + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery());
-        String pinnedUrl = scheme + "://" + ipAuthority + pathAndQuery;
-
-        String hostHeader = host + (uri.getPort() != -1 ? ":" + uri.getPort() : "");
-
-        return Jsoup.connect(pinnedUrl)
-                .userAgent(USER_AGENT)
-                .timeout(TIMEOUT_MILLIS)
-                .followRedirects(false)
-                .ignoreContentType(true)
-                .header("Host", hostHeader)
-                .execute();
     }
 
     /**
@@ -578,82 +560,6 @@ public class GetLinkPreviewService implements GetLinkPreviewUseCase, LinkPreview
             return baseUri.resolve(url).toString();
         } catch (URISyntaxException e) {
             return url;
-        }
-    }
-
-    /**
-     * HTTPS 연결을 검증된 IP에 고정(pin)하는 {@link SSLSocketFactory}.
-     * <p>
-     * 소켓의 TCP 연결은 사전 검증된 {@code pinnedIp}로만 맺고, TLS 핸드셰이크의
-     * SNI/인증서 호스트명 검증에는 원본 호스트명을 사용한다. 이로써 검증 시점과 연결
-     * 시점의 IP가 동일하게 유지되어 DNS rebinding을 차단하면서도 인증서 검증은 정상 동작한다.
-     * </p>
-     */
-    private static final class PinnedSslSocketFactory extends SSLSocketFactory {
-
-        private final SSLSocketFactory delegate;
-        private final InetAddress pinnedIp;
-        private final int connectTimeoutMillis;
-
-        private PinnedSslSocketFactory(SSLSocketFactory delegate, InetAddress pinnedIp, int connectTimeoutMillis) {
-            this.delegate = delegate;
-            this.pinnedIp = pinnedIp;
-            this.connectTimeoutMillis = connectTimeoutMillis;
-        }
-
-        @Override
-        public String[] getDefaultCipherSuites() {
-            return delegate.getDefaultCipherSuites();
-        }
-
-        @Override
-        public String[] getSupportedCipherSuites() {
-            return delegate.getSupportedCipherSuites();
-        }
-
-        /**
-         * 검증된 IP로 TCP 연결을 맺고, 원본 호스트명으로 TLS 핸드셰이크(SNI 포함)를 수행하는 소켓을 만든다.
-         *
-         * @param host 원본 호스트명 (SNI·인증서 검증용)
-         * @param port 포트
-         * @return 검증된 IP에 고정된 SSL 소켓
-         * @throws IOException 연결 실패 시
-         */
-        private SSLSocket createPinnedSocket(String host, int port) throws IOException {
-            Socket underlying = new Socket();
-            underlying.connect(new InetSocketAddress(pinnedIp, port), connectTimeoutMillis);
-            SSLSocket sslSocket = (SSLSocket) delegate.createSocket(underlying, host, port, true);
-            SSLParameters params = sslSocket.getSSLParameters();
-            params.setServerNames(List.of(new SNIHostName(host)));
-            sslSocket.setSSLParameters(params);
-            return sslSocket;
-        }
-
-        @Override
-        public Socket createSocket(String host, int port) throws IOException {
-            return createPinnedSocket(host, port);
-        }
-
-        @Override
-        public Socket createSocket(String host, int port, InetAddress localHost, int localPort) throws IOException {
-            return createPinnedSocket(host, port);
-        }
-
-        @Override
-        public Socket createSocket(InetAddress host, int port) throws IOException {
-            return createPinnedSocket(host.getHostName(), port);
-        }
-
-        @Override
-        public Socket createSocket(InetAddress address, int port, InetAddress localAddress, int localPort)
-                throws IOException {
-            return createPinnedSocket(address.getHostName(), port);
-        }
-
-        @Override
-        public Socket createSocket(Socket s, String host, int port, boolean autoClose) throws IOException {
-            // 기존 소켓은 무시하고 검증된 IP로 새로 연결한다(연결 IP 고정 보장).
-            return createPinnedSocket(host, port);
         }
     }
 }
