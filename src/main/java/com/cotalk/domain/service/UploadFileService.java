@@ -61,7 +61,9 @@ public class UploadFileService implements UploadFileUseCase {
             Map.entry("image/jpeg", new byte[][]{{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}}),
             Map.entry("image/png", new byte[][]{{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}}),
             Map.entry("image/gif", new byte[][]{{0x47, 0x49, 0x46, 0x38, 0x37, 0x61}, {0x47, 0x49, 0x46, 0x38, 0x39, 0x61}}),
-            Map.entry("image/webp", new byte[][]{{0x52, 0x49, 0x46, 0x46}}),
+            // WebP: 'RIFF'(0-3) + 파일크기 4바이트(4-7, 와일드카드) + 'WEBP'(8-11).
+            // RIFF만 검사하면 WAV/AVI 등 다른 RIFF 컨테이너가 위조 통과하므로 'WEBP' 마커까지 검증한다.
+            Map.entry("image/webp", new byte[][]{{0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50}}),
             Map.entry("application/pdf", new byte[][]{{0x25, 0x50, 0x44, 0x46}}),
             // MP4/MOV: 'ftyp' 박스 (offset 4-7)
             Map.entry("video/mp4", new byte[][]{{0x00, 0x00, 0x00, 0x00, 0x66, 0x74, 0x79, 0x70}}),
@@ -231,12 +233,31 @@ public class UploadFileService implements UploadFileUseCase {
         return String.format("uploads/%d/%s", userId, uniqueFileName);
     }
 
+    /**
+     * 원본 파일명에서 안전한 확장자를 추출한다.
+     * <p>
+     * object key에 그대로 삽입되므로, 경로 구분자나 {@code ..} 같은 위험 문자가
+     * 확장자에 섞여 key prefix가 오염되는 것을 방지한다. 마지막 {@code .} 이후 부분이
+     * 영숫자로만 구성된 경우에만 확장자로 인정하고, 그 외에는 확장자를 부여하지 않는다.
+     * </p>
+     *
+     * @param fileName 원본 파일명 (신뢰 불가 입력)
+     * @return {@code .ext} 형태의 안전한 확장자, 유효하지 않으면 빈 문자열
+     */
     private String extractExtension(String fileName) {
-        int lastDotIndex = fileName.lastIndexOf('.');
-        if (lastDotIndex == -1) {
+        if (fileName == null) {
             return "";
         }
-        return fileName.substring(lastDotIndex);
+        int lastDotIndex = fileName.lastIndexOf('.');
+        if (lastDotIndex == -1 || lastDotIndex == fileName.length() - 1) {
+            return "";
+        }
+        String candidate = fileName.substring(lastDotIndex + 1);
+        // 영숫자로만 구성된 확장자만 허용 (슬래시, '..', 공백 등 위생 문자 차단)
+        if (!candidate.matches("[A-Za-z0-9]+")) {
+            return "";
+        }
+        return "." + candidate;
     }
 
     private String extractFileName(String path) {
