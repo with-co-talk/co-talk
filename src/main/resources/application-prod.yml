@@ -52,6 +52,12 @@ logging:
 app:
   encryption:
     enabled: true
+  # 분산락 fail-closed 운영 옵트인.
+  # 본 PR의 defense-in-depth(임계영역 무방비 실행 차단)가 운영에서 실제로 켜지도록
+  # prod 프로파일 기본값을 true로 둔다. 전역 기본값(application.yml)은 하위호환을 위해 false.
+  # 필요 시 LOCK_FAIL_CLOSED 환경변수로 재정의 가능.
+  lock:
+    fail-closed: ${LOCK_FAIL_CLOSED:true}
 
 # 모니터링 설정 - 샘플링 조정
 management:

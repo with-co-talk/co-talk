@@ -167,8 +167,10 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   lock:
     # 분산락(Redisson)이 비활성(기동 시 Redis 미가용)일 때의 정책.
-    # false(기본, 하위호환): NoOp — 락 없이 즉시 실행하되 호출마다 경고 (동시성 보호 사라짐).
+    # false(전역 기본, 하위호환): NoOp — 락 없이 즉시 실행하되 주기적으로 경고 (동시성 보호 사라짐).
     # true(운영 권장): fail-closed — 락 보호 작업을 예외로 거부해 무방비 실행을 차단.
+    # 운영(prod)에서는 application-prod.yml에서 기본값을 true로 옵트인한다.
+    # 어느 프로파일에서든 LOCK_FAIL_CLOSED 환경변수로 재정의할 수 있다.
     fail-closed: ${LOCK_FAIL_CLOSED:false}
   redis:
     channel-prefix: ${REDIS_CHANNEL_PREFIX:chat:room:}
