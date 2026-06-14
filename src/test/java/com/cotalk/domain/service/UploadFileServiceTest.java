@@ -320,6 +320,84 @@ class UploadFileServiceTest {
         }
 
         @Test
+        @DisplayName("올바른 WebP 매직넘버(RIFF....WEBP)를 가진 파일은 허용되어야 함")
+        void should_acceptFile_when_validWebpMagicNumber() {
+            // Given: RIFF + 파일크기(4바이트, 와일드카드) + WEBP
+            byte[] validWebpBytes = new byte[]{
+                    0x52, 0x49, 0x46, 0x46, // 'RIFF'
+                    0x1A, 0x00, 0x00, 0x00, // file size (와일드카드)
+                    0x57, 0x45, 0x42, 0x50  // 'WEBP'
+            };
+            InputStream inputStream = new ByteArrayInputStream(validWebpBytes);
+
+            FileUploadCommand command = new FileUploadCommand(
+                    1L, inputStream, "image.webp", "image/webp", validWebpBytes.length
+            );
+
+            given(fileStorage.upload(any(), anyString(), anyString(), anyLong()))
+                    .willReturn("http://example.com/uploads/1/image.webp");
+
+            FileUploadResult result = uploadFileService.uploadFile(command);
+            assertThat(result.fileUrl()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("WAV(RIFF....WAVE) 파일을 image/webp로 위조 시 거부되어야 함")
+        void should_rejectFile_when_wavForgedAsWebp() {
+            // Given: RIFF 컨테이너이지만 offset 8-11이 'WAVE' (WebP 아님)
+            byte[] wavBytes = new byte[]{
+                    0x52, 0x49, 0x46, 0x46, // 'RIFF'
+                    0x24, 0x00, 0x00, 0x00, // chunk size
+                    0x57, 0x41, 0x56, 0x45  // 'WAVE'
+            };
+            InputStream inputStream = new ByteArrayInputStream(wavBytes);
+
+            FileUploadCommand command = new FileUploadCommand(
+                    1L, inputStream, "fake.webp", "image/webp", wavBytes.length
+            );
+
+            assertThatThrownBy(() -> uploadFileService.uploadFile(command))
+                    .isInstanceOf(FileUploadException.class)
+                    .hasMessageContaining("시그니처");
+        }
+
+        @Test
+        @DisplayName("AVI(RIFF....AVI ) 파일을 image/webp로 위조 시 거부되어야 함")
+        void should_rejectFile_when_aviForgedAsWebp() {
+            // Given: RIFF 컨테이너이지만 offset 8-11이 'AVI ' (WebP 아님)
+            byte[] aviBytes = new byte[]{
+                    0x52, 0x49, 0x46, 0x46, // 'RIFF'
+                    0x00, 0x10, 0x00, 0x00, // chunk size
+                    0x41, 0x56, 0x49, 0x20  // 'AVI '
+            };
+            InputStream inputStream = new ByteArrayInputStream(aviBytes);
+
+            FileUploadCommand command = new FileUploadCommand(
+                    1L, inputStream, "fake.webp", "image/webp", aviBytes.length
+            );
+
+            assertThatThrownBy(() -> uploadFileService.uploadFile(command))
+                    .isInstanceOf(FileUploadException.class)
+                    .hasMessageContaining("시그니처");
+        }
+
+        @Test
+        @DisplayName("RIFF만 있고 길이가 12 미만이면 거부되어야 함 (WEBP 마커 확인 불가)")
+        void should_rejectFile_when_riffOnlyTooShort() {
+            // Given: RIFF 4바이트만 (WEBP 마커 검증 불가능)
+            byte[] riffOnly = new byte[]{0x52, 0x49, 0x46, 0x46, 0x00, 0x00};
+            InputStream inputStream = new ByteArrayInputStream(riffOnly);
+
+            FileUploadCommand command = new FileUploadCommand(
+                    1L, inputStream, "short.webp", "image/webp", riffOnly.length
+            );
+
+            assertThatThrownBy(() -> uploadFileService.uploadFile(command))
+                    .isInstanceOf(FileUploadException.class)
+                    .hasMessageContaining("시그니처");
+        }
+
+        @Test
         @DisplayName("올바른 HEIC 매직넘버를 가진 파일은 허용되어야 함")
         void should_acceptFile_when_validHeicMagicNumber() {
             // Given: 올바른 HEIC 매직넘버 (ftyp at offset 4 with 'heic' brand)
@@ -348,6 +426,66 @@ class UploadFileServiceTest {
             // When & Then: 예외 없이 정상 처리되어야 함
             FileUploadResult result = uploadFileService.uploadFile(command);
             assertThat(result.fileUrl()).isNotNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("저장 경로(object key) 위생")
+    class StoragePathSanitization {
+
+        private final org.mockito.ArgumentCaptor<String> pathCaptor =
+                org.mockito.ArgumentCaptor.forClass(String.class);
+
+        private String uploadAndCaptureKey(String originalFileName) {
+            byte[] pngMagic = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+            byte[] content = new byte[100];
+            System.arraycopy(pngMagic, 0, content, 0, pngMagic.length);
+            InputStream inputStream = new ByteArrayInputStream(content);
+
+            given(fileStorage.upload(any(InputStream.class), anyString(), anyString(), anyLong()))
+                    .willReturn("http://example.com/x");
+
+            FileUploadCommand command = new FileUploadCommand(
+                    1L, inputStream, originalFileName, "image/png", content.length
+            );
+            uploadFileService.uploadFile(command);
+
+            verify(fileStorage).upload(any(InputStream.class), pathCaptor.capture(), anyString(), anyLong());
+            return pathCaptor.getValue();
+        }
+
+        @Test
+        @DisplayName("정상 확장자는 object key에 보존된다")
+        void should_keepExtension_when_normalFileName() {
+            String key = uploadAndCaptureKey("photo.png");
+            assertThat(key).startsWith("uploads/1/");
+            assertThat(key).endsWith(".png");
+        }
+
+        @Test
+        @DisplayName("확장자에 슬래시가 포함되면 무시되어 key prefix 오염이 없어야 한다")
+        void should_ignoreExtension_when_containsSlash() {
+            String key = uploadAndCaptureKey("a.png/../../x");
+            // 키는 정확히 uploads/1/<uuid> 형태 (추가 슬래시·.. 없음)
+            assertThat(key).matches("uploads/1/[0-9a-fA-F-]+");
+            assertThat(key).doesNotContain("..");
+        }
+
+        @Test
+        @DisplayName("확장자에 .. 이 포함되면 무시되어야 한다")
+        void should_ignoreExtension_when_containsDotDot() {
+            String key = uploadAndCaptureKey("evil.pn..g");
+            // 비정상 문자 포함 시 확장자 미부여 (uuid만)
+            assertThat(key).matches("uploads/1/[0-9a-fA-F-]+(\\.[A-Za-z0-9]+)?");
+            assertThat(key).doesNotContain("..");
+            assertThat(key.substring("uploads/1/".length())).doesNotContain("/");
+        }
+
+        @Test
+        @DisplayName("확장자에 비영숫자 문자가 있으면 무시되어야 한다")
+        void should_ignoreExtension_when_nonAlphanumeric() {
+            String key = uploadAndCaptureKey("file.p ng");
+            assertThat(key).matches("uploads/1/[0-9a-fA-F-]+");
         }
     }
 }
