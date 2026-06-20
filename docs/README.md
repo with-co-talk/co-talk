@@ -16,6 +16,7 @@
 
 | 문서 | 설명 |
 |------|------|
+| [RELEASE_RUNBOOK.md](./RELEASE_RUNBOOK.md) | **메시지 검색 복구 + 분산락 릴리스 런북**: `BLIND_INDEX_SECRET` 사전 등록, 배포·백필·스모크·롤백·모니터링 절차. **이번 릴리스 배포 시 필독.** |
 | [PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md) | 프로덕션 준비 가이드: 아키텍처 요약, P0/P1 이슈, 배포·운영·보안 체크리스트. **배포 전 참고.** |
 | [AUDIT_REPORT_2026_02.md](./AUDIT_REPORT_2026_02.md) | 2026년 2월 프로덕션 감사 보고서. 보안/안정성 이슈 및 수정 내역. **감사·검증 이력 참고.** |
 
