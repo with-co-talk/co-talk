@@ -51,6 +51,16 @@ services:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      # 메시지 검색 블라인드 인덱스(HMAC) 시크릿. 필수(미설정 시 fail-fast로 기동 실패).
+      # ENCRYPTION_KEY와 반드시 다른 별도 값(Base64 32바이트).
+      - BLIND_INDEX_SECRET=${BLIND_INDEX_SECRET:?BLIND_INDEX_SECRET is required}
+      # 검색 토큰 백필(1회성 관리 작업). 평시 false, 백필 윈도우에서만 true로 기동 후 되돌림.
+      - SEARCH_BACKFILL_ENABLED=${SEARCH_BACKFILL_ENABLED:-false}
+      - SEARCH_BACKFILL_CHUNK_SIZE=${SEARCH_BACKFILL_CHUNK_SIZE:-500}
+      - SEARCH_BACKFILL_THROTTLE_MILLIS=${SEARCH_BACKFILL_THROTTLE_MILLIS:-0}
+      - SEARCH_BACKFILL_SKIP_EXISTING=${SEARCH_BACKFILL_SKIP_EXISTING:-true}
+      # 분산락 fail-closed 정책(prod 기본 true). 필요 시에만 재정의.
+      - LOCK_FAIL_CLOSED=${LOCK_FAIL_CLOSED:-true}
       - SERVER_FORWARD_HEADERS_STRATEGY=framework
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://cotalk-api.tpsg.co.kr}
@@ -111,6 +121,16 @@ services:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      # 메시지 검색 블라인드 인덱스(HMAC) 시크릿. 필수(미설정 시 fail-fast로 기동 실패).
+      # ENCRYPTION_KEY와 반드시 다른 별도 값(Base64 32바이트).
+      - BLIND_INDEX_SECRET=${BLIND_INDEX_SECRET:?BLIND_INDEX_SECRET is required}
+      # 검색 토큰 백필(1회성 관리 작업). 평시 false, 백필 윈도우에서만 true로 기동 후 되돌림.
+      - SEARCH_BACKFILL_ENABLED=${SEARCH_BACKFILL_ENABLED:-false}
+      - SEARCH_BACKFILL_CHUNK_SIZE=${SEARCH_BACKFILL_CHUNK_SIZE:-500}
+      - SEARCH_BACKFILL_THROTTLE_MILLIS=${SEARCH_BACKFILL_THROTTLE_MILLIS:-0}
+      - SEARCH_BACKFILL_SKIP_EXISTING=${SEARCH_BACKFILL_SKIP_EXISTING:-true}
+      # 분산락 fail-closed 정책(prod 기본 true). 필요 시에만 재정의.
+      - LOCK_FAIL_CLOSED=${LOCK_FAIL_CLOSED:-true}
       - SERVER_FORWARD_HEADERS_STRATEGY=framework
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://cotalk-api.tpsg.co.kr}
@@ -171,6 +191,16 @@ services:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      # 메시지 검색 블라인드 인덱스(HMAC) 시크릿. 필수(미설정 시 fail-fast로 기동 실패).
+      # ENCRYPTION_KEY와 반드시 다른 별도 값(Base64 32바이트).
+      - BLIND_INDEX_SECRET=${BLIND_INDEX_SECRET:?BLIND_INDEX_SECRET is required}
+      # 검색 토큰 백필(1회성 관리 작업). 평시 false, 백필 윈도우에서만 true로 기동 후 되돌림.
+      - SEARCH_BACKFILL_ENABLED=${SEARCH_BACKFILL_ENABLED:-false}
+      - SEARCH_BACKFILL_CHUNK_SIZE=${SEARCH_BACKFILL_CHUNK_SIZE:-500}
+      - SEARCH_BACKFILL_THROTTLE_MILLIS=${SEARCH_BACKFILL_THROTTLE_MILLIS:-0}
+      - SEARCH_BACKFILL_SKIP_EXISTING=${SEARCH_BACKFILL_SKIP_EXISTING:-true}
+      # 분산락 fail-closed 정책(prod 기본 true). 필요 시에만 재정의.
+      - LOCK_FAIL_CLOSED=${LOCK_FAIL_CLOSED:-true}
       - SERVER_FORWARD_HEADERS_STRATEGY=framework
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://cotalk-api.tpsg.co.kr}
@@ -232,6 +262,16 @@ services:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      # 메시지 검색 블라인드 인덱스(HMAC) 시크릿. 필수(미설정 시 fail-fast로 기동 실패).
+      # ENCRYPTION_KEY와 반드시 다른 별도 값(Base64 32바이트).
+      - BLIND_INDEX_SECRET=${BLIND_INDEX_SECRET:?BLIND_INDEX_SECRET is required}
+      # 검색 토큰 백필(1회성 관리 작업). 평시 false, 백필 윈도우에서만 true로 기동 후 되돌림.
+      - SEARCH_BACKFILL_ENABLED=${SEARCH_BACKFILL_ENABLED:-false}
+      - SEARCH_BACKFILL_CHUNK_SIZE=${SEARCH_BACKFILL_CHUNK_SIZE:-500}
+      - SEARCH_BACKFILL_THROTTLE_MILLIS=${SEARCH_BACKFILL_THROTTLE_MILLIS:-0}
+      - SEARCH_BACKFILL_SKIP_EXISTING=${SEARCH_BACKFILL_SKIP_EXISTING:-true}
+      # 분산락 fail-closed 정책(prod 기본 true). 필요 시에만 재정의.
+      - LOCK_FAIL_CLOSED=${LOCK_FAIL_CLOSED:-true}
       - SERVER_FORWARD_HEADERS_STRATEGY=framework
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://cotalk-api.tpsg.co.kr}
