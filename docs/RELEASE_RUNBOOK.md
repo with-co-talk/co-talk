@@ -68,14 +68,27 @@
 
 1. 트래픽이 낮은 윈도우를 선택한다.
 2. `SEARCH_BACKFILL_ENABLED=true`로 앱을 **1회 기동**한다(운영 `.env` 또는 환경변수 override).
+   - 동작 근거: `SEARCH_BACKFILL_ENABLED`(→ `app.search.backfill.enabled`)가 `true`일 때만
+     `MessageSearchBackfillRunner`(`@ConditionalOnProperty`, `ApplicationRunner`)가 빈으로 등록되어
+     **기동 직후 백필을 1회 실행**한다. 스케줄러가 아니라 기동 시 1회성이라, **완료 후 자동으로
+     꺼지지 않는다** — `true`인 채로 재기동하면 매번 다시 실행된다(아래 4번으로 반드시 복귀).
    - 옵션 튜닝:
      - `SEARCH_BACKFILL_CHUNK_SIZE`(기본 500): 한 트랜잭션 당 메시지 수. 부하가 크면 낮춘다.
      - `SEARCH_BACKFILL_THROTTLE_MILLIS`(기본 0): 청크 사이 슬립(ms). DB 부하 제어용으로 키운다.
      - `SEARCH_BACKFILL_SKIP_EXISTING`(기본 true): 이미 토큰이 있는 메시지는 건너뜀(재실행 안전).
-3. 백필 완료 로그를 확인한다.
+3. 기동 로그로 진행/완료를 추적한다(운영자가 완료를 아는 방법). 로그 키워드:
+   - 시작: `=== 기존 메시지 검색 토큰 백필 실행기 시작 (app.search.backfill.enabled=true) ===`
+   - 진행(청크마다): `백필 진행: 누적 scanned=..., indexed=..., skipped=..., 마지막 커서 id=...`
+     (`indexed`=토큰 적재 건수, `skipped`=이미 토큰 있어 건너뛴 건수, `마지막 커서 id`=진척도)
+   - **완료(성공)**: `=== 백필 상태=SUCCESS(완료): scanned=..., indexed=..., skipped=..., 마지막 커서 id=... ===`
+     → 이 `상태=SUCCESS(완료)` 로그가 떠야 백필이 끝까지 완료된 것이다.
+   - 중단/실패: `=== 백필 상태=PARTIAL(중단/실패): ... 재실행 필요 ===`(일부만 반영) 또는
+     `=== 백필 상태=FAILED(실패): ... ===`(진행 통계 없이 실패). 두 경우 모두 **완료가 아니며**,
+     idempotent하므로 재실행으로 재개한다. (기동 자체는 실패하지 않고 흡수된다.)
 4. **`SEARCH_BACKFILL_ENABLED=false`로 되돌리고** 다시 기동한다(다음 재시작 시 재실행 방지).
 
 > `SKIP_EXISTING=true`라 중단·재실행해도 멱등에 가깝다. 그래도 완료 후 반드시 false로 되돌릴 것.
+> (`enabled=false`면 러너 빈 자체가 등록되지 않아 백필이 돌지 않는다.)
 
 ---
 
@@ -106,8 +119,17 @@
 3. **검색(신규)** — 방금 보낸 메시지가 키워드 검색에 잡히는지 확인.
 4. **검색(과거)** — 백필을 수행했다면 릴리스 이전 과거 메시지도 검색되는지 확인.
 5. **차단 동작** — 차단 사용자/필터 동작이 정상인지 확인.
-6. **분산락 헬스** — `/actuator/health` 조회. 락 헬스 인디케이터가 UP인지,
-   Redis 미가용으로 NoOp/fail-closed로 떨어지지 않았는지 확인.
+6. **분산락 헬스** — 락 컴포넌트 상태 확인.
+   - ⚠️ **상세는 인증된 호출에만 보인다**: `application.yml`이 `management.endpoint.health.show-details: when-authorized`라,
+     인증 없이 `/actuator/health`를 호출하면 **top-level `{"status":"UP"}`만** 내려가고 컴포넌트별 상세는 가려진다.
+     게다가 NoOp+fail-closed=false 강등은 커스텀 `DEGRADED`(가장 낮은 심각도로 집계)라 **top-level은 그대로 `UP`**으로 유지된다.
+     즉 인증 없는 top-level UP만으로는 락 강등 여부를 알 수 없다.
+   - 상세 확인 방법(택1):
+     - **인증된** `/actuator/health` 호출 → 응답의 `components.distributedLock`(컴포넌트 키) 확인.
+       - `UP` + `distributedLock: "활성"` → 정상.
+       - `DEGRADED` + `failClosed: false` → Redis 미가용으로 NoOp 강등(동시성 보호 없이 요청은 처리됨). 점검 필요.
+       - `DOWN` + `failClosed: true` → NoOp + fail-closed(prod 기본). 락 보호 작업이 예외로 거부되는 상태. 즉시 Redis 점검.
+     - 인증/상세 노출이 어려우면 **기동·운영 로그를 병행** 확인: NoOp 강등 시 `DistributedLockExecutor`의 NoOp 경고 로그가 남는다(7절 모니터링 참고).
 
 ---
 
