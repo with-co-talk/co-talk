@@ -44,7 +44,9 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - MINIO_ENDPOINT=http://minio:9000
+      # MinIO API endpoint — NAS 외부 호스트(자체 운영). docker 서비스명 아님.
+      # IP 변경 시 .env의 MINIO_ENDPOINT로 덮어쓸 것.
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://192.168.219.104:9000}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cotalk-api.tpsg.co.kr/minio}
@@ -114,7 +116,9 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - MINIO_ENDPOINT=http://minio:9000
+      # MinIO API endpoint — NAS 외부 호스트(자체 운영). docker 서비스명 아님.
+      # IP 변경 시 .env의 MINIO_ENDPOINT로 덮어쓸 것.
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://192.168.219.104:9000}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cotalk-api.tpsg.co.kr/minio}
@@ -184,7 +188,9 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - MINIO_ENDPOINT=http://minio:9000
+      # MinIO API endpoint — NAS 외부 호스트(자체 운영). docker 서비스명 아님.
+      # IP 변경 시 .env의 MINIO_ENDPOINT로 덮어쓸 것.
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://192.168.219.104:9000}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cotalk-api.tpsg.co.kr/minio}
@@ -255,7 +261,9 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - MINIO_ENDPOINT=http://minio:9000
+      # MinIO API endpoint — NAS 외부 호스트(자체 운영). docker 서비스명 아님.
+      # IP 변경 시 .env의 MINIO_ENDPOINT로 덮어쓸 것.
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://192.168.219.104:9000}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cotalk-api.tpsg.co.kr/minio}
@@ -350,27 +358,13 @@ services:
       retries: 5
 
   # ===========================================
-  # 파일 저장소 (S3 호환)
+  # 파일 저장소 (S3 호환) — minio
   # ===========================================
-  minio:
-    image: minio/minio:latest
-    container_name: cotalk-minio
-    ports:
-      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
-      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-    command: server /data --console-address ":9001"
-    volumes:
-      - ${MINIO_DATA_DIR:-./data/minio}:/data
-    networks:
-      - cotalk-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+  # minio는 더 이상 이 머신(맥미니)에서 로컬로 띄우지 않는다.
+  # NAS(192.168.219.104:9000)에서 외부 운영하며, app은 MINIO_ENDPOINT,
+  # nginx는 /minio/ proxy_pass로 NAS 주소를 직접 가리킨다.
+  # (과거 로컬 minio 서비스가 nginx의 docker DNS resolve 실패를 유발해
+  #  crash-loop → 배포 실패를 일으켰으므로 로컬 서비스를 제거함.)
 
 networks:
   cotalk-network:
