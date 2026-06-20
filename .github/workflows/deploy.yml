@@ -30,6 +30,7 @@ jobs:
           MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
           MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
           MINIO_PUBLIC_URL=${{ secrets.MINIO_PUBLIC_URL }}
+          MINIO_ENDPOINT=${{ vars.MINIO_ENDPOINT || 'http://192.168.219.104:9000' }}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
           BLIND_INDEX_SECRET=${{ secrets.BLIND_INDEX_SECRET }}
@@ -119,6 +120,7 @@ jobs:
           MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
           MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
           MINIO_PUBLIC_URL=${{ secrets.MINIO_PUBLIC_URL }}
+          MINIO_ENDPOINT=${{ vars.MINIO_ENDPOINT || 'http://192.168.219.104:9000' }}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
           BLIND_INDEX_SECRET=${{ secrets.BLIND_INDEX_SECRET }}

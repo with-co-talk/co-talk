@@ -329,8 +329,9 @@ bootstrap() {
     docker buildx build --load -t cotalk-app:stable "${PROJECT_ROOT}"
     log_success "Image built: cotalk-app:stable"
 
-    log_info "Starting infrastructure services (postgres, redis, minio)..."
-    dc up -d postgres redis minio
+    # minio는 NAS(192.168.219.104:9000)에서 외부 운영하므로 여기서 띄우지 않는다.
+    log_info "Starting infrastructure services (postgres, redis)..."
+    dc up -d postgres redis
     log_info "Waiting for infra to be ready (20s)..."
     sleep 20
 

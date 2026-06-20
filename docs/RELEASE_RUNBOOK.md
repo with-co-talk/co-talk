@@ -21,6 +21,30 @@
 
 ---
 
+## 0-1. 인프라 토폴로지 — MinIO는 NAS 외부 운영 (상시 사실)
+
+> 이 절은 특정 릴리스가 아니라 **현재 인프라 구성의 상시 사실**이다. minio 관련 배포 사고를 막기 위해 항상 참고한다.
+
+- **MinIO는 운영 머신(맥미니)에 띄우지 않는다.** NAS에서 외부 운영하며, 내부 접근 주소는 **`http://192.168.219.104:9000`** 이다(맥미니 호스트에서 HTTP 200 도달 확인).
+- **app**은 `MINIO_ENDPOINT` 환경변수로 NAS 주소를 가리킨다(업로드·presigned URL 생성용).
+  - `docker-compose.yml`/`docker-compose.nas.yml`의 app 서비스: `MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://192.168.219.104:9000}` (기본값 NAS, `.env`로 override 가능).
+  - 운영 `.env`는 `deploy.yml`의 "Create .env from secrets"가 재생성하며, `MINIO_ENDPOINT=${{ vars.MINIO_ENDPOINT || 'http://192.168.219.104:9000' }}` 라인으로 주입된다(secret 아닌 설정값이라 Actions **variable** 또는 하드코딩 기본값).
+- **nginx**(`docker/nginx/nginx.conf`)의 `location /minio/`는 `proxy_pass http://192.168.219.104:9000/;` 로 **IP를 직접** 가리킨다.
+  - **IP 직접 사용이 핵심**: docker 서비스명(`minio:9000`)이면 nginx 시작 시 DNS resolve가 필요한데, 로컬 minio 컨테이너가 없으면 resolve 실패로 nginx가 **crash-loop**에 빠져 8081(API)이 죽고 **이후 모든 배포가 실패**한다(#173 이후 사고의 직접 원인). IP는 resolve가 불필요하므로 안전하다.
+- **`docker-compose.yml`(맥미니)에서 로컬 minio 서비스는 제거**됐다. `scripts/deploy.sh`도 `dc up -d postgres redis`로만 인프라를 띄운다(minio 제외).
+- **`docker-compose.nas.yml`의 minio 서비스는 유지**된다 — 이 파일은 NAS(Synology) 자체 배포용이며 minio가 Synology 볼륨 `/volume1/docker/co-talk/minio`를 사용한다(NAS가 직접 minio를 운영하는 주체). NAS에서 app이 같은 docker 네트워크의 `minio`를 쓰려면 그 머신의 `.env`에서 `MINIO_ENDPOINT=http://minio:9000`으로 override 한다.
+- **`MINIO_PUBLIC_URL`**(클라이언트가 보는 외부 다운로드 URL)은 변경 없음.
+
+### NAS IP 변경 시 수정 위치
+1. `docker/nginx/nginx.conf` 의 `location /minio/` `proxy_pass` 줄.
+2. app `MINIO_ENDPOINT` 기본값(`docker-compose.yml`/`docker-compose.nas.yml`) 또는 운영 `.env`/Actions `vars.MINIO_ENDPOINT`.
+3. `.env.example` 의 `MINIO_ENDPOINT`.
+
+### ⚠️ 경고 — dev compose로 운영 머신에 minio 띄우지 말 것
+- `docker-compose.dev.yml`(로컬 개발용 minio)을 **운영 머신(맥미니)에서 실행하지 않는다.** 운영 minio는 NAS 단일 소스이며, 운영 머신에 로컬 minio 컨테이너를 띄우면 데이터가 둘로 갈라지고, 과거처럼 nginx가 docker 서비스명을 resolve하려다 crash-loop를 재현할 수 있다(이번 사고의 원인).
+
+---
+
 ## 1. 사전 준비 (배포 전 1회)
 
 ### 1-1. `BLIND_INDEX_SECRET` 생성
