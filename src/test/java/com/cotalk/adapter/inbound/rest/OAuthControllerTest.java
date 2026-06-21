@@ -44,23 +44,12 @@ class OAuthControllerTest {
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
-    @DisplayName("카카오 로그인 성공 - 신규 사용자")
-    void should_returnCreatedStatus_when_newKakaoUser() throws Exception {
+    @DisplayName("카카오 로그인 성공 - 신규 사용자 (토큰만 전송)")
+    void should_returnOkStatus_when_newKakaoUser() throws Exception {
         // given
-        OAuthLoginRequest request = OAuthLoginRequest.of(
-                "KAKAO",
-                "kakao_12345",
-                "user@kakao.com",
-                "카카오유저",
-                "https://kakao.com/avatar.png"
-        );
+        OAuthLoginRequest request = OAuthLoginRequest.of("KAKAO", "kakao-access-token");
 
-        given(oAuthLoginService.loginWithOAuth(
-                eq(User.OAuthProvider.KAKAO),
-                eq("kakao_12345"),
-                eq("user@kakao.com"),
-                eq("카카오유저"),
-                eq("https://kakao.com/avatar.png")))
+        given(oAuthLoginService.loginWithOAuth(eq(User.OAuthProvider.KAKAO), eq("kakao-access-token")))
                 .willReturn(new OAuthLoginUseCase.OAuthLoginResult("jwt_token", true, 100L));
 
         // when & then
@@ -75,23 +64,12 @@ class OAuthControllerTest {
     }
 
     @Test
-    @DisplayName("구글 로그인 성공 - 기존 사용자")
+    @DisplayName("구글 로그인 성공 - 기존 사용자 (id_token 전송)")
     void should_returnOkStatus_when_existingGoogleUser() throws Exception {
         // given
-        OAuthLoginRequest request = OAuthLoginRequest.of(
-                "GOOGLE",
-                "google_12345",
-                "user@gmail.com",
-                "구글유저",
-                null
-        );
+        OAuthLoginRequest request = OAuthLoginRequest.of("GOOGLE", "google-id-token");
 
-        given(oAuthLoginService.loginWithOAuth(
-                eq(User.OAuthProvider.GOOGLE),
-                eq("google_12345"),
-                eq("user@gmail.com"),
-                eq("구글유저"),
-                eq(null)))
+        given(oAuthLoginService.loginWithOAuth(eq(User.OAuthProvider.GOOGLE), eq("google-id-token")))
                 .willReturn(new OAuthLoginUseCase.OAuthLoginResult("google_jwt_token", false, 200L));
 
         // when & then
@@ -105,23 +83,12 @@ class OAuthControllerTest {
     }
 
     @Test
-    @DisplayName("애플 로그인 성공")
+    @DisplayName("애플 로그인 성공 (id_token 전송)")
     void should_returnOkStatus_when_appleLogin() throws Exception {
         // given
-        OAuthLoginRequest request = OAuthLoginRequest.of(
-                "APPLE",
-                "apple_12345",
-                "user@icloud.com",
-                "애플유저",
-                null
-        );
+        OAuthLoginRequest request = OAuthLoginRequest.of("APPLE", "apple-id-token");
 
-        given(oAuthLoginService.loginWithOAuth(
-                eq(User.OAuthProvider.APPLE),
-                eq("apple_12345"),
-                eq("user@icloud.com"),
-                eq("애플유저"),
-                eq(null)))
+        given(oAuthLoginService.loginWithOAuth(eq(User.OAuthProvider.APPLE), eq("apple-id-token")))
                 .willReturn(new OAuthLoginUseCase.OAuthLoginResult("apple_jwt_token", true, 300L));
 
         // when & then
@@ -139,9 +106,7 @@ class OAuthControllerTest {
         // given
         String request = """
                 {
-                    "oauthId": "kakao_12345",
-                    "email": "user@kakao.com",
-                    "nickname": "카카오유저"
+                    "token": "some-token"
                 }
                 """;
 
@@ -153,14 +118,12 @@ class OAuthControllerTest {
     }
 
     @Test
-    @DisplayName("OAuth 로그인 실패 - oauthId가 없는 경우")
-    void should_returnBadRequest_when_oauthIdMissing() throws Exception {
+    @DisplayName("OAuth 로그인 실패 - token이 없는 경우")
+    void should_returnBadRequest_when_tokenMissing() throws Exception {
         // given
         String request = """
                 {
-                    "provider": "KAKAO",
-                    "email": "user@kakao.com",
-                    "nickname": "카카오유저"
+                    "provider": "KAKAO"
                 }
                 """;
 

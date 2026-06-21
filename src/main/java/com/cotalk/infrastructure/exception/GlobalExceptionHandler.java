@@ -6,6 +6,7 @@ import com.cotalk.domain.exception.RateLimitExceededException;
 import com.cotalk.infrastructure.lock.DistributedLockException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -109,6 +110,23 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity.status(status)
                 .body(new ErrorResponse(e.getMessage(), e.getErrorCode(), LocalDateTime.now()));
+    }
+
+    /**
+     * 데이터 무결성 위반 예외를 처리한다.
+     *
+     * <p>유니크 제약(예: 이메일/닉네임 중복) 위반 등 DB 무결성 위반이 도메인 예외로
+     * 사전에 걸러지지 않고 영속 계층까지 도달한 경우를 위생 처리한다. 프레임워크/JDBC
+     * 내부 영문 메시지와 스택 정보를 노출하지 않고 고정 한국어 메시지로 409를 반환한다.</p>
+     *
+     * @param e 데이터 무결성 위반 예외
+     * @return 409 Conflict 응답 (위생 처리된 메시지)
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        log.warn("데이터 무결성 위반: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("이미 존재하는 데이터와 충돌합니다.", "DATA_INTEGRITY_VIOLATION", LocalDateTime.now()));
     }
 
     /**
