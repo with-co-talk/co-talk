@@ -49,6 +49,19 @@ public class DistributedLockExecutor implements DistributedLockPort {
     private static final String LOCK_PREFIX = "lock:";
 
     /**
+     * 기본 락 유지 시간 센티넬: Redisson 워치독(watchdog) 사용.
+     *
+     * <p>{@code leaseTime = -1}로 {@code tryLock}을 호출하면 Redisson 워치독이 활성화되어,
+     * 락을 보유한 스레드가 살아있는 동안 락 만료를 자동으로 연장한다(기본 {@code lockWatchdogTimeout}
+     * 30초를 10초 주기로 갱신). 이로써 락 임계영역 안에서 DB 트랜잭션(친구요청·친구수락·방나가기 등)이
+     * 길어져도 트랜잭션 도중 락이 만료되어 동시성 보호가 풀리는 문제를 방지한다.</p>
+     *
+     * <p>워치독은 {@code finally}의 {@code unlock()}으로 락이 해제되면 함께 중단되므로,
+     * 정상 경로/예외 경로 모두에서 락이 확실히 해제된다.</p>
+     */
+    private static final long WATCHDOG_LEASE_TIME = -1L;
+
+    /**
      * NoOp 모드에서 동일 경고가 호출마다 폭주하는 것을 막기 위한 최소 로깅 간격(ms).
      * Redis 다운 시 락 사용처(친구수락·방나가기 등)가 다발 호출돼도 이 간격당 한 번만 경고한다.
      */
@@ -203,7 +216,10 @@ public class DistributedLockExecutor implements DistributedLockPort {
 
     /**
      * 기본 설정으로 분산락을 획득한 후 작업을 실행한다.
-     * 대기 시간 3초, 유지 시간 10초.
+     * 대기 시간 3초, 유지 시간은 Redisson 워치독(자동 연장)에 위임한다({@link #WATCHDOG_LEASE_TIME}).
+     *
+     * <p>락 임계영역 안에서 DB 트랜잭션이 길어져도 락이 트랜잭션 도중 만료되지 않도록
+     * 워치독이 보유 중인 락을 자동 연장한다.</p>
      *
      * @param lockKey  락 키
      * @param supplier 실행할 작업
@@ -212,17 +228,18 @@ public class DistributedLockExecutor implements DistributedLockPort {
      */
     @Override
     public <T> T executeWithLock(String lockKey, Supplier<T> supplier) {
-        return executeWithLock(lockKey, 3, 10, TimeUnit.SECONDS, supplier);
+        return executeWithLock(lockKey, 3, WATCHDOG_LEASE_TIME, TimeUnit.SECONDS, supplier);
     }
 
     /**
      * 기본 설정으로 분산락을 획득한 후 작업을 실행한다 (반환값 없음).
+     * 대기 시간 3초, 유지 시간은 Redisson 워치독(자동 연장)에 위임한다({@link #WATCHDOG_LEASE_TIME}).
      *
      * @param lockKey  락 키
      * @param runnable 실행할 작업
      */
     @Override
     public void executeWithLock(String lockKey, Runnable runnable) {
-        executeWithLock(lockKey, 3, 10, TimeUnit.SECONDS, runnable);
+        executeWithLock(lockKey, 3, WATCHDOG_LEASE_TIME, TimeUnit.SECONDS, runnable);
     }
 }

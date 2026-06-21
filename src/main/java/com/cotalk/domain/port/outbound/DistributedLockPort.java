@@ -39,7 +39,10 @@ public interface DistributedLockPort {
                          TimeUnit timeUnit, Runnable runnable);
 
     /**
-     * 기본 설정(대기 3초, 유지 10초)으로 분산락을 획득한 후 작업을 실행한다.
+     * 기본 설정(대기 3초, 유지 시간은 워치독 자동 연장)으로 분산락을 획득한 후 작업을 실행한다.
+     *
+     * <p>락 임계영역 안의 DB 트랜잭션이 길어져도 락이 트랜잭션 도중 만료되지 않도록
+     * 구현체가 락 유지 시간을 자동 연장(워치독)한다.</p>
      *
      * @param lockKey  락 키
      * @param supplier 실행할 작업
@@ -49,7 +52,7 @@ public interface DistributedLockPort {
     <T> T executeWithLock(String lockKey, Supplier<T> supplier);
 
     /**
-     * 기본 설정(대기 3초, 유지 10초)으로 분산락을 획득한 후 작업을 실행한다 (반환값 없음).
+     * 기본 설정(대기 3초, 유지 시간은 워치독 자동 연장)으로 분산락을 획득한 후 작업을 실행한다 (반환값 없음).
      *
      * @param lockKey  락 키
      * @param runnable 실행할 작업

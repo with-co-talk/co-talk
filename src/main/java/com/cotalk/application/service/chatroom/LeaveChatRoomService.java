@@ -32,8 +32,14 @@ import java.util.List;
  *
  * <p>동시성 제어:
  * <ul>
- *   <li>분산락: 동일 채팅방에 대한 동시 퇴장 방지</li>
+ *   <li>분산락: 동일 채팅방에 대한 동시 퇴장 방지(워치독으로 트랜잭션 도중 락 만료 방지)</li>
  * </ul>
+ *
+ * <p><b>이중 진입 멱등성(defense in depth)</b>: 분산락이 비활성(NoOp) 상태이거나
+ * 동일 요청이 중복 진입하더라도, 본 서비스는 멱등하다. 두 번째 진입은 상태를 변경하기 전에
+ * {@link #doLeaveChatRoom}의 {@code findByChatRoomIdAndUserId}에서 이미 멤버가 삭제되어
+ * {@link ChatRoomAccessDeniedException}으로 거부된다. 따라서 멤버 중복 삭제나 퇴장
+ * 시스템 메시지 중복 발송이 발생하지 않는다.</p>
  *
  * <p><b>방/메시지 이력 보존 정책</b>: 멤버가 나가도 채팅방과 메시지 이력은
  * 삭제하지 않고 보존한다. 이는 의도된 도메인 규칙으로, 잔존 멤버 수에 따라
@@ -181,7 +187,8 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
                 0,    // unreadCount (시스템 메시지는 읽음 처리 불필요)
                 "USER_LEFT",     // eventType
                 leavingUserId,   // relatedUserId
-                userNickname     // relatedUserNickname
+                userNickname,    // relatedUserNickname
+                null             // clientMessageId (시스템 메시지, 해당 경로 없음)
         );
 
         chatMessageBroker.publish(chatRoomId, broadcastMessage);
