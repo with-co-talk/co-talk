@@ -69,7 +69,8 @@ class MinioFileStorageTest {
                 bucket,
                 publicUrl,
                 "us-east-1",
-                publicReadPolicy
+                publicReadPolicy,
+                10
         );
     }
 
@@ -255,6 +256,42 @@ class MinioFileStorageTest {
 
         // then
         verify(newS3Client).putBucketPolicy(any(PutBucketPolicyRequest.class));
+    }
+
+    @Test
+    @DisplayName("저장된 공개 첨부파일 URL을 단기 Pre-signed URL로 재발급")
+    void should_presignFromStoredPublicUrl_when_presignAttachmentUrl() throws Exception {
+        // given: 영구 공개 URL(publicUrl/bucket/objectKey)
+        String storedUrl = PUBLIC_URL + "/" + BUCKET_NAME + "/uploads/1/abc.png";
+        String presignedUrl = "http://minio.example.com/cotalk/uploads/1/abc.png?X-Amz-Signature=signed";
+
+        PresignedGetObjectRequest presignedRequest = mock(PresignedGetObjectRequest.class);
+        given(presignedRequest.url()).willReturn(URI.create(presignedUrl).toURL());
+        given(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class)))
+                .willReturn(presignedRequest);
+
+        // when
+        String result = fileStorage.presignAttachmentUrl(storedUrl, 10);
+
+        // then: 영구 URL이 아니라 서명된 단기 URL을 반환하고, 객체 키로 presign을 호출한다
+        assertEquals(presignedUrl, result);
+        verify(s3Presigner).presignGetObject(argThat((GetObjectPresignRequest req) ->
+                req.getObjectRequest().key().equals("uploads/1/abc.png")
+                        && req.getObjectRequest().bucket().equals(BUCKET_NAME)));
+    }
+
+    @Test
+    @DisplayName("버킷 경계가 없는 외부 URL은 변형하지 않고 그대로 반환")
+    void should_returnInputUnchanged_when_presignAttachmentUrlHasNoBucketSegment() {
+        // given: 버킷 세그먼트가 없는 외부 URL(링크 미리보기 이미지 등)
+        String externalUrl = "https://external.example.com/some/image.png";
+
+        // when
+        String result = fileStorage.presignAttachmentUrl(externalUrl, 10);
+
+        // then
+        assertEquals(externalUrl, result);
+        verify(s3Presigner, never()).presignGetObject(any(GetObjectPresignRequest.class));
     }
 
     @Test

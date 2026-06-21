@@ -4,11 +4,12 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.message.GetMessageHistoryUseCase;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.FileStorage;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +26,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class GetMessageHistoryService implements GetMessageHistoryUseCase {
 
@@ -33,6 +33,33 @@ public class GetMessageHistoryService implements GetMessageHistoryUseCase {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final UserRepository userRepository;
     private final ChatRoomMemberValidator chatRoomMemberValidator;
+    private final FileStorage fileStorage;
+    private final int presignedUrlExpiryMinutes;
+
+    /**
+     * GetMessageHistoryService를 생성한다.
+     *
+     * @param messageRepository          메시지 저장소 포트
+     * @param chatRoomMemberRepository   채팅방 멤버 저장소 포트
+     * @param userRepository             사용자 저장소 포트
+     * @param chatRoomMemberValidator    채팅방 멤버십 검증기
+     * @param fileStorage                파일 저장소 포트(첨부파일 Pre-signed URL 재발급용)
+     * @param presignedUrlExpiryMinutes  첨부파일 Pre-signed URL 만료 시간(분)
+     */
+    public GetMessageHistoryService(
+            MessageRepository messageRepository,
+            ChatRoomMemberRepository chatRoomMemberRepository,
+            UserRepository userRepository,
+            ChatRoomMemberValidator chatRoomMemberValidator,
+            FileStorage fileStorage,
+            @Value("${minio.presigned-url-expiry-minutes:10}") int presignedUrlExpiryMinutes) {
+        this.messageRepository = messageRepository;
+        this.chatRoomMemberRepository = chatRoomMemberRepository;
+        this.userRepository = userRepository;
+        this.chatRoomMemberValidator = chatRoomMemberValidator;
+        this.fileStorage = fileStorage;
+        this.presignedUrlExpiryMinutes = presignedUrlExpiryMinutes;
+    }
 
     /**
      * 채팅방의 메시지 히스토리를 조회한다.
@@ -80,13 +107,17 @@ public class GetMessageHistoryService implements GetMessageHistoryUseCase {
         Map<Long, User> senderMap = userRepository.findAllById(senderIds).stream()
                 .collect(Collectors.toMap(User::getId, user -> user));
 
+        // 멤버십이 검증된 멤버에게만, 저장된 첨부파일 URL을 단기 Pre-signed URL로 재발급한다(H-1).
+        // 방 단위로 멤버십을 1회만 검증했으므로 첨부파일별 재검증은 하지 않는다.
         List<EnrichedMessage> enrichedMessages = messages.stream()
                 .map(message -> {
                     int unreadCount = unreadCountMap.getOrDefault(message.getId(), 0);
                     User sender = senderMap.get(message.getSenderId());
                     String senderNickname = sender != null ? sender.getNickname() : null;
                     String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
-                    return new EnrichedMessage(message, unreadCount, senderNickname, senderAvatarUrl);
+                    String fileUrl = fileStorage.presignAttachmentUrl(message.getFileUrl(), presignedUrlExpiryMinutes);
+                    String thumbnailUrl = fileStorage.presignAttachmentUrl(message.getThumbnailUrl(), presignedUrlExpiryMinutes);
+                    return new EnrichedMessage(message, unreadCount, senderNickname, senderAvatarUrl, fileUrl, thumbnailUrl);
                 })
                 .toList();
 

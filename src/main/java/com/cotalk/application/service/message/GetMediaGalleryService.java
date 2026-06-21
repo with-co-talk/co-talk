@@ -3,11 +3,12 @@ package com.cotalk.application.service.message;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.port.inbound.message.GetMediaGalleryUseCase;
+import com.cotalk.domain.port.outbound.FileStorage;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,13 +28,36 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class GetMediaGalleryService implements GetMediaGalleryUseCase {
 
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final ChatRoomMemberValidator chatRoomMemberValidator;
+    private final FileStorage fileStorage;
+    private final int presignedUrlExpiryMinutes;
+
+    /**
+     * GetMediaGalleryService를 생성한다.
+     *
+     * @param messageRepository          메시지 저장소 포트
+     * @param userRepository             사용자 저장소 포트
+     * @param chatRoomMemberValidator    채팅방 멤버십 검증기
+     * @param fileStorage                파일 저장소 포트(첨부파일 Pre-signed URL 재발급용)
+     * @param presignedUrlExpiryMinutes  첨부파일 Pre-signed URL 만료 시간(분)
+     */
+    public GetMediaGalleryService(
+            MessageRepository messageRepository,
+            UserRepository userRepository,
+            ChatRoomMemberValidator chatRoomMemberValidator,
+            FileStorage fileStorage,
+            @Value("${minio.presigned-url-expiry-minutes:10}") int presignedUrlExpiryMinutes) {
+        this.messageRepository = messageRepository;
+        this.userRepository = userRepository;
+        this.chatRoomMemberValidator = chatRoomMemberValidator;
+        this.fileStorage = fileStorage;
+        this.presignedUrlExpiryMinutes = presignedUrlExpiryMinutes;
+    }
 
     /**
      * 채팅방의 미디어 갤러리를 조회한다.
@@ -70,17 +94,19 @@ public class GetMediaGalleryService implements GetMediaGalleryUseCase {
         Map<Long, User> senderMap = userRepository.findAllById(senderIds).stream()
                 .collect(Collectors.toMap(User::getId, user -> user));
 
+        // 멤버십이 검증된 멤버에게만, 저장된 첨부파일 URL을 단기 Pre-signed URL로 재발급한다(H-1).
+        // 페이지 전체에 대해 방 단위로 멤버십을 1회만 검증했으므로 첨부파일별 재검증은 하지 않는다.
         List<MediaGalleryItem> items = messages.stream()
                 .map(message -> {
                     User sender = senderMap.get(message.getSenderId());
                     return new MediaGalleryItem(
                             message.getId(),
                             message.getType().name(),
-                            message.getFileUrl(),
+                            fileStorage.presignAttachmentUrl(message.getFileUrl(), presignedUrlExpiryMinutes),
                             message.getFileName(),
                             message.getFileSize(),
                             message.getFileContentType(),
-                            message.getThumbnailUrl(),
+                            fileStorage.presignAttachmentUrl(message.getThumbnailUrl(), presignedUrlExpiryMinutes),
                             message.getLinkPreviewUrl(),
                             message.getLinkPreviewTitle(),
                             message.getLinkPreviewDescription(),

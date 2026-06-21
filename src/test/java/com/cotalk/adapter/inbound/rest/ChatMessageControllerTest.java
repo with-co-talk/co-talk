@@ -217,8 +217,8 @@ class ChatMessageControllerTest {
                     .id(999L).senderId(2L).chatRoomId(roomId).content("이전 메시지").build();
 
             List<GetMessageHistoryUseCase.EnrichedMessage> enriched = List.of(
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자1", null),
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 1, "사용자2", null)
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자1", null, null, null),
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 1, "사용자2", null, null, null)
             );
 
             GetMessageHistoryUseCase.EnrichedMessageHistoryResult result =
@@ -255,8 +255,8 @@ class ChatMessageControllerTest {
                     .id(998L).senderId(1L).chatRoomId(roomId).content("이전 메시지 2").build();
 
             List<GetMessageHistoryUseCase.EnrichedMessage> enriched = List.of(
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자2", null),
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 0, "사용자1", null)
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자2", null, null, null),
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 0, "사용자1", null, null, null)
             );
 
             GetMessageHistoryUseCase.EnrichedMessageHistoryResult result =
@@ -293,8 +293,8 @@ class ChatMessageControllerTest {
                     .id(999L).senderId(2L).chatRoomId(roomId).content("메시지 2").build();
 
             List<GetMessageHistoryUseCase.EnrichedMessage> enriched = List.of(
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자1", null),
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 0, "사용자2", null)
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자1", null, null, null),
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 0, "사용자2", null, null, null)
             );
 
             GetMessageHistoryUseCase.EnrichedMessageHistoryResult result =

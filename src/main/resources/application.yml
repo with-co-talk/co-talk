@@ -116,8 +116,11 @@ minio:
   public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
   region: ${MINIO_REGION:us-east-1}
   # 공개 읽기 정책 설정 여부. true이면 버킷에 공개 읽기 정책 적용(인증 없이 접근 가능).
-  # false로 설정 시 Pre-signed URL을 통해서만 파일에 접근 가능. (기본값: true - 기존 동작 유지)
-  public-read-policy: ${MINIO_PUBLIC_READ_POLICY:true}
+  # false로 설정 시 Pre-signed URL을 통해서만 파일에 접근 가능. (기본값: false - 채팅 첨부파일 비공개)
+  # 보안(H-1): 채팅 첨부파일은 멤버십 검증 후 단기 Pre-signed URL로만 접근해야 하므로 기본 비공개.
+  public-read-policy: ${MINIO_PUBLIC_READ_POLICY:false}
+  # 첨부파일 읽기용 Pre-signed URL 만료 시간(분). 멤버십 검증 후 발급되는 단기 접근 URL의 유효 시간. (기본값: 10분)
+  presigned-url-expiry-minutes: ${MINIO_PRESIGNED_URL_EXPIRY_MINUTES:10}
 
 # 파일 업로드 설정
 file:

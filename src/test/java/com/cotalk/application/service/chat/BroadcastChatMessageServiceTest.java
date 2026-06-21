@@ -6,10 +6,11 @@ import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
+import com.cotalk.domain.port.outbound.FileStorage;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -17,7 +18,10 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -32,8 +36,19 @@ class BroadcastChatMessageServiceTest {
     @Mock
     private ChatMessageBroker chatMessageBroker;
 
-    @InjectMocks
+    @Mock
+    private FileStorage fileStorage;
+
     private BroadcastChatMessageService broadcastChatMessageService;
+
+    @BeforeEach
+    void setUp() {
+        broadcastChatMessageService = new BroadcastChatMessageService(chatMessageBroker, fileStorage, 10);
+        // 첨부파일 URL은 그대로 통과시켜 기존 검증을 유지한다(실제로는 단기 Pre-signed URL로 재발급).
+        lenient().when(fileStorage.presignAttachmentUrl(anyString(), anyInt()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(fileStorage.presignAttachmentUrl(eq(null), anyInt())).thenReturn(null);
+    }
 
     @Test
     void should_broadcastMessageWithCorrectUnreadCount_when_multipleMembers() {

@@ -62,6 +62,25 @@ public interface FileStorage {
     String resolveUrl(String objectKey);
 
     /**
+     * 저장된 첨부파일 URL을 짧은 만료시간의 Pre-signed GET URL로 재발급한다.
+     * <p>
+     * 메시지에 저장된 {@code fileUrl}/{@code thumbnailUrl}은 업로드 시점에 발급된 값(공개 직접 URL
+     * 또는 만료된 Pre-signed URL)일 수 있다. 채팅방 멤버십이 검증된 읽기 경로에서 이 메서드로
+     * 저장 URL을 다시 서명하여, 인증된 멤버에게만 짧은 시간 동안 유효한 접근 URL을 제공한다.
+     * 멤버십 검증은 호출하는 애플리케이션 서비스의 책임이며, 이 어댑터는 검증을 수행하지 않는다.
+     * </p>
+     * <p>
+     * 저장 URL에서 저장 객체 키를 추출할 수 없거나(외부 URL 등) 입력이 비어 있으면, 입력값을
+     * 그대로 반환한다(링크 미리보기 이미지 등 첨부파일이 아닌 URL은 변형하지 않는다).
+     * </p>
+     *
+     * @param storedUrl         메시지에 저장된 첨부파일 URL
+     * @param expirationMinutes Pre-signed URL 유효 시간(분)
+     * @return 짧은 만료시간의 Pre-signed URL. 객체 키를 추출할 수 없으면 {@code storedUrl} 원본
+     */
+    String presignAttachmentUrl(String storedUrl, int expirationMinutes);
+
+    /**
      * 저장된 객체의 메타데이터(MIME 타입·크기)를 조회한다.
      * <p>
      * object-id 기반 전송 시 클라이언트가 보낸 contentType/size를 신뢰하지 않고

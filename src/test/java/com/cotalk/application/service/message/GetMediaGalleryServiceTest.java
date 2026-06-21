@@ -5,12 +5,14 @@ import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.port.inbound.message.GetMediaGalleryUseCase;
+import com.cotalk.domain.port.outbound.FileStorage;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
@@ -22,9 +24,13 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -45,8 +51,23 @@ class GetMediaGalleryServiceTest {
     @Mock
     private ChatRoomMemberValidator chatRoomMemberValidator;
 
-    @InjectMocks
+    @Mock
+    private FileStorage fileStorage;
+
     private GetMediaGalleryService getMediaGalleryService;
+
+    private static final int PRESIGN_EXPIRY_MINUTES = 10;
+
+    @BeforeEach
+    void setUp() {
+        getMediaGalleryService = new GetMediaGalleryService(
+                messageRepository, userRepository, chatRoomMemberValidator,
+                fileStorage, PRESIGN_EXPIRY_MINUTES);
+        // 기본 동작: 첨부파일 URL은 그대로 통과시켜 기존 검증을 유지한다.
+        // 실제 운영에서는 멤버십 검증 후 단기 Pre-signed URL로 재발급된다(H-1).
+        lenient().when(fileStorage.presignAttachmentUrl(anyString(), anyInt()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
     @Test
     void should_returnPhotoGallery_when_typeIsPhoto() {
@@ -202,6 +223,41 @@ class GetMediaGalleryServiceTest {
         assertThatThrownBy(() -> getMediaGalleryService.getMediaGallery(chatRoomId, userId, type, 0, 20))
                 .isInstanceOf(ChatRoomAccessDeniedException.class)
                 .hasMessage("채팅방 멤버가 아닙니다.");
+
+        // 멤버십 검증 실패 시 Pre-signed URL을 발급하지 않는다(H-1).
+        verify(fileStorage, never()).presignAttachmentUrl(anyString(), anyInt());
+    }
+
+    @Test
+    @DisplayName("멤버 조회 시 첨부파일은 영구 공개 URL이 아닌 단기 Pre-signed URL로 재발급된다")
+    void should_returnPresignedAttachmentUrl_when_memberFetchesGallery() {
+        // given
+        Long chatRoomId = 10L;
+        Long userId = 1L;
+        String type = "PHOTO";
+        int page = 0;
+        int size = 20;
+
+        String storedUrl = "http://minio.example.com/cotalk/uploads/1/abc.png";
+        Message image = MessageTestFixture.createImageMessage(101L, chatRoomId, userId, storedUrl);
+        User user = User.builder().id(userId).nickname("사용자1").build();
+        Pageable pageable = PageRequest.of(page, size);
+
+        given(messageRepository.findByTypeInChatRoom(eq(chatRoomId), eq(List.of(Message.MessageType.IMAGE)), eq(pageable)))
+                .willReturn(List.of(image));
+        given(userRepository.findAllById(any())).willReturn(List.of(user));
+        given(fileStorage.presignAttachmentUrl(eq(storedUrl), eq(PRESIGN_EXPIRY_MINUTES)))
+                .willReturn(storedUrl + "?X-Amz-Signature=signed");
+
+        // when
+        GetMediaGalleryUseCase.MediaGalleryResult result =
+                getMediaGalleryService.getMediaGallery(chatRoomId, userId, type, page, size);
+
+        // then
+        verify(chatRoomMemberValidator).validateMembership(chatRoomId, userId);
+        assertThat(result.items().get(0).fileUrl()).contains("X-Amz-Signature");
+        assertThat(result.items().get(0).fileUrl()).isNotEqualTo(storedUrl);
+        verify(fileStorage).presignAttachmentUrl(storedUrl, PRESIGN_EXPIRY_MINUTES);
     }
 
     @Test

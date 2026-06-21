@@ -136,7 +136,9 @@ public class ChatMessageController {
                         enriched.message(),
                         enriched.unreadCount(),
                         enriched.senderNickname(),
-                        enriched.senderAvatarUrl()))
+                        enriched.senderAvatarUrl(),
+                        enriched.fileUrl(),
+                        enriched.thumbnailUrl()))
                 .toList();
 
         return ResponseEntity.ok(MessageHistoryResponse.of(messageDtos, result.nextCursor(), result.hasMore()));

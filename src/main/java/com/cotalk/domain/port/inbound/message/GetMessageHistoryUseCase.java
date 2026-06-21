@@ -37,17 +37,25 @@ public interface GetMessageHistoryUseCase {
 
     /**
      * 메시지 히스토리 조회 결과에 포함되는 개별 메시지 정보.
+     * <p>
+     * {@code fileUrl}/{@code thumbnailUrl}은 멤버십 검증 후 재발급된 단기 Pre-signed URL이다(H-1).
+     * 첨부파일이 없는 메시지는 {@code null}이다. 엔티티에 저장된 원본 URL 대신 이 값을 클라이언트에 노출한다.
+     * </p>
      *
      * @param message 메시지 엔티티
      * @param unreadCount 읽지 않은 멤버 수
      * @param senderNickname 발신자 닉네임
      * @param senderAvatarUrl 발신자 프로필 이미지 URL
+     * @param fileUrl 멤버십 검증 후 재발급된 단기 첨부파일 Pre-signed URL (없으면 null)
+     * @param thumbnailUrl 멤버십 검증 후 재발급된 단기 썸네일 Pre-signed URL (없으면 null)
      */
     record EnrichedMessage(
             Message message,
             int unreadCount,
             String senderNickname,
-            String senderAvatarUrl
+            String senderAvatarUrl,
+            String fileUrl,
+            String thumbnailUrl
     ) {}
 
     /**

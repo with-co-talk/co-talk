@@ -47,6 +47,7 @@ public class MinioFileStorage implements FileStorage {
     private final String bucketName;
     private final String publicUrl;
     private final boolean publicReadPolicy;
+    private final int presignedUrlExpiryMinutes;
 
     /**
      * MinioFileStorage를 생성한다.
@@ -64,6 +65,7 @@ public class MinioFileStorage implements FileStorage {
         this.bucketName = minioProperties.bucket();
         this.publicUrl = minioProperties.publicUrl();
         this.publicReadPolicy = minioProperties.publicReadPolicy();
+        this.presignedUrlExpiryMinutes = minioProperties.presignedUrlExpiryMinutes();
 
         try {
             ensureBucketExists();
@@ -135,7 +137,7 @@ public class MinioFileStorage implements FileStorage {
      * 파일을 MinIO에 업로드한다.
      *
      * <p>공개 URL({@code minio.public-url})이 설정되어 있으면 {@code publicUrl/bucket/fileName} 형태의 직접 URL을 반환한다.
-     * 공개 URL이 없으면 7일 유효기간의 Pre-signed URL을 생성하여 반환한다.
+     * 공개 URL이 없으면 {@code minio.presigned-url-expiry-minutes} 유효기간의 Pre-signed URL을 생성하여 반환한다.
      *
      * <p>공개 읽기 정책({@code minio.public-read-policy})이 {@code false}인 경우 직접 URL로는 파일에 접근할 수 없으며,
      * {@link #generatePresignedUrl(String, int)}을 통해 서명된 URL을 별도로 발급해야 한다.
@@ -171,7 +173,7 @@ public class MinioFileStorage implements FileStorage {
     /**
      * 저장 객체 키로부터 접근 URL을 재구성한다.
      * 공개 URL이 설정되어 있으면 {@code publicUrl/bucket/objectKey} 직접 URL을,
-     * 없으면 7일 유효기간의 Pre-signed URL을 반환한다.
+     * 없으면 설정된 만료시간({@code minio.presigned-url-expiry-minutes})의 Pre-signed URL을 반환한다.
      * 업로드 시 반환하는 URL과 동일한 규칙을 사용한다.
      *
      * @param objectKey 저장 객체 키
@@ -182,7 +184,53 @@ public class MinioFileStorage implements FileStorage {
         if (publicUrl != null && !publicUrl.isEmpty()) {
             return publicUrl + "/" + bucketName + "/" + objectKey;
         }
-        return generatePresignedUrl(objectKey, 60 * 24 * 7); // 7 days default
+        return generatePresignedUrl(objectKey, presignedUrlExpiryMinutes);
+    }
+
+    /**
+     * 저장된 첨부파일 URL을 단기 만료시간의 Pre-signed GET URL로 재발급한다.
+     * <p>
+     * 저장 URL({@code publicUrl/bucket/objectKey} 또는 만료된 Pre-signed URL)에서 버킷 경계를 기준으로
+     * 저장 객체 키를 추출한 뒤, {@link #generatePresignedUrl(String, int)}으로 새 서명 URL을 만든다.
+     * 객체 키를 추출할 수 없으면(버킷 세그먼트 부재 등) 입력값을 그대로 반환한다.
+     * </p>
+     *
+     * @param storedUrl         메시지에 저장된 첨부파일 URL
+     * @param expirationMinutes Pre-signed URL 유효 시간(분)
+     * @return 단기 Pre-signed URL. 객체 키를 추출할 수 없으면 {@code storedUrl} 원본
+     */
+    @Override
+    public String presignAttachmentUrl(String storedUrl, int expirationMinutes) {
+        if (storedUrl == null || storedUrl.isBlank()) {
+            return storedUrl;
+        }
+        String objectKey = extractObjectKey(storedUrl);
+        if (objectKey == null) {
+            // 버킷 경계를 식별할 수 없는 URL(외부 링크 등)은 변형하지 않는다.
+            return storedUrl;
+        }
+        return generatePresignedUrl(objectKey, expirationMinutes);
+    }
+
+    /**
+     * 저장 URL에서 {@code /bucket/} 경계를 찾아 저장 객체 키를 추출한다.
+     * 쿼리 문자열(만료된 Pre-signed 서명 등)은 제거한다.
+     *
+     * @param storedUrl 저장된 첨부파일 URL
+     * @return 추출된 객체 키. 버킷 경계를 찾지 못하면 {@code null}
+     */
+    private String extractObjectKey(String storedUrl) {
+        String marker = "/" + bucketName + "/";
+        int idx = storedUrl.indexOf(marker);
+        if (idx < 0) {
+            return null;
+        }
+        String afterBucket = storedUrl.substring(idx + marker.length());
+        int queryIdx = afterBucket.indexOf('?');
+        if (queryIdx >= 0) {
+            afterBucket = afterBucket.substring(0, queryIdx);
+        }
+        return afterBucket.isBlank() ? null : afterBucket;
     }
 
     /**
