@@ -98,7 +98,7 @@ class FriendControllerTest {
      */
     private static void setCreatedAt(FriendRequest friendRequest, LocalDateTime time) {
         try {
-            Field createdAtField = com.cotalk.domain.entity.BaseEntity.class.getDeclaredField("createdAt");
+            Field createdAtField = com.cotalk.domain.entity.DomainBaseEntity.class.getDeclaredField("createdAt");
             createdAtField.setAccessible(true);
             createdAtField.set(friendRequest, time);
         } catch (Exception e) {

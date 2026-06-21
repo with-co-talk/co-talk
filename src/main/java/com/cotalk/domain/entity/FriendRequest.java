@@ -1,36 +1,30 @@
 package com.cotalk.domain.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 /**
- * 친구 요청 엔티티.
+ * 친구 요청 도메인 엔티티.
  * 사용자 간의 친구 요청 정보를 나타낸다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "friend_requests", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_friend_request_requester_receiver",
-                columnNames = {"requester_id", "receiver_id"})
-})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class FriendRequest extends BaseEntity {
+@SuperBuilder
+public class FriendRequest extends DomainBaseEntity {
 
-    @Id
     private Long id;
 
-    @Column(name = "requester_id", nullable = false)
     private Long requesterId;
 
-    @Column(name = "receiver_id", nullable = false)
     private Long receiverId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private RequestStatus status;
 
     /**

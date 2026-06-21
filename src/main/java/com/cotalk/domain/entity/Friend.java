@@ -1,35 +1,30 @@
 package com.cotalk.domain.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 /**
- * 친구 관계 엔티티.
+ * 친구 관계 도메인 엔티티.
  * 두 사용자 간의 친구 관계 정보를 나타낸다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "friends", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"user_id", "friend_id"})
-})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class Friend extends BaseEntity {
+@SuperBuilder
+public class Friend extends DomainBaseEntity {
 
-    @Id
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "friend_id", nullable = false)
     private Long friendId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private FriendStatus status;
 
     /**

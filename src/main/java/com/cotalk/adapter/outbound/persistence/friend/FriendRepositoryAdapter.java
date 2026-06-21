@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.friend;
 
+import com.cotalk.adapter.outbound.persistence.entity.FriendJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.FriendMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.domain.entity.Friend;
 import com.cotalk.domain.entity.User;
@@ -14,7 +16,7 @@ import java.util.Optional;
 
 /**
  * 친구 영속성 어댑터.
- * JPA를 통해 친구 관계 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -23,6 +25,7 @@ import java.util.Optional;
 public class FriendRepositoryAdapter implements FriendRepository {
 
     private final FriendJpaRepository friendJpaRepository;
+    private final FriendMapper friendMapper;
     private final UserMapper userMapper;
 
     /**
@@ -33,7 +36,8 @@ public class FriendRepositoryAdapter implements FriendRepository {
      */
     @Override
     public Friend save(Friend friend) {
-        return friendJpaRepository.save(friend);
+        FriendJpaEntity saved = friendJpaRepository.save(friendMapper.toJpa(friend));
+        return friendMapper.toDomain(saved);
     }
 
     /**
@@ -44,7 +48,7 @@ public class FriendRepositoryAdapter implements FriendRepository {
      */
     @Override
     public Optional<Friend> findById(Long id) {
-        return friendJpaRepository.findById(id);
+        return friendJpaRepository.findById(id).map(friendMapper::toDomain);
     }
 
     /**
@@ -56,7 +60,7 @@ public class FriendRepositoryAdapter implements FriendRepository {
      */
     @Override
     public Optional<Friend> findByUserIdAndFriendId(Long userId, Long friendId) {
-        return friendJpaRepository.findByUserIdAndFriendId(userId, friendId);
+        return friendJpaRepository.findByUserIdAndFriendId(userId, friendId).map(friendMapper::toDomain);
     }
 
     /**
@@ -67,7 +71,9 @@ public class FriendRepositoryAdapter implements FriendRepository {
      */
     @Override
     public List<Friend> findAcceptedFriendsByUserId(Long userId) {
-        return friendJpaRepository.findByUserIdAndStatus(userId, Friend.FriendStatus.ACCEPTED);
+        return friendJpaRepository.findByUserIdAndStatus(userId, Friend.FriendStatus.ACCEPTED).stream()
+                .map(friendMapper::toDomain)
+                .toList();
     }
 
     /**
@@ -89,7 +95,7 @@ public class FriendRepositoryAdapter implements FriendRepository {
      */
     @Override
     public void delete(Friend friend) {
-        friendJpaRepository.delete(friend);
+        friendJpaRepository.delete(friendMapper.toJpa(friend));
     }
 
     /**

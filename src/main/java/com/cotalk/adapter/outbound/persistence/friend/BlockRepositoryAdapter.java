@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.friend;
 
+import com.cotalk.adapter.outbound.persistence.entity.BlockJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.BlockMapper;
 import com.cotalk.domain.entity.Block;
 import com.cotalk.domain.port.outbound.BlockRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +12,7 @@ import java.util.Optional;
 
 /**
  * 차단 영속성 어댑터.
- * JPA를 통해 사용자 차단 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -19,6 +21,7 @@ import java.util.Optional;
 public class BlockRepositoryAdapter implements BlockRepository {
 
     private final BlockJpaRepository blockJpaRepository;
+    private final BlockMapper mapper;
 
     /**
      * 차단 정보를 저장한다.
@@ -28,7 +31,8 @@ public class BlockRepositoryAdapter implements BlockRepository {
      */
     @Override
     public Block save(Block block) {
-        return blockJpaRepository.save(block);
+        BlockJpaEntity saved = blockJpaRepository.save(mapper.toJpa(block));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -39,7 +43,7 @@ public class BlockRepositoryAdapter implements BlockRepository {
      */
     @Override
     public Optional<Block> findById(Long id) {
-        return blockJpaRepository.findById(id);
+        return blockJpaRepository.findById(id).map(mapper::toDomain);
     }
 
     /**
@@ -51,7 +55,7 @@ public class BlockRepositoryAdapter implements BlockRepository {
      */
     @Override
     public Optional<Block> findByBlockerIdAndBlockedId(Long blockerId, Long blockedId) {
-        return blockJpaRepository.findByBlockerIdAndBlockedId(blockerId, blockedId);
+        return blockJpaRepository.findByBlockerIdAndBlockedId(blockerId, blockedId).map(mapper::toDomain);
     }
 
     /**
@@ -62,7 +66,9 @@ public class BlockRepositoryAdapter implements BlockRepository {
      */
     @Override
     public List<Block> findByBlockerId(Long blockerId) {
-        return blockJpaRepository.findByBlockerId(blockerId);
+        return blockJpaRepository.findByBlockerId(blockerId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -84,7 +90,7 @@ public class BlockRepositoryAdapter implements BlockRepository {
      */
     @Override
     public void delete(Block block) {
-        blockJpaRepository.delete(block);
+        blockJpaRepository.delete(mapper.toJpa(block));
     }
 
     /**

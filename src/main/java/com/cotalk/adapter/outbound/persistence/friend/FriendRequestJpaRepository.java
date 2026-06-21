@@ -1,5 +1,6 @@
 package com.cotalk.adapter.outbound.persistence.friend;
 
+import com.cotalk.adapter.outbound.persistence.entity.FriendRequestJpaEntity;
 import com.cotalk.domain.entity.FriendRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,11 +10,11 @@ import java.util.List;
 
 /**
  * 친구 요청 JPA 리포지토리.
- * Spring Data JPA를 통해 친구 요청 데이터에 접근한다.
+ * persistence 계층 전용이며, 도메인 반환은 Adapter에서 매핑한다.
  *
  * @author seunggu.lee
  */
-public interface FriendRequestJpaRepository extends JpaRepository<FriendRequest, Long> {
+public interface FriendRequestJpaRepository extends JpaRepository<FriendRequestJpaEntity, Long> {
 
     /**
      * 수신자 ID와 상태로 친구 요청 목록을 조회한다.
@@ -22,7 +23,7 @@ public interface FriendRequestJpaRepository extends JpaRepository<FriendRequest,
      * @param status 요청 상태
      * @return 친구 요청 목록
      */
-    List<FriendRequest> findByReceiverIdAndStatus(Long receiverId, FriendRequest.RequestStatus status);
+    List<FriendRequestJpaEntity> findByReceiverIdAndStatus(Long receiverId, FriendRequest.RequestStatus status);
 
     /**
      * 수신자 ID와 상태로 친구 요청 목록을 페이지네이션하여 조회한다.
@@ -32,7 +33,7 @@ public interface FriendRequestJpaRepository extends JpaRepository<FriendRequest,
      * @param pageable   페이지네이션 정보
      * @return 페이지네이션된 친구 요청 목록
      */
-    Page<FriendRequest> findByReceiverIdAndStatus(Long receiverId, FriendRequest.RequestStatus status, Pageable pageable);
+    Page<FriendRequestJpaEntity> findByReceiverIdAndStatus(Long receiverId, FriendRequest.RequestStatus status, Pageable pageable);
 
     /**
      * 요청자 ID와 상태로 친구 요청 목록을 조회한다.
@@ -41,7 +42,7 @@ public interface FriendRequestJpaRepository extends JpaRepository<FriendRequest,
      * @param status 요청 상태
      * @return 친구 요청 목록
      */
-    List<FriendRequest> findByRequesterIdAndStatus(Long requesterId, FriendRequest.RequestStatus status);
+    List<FriendRequestJpaEntity> findByRequesterIdAndStatus(Long requesterId, FriendRequest.RequestStatus status);
 
     /**
      * 요청자 ID와 상태로 친구 요청 목록을 페이지네이션하여 조회한다.
@@ -51,7 +52,7 @@ public interface FriendRequestJpaRepository extends JpaRepository<FriendRequest,
      * @param pageable    페이지네이션 정보
      * @return 페이지네이션된 친구 요청 목록
      */
-    Page<FriendRequest> findByRequesterIdAndStatus(Long requesterId, FriendRequest.RequestStatus status, Pageable pageable);
+    Page<FriendRequestJpaEntity> findByRequesterIdAndStatus(Long requesterId, FriendRequest.RequestStatus status, Pageable pageable);
 
     /**
      * 요청자 ID와 수신자 ID로 친구 요청이 존재하는지 확인한다.
