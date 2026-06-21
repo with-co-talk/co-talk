@@ -15,6 +15,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.io.InputStream;
+import java.net.URI;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -213,24 +214,33 @@ public class MinioFileStorage implements FileStorage {
     }
 
     /**
-     * 저장 URL에서 {@code /bucket/} 경계를 찾아 저장 객체 키를 추출한다.
-     * 쿼리 문자열(만료된 Pre-signed 서명 등)은 제거한다.
+     * 저장 URL의 경로(path)를 파싱하여 선행 {@code /{bucket}/} 접두사를 제거해 저장 객체 키를 추출한다.
+     * <p>
+     * URL을 파싱하여 경로 부분만 사용하므로, 쿼리 문자열(만료된 Pre-signed 서명 등)이나 객체 키에
+     * 우연히 버킷명과 동일한 세그먼트가 포함되어도 영향을 받지 않는다. 경로가 {@code /{bucket}/}로
+     * 시작하는 path-style URL(현재 {@code publicUrl/bucket/objectKey} 및 Pre-signed URL)에서만
+     * 키를 추출하며, 그 외(외부 URL 등)에는 {@code null}을 반환해 변형하지 않는다.
+     * </p>
      *
      * @param storedUrl 저장된 첨부파일 URL
-     * @return 추출된 객체 키. 버킷 경계를 찾지 못하면 {@code null}
+     * @return 추출된 객체 키. 버킷 경계를 찾지 못하거나 URL을 파싱할 수 없으면 {@code null}
      */
     private String extractObjectKey(String storedUrl) {
-        String marker = "/" + bucketName + "/";
-        int idx = storedUrl.indexOf(marker);
-        if (idx < 0) {
+        String path;
+        try {
+            path = URI.create(storedUrl).getPath();
+        } catch (IllegalArgumentException e) {
             return null;
         }
-        String afterBucket = storedUrl.substring(idx + marker.length());
-        int queryIdx = afterBucket.indexOf('?');
-        if (queryIdx >= 0) {
-            afterBucket = afterBucket.substring(0, queryIdx);
+        if (path == null || path.isBlank()) {
+            return null;
         }
-        return afterBucket.isBlank() ? null : afterBucket;
+        String prefix = "/" + bucketName + "/";
+        if (!path.startsWith(prefix)) {
+            return null;
+        }
+        String objectKey = path.substring(prefix.length());
+        return objectKey.isBlank() ? null : objectKey;
     }
 
     /**

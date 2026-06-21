@@ -281,6 +281,29 @@ class MinioFileStorageTest {
     }
 
     @Test
+    @DisplayName("객체 키에 버킷명과 동일한 세그먼트가 포함되어도 선행 /bucket/ 접두사만 제거해 키를 추출")
+    void should_extractKeyByLeadingPrefix_when_objectKeyContainsBucketName() throws Exception {
+        // given: 객체 키 내부에 버킷명(test-bucket)과 동일한 세그먼트가 포함된 URL.
+        // 첫 번째 출현 위치 기반 추출(indexOf)이면 잘못된 키가 추출되지만, 경로 파싱은 선행 접두사만 제거한다.
+        String storedUrl = PUBLIC_URL + "/" + BUCKET_NAME + "/uploads/1/" + BUCKET_NAME + "/abc.png";
+        String presignedUrl = "http://minio.example.com/cotalk/uploads/1/test-bucket/abc.png?X-Amz-Signature=signed";
+
+        PresignedGetObjectRequest presignedRequest = mock(PresignedGetObjectRequest.class);
+        given(presignedRequest.url()).willReturn(URI.create(presignedUrl).toURL());
+        given(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class)))
+                .willReturn(presignedRequest);
+
+        // when
+        String result = fileStorage.presignAttachmentUrl(storedUrl, 10);
+
+        // then: 선행 /test-bucket/ 만 제거된 전체 객체 키로 presign을 호출해야 한다
+        assertEquals(presignedUrl, result);
+        verify(s3Presigner).presignGetObject(argThat((GetObjectPresignRequest req) ->
+                req.getObjectRequest().key().equals("uploads/1/" + BUCKET_NAME + "/abc.png")
+                        && req.getObjectRequest().bucket().equals(BUCKET_NAME)));
+    }
+
+    @Test
     @DisplayName("버킷 경계가 없는 외부 URL은 변형하지 않고 그대로 반환")
     void should_returnInputUnchanged_when_presignAttachmentUrlHasNoBucketSegment() {
         // given: 버킷 세그먼트가 없는 외부 URL(링크 미리보기 이미지 등)

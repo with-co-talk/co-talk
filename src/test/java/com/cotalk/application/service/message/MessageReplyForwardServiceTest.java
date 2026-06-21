@@ -6,6 +6,7 @@ import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.MessageNotFoundException;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.FileStorage;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserRepository;
@@ -15,7 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -27,9 +28,13 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,7 +58,9 @@ class MessageReplyForwardServiceTest {
     @Mock
     private UserEventBroker userEventBroker;
 
-    @InjectMocks
+    @Mock
+    private FileStorage fileStorage;
+
     private MessageReplyForwardService messageReplyForwardService;
 
     private Long senderId;
@@ -66,6 +73,15 @@ class MessageReplyForwardServiceTest {
         senderId = 100L;
         chatRoomId = 1L;
         originalMessageId = 500L;
+
+        messageReplyForwardService = new MessageReplyForwardService(
+                messageRepository, chatRoomMemberRepository, idGenerator, chatMessageBroker,
+                userRepository, userEventBroker, fileStorage, 10);
+
+        // 첨부파일 URL은 기본적으로 그대로 통과시켜 기존 검증을 유지한다(실제로는 단기 Pre-signed URL로 재발급).
+        lenient().when(fileStorage.presignAttachmentUrl(anyString(), anyInt()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(fileStorage.presignAttachmentUrl(eq(null), anyInt())).thenReturn(null);
 
         originalMessage = Message.builder()
                 .id(originalMessageId)
@@ -297,6 +313,56 @@ class MessageReplyForwardServiceTest {
             assertThat(forwardedMessage.getFileSize()).isEqualTo(2048L);
             assertThat(forwardedMessage.getFileContentType()).isEqualTo("application/pdf");
             assertThat(forwardedMessage.getForwardedFromMessageId()).isEqualTo(originalMessageId);
+        }
+
+        @Test
+        @DisplayName("이미지 메시지를 전달할 때 브로드캐스트 첨부파일 URL은 원본이 아닌 단기 Pre-signed URL이다 (H-1)")
+        void should_broadcastPresignedAttachmentUrl_when_forwardImageMessage() {
+            // given
+            Long targetChatRoomId = 2L;
+            Long newMessageId = 700L;
+            String storedFileUrl = "https://minio.example.com/cotalk/uploads/1/image.png";
+            String storedThumbnailUrl = "https://minio.example.com/cotalk/uploads/1/thumb.png";
+            String presignedFileUrl = "https://minio.example.com/cotalk/uploads/1/image.png?X-Amz-Signature=file";
+            String presignedThumbnailUrl = "https://minio.example.com/cotalk/uploads/1/thumb.png?X-Amz-Signature=thumb";
+
+            Message imageMessage = Message.builder()
+                    .id(originalMessageId)
+                    .chatRoomId(chatRoomId)
+                    .senderId(200L)
+                    .content("이미지 설명")
+                    .type(Message.MessageType.IMAGE)
+                    .fileUrl(storedFileUrl)
+                    .fileName("image.png")
+                    .fileSize(1024L)
+                    .fileContentType("image/png")
+                    .thumbnailUrl(storedThumbnailUrl)
+                    .build();
+
+            given(messageRepository.findById(originalMessageId)).willReturn(Optional.of(imageMessage));
+            given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, senderId)).willReturn(true);
+            given(chatRoomMemberRepository.existsByChatRoomIdAndUserId(targetChatRoomId, senderId)).willReturn(true);
+            given(idGenerator.nextId()).willReturn(newMessageId);
+            given(messageRepository.save(any(Message.class))).willAnswer(invocation -> {
+                Message msg = invocation.getArgument(0);
+                ReflectionTestUtils.setField(msg, "createdAt", LocalDateTime.now());
+                return msg;
+            });
+            given(fileStorage.presignAttachmentUrl(storedFileUrl, 10)).willReturn(presignedFileUrl);
+            given(fileStorage.presignAttachmentUrl(storedThumbnailUrl, 10)).willReturn(presignedThumbnailUrl);
+
+            // when
+            messageReplyForwardService.forwardMessage(senderId, originalMessageId, targetChatRoomId);
+
+            // then: 브로드캐스트된 첨부파일 URL은 저장 원본이 아니라 단기 Pre-signed URL이어야 한다
+            ArgumentCaptor<ChatMessageBroker.ChatBroadcastMessage> broadcastCaptor =
+                    ArgumentCaptor.forClass(ChatMessageBroker.ChatBroadcastMessage.class);
+            verify(chatMessageBroker, times(1)).publish(eq(targetChatRoomId), broadcastCaptor.capture());
+
+            ChatMessageBroker.ChatBroadcastMessage broadcast = broadcastCaptor.getValue();
+            assertThat(broadcast.fileUrl()).isEqualTo(presignedFileUrl);
+            assertThat(broadcast.thumbnailUrl()).isEqualTo(presignedThumbnailUrl);
+            assertThat(broadcast.fileUrl()).isNotEqualTo(storedFileUrl);
         }
     }
 }

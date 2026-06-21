@@ -44,21 +44,41 @@ public record SendMessageResponse(
 
     /**
      * Message 엔티티로부터 응답 DTO를 생성합니다.
+     * <p>
+     * 첨부파일 URL은 엔티티에 저장된 원본 값을 사용합니다. 멤버십이 검증된 생성 경로에서 재발급한
+     * 단기 Pre-signed URL을 노출하려면 {@link #from(Message, String, String)}을 사용하세요(H-1).
+     * </p>
      *
      * @param message Message 엔티티
      * @return SendMessageResponse 인스턴스
      */
     public static SendMessageResponse from(Message message) {
+        return from(message, message.getFileUrl(), message.getThumbnailUrl());
+    }
+
+    /**
+     * Message 엔티티로부터 응답 DTO를 생성합니다. (첨부파일 URL을 명시적으로 지정)
+     * <p>
+     * 메시지 생성 직후 본인에게 응답을 돌려줄 때, 엔티티에 저장된 원본 URL 대신 재발급한 단기
+     * Pre-signed URL({@code fileUrl}/{@code thumbnailUrl})을 클라이언트에 노출하기 위해 사용합니다(H-1).
+     * </p>
+     *
+     * @param message      Message 엔티티
+     * @param fileUrl      클라이언트에 노출할 파일 URL (단기 Pre-signed URL)
+     * @param thumbnailUrl 클라이언트에 노출할 썸네일 URL (단기 Pre-signed URL)
+     * @return SendMessageResponse 인스턴스
+     */
+    public static SendMessageResponse from(Message message, String fileUrl, String thumbnailUrl) {
         return new SendMessageResponse(
                 message.getId(),
                 message.getContent(),
                 message.getType().name(),
                 message.getCreatedAt(),
-                message.getFileUrl(),
+                fileUrl,
                 message.getFileName(),
                 message.getFileSize(),
                 message.getFileContentType(),
-                message.getThumbnailUrl(),
+                thumbnailUrl,
                 message.getReplyToMessageId(),
                 message.getForwardedFromMessageId(),
                 message.getLinkPreviewUrl(),
