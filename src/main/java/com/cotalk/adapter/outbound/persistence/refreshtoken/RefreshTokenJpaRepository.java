@@ -1,6 +1,6 @@
 package com.cotalk.adapter.outbound.persistence.refreshtoken;
 
-import com.cotalk.domain.entity.RefreshToken;
+import com.cotalk.adapter.outbound.persistence.entity.RefreshTokenJpaEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -11,10 +11,11 @@ import java.util.Optional;
 
 /**
  * Refresh Token JPA 리포지토리.
+ * persistence 계층 전용이며, 도메인 반환은 Adapter에서 매핑한다.
  *
  * @author seunggu.lee
  */
-public interface RefreshTokenJpaRepository extends JpaRepository<RefreshToken, Long> {
+public interface RefreshTokenJpaRepository extends JpaRepository<RefreshTokenJpaEntity, Long> {
 
     /**
      * 토큰 값으로 Refresh Token을 조회한다.
@@ -22,7 +23,7 @@ public interface RefreshTokenJpaRepository extends JpaRepository<RefreshToken, L
      * @param token 토큰 값
      * @return Refresh Token
      */
-    Optional<RefreshToken> findByToken(String token);
+    Optional<RefreshTokenJpaEntity> findByToken(String token);
 
     /**
      * 사용자 ID로 폐기되지 않은 Refresh Token을 조회한다.
@@ -30,7 +31,7 @@ public interface RefreshTokenJpaRepository extends JpaRepository<RefreshToken, L
      * @param userId 사용자 ID
      * @return Refresh Token
      */
-    Optional<RefreshToken> findByUserIdAndRevokedFalse(Long userId);
+    Optional<RefreshTokenJpaEntity> findByUserIdAndRevokedFalse(Long userId);
 
     /**
      * 사용자의 모든 Refresh Token을 폐기한다.
@@ -38,7 +39,7 @@ public interface RefreshTokenJpaRepository extends JpaRepository<RefreshToken, L
      * @param userId 사용자 ID
      */
     @Modifying
-    @Query("UPDATE RefreshToken r SET r.revoked = true WHERE r.userId = :userId AND r.revoked = false")
+    @Query("UPDATE RefreshTokenJpaEntity r SET r.revoked = true WHERE r.userId = :userId AND r.revoked = false")
     void revokeAllByUserId(@Param("userId") Long userId);
 
     /**
@@ -52,7 +53,7 @@ public interface RefreshTokenJpaRepository extends JpaRepository<RefreshToken, L
      * @return 삭제된 토큰 수
      */
     @Modifying
-    @Query("DELETE FROM RefreshToken r WHERE r.userId = :userId")
+    @Query("DELETE FROM RefreshTokenJpaEntity r WHERE r.userId = :userId")
     int deleteByUserId(@Param("userId") Long userId);
 
     /**
@@ -62,6 +63,6 @@ public interface RefreshTokenJpaRepository extends JpaRepository<RefreshToken, L
      * @return 삭제된 토큰 수
      */
     @Modifying
-    @Query("DELETE FROM RefreshToken r WHERE r.expiresAt < :now")
+    @Query("DELETE FROM RefreshTokenJpaEntity r WHERE r.expiresAt < :now")
     int deleteByExpiresAtBefore(@Param("now") LocalDateTime now);
 }

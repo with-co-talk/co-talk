@@ -1,43 +1,38 @@
 package com.cotalk.domain.entity;
 
 import com.cotalk.domain.model.Email;
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * 이메일 인증 토큰 엔티티.
+ * 이메일 인증 토큰 도메인 엔티티.
  * 사용자의 이메일 인증 요청에 대한 토큰 정보를 나타낸다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "email_verification_tokens")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class EmailVerificationToken extends BaseEntity {
+@SuperBuilder
+public class EmailVerificationToken extends DomainBaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
     private String token;
 
-    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
     private Email email;
 
-    @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
-    @Column(name = "verified_at")
     private LocalDateTime verifiedAt;
 
     /**

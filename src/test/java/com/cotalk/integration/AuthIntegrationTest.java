@@ -3,8 +3,8 @@ package com.cotalk.integration;
 import com.cotalk.adapter.inbound.rest.dto.auth.LoginRequest;
 import com.cotalk.adapter.inbound.rest.dto.auth.SignUpRequest;
 import com.cotalk.adapter.outbound.persistence.auth.EmailVerificationTokenJpaRepository;
+import com.cotalk.adapter.outbound.persistence.entity.EmailVerificationTokenJpaEntity;
 import com.cotalk.config.TestRedisConfiguration;
-import com.cotalk.domain.entity.EmailVerificationToken;
 import com.cotalk.domain.model.Email;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -135,7 +135,7 @@ class AuthIntegrationTest {
      * 가장 최근 생성된 인증 토큰을 찾아 인증 API를 호출한다.
      */
     private void verifyEmailForUser(String email) throws Exception {
-        EmailVerificationToken token = emailVerificationTokenJpaRepository.findAll().stream()
+        EmailVerificationTokenJpaEntity token = emailVerificationTokenJpaRepository.findAll().stream()
                 .filter(t -> t.getEmail().equals(new Email(email)))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Verification token not found for: " + email));

@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.auth;
 
+import com.cotalk.adapter.outbound.persistence.entity.TermsAgreementJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.TermsAgreementMapper;
 import com.cotalk.domain.entity.TermsAgreement;
 import com.cotalk.domain.entity.TermsAgreement.TermsType;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,11 +33,16 @@ class TermsAgreementRepositoryAdapterTest {
     @Mock
     private TermsAgreementJpaRepository jpaRepository;
 
+    @Mock
+    private TermsAgreementMapper mapper;
+
     @InjectMocks
     private TermsAgreementRepositoryAdapter adapter;
 
     private TermsAgreement serviceAgreement;
     private TermsAgreement privacyAgreement;
+    private TermsAgreementJpaEntity serviceJpa;
+    private TermsAgreementJpaEntity privacyJpa;
 
     @BeforeEach
     void setUp() {
@@ -56,6 +63,24 @@ class TermsAgreementRepositoryAdapterTest {
                 .agreed(true)
                 .agreedAt(LocalDateTime.now())
                 .build();
+
+        serviceJpa = TermsAgreementJpaEntity.builder()
+                .id(1L)
+                .userId(100L)
+                .termsType(TermsType.SERVICE)
+                .termsVersion("1.0")
+                .agreed(true)
+                .agreedAt(serviceAgreement.getAgreedAt())
+                .build();
+
+        privacyJpa = TermsAgreementJpaEntity.builder()
+                .id(2L)
+                .userId(100L)
+                .termsType(TermsType.PRIVACY)
+                .termsVersion("1.0")
+                .agreed(true)
+                .agreedAt(privacyAgreement.getAgreedAt())
+                .build();
     }
 
     @Nested
@@ -66,14 +91,16 @@ class TermsAgreementRepositoryAdapterTest {
         @DisplayName("약관 동의를 저장하고 반환한다")
         void should_saveAgreement_when_agreementProvided() {
             // given
-            when(jpaRepository.save(serviceAgreement)).thenReturn(serviceAgreement);
+            when(mapper.toJpa(serviceAgreement)).thenReturn(serviceJpa);
+            when(jpaRepository.save(serviceJpa)).thenReturn(serviceJpa);
+            when(mapper.toDomain(serviceJpa)).thenReturn(serviceAgreement);
 
             // when
             TermsAgreement result = adapter.save(serviceAgreement);
 
             // then
             assertThat(result).isEqualTo(serviceAgreement);
-            verify(jpaRepository).save(serviceAgreement);
+            verify(jpaRepository).save(serviceJpa);
         }
     }
 
@@ -86,7 +113,12 @@ class TermsAgreementRepositoryAdapterTest {
         void should_saveAllAgreements_when_agreementsProvided() {
             // given
             List<TermsAgreement> agreements = List.of(serviceAgreement, privacyAgreement);
-            when(jpaRepository.saveAll(agreements)).thenReturn(agreements);
+            when(mapper.toJpa(serviceAgreement)).thenReturn(serviceJpa);
+            when(mapper.toJpa(privacyAgreement)).thenReturn(privacyJpa);
+            when(jpaRepository.saveAll(List.of(serviceJpa, privacyJpa)))
+                    .thenReturn(List.of(serviceJpa, privacyJpa));
+            when(mapper.toDomain(serviceJpa)).thenReturn(serviceAgreement);
+            when(mapper.toDomain(privacyJpa)).thenReturn(privacyAgreement);
 
             // when
             List<TermsAgreement> result = adapter.saveAll(agreements);
@@ -94,7 +126,7 @@ class TermsAgreementRepositoryAdapterTest {
             // then
             assertThat(result).hasSize(2);
             assertThat(result).containsExactly(serviceAgreement, privacyAgreement);
-            verify(jpaRepository).saveAll(agreements);
+            verify(jpaRepository).saveAll(List.of(serviceJpa, privacyJpa));
         }
     }
 
@@ -108,7 +140,8 @@ class TermsAgreementRepositoryAdapterTest {
             // given
             Long userId = 100L;
             when(jpaRepository.findByUserIdAndTermsType(userId, TermsType.SERVICE))
-                    .thenReturn(Optional.of(serviceAgreement));
+                    .thenReturn(Optional.of(serviceJpa));
+            when(mapper.toDomain(serviceJpa)).thenReturn(serviceAgreement);
 
             // when
             Optional<TermsAgreement> result = adapter.findByUserIdAndTermsType(userId, TermsType.SERVICE);
@@ -144,8 +177,9 @@ class TermsAgreementRepositoryAdapterTest {
         void should_findAllAgreements_when_userIdProvided() {
             // given
             Long userId = 100L;
-            List<TermsAgreement> agreements = List.of(serviceAgreement, privacyAgreement);
-            when(jpaRepository.findByUserId(userId)).thenReturn(agreements);
+            when(jpaRepository.findByUserId(userId)).thenReturn(List.of(serviceJpa, privacyJpa));
+            when(mapper.toDomain(serviceJpa)).thenReturn(serviceAgreement);
+            when(mapper.toDomain(privacyJpa)).thenReturn(privacyAgreement);
 
             // when
             List<TermsAgreement> result = adapter.findByUserId(userId);
