@@ -120,8 +120,8 @@ public class ReinviteDirectChatMemberService implements ReinviteDirectChatMember
 
         // 메시지 저장
         Message savedMessage = messageRepository.save(systemMessage);
-        log.info("System message created for user reinvite: chatRoomId={}, messageId={}, content={}",
-                chatRoomId, savedMessage.getId(), systemMessageContent);
+        log.info("System message created for user reinvite: chatRoomId={}, messageId={}",
+                chatRoomId, savedMessage.getId());
 
         // 현재 멤버 목록 조회 (재초대된 사용자 포함)
         List<ChatRoomMember> members = chatRoomMemberRepository.findByChatRoomId(chatRoomId);

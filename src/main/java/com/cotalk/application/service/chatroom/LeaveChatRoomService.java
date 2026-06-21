@@ -160,8 +160,8 @@ public class LeaveChatRoomService implements LeaveChatRoomUseCase {
 
         // 메시지 저장
         Message savedMessage = messageRepository.save(systemMessage);
-        log.info("System message created for user leave: chatRoomId={}, messageId={}, content={}",
-                chatRoomId, savedMessage.getId(), systemMessageContent);
+        log.info("System message created for user leave: chatRoomId={}, messageId={}",
+                chatRoomId, savedMessage.getId());
 
         // WebSocket으로 브로드캐스트
         ChatBroadcastMessage broadcastMessage = new ChatBroadcastMessage(

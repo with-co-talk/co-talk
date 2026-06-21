@@ -219,8 +219,8 @@ public class MarkAsReadService implements MarkAsReadUseCase {
             return;
         }
 
-        log.debug("Found last message in chat room {}: messageId={}, content={}",
-                chatRoomId, lastMessage.getId(), lastMessage.getContent());
+        log.debug("Found last message in chat room {}: messageId={}",
+                chatRoomId, lastMessage.getId());
 
         // 발신자 닉네임 조회
         String senderNickname = userRepository.findById(lastMessage.getSenderId())
