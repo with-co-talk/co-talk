@@ -3,6 +3,7 @@ package com.cotalk.infrastructure.crypto;
 import com.cotalk.infrastructure.config.properties.AppProperties;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
@@ -46,6 +47,7 @@ public class EncryptionService {
      * @param appProperties 앱 설정 프로퍼티
      * @param environment 활성 프로파일 확인용 스프링 환경
      */
+    @Autowired
     public EncryptionService(AppProperties appProperties, Environment environment) {
         this.environment = environment;
         this.enabled = appProperties.encryption().enabled();

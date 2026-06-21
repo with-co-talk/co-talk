@@ -247,7 +247,10 @@ class RateLimitInterceptorTest {
         private void stubBucketAllow() {
             io.github.bucket4j.distributed.proxy.RemoteBucketBuilder builder =
                     org.mockito.Mockito.mock(io.github.bucket4j.distributed.proxy.RemoteBucketBuilder.class);
-            io.github.bucket4j.Bucket bucket = org.mockito.Mockito.mock(io.github.bucket4j.Bucket.class);
+            // build()의 선언 반환 타입은 BucketProxy이므로 Bucket이 아닌 BucketProxy를 모킹해야
+            // Mockito가 WrongTypeOfReturnValue를 던지지 않는다.
+            io.github.bucket4j.distributed.BucketProxy bucket =
+                    org.mockito.Mockito.mock(io.github.bucket4j.distributed.BucketProxy.class);
             given(proxyManager.builder()).willReturn(builder);
             org.mockito.Mockito.doReturn(bucket).when(builder).build(
                     org.mockito.ArgumentMatchers.any(byte[].class),
