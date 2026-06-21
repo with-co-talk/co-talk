@@ -126,7 +126,7 @@ class DistributedLockExecutorTest {
         Integer expectedResult = 42;
 
         given(redissonClient.getLock(anyString())).willReturn(rLock);
-        given(rLock.tryLock(eq(3L), eq(10L), eq(TimeUnit.SECONDS))).willReturn(true);
+        given(rLock.tryLock(eq(3L), eq(-1L), eq(TimeUnit.SECONDS))).willReturn(true);
         given(rLock.isHeldByCurrentThread()).willReturn(true);
 
         // when
@@ -144,7 +144,7 @@ class DistributedLockExecutorTest {
         AtomicInteger counter = new AtomicInteger(0);
 
         given(redissonClient.getLock(anyString())).willReturn(rLock);
-        given(rLock.tryLock(eq(3L), eq(10L), eq(TimeUnit.SECONDS))).willReturn(true);
+        given(rLock.tryLock(eq(3L), eq(-1L), eq(TimeUnit.SECONDS))).willReturn(true);
         given(rLock.isHeldByCurrentThread()).willReturn(true);
 
         // when

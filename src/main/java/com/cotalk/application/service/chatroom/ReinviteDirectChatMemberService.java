@@ -144,7 +144,8 @@ public class ReinviteDirectChatMemberService implements ReinviteDirectChatMember
                 0,    // unreadCount (시스템 메시지는 읽음 처리 불필요)
                 "USER_JOINED",   // eventType
                 inviteeId,       // relatedUserId
-                inviteeNickname  // relatedUserNickname
+                inviteeNickname, // relatedUserNickname
+                null             // clientMessageId (시스템 메시지, 해당 경로 없음)
         );
 
         chatMessageBroker.publish(chatRoomId, broadcastMessage);

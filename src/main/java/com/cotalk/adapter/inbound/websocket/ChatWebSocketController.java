@@ -112,7 +112,8 @@ public class ChatWebSocketController {
         // 실패해도 메시지는 저장됨 - 다음 조회 시 표시
         try {
             broadcastChatMessageUseCase.broadcastMessage(
-                    result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members());
+                    result.message(), result.senderNickname(), result.senderAvatarUrl(), result.members(),
+                    request.clientMessageId());
         } catch (Exception e) {
             log.error("[WS] Failed to broadcast message: messageId={}, roomId={}",
                     result.message().getId(), request.roomId(), e);

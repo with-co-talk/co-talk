@@ -186,7 +186,8 @@ public class RedisChatMessageSubscriber implements MessageListener {
                 msg.unreadCount(),
                 msg.eventType(),
                 msg.relatedUserId(),
-                msg.relatedUserNickname()
+                msg.relatedUserNickname(),
+                msg.clientMessageId()
         );
     }
 
@@ -210,6 +211,7 @@ public class RedisChatMessageSubscriber implements MessageListener {
      * @param eventType        이벤트 유형 (USER_LEFT, USER_JOINED 등, 시스템 메시지인 경우)
      * @param relatedUserId    관련 사용자 ID (나간 사용자, 참여한 사용자 등)
      * @param relatedUserNickname 관련 사용자 닉네임
+     * @param clientMessageId  클라이언트 낙관적 전송 상관관계 ID (에코, 없으면 null)
      */
     public record WebSocketChatMessage(
             Integer schemaVersion,
@@ -230,7 +232,8 @@ public class RedisChatMessageSubscriber implements MessageListener {
             Integer unreadCount,
             String eventType,
             Long relatedUserId,
-            String relatedUserNickname
+            String relatedUserNickname,
+            String clientMessageId
     ) {}
 
     /**

@@ -51,7 +51,7 @@ public class BroadcastChatMessageService implements BroadcastChatMessageUseCase 
      */
     @Override
     public void broadcastMessage(Message message, String senderNickname, String senderAvatarUrl,
-                                 List<ChatRoomMember> members) {
+                                 List<ChatRoomMember> members, String clientMessageId) {
         // 카톡/라인 방식: 발신자를 제외한 모든 멤버가 읽지 않은 상태로 시작
         int unreadCount = Math.max(0, members.size() - 1);
 
@@ -82,7 +82,8 @@ public class BroadcastChatMessageService implements BroadcastChatMessageUseCase 
                 unreadCount,
                 null,  // eventType (일반 메시지)
                 null,  // relatedUserId
-                null   // relatedUserNickname
+                null,  // relatedUserNickname
+                clientMessageId  // 클라이언트 낙관적 전송 상관관계 ID (에코, 영속화 안 함)
         );
 
         chatMessageBroker.publish(message.getChatRoomId(), broadcastMessage);

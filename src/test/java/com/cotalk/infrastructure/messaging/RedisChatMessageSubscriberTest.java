@@ -217,7 +217,8 @@ class RedisChatMessageSubscriberTest {
                     1L, 2L, "테스트유저", "https://example.com/avatar.jpg", 3L, "content", "TEXT",
                     java.time.LocalDateTime.now(),
                     "fileUrl", "fileName", 100L, "text/plain", "thumbUrl", 1,
-                    null, null, null  // eventType, relatedUserId, relatedUserNickname
+                    null, null, null,  // eventType, relatedUserId, relatedUserNickname
+                    "client-xyz"  // clientMessageId
             );
 
             // then
@@ -235,6 +236,7 @@ class RedisChatMessageSubscriberTest {
             assertThat(message.fileContentType()).isEqualTo("text/plain");
             assertThat(message.thumbnailUrl()).isEqualTo("thumbUrl");
             assertThat(message.unreadCount()).isEqualTo(1);
+            assertThat(message.clientMessageId()).isEqualTo("client-xyz");
         }
     }
 

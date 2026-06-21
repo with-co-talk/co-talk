@@ -27,6 +27,24 @@ public interface BroadcastChatMessageUseCase {
      * @param senderAvatarUrl 발신자 프로필 이미지 URL (사전 조회됨)
      * @param members         채팅방 멤버 목록 (사전 조회됨)
      */
+    default void broadcastMessage(Message message, String senderNickname, String senderAvatarUrl,
+                                  List<ChatRoomMember> members) {
+        broadcastMessage(message, senderNickname, senderAvatarUrl, members, null);
+    }
+
+    /**
+     * 메시지를 채팅방 참여자들에게 브로드캐스트하며, 클라이언트 상관관계 ID를 에코한다.
+     *
+     * <p>{@code clientMessageId}는 클라이언트의 낙관적 전송(optimistic send) 매칭용 일시적
+     * 상관관계 ID다. 브로드캐스트 메시지에 그대로 담아 에코하여, 발신 클라이언트가 자신의 임시
+     * 메시지와 서버 에코를 정확히 매칭하도록 한다. 영속화하지 않으며 없으면 {@code null}이다.</p>
+     *
+     * @param message         브로드캐스트할 메시지
+     * @param senderNickname  발신자 닉네임 (사전 조회됨)
+     * @param senderAvatarUrl 발신자 프로필 이미지 URL (사전 조회됨)
+     * @param members         채팅방 멤버 목록 (사전 조회됨)
+     * @param clientMessageId 클라이언트 낙관적 전송 상관관계 ID (없으면 null)
+     */
     void broadcastMessage(Message message, String senderNickname, String senderAvatarUrl,
-                          List<ChatRoomMember> members);
+                          List<ChatRoomMember> members, String clientMessageId);
 }

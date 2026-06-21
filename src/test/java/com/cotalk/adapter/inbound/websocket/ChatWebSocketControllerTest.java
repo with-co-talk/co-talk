@@ -120,7 +120,7 @@ class ChatWebSocketControllerTest {
     @DisplayName("메시지 전송 시 저장 후 브로드캐스트 유스케이스 호출")
     void should_saveAndBroadcast_when_sendMessage() {
         // given
-        ChatMessageRequest request = new ChatMessageRequest(100L, "테스트 메시지");
+        ChatMessageRequest request = new ChatMessageRequest(100L, "테스트 메시지", "client-tmp-42");
 
         ChatRoomMember member1 = ChatRoomMember.builder()
                 .id(1L)
@@ -145,7 +145,8 @@ class ChatWebSocketControllerTest {
 
         // then
         verify(sendMessageUseCase).sendMessageWithContext(100L, 1L, "테스트 메시지");
-        verify(broadcastChatMessageUseCase).broadcastMessage(mockMessage, "발신자", null, members);
+        // clientMessageId가 인바운드 요청에서 브로드캐스트 호출로 그대로 전달되어야 한다
+        verify(broadcastChatMessageUseCase).broadcastMessage(mockMessage, "발신자", null, members, "client-tmp-42");
         verify(publishChatListUpdateUseCase).publishChatListUpdate(mockMessage, members, "발신자");
     }
 
@@ -388,7 +389,7 @@ class ChatWebSocketControllerTest {
     @DisplayName("채팅방 멤버가 아닌 사용자의 메시지 전송은 거부된다")
     void should_rejectMessage_when_userNotMember() {
         // given
-        ChatMessageRequest request = new ChatMessageRequest(100L, "테스트 메시지");
+        ChatMessageRequest request = new ChatMessageRequest(100L, "테스트 메시지", null);
         Long unauthorizedUserId = 999L;
 
         doThrow(new ChatRoomAccessDeniedException(100L, unauthorizedUserId))

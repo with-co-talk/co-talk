@@ -14,7 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Map;
+import java.lang.reflect.Method;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,10 +42,24 @@ class MessageLinkPreviewServiceTest {
     private ChatMessageBroker chatMessageBroker;
 
     @Captor
-    private ArgumentCaptor<Map<String, Object>> eventCaptor;
+    private ArgumentCaptor<Object> eventCaptor;
 
     @InjectMocks
     private MessageLinkPreviewService messageLinkPreviewService;
+
+    /**
+     * 발행된 이벤트 record의 접근자(accessor)를 리플렉션으로 호출해 값을 읽는다.
+     * 이벤트 record는 서비스 내부 private 타입이라 테스트에서 타입으로 참조할 수 없으므로 사용한다.
+     */
+    private static Object accessor(Object event, String component) {
+        try {
+            Method m = event.getClass().getDeclaredMethod(component);
+            m.setAccessible(true);
+            return m.invoke(event);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("이벤트 접근자 호출 실패: " + component, e);
+        }
+    }
 
     @Test
     @DisplayName("링크 미리보기 저장 후 LINK_PREVIEW_UPDATED 이벤트를 발행해야 함")
@@ -83,17 +97,17 @@ class MessageLinkPreviewServiceTest {
         // Then: chatMessageBroker.publishRoomEvent가 호출되어야 함
         verify(chatMessageBroker, times(1)).publishRoomEvent(eq(chatRoomId), eventCaptor.capture());
 
-        Map<String, Object> event = eventCaptor.getValue();
+        Object event = eventCaptor.getValue();
         assertThat(event).isNotNull();
-        assertThat(event.get("schemaVersion")).isEqualTo(1);
-        assertThat(event.get("eventType")).isEqualTo("LINK_PREVIEW_UPDATED");
-        assertThat(event.get("chatRoomId")).isEqualTo(chatRoomId);
-        assertThat(event.get("messageId")).isEqualTo(messageId);
-        assertThat(event.get("linkPreviewUrl")).isEqualTo(url);
-        assertThat(event.get("linkPreviewTitle")).isEqualTo("Example Title");
-        assertThat(event.get("linkPreviewDescription")).isEqualTo("Example Description");
-        assertThat(event.get("linkPreviewImageUrl")).isEqualTo("https://example.com/image.jpg");
-        assertThat(event.get("eventId")).asString().startsWith("linkpreview:" + messageId + ":");
+        assertThat(accessor(event, "schemaVersion")).isEqualTo(1);
+        assertThat(accessor(event, "eventType")).isEqualTo("LINK_PREVIEW_UPDATED");
+        assertThat(accessor(event, "chatRoomId")).isEqualTo(chatRoomId);
+        assertThat(accessor(event, "messageId")).isEqualTo(messageId);
+        assertThat(accessor(event, "linkPreviewUrl")).isEqualTo(url);
+        assertThat(accessor(event, "linkPreviewTitle")).isEqualTo("Example Title");
+        assertThat(accessor(event, "linkPreviewDescription")).isEqualTo("Example Description");
+        assertThat(accessor(event, "linkPreviewImageUrl")).isEqualTo("https://example.com/image.jpg");
+        assertThat(accessor(event, "eventId")).asString().startsWith("linkpreview:" + messageId + ":");
     }
 
     @Test

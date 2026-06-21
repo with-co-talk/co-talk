@@ -89,7 +89,8 @@ public class MessageBroadcastService {
                 message.getFileContentType(),
                 thumbnailUrl,
                 unreadCount,
-                null, null, null
+                null, null, null,
+                null  // clientMessageId (해당 경로 없음)
         );
 
         chatMessageBroker.publish(message.getChatRoomId(), broadcastMessage);
