@@ -11,8 +11,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -64,13 +62,17 @@ public class MessageLinkPreviewService {
     @Async
     @Transactional
     public void fetchAndSaveLinkPreview(Long messageId, String url) {
+        Message message;
+        LinkPreviewQueryResult result;
+        // DB 커밋 관심사: 미리보기 수집/저장 실패는 그레이스풀 디그레이션(메시지 자체는 유지)이므로
+        // 여기서만 광범위하게 흡수한다. 이 블록을 통과하지 못하면 이벤트 발행도 하지 않는다.
         try {
-            LinkPreviewQueryResult result = linkPreviewQueryPort.queryLinkPreview(url);
+            result = linkPreviewQueryPort.queryLinkPreview(url);
             Optional<Message> opt = messageRepository.findById(messageId);
             if (opt.isEmpty()) {
                 return;
             }
-            Message message = opt.get();
+            message = opt.get();
             message.applyLinkPreview(
                     result.url(),
                     result.title(),
@@ -79,22 +81,69 @@ public class MessageLinkPreviewService {
             );
             messageRepository.save(message);
             log.debug("Link preview saved for messageId={}, url={}", messageId, url);
+        } catch (Exception e) {
+            log.warn("Failed to fetch/save link preview for messageId={}, url={}: {}", messageId, url, e.getMessage());
+            return;
+        }
 
-            // Publish LINK_PREVIEW_UPDATED event so WebSocket clients can update in real-time
-            Map<String, Object> event = new LinkedHashMap<>();
-            event.put("schemaVersion", 1);
-            event.put("eventId", "linkpreview:" + messageId + ":" + System.currentTimeMillis());
-            event.put("eventType", "LINK_PREVIEW_UPDATED");
-            event.put("chatRoomId", message.getChatRoomId());
-            event.put("messageId", messageId);
-            event.put("linkPreviewUrl", result.url());
-            event.put("linkPreviewTitle", result.title());
-            event.put("linkPreviewDescription", result.description());
-            event.put("linkPreviewImageUrl", result.imageUrl());
-            chatMessageBroker.publishRoomEvent(message.getChatRoomId(), event);
+        // 발행 관심사: DB 커밋과 분리한다. 발행 실패는 영속화된 미리보기와 별개의 문제이므로
+        // 별도 try로 좁혀 명확한 메시지/레벨로 가시화한다(그레이스풀 디그레이션은 유지).
+        publishLinkPreviewUpdated(messageId, message.getChatRoomId(), result);
+    }
+
+    /**
+     * LINK_PREVIEW_UPDATED 이벤트를 채팅방에 발행하여 WebSocket 클라이언트가 실시간 갱신하도록 한다.
+     *
+     * <p>발행 실패가 메시지 영속화(이미 커밋됨)를 되돌리지 않도록 DB 관심사와 분리해 호출한다.
+     * 지속적인 발행 실패도 최소한 가시적으로 로깅되도록 별도 try로 좁힌다.</p>
+     *
+     * @param messageId  메시지 ID
+     * @param chatRoomId 채팅방 ID
+     * @param result     수집된 링크 미리보기 결과
+     */
+    private void publishLinkPreviewUpdated(Long messageId, Long chatRoomId, LinkPreviewQueryResult result) {
+        try {
+            LinkPreviewUpdatedEvent event = new LinkPreviewUpdatedEvent(
+                    1,
+                    "linkpreview:" + messageId + ":" + System.currentTimeMillis(),
+                    "LINK_PREVIEW_UPDATED",
+                    chatRoomId,
+                    messageId,
+                    result.url(),
+                    result.title(),
+                    result.description(),
+                    result.imageUrl()
+            );
+            chatMessageBroker.publishRoomEvent(chatRoomId, event);
             log.debug("Published LINK_PREVIEW_UPDATED event for messageId={}", messageId);
         } catch (Exception e) {
-            log.warn("Failed to fetch link preview for messageId={}, url={}: {}", messageId, url, e.getMessage());
+            log.warn("Failed to publish LINK_PREVIEW_UPDATED event for messageId={}: {}", messageId, e.getMessage());
         }
     }
+
+    /**
+     * 링크 미리보기 갱신 이벤트 DTO.
+     * Redis Pub/Sub -> WebSocket 방 토픽(/topic/chat/room/{roomId})으로 전달되는 이벤트다.
+     *
+     * @param schemaVersion          스키마 버전
+     * @param eventId                이벤트 고유 ID (중복 체크용)
+     * @param eventType              이벤트 유형 (LINK_PREVIEW_UPDATED)
+     * @param chatRoomId             채팅방 ID
+     * @param messageId              미리보기가 갱신된 메시지 ID
+     * @param linkPreviewUrl         미리보기 대상 URL
+     * @param linkPreviewTitle       미리보기 제목
+     * @param linkPreviewDescription 미리보기 설명
+     * @param linkPreviewImageUrl    미리보기 이미지 URL
+     */
+    private record LinkPreviewUpdatedEvent(
+            Integer schemaVersion,
+            String eventId,
+            String eventType,
+            Long chatRoomId,
+            Long messageId,
+            String linkPreviewUrl,
+            String linkPreviewTitle,
+            String linkPreviewDescription,
+            String linkPreviewImageUrl
+    ) {}
 }
