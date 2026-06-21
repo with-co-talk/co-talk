@@ -1,6 +1,11 @@
 package com.cotalk.infrastructure.crypto;
 
 import com.cotalk.infrastructure.config.properties.AppProperties;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
@@ -10,6 +15,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 
 /**
@@ -23,6 +29,7 @@ import java.util.Base64;
  *
  * @author seunggu.lee
  */
+@Slf4j
 @Component
 public class EncryptionService {
 
@@ -32,13 +39,17 @@ public class EncryptionService {
 
     private final SecretKey secretKey;
     private final boolean enabled;
+    private final Environment environment;
 
     /**
      * EncryptionService 생성자.
      *
      * @param appProperties 앱 설정 프로퍼티
+     * @param environment 활성 프로파일 확인용 스프링 환경
      */
-    public EncryptionService(AppProperties appProperties) {
+    @Autowired
+    public EncryptionService(AppProperties appProperties, Environment environment) {
+        this.environment = environment;
         this.enabled = appProperties.encryption().enabled();
         if (this.enabled) {
             String encryptionKey = appProperties.encryption().key();
@@ -49,6 +60,37 @@ public class EncryptionService {
             this.secretKey = new SecretKeySpec(keyBytes, "AES");
         } else {
             this.secretKey = null;
+        }
+    }
+
+    /**
+     * EncryptionService 생성자 (Environment 미지정).
+     * 단위 테스트 등 프로파일 확인이 불필요한 경우에 사용한다.
+     *
+     * @param appProperties 앱 설정 프로퍼티
+     */
+    public EncryptionService(AppProperties appProperties) {
+        this(appProperties, null);
+    }
+
+    /**
+     * 암호화가 비활성화된 상태로 비-test 프로파일이 활성화되면 시작 시점에 WARN 로그를 남긴다.
+     *
+     * <p>{@code enabled=false}이면 평문이 그대로 저장/반환되므로(fail-open),
+     * 프로파일/환경변수 설정 실수로 운영 데이터가 평문 노출되는 상황을 가시화한다.
+     * 운영(prod)은 {@code enabled=true}를 강제하므로 영향받지 않는다.</p>
+     */
+    @PostConstruct
+    void warnIfDisabled() {
+        if (enabled || environment == null) {
+            return;
+        }
+        boolean testProfile = environment.acceptsProfiles(Profiles.of("test"));
+        if (!testProfile) {
+            log.warn("암호화(app.encryption.enabled)가 비활성화되어 있습니다. "
+                    + "메시지 등 민감 데이터가 평문으로 저장됩니다. "
+                    + "운영/스테이징 환경이라면 즉시 설정을 점검하세요. activeProfiles={}",
+                    Arrays.toString(environment.getActiveProfiles()));
         }
     }
 

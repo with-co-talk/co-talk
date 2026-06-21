@@ -56,6 +56,7 @@ class WebSocketAuthInterceptorTest {
             Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
 
             given(jwtTokenProvider.validateToken(token)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(token)).willReturn(true);
             given(jwtTokenProvider.getUserIdFromToken(token)).willReturn(userId);
 
             // when
@@ -63,6 +64,25 @@ class WebSocketAuthInterceptorTest {
 
             // then
             assertThat(result).isNotNull();
+        }
+
+        @Test
+        @DisplayName("should_예외_발생_when_ACCESS_토큰이_아닌_경우")
+        void should_throwException_when_notAccessToken() {
+            // given: 유효하지만 ACCESS가 아닌 토큰(예: REFRESH)
+            String token = "refresh-token";
+
+            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+            accessor.setNativeHeader("Authorization", "Bearer " + token);
+            Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+            given(jwtTokenProvider.validateToken(token)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(token)).willReturn(false);
+
+            // when & then
+            assertThatThrownBy(() -> interceptor.preSend(message, messageChannel))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("유효하지 않은 토큰입니다.");
         }
 
         @Test
@@ -110,6 +130,7 @@ class WebSocketAuthInterceptorTest {
             Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
 
             given(jwtTokenProvider.validateToken(token)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(token)).willReturn(true);
             given(jwtTokenProvider.getUserIdFromToken(token)).willReturn(userId);
 
             // when

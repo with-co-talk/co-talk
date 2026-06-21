@@ -11,8 +11,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.HandlerMapping;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -41,8 +45,10 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private final RateLimitProperties rateLimitProperties;
     private final ProxyManager<byte[]> proxyManager;
     private final JwtTokenProvider jwtTokenProvider;
+    private final Environment environment;
     private final Counter allowedCounter;
     private final Counter blockedCounter;
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     /**
      * RateLimitInterceptor 생성자.
@@ -50,15 +56,18 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      * @param rateLimitProperties Rate Limit 설정
      * @param proxyManager Bucket4j Redis ProxyManager
      * @param jwtTokenProvider JWT 토큰 프로바이더
+     * @param environment 활성 프로파일 확인용 스프링 환경
      * @param meterRegistry Micrometer 메트릭 레지스트리
      */
     public RateLimitInterceptor(RateLimitProperties rateLimitProperties,
                                  ProxyManager<byte[]> proxyManager,
                                  JwtTokenProvider jwtTokenProvider,
+                                 Environment environment,
                                  MeterRegistry meterRegistry) {
         this.rateLimitProperties = rateLimitProperties;
         this.proxyManager = proxyManager;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.environment = environment;
         this.allowedCounter = Counter.builder("cotalk.ratelimit.requests")
                 .tag("result", "allowed")
                 .description("Rate limit 허용된 요청 수")
@@ -84,16 +93,19 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // k6 부하 테스트 우회: X-K6-Token 헤더가 설정된 토큰과 일치하면 rate limit 미적용
-        String bypassToken = rateLimitProperties.getK6BypassToken();
-        if (bypassToken != null && !bypassToken.isBlank()) {
-            String requestToken = request.getHeader("X-K6-Token");
-            if (bypassToken.equals(requestToken)) {
-                return true;
+        // k6 부하 테스트 우회: X-K6-Token 헤더가 설정된 토큰과 일치하면 rate limit 미적용.
+        // prod 프로파일에서는 설정과 무관하게 헤더를 무시하여 fail-closed 보장 (운영 우회 불가).
+        if (!isProdProfile()) {
+            String bypassToken = rateLimitProperties.getK6BypassToken();
+            if (bypassToken != null && !bypassToken.isBlank()) {
+                String requestToken = request.getHeader("X-K6-Token");
+                if (bypassToken.equals(requestToken)) {
+                    return true;
+                }
             }
         }
 
-        String path = request.getRequestURI();
+        String path = resolveMatchPath(request);
         RateLimitProperties.EndpointRateLimit limit = findRateLimit(path);
 
         if (limit == null) {
@@ -143,16 +155,96 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     }
 
     /**
+     * 현재 prod 프로파일이 활성화되어 있는지 확인한다.
+     *
+     * @return prod 프로파일이 활성화되어 있으면 true
+     */
+    private boolean isProdProfile() {
+        return environment != null && environment.acceptsProfiles(Profiles.of("prod"));
+    }
+
+    /**
+     * Rate Limit 매칭에 사용할 정규화된 경로를 결정한다.
+     *
+     * <p>Spring MVC가 핸들러 매핑 시 결정한 best-matching 패턴
+     * ({@link HandlerMapping#BEST_MATCHING_PATTERN_ATTRIBUTE})이 있으면 이를 사용한다.
+     * 이 패턴은 트레일링 슬래시/매트릭스 변수 등 우회 변형을 흡수한 정규 패턴이므로
+     * prefix 매칭으로 인한 우회를 차단한다. 속성이 없으면(필터/테스트 등)
+     * 요청 URI를 정규화({@link #normalizeUri(String)})하여 대체한다.</p>
+     *
+     * @param request HTTP 요청
+     * @return Rate Limit 매칭에 사용할 경로
+     */
+    private String resolveMatchPath(HttpServletRequest request) {
+        Object bestMatch = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+        if (bestMatch instanceof String pattern && !pattern.isBlank()) {
+            return pattern;
+        }
+        return normalizeUri(request.getRequestURI());
+    }
+
+    /**
+     * 요청 URI를 매칭 가능한 형태로 정규화한다.
+     *
+     * <p>매트릭스 변수(";"), 트레일링 슬래시를 제거하여
+     * {@code /api/v1/auth/login/}, {@code /api/v1/auth/login;jsessionid=...} 같은
+     * 변형이 limiter를 우회하지 못하도록 한다.</p>
+     *
+     * @param uri 원본 요청 URI
+     * @return 정규화된 경로
+     */
+    private String normalizeUri(String uri) {
+        if (uri == null) {
+            return null;
+        }
+        String normalized = uri;
+        int semicolon = normalized.indexOf(';');
+        if (semicolon >= 0) {
+            normalized = normalized.substring(0, semicolon);
+        }
+        while (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    /**
      * 요청 경로에 해당하는 Rate Limit 설정을 찾는다.
      *
-     * @param path 요청 경로
+     * <p>설정된 엔드포인트 경로를 Ant 패턴으로 보고 {@link AntPathMatcher}로 매칭한다.
+     * 경로가 정확히 일치하거나, 엔드포인트 하위 경로({@code endpoint + "/**"})에
+     * 해당하면 매칭으로 간주한다. 트레일링 슬래시 등으로 정규화된 경로를 매칭하므로
+     * 기존 prefix(startsWith) 방식의 브루트포스 우회를 차단하면서도
+     * 하위 경로(예: {@code /api/v1/chat/messages/123}) 커버리지는 유지한다.</p>
+     *
+     * @param path 매칭 대상 경로(정규화된 URI 또는 resolved 패턴)
      * @return Rate Limit 설정, 없으면 null
      */
     private RateLimitProperties.EndpointRateLimit findRateLimit(String path) {
+        if (path == null) {
+            return null;
+        }
         return rateLimitProperties.getEndpoints().stream()
-                .filter(endpoint -> endpoint.getPath() != null && path.startsWith(endpoint.getPath()))
+                .filter(endpoint -> endpoint.getPath() != null && matchesEndpoint(endpoint.getPath(), path))
                 .findFirst()
                 .orElse(null);
+    }
+
+    /**
+     * 엔드포인트 경로와 요청 경로가 매칭되는지 판별한다.
+     *
+     * @param endpointPath 설정된 엔드포인트 경로(Ant 패턴)
+     * @param path 매칭 대상 경로
+     * @return 매칭되면 true
+     */
+    private boolean matchesEndpoint(String endpointPath, String path) {
+        if (pathMatcher.match(endpointPath, path)) {
+            return true;
+        }
+        String normalized = endpointPath.endsWith("/")
+                ? endpointPath.substring(0, endpointPath.length() - 1)
+                : endpointPath;
+        return pathMatcher.match(normalized + "/**", path);
     }
 
     /**

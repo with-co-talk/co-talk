@@ -155,4 +155,32 @@ class SecurityConfigTest {
                         .param("userId", "1"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    @DisplayName("should_401_반환_when_actuator_prometheus_인증없이_접근")
+    void should_returnUnauthorized_when_actuatorPrometheusWithoutAuth() throws Exception {
+        // when & then: M-4 - prometheus는 더 이상 permitAll이 아님 (ADMIN 전용)
+        mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("should_인증게이트_통과_when_actuator_health_공개유지")
+    void should_passSecurityGate_when_actuatorHealthPublic() throws Exception {
+        // when & then: health는 공개 유지 → 인증 게이트를 통과(401 아님).
+        // @WebMvcTest 슬라이스에는 actuator 핸들러가 없어 디스패치 시 NoResourceFoundException이
+        // 발생하고, GlobalExceptionHandler의 catch-all(Exception)이 이를 500으로 매핑한다.
+        // 핵심은 401(인증 차단)이 아니라는 점이며, 이는 health가 permitAll임을 검증한다.
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    @DisplayName("should_인증게이트_통과_when_actuator_info_공개유지")
+    void should_passSecurityGate_when_actuatorInfoPublic() throws Exception {
+        // when & then: info는 공개 유지 → 인증 게이트를 통과(401 아님).
+        // health와 동일하게 슬라이스에 핸들러가 없어 catch-all에 의해 500으로 매핑된다.
+        mockMvc.perform(get("/actuator/info"))
+                .andExpect(status().isInternalServerError());
+    }
 }
