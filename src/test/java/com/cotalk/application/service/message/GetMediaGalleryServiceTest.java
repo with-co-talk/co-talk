@@ -15,8 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
 
 
 import java.util.List;
@@ -92,9 +91,9 @@ class GetMediaGalleryServiceTest {
                 .nickname("사용자2")
                 .build();
 
-        Pageable pageable = PageRequest.of(page, size);
+        PageQuery query = PageQuery.of(page, size);
 
-        given(messageRepository.findByTypeInChatRoom(eq(chatRoomId), eq(List.of(Message.MessageType.IMAGE)), eq(pageable)))
+        given(messageRepository.findByTypeInChatRoom(eq(chatRoomId), eq(List.of(Message.MessageType.IMAGE)), eq(query)))
                 .willReturn(images);
         given(userRepository.findAllById(any())).willReturn(List.of(user1, user2));
 
@@ -133,9 +132,9 @@ class GetMediaGalleryServiceTest {
         User user1 = User.builder().id(userId).nickname("사용자1").build();
         User user2 = User.builder().id(2L).nickname("사용자2").build();
 
-        Pageable pageable = PageRequest.of(page, size);
+        PageQuery query = PageQuery.of(page, size);
 
-        given(messageRepository.findByTypeInChatRoom(eq(chatRoomId), eq(List.of(Message.MessageType.FILE)), eq(pageable)))
+        given(messageRepository.findByTypeInChatRoom(eq(chatRoomId), eq(List.of(Message.MessageType.FILE)), eq(query)))
                 .willReturn(files);
         given(userRepository.findAllById(any())).willReturn(List.of(user1, user2));
 
@@ -170,9 +169,9 @@ class GetMediaGalleryServiceTest {
 
         User user1 = User.builder().id(userId).nickname("사용자1").build();
 
-        Pageable pageable = PageRequest.of(page, size);
+        PageQuery query = PageQuery.of(page, size);
 
-        given(messageRepository.findMessagesWithLinkPreview(eq(chatRoomId), eq(pageable))).willReturn(links);
+        given(messageRepository.findMessagesWithLinkPreview(eq(chatRoomId), eq(query))).willReturn(links);
         given(userRepository.findAllById(any())).willReturn(List.of(user1));
 
         // when
@@ -195,9 +194,9 @@ class GetMediaGalleryServiceTest {
         int page = 0;
         int size = 20;
 
-        Pageable pageable = PageRequest.of(page, size);
+        PageQuery query = PageQuery.of(page, size);
 
-        given(messageRepository.findByTypeInChatRoom(eq(chatRoomId), any(), eq(pageable))).willReturn(List.of());
+        given(messageRepository.findByTypeInChatRoom(eq(chatRoomId), any(), eq(query))).willReturn(List.of());
         given(userRepository.findAllById(any())).willReturn(List.of());
 
         // when
@@ -241,9 +240,9 @@ class GetMediaGalleryServiceTest {
         String storedUrl = "http://minio.example.com/cotalk/uploads/1/abc.png";
         Message image = MessageTestFixture.createImageMessage(101L, chatRoomId, userId, storedUrl);
         User user = User.builder().id(userId).nickname("사용자1").build();
-        Pageable pageable = PageRequest.of(page, size);
+        PageQuery query = PageQuery.of(page, size);
 
-        given(messageRepository.findByTypeInChatRoom(eq(chatRoomId), eq(List.of(Message.MessageType.IMAGE)), eq(pageable)))
+        given(messageRepository.findByTypeInChatRoom(eq(chatRoomId), eq(List.of(Message.MessageType.IMAGE)), eq(query)))
                 .willReturn(List.of(image));
         given(userRepository.findAllById(any())).willReturn(List.of(user));
         given(fileStorage.presignAttachmentUrl(eq(storedUrl), eq(PRESIGN_EXPIRY_MINUTES)))
@@ -288,9 +287,9 @@ class GetMediaGalleryServiceTest {
 
         User user = User.builder().id(userId).nickname("사용자1").build();
 
-        Pageable pageable = PageRequest.of(page, size);
+        PageQuery query = PageQuery.of(page, size);
 
-        given(messageRepository.findByTypeInChatRoom(eq(chatRoomId), any(), eq(pageable))).willReturn(images);
+        given(messageRepository.findByTypeInChatRoom(eq(chatRoomId), any(), eq(query))).willReturn(images);
         given(userRepository.findAllById(any())).willReturn(List.of(user));
 
         // when

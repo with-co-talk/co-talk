@@ -1,6 +1,7 @@
 package com.cotalk.domain.port.outbound;
 
 import com.cotalk.domain.entity.Message;
+import com.cotalk.domain.model.PageQuery;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -189,19 +190,19 @@ public interface MessageRepository {
      *
      * @param chatRoomId 채팅방 ID
      * @param types 메시지 타입 목록 (IMAGE, FILE 등)
-     * @param pageable 페이징 정보
+     * @param query 페이징 정보
      * @return 해당 타입의 메시지 목록 (최신순)
      */
-    List<Message> findByTypeInChatRoom(Long chatRoomId, List<Message.MessageType> types, org.springframework.data.domain.Pageable pageable);
+    List<Message> findByTypeInChatRoom(Long chatRoomId, List<Message.MessageType> types, PageQuery query);
 
     /**
      * 채팅방에서 링크 미리보기가 있는 메시지를 조회한다. (미디어 갤러리용)
      *
      * @param chatRoomId 채팅방 ID
-     * @param pageable 페이징 정보
+     * @param query 페이징 정보
      * @return 링크 미리보기가 있는 메시지 목록 (최신순)
      */
-    List<Message> findMessagesWithLinkPreview(Long chatRoomId, org.springframework.data.domain.Pageable pageable);
+    List<Message> findMessagesWithLinkPreview(Long chatRoomId, PageQuery query);
 
     /**
      * 특정 발신자가 보낸 모든 메시지를 삭제한다.

@@ -9,10 +9,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 
@@ -79,7 +77,7 @@ class GetFriendListServiceTest {
     void should_returnPagedFriendList_when_pageableProvided() {
         // given
         Long userId = 1L;
-        Pageable pageable = PageRequest.of(0, 20);
+        PageQuery query = PageQuery.of(0, 20);
 
         User friend1 = User.builder()
                 .id(2L)
@@ -88,16 +86,16 @@ class GetFriendListServiceTest {
                 .passwordHash("hash")
                 .build();
 
-        Page<User> friendPage = new PageImpl<>(List.of(friend1), pageable, 1);
-        given(friendRepository.findAcceptedFriendsWithUserData(userId, pageable)).willReturn(friendPage);
+        PageResult<User> friendPage = new PageResult<>(List.of(friend1), 0, 20, 1);
+        given(friendRepository.findAcceptedFriendsWithUserData(userId, query)).willReturn(friendPage);
 
         // when
-        Page<User> result = getFriendListService.getFriendList(userId, pageable);
+        PageResult<User> result = getFriendListService.getFriendList(userId, query);
 
         // then
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getNickname()).isEqualTo("친구1");
-        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().get(0).getNickname()).isEqualTo("친구1");
+        assertThat(result.totalElements()).isEqualTo(1);
     }
 
     @Test
@@ -105,7 +103,7 @@ class GetFriendListServiceTest {
     void should_returnSecondPage_when_pageableWithOffset() {
         // given
         Long userId = 1L;
-        Pageable pageable = PageRequest.of(1, 5);
+        PageQuery query = PageQuery.of(1, 5);
 
         User friend = User.builder()
                 .id(10L)
@@ -114,16 +112,16 @@ class GetFriendListServiceTest {
                 .passwordHash("hash")
                 .build();
 
-        Page<User> friendPage = new PageImpl<>(List.of(friend), pageable, 10);
-        given(friendRepository.findAcceptedFriendsWithUserData(userId, pageable)).willReturn(friendPage);
+        PageResult<User> friendPage = new PageResult<>(List.of(friend), 1, 5, 10);
+        given(friendRepository.findAcceptedFriendsWithUserData(userId, query)).willReturn(friendPage);
 
         // when
-        Page<User> result = getFriendListService.getFriendList(userId, pageable);
+        PageResult<User> result = getFriendListService.getFriendList(userId, query);
 
         // then
-        assertThat(result.getNumber()).isEqualTo(1);
-        assertThat(result.getSize()).isEqualTo(5);
-        assertThat(result.getTotalElements()).isEqualTo(10);
-        assertThat(result.getTotalPages()).isEqualTo(2);
+        assertThat(result.page()).isEqualTo(1);
+        assertThat(result.size()).isEqualTo(5);
+        assertThat(result.totalElements()).isEqualTo(10);
+        assertThat(result.totalPages()).isEqualTo(2);
     }
 }

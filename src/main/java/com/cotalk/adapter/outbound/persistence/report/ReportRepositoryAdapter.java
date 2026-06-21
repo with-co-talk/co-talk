@@ -3,9 +3,12 @@ package com.cotalk.adapter.outbound.persistence.report;
 import com.cotalk.adapter.outbound.persistence.entity.ReportJpaEntity;
 import com.cotalk.adapter.outbound.persistence.mapper.ReportMapper;
 import com.cotalk.domain.entity.Report;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import com.cotalk.domain.port.outbound.ReportRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
@@ -114,13 +117,15 @@ public class ReportRepositoryAdapter implements ReportRepository {
     /**
      * 특정 상태의 신고 목록을 페이지네이션하여 조회한다.
      *
-     * @param status   신고 상태
-     * @param pageable 페이지네이션 정보
+     * @param status 신고 상태
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 신고 목록
      */
     @Override
-    public Page<Report> findByStatus(Report.ReportStatus status, Pageable pageable) {
-        return reportJpaRepository.findByStatus(status, pageable).map(mapper::toDomain);
+    public PageResult<Report> findByStatus(Report.ReportStatus status, PageQuery query) {
+        Pageable pageable = PageRequest.of(query.page(), query.size());
+        Page<Report> page = reportJpaRepository.findByStatus(status, pageable).map(mapper::toDomain);
+        return new PageResult<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
     /**
@@ -138,12 +143,14 @@ public class ReportRepositoryAdapter implements ReportRepository {
     /**
      * 모든 신고 목록을 페이지네이션하여 조회한다.
      *
-     * @param pageable 페이지네이션 정보
+     * @param query 페이지네이션 정보
      * @return 페이지네이션된 신고 목록
      */
     @Override
-    public Page<Report> findAll(Pageable pageable) {
-        return reportJpaRepository.findAll(pageable).map(mapper::toDomain);
+    public PageResult<Report> findAll(PageQuery query) {
+        Pageable pageable = PageRequest.of(query.page(), query.size());
+        Page<Report> page = reportJpaRepository.findAll(pageable).map(mapper::toDomain);
+        return new PageResult<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
     /**

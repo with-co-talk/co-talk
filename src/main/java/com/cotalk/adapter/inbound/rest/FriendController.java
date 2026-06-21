@@ -24,8 +24,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -131,9 +131,9 @@ public class FriendController {
             @RequestParam(defaultValue = "20") int size) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
-        Page<User> friendPage = getFriendListUseCase.getFriendList(
-                principal.getUserId(), PageRequest.of(safePage, safeSize));
-        List<FriendDto> friendDtos = friendPage.getContent().stream()
+        PageResult<User> friendPage = getFriendListUseCase.getFriendList(
+                principal.getUserId(), PageQuery.of(safePage, safeSize));
+        List<FriendDto> friendDtos = friendPage.content().stream()
                 .map(FriendDto::from)
                 .toList();
         return ResponseEntity.ok(FriendListResponse.of(friendDtos, friendPage));
@@ -173,11 +173,11 @@ public class FriendController {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
         Long userId = principal.getUserId();
-        Page<FriendRequest> requestPage = getReceivedFriendRequestsUseCase
-                .getReceivedFriendRequests(userId, PageRequest.of(safePage, safeSize));
+        PageResult<FriendRequest> requestPage = getReceivedFriendRequestsUseCase
+                .getReceivedFriendRequests(userId, PageQuery.of(safePage, safeSize));
 
         // 빈 페이지일 때 early return
-        if (requestPage.isEmpty()) {
+        if (requestPage.content().isEmpty()) {
             return ResponseEntity.ok(FriendRequestListResponse.of(List.of()));
         }
 
@@ -185,7 +185,7 @@ public class FriendController {
         User receiver = getUserUseCase.getUserById(userId);
 
         // 페이지 내 요청자 ID 목록 추출
-        List<Long> requesterIds = requestPage.getContent().stream()
+        List<Long> requesterIds = requestPage.content().stream()
                 .map(FriendRequest::getRequesterId)
                 .distinct()
                 .toList();
@@ -196,7 +196,7 @@ public class FriendController {
                 .collect(Collectors.toMap(User::getId, user -> user));
 
         // DTO 변환
-        List<FriendRequestDto> requestDtos = requestPage.getContent().stream()
+        List<FriendRequestDto> requestDtos = requestPage.content().stream()
                 .map(request -> {
                     User requester = requesterMap.get(request.getRequesterId());
                     if (requester == null) {
@@ -239,11 +239,11 @@ public class FriendController {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
         Long userId = principal.getUserId();
-        Page<FriendRequest> requestPage = getSentFriendRequestsUseCase
-                .getSentFriendRequests(userId, PageRequest.of(safePage, safeSize));
+        PageResult<FriendRequest> requestPage = getSentFriendRequestsUseCase
+                .getSentFriendRequests(userId, PageQuery.of(safePage, safeSize));
 
         // 빈 페이지일 때 early return
-        if (requestPage.isEmpty()) {
+        if (requestPage.content().isEmpty()) {
             return ResponseEntity.ok(FriendRequestListResponse.of(List.of()));
         }
 
@@ -251,7 +251,7 @@ public class FriendController {
         User requester = getUserUseCase.getUserById(userId);
 
         // 페이지 내 수신자 ID 목록 추출
-        List<Long> receiverIds = requestPage.getContent().stream()
+        List<Long> receiverIds = requestPage.content().stream()
                 .map(FriendRequest::getReceiverId)
                 .distinct()
                 .toList();
@@ -262,7 +262,7 @@ public class FriendController {
                 .collect(Collectors.toMap(User::getId, user -> user));
 
         // DTO 변환
-        List<FriendRequestDto> requestDtos = requestPage.getContent().stream()
+        List<FriendRequestDto> requestDtos = requestPage.content().stream()
                 .map(request -> {
                     User receiver = receiverMap.get(request.getReceiverId());
                     if (receiver == null) {

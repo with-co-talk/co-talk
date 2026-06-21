@@ -28,10 +28,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -155,8 +153,8 @@ class ChatRoomControllerTest {
                     )
             );
 
-            Page<ChatRoomSummary> chatRoomPage = new PageImpl<>(chatRooms, PageRequest.of(0, 20), 2);
-            given(getChatRoomsUseCase.getChatRooms(eq(userId), any(Pageable.class))).willReturn(chatRoomPage);
+            PageResult<ChatRoomSummary> chatRoomPage = new PageResult<>(chatRooms, 0, 20, 2);
+            given(getChatRoomsUseCase.getChatRooms(eq(userId), any(PageQuery.class))).willReturn(chatRoomPage);
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/rooms")
@@ -184,8 +182,8 @@ class ChatRoomControllerTest {
         void should_returnEmptyArray_when_noChatRooms() throws Exception {
             // given
             Long userId = 1L;
-            Page<ChatRoomSummary> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
-            given(getChatRoomsUseCase.getChatRooms(eq(userId), any(Pageable.class))).willReturn(emptyPage);
+            PageResult<ChatRoomSummary> emptyPage = new PageResult<>(List.of(), 0, 20, 0);
+            given(getChatRoomsUseCase.getChatRooms(eq(userId), any(PageQuery.class))).willReturn(emptyPage);
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/rooms"))
@@ -208,8 +206,8 @@ class ChatRoomControllerTest {
                     "msg", "TEXT", now, 0L, 2L, "상대방", null, false, false, null
             );
 
-            Page<ChatRoomSummary> chatRoomPage = new PageImpl<>(List.of(room), PageRequest.of(1, 10), 25);
-            given(getChatRoomsUseCase.getChatRooms(eq(userId), any(Pageable.class))).willReturn(chatRoomPage);
+            PageResult<ChatRoomSummary> chatRoomPage = new PageResult<>(List.of(room), 1, 10, 25);
+            given(getChatRoomsUseCase.getChatRooms(eq(userId), any(PageQuery.class))).willReturn(chatRoomPage);
 
             // when & then
             mockMvc.perform(get("/api/v1/chat/rooms")

@@ -1,8 +1,8 @@
 package com.cotalk.domain.port.outbound;
 
 import com.cotalk.domain.entity.ChatRoom;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 import java.util.Optional;
@@ -42,11 +42,11 @@ public interface ChatRoomRepository {
     /**
      * 사용자가 참여한 채팅방 목록을 DB 레벨 페이지네이션으로 조회한다.
      *
-     * @param userId   사용자 ID
-     * @param pageable 페이지네이션 정보
+     * @param userId 사용자 ID
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 채팅방 목록
      */
-    Page<ChatRoom> findByUserId(Long userId, Pageable pageable);
+    PageResult<ChatRoom> findByUserId(Long userId, PageQuery query);
 
     /**
      * 두 사용자 간의 1:1 채팅방을 조회한다.

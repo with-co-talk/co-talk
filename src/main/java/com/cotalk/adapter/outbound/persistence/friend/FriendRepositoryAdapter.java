@@ -5,9 +5,12 @@ import com.cotalk.adapter.outbound.persistence.mapper.FriendMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.domain.entity.Friend;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
@@ -116,14 +119,16 @@ public class FriendRepositoryAdapter implements FriendRepository {
      * 사용자의 수락된 친구 목록을 DB 레벨 페이지네이션으로 조회한다.
      * N+1 쿼리를 방지하기 위한 최적화된 조회 메서드이다.
      *
-     * @param userId   사용자 ID
-     * @param pageable 페이지네이션 정보
+     * @param userId 사용자 ID
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 친구 User 목록
      */
     @Override
-    public Page<User> findAcceptedFriendsWithUserData(Long userId, Pageable pageable) {
-        return friendJpaRepository.findAcceptedFriendsWithUserData(userId, pageable)
+    public PageResult<User> findAcceptedFriendsWithUserData(Long userId, PageQuery query) {
+        Pageable pageable = PageRequest.of(query.page(), query.size());
+        Page<User> page = friendJpaRepository.findAcceptedFriendsWithUserData(userId, pageable)
                 .map(userMapper::toDomain);
+        return new PageResult<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
     /**

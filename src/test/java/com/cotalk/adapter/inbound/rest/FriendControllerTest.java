@@ -25,10 +25,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -157,8 +155,8 @@ class FriendControllerTest {
                     User.builder().id(3L).email(new Email("friend2@example.com")).nickname("친구2").passwordHash("hash").build()
             );
 
-            Page<User> friendPage = new PageImpl<>(friends, PageRequest.of(0, 20), 2);
-            given(getFriendListUseCase.getFriendList(eq(userId), any(Pageable.class))).willReturn(friendPage);
+            PageResult<User> friendPage = new PageResult<>(friends, 0, 20, 2);
+            given(getFriendListUseCase.getFriendList(eq(userId), any(PageQuery.class))).willReturn(friendPage);
 
             mockMvc.perform(get("/api/v1/friends").param("page", "0").param("size", "20"))
                     .andExpect(status().isOk())
@@ -178,8 +176,8 @@ class FriendControllerTest {
             Long userId = 1L;
             User friend = User.builder().id(22L).email(new Email("friend22@example.com")).nickname("친구22").passwordHash("hash").build();
 
-            Page<User> friendPage = new PageImpl<>(List.of(friend), PageRequest.of(2, 5), 15);
-            given(getFriendListUseCase.getFriendList(eq(userId), any(Pageable.class))).willReturn(friendPage);
+            PageResult<User> friendPage = new PageResult<>(List.of(friend), 2, 5, 15);
+            given(getFriendListUseCase.getFriendList(eq(userId), any(PageQuery.class))).willReturn(friendPage);
 
             mockMvc.perform(get("/api/v1/friends").param("page", "2").param("size", "5"))
                     .andExpect(status().isOk())
@@ -241,8 +239,8 @@ class FriendControllerTest {
             FriendRequest friendRequest = FriendRequest.builder().id(100L).requesterId(2L).receiverId(userId).status(FriendRequest.RequestStatus.PENDING).build();
             setCreatedAt(friendRequest, LocalDateTime.now());
 
-            Page<FriendRequest> requestPage = new PageImpl<>(List.of(friendRequest), PageRequest.of(0, 20), 1);
-            given(getReceivedFriendRequestsUseCase.getReceivedFriendRequests(eq(userId), any(Pageable.class))).willReturn(requestPage);
+            PageResult<FriendRequest> requestPage = new PageResult<>(List.of(friendRequest), 0, 20, 1);
+            given(getReceivedFriendRequestsUseCase.getReceivedFriendRequests(eq(userId), any(PageQuery.class))).willReturn(requestPage);
             given(getUserUseCase.getUsersByIds(any())).willReturn(List.of(requester));
             given(getUserUseCase.getUserById(userId)).willReturn(receiver);
 
@@ -265,8 +263,8 @@ class FriendControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_returnEmptyList_when_noReceivedRequests() throws Exception {
             Long userId = 1L;
-            Page<FriendRequest> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
-            given(getReceivedFriendRequestsUseCase.getReceivedFriendRequests(eq(userId), any(Pageable.class))).willReturn(emptyPage);
+            PageResult<FriendRequest> emptyPage = new PageResult<>(List.of(), 0, 20, 0);
+            given(getReceivedFriendRequestsUseCase.getReceivedFriendRequests(eq(userId), any(PageQuery.class))).willReturn(emptyPage);
 
             mockMvc.perform(get("/api/v1/friends/requests/received"))
                     .andExpect(status().isOk())
@@ -286,8 +284,8 @@ class FriendControllerTest {
             FriendRequest friendRequest = FriendRequest.builder().id(100L).requesterId(2L).receiverId(userId).status(FriendRequest.RequestStatus.PENDING).build();
             setCreatedAt(friendRequest, LocalDateTime.now());
 
-            Page<FriendRequest> requestPage = new PageImpl<>(List.of(friendRequest), PageRequest.of(2, 5), 15);
-            given(getReceivedFriendRequestsUseCase.getReceivedFriendRequests(eq(userId), any(Pageable.class))).willReturn(requestPage);
+            PageResult<FriendRequest> requestPage = new PageResult<>(List.of(friendRequest), 2, 5, 15);
+            given(getReceivedFriendRequestsUseCase.getReceivedFriendRequests(eq(userId), any(PageQuery.class))).willReturn(requestPage);
             given(getUserUseCase.getUsersByIds(any())).willReturn(List.of(requester));
             given(getUserUseCase.getUserById(userId)).willReturn(receiver);
 
@@ -317,8 +315,8 @@ class FriendControllerTest {
             FriendRequest friendRequest = FriendRequest.builder().id(100L).requesterId(userId).receiverId(2L).status(FriendRequest.RequestStatus.PENDING).build();
             setCreatedAt(friendRequest, LocalDateTime.now());
 
-            Page<FriendRequest> requestPage = new PageImpl<>(List.of(friendRequest), PageRequest.of(0, 20), 1);
-            given(getSentFriendRequestsUseCase.getSentFriendRequests(eq(userId), any(Pageable.class))).willReturn(requestPage);
+            PageResult<FriendRequest> requestPage = new PageResult<>(List.of(friendRequest), 0, 20, 1);
+            given(getSentFriendRequestsUseCase.getSentFriendRequests(eq(userId), any(PageQuery.class))).willReturn(requestPage);
             given(getUserUseCase.getUsersByIds(any())).willReturn(List.of(receiver));
             given(getUserUseCase.getUserById(userId)).willReturn(requester);
 
@@ -341,8 +339,8 @@ class FriendControllerTest {
         @WithMockCustomUser(userId = 1L)
         void should_returnEmptyList_when_noSentRequests() throws Exception {
             Long userId = 1L;
-            Page<FriendRequest> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
-            given(getSentFriendRequestsUseCase.getSentFriendRequests(eq(userId), any(Pageable.class))).willReturn(emptyPage);
+            PageResult<FriendRequest> emptyPage = new PageResult<>(List.of(), 0, 20, 0);
+            given(getSentFriendRequestsUseCase.getSentFriendRequests(eq(userId), any(PageQuery.class))).willReturn(emptyPage);
 
             mockMvc.perform(get("/api/v1/friends/requests/sent"))
                     .andExpect(status().isOk())
@@ -362,8 +360,8 @@ class FriendControllerTest {
             FriendRequest friendRequest = FriendRequest.builder().id(100L).requesterId(userId).receiverId(2L).status(FriendRequest.RequestStatus.PENDING).build();
             setCreatedAt(friendRequest, LocalDateTime.now());
 
-            Page<FriendRequest> requestPage = new PageImpl<>(List.of(friendRequest), PageRequest.of(2, 5), 15);
-            given(getSentFriendRequestsUseCase.getSentFriendRequests(eq(userId), any(Pageable.class))).willReturn(requestPage);
+            PageResult<FriendRequest> requestPage = new PageResult<>(List.of(friendRequest), 2, 5, 15);
+            given(getSentFriendRequestsUseCase.getSentFriendRequests(eq(userId), any(PageQuery.class))).willReturn(requestPage);
             given(getUserUseCase.getUsersByIds(any())).willReturn(List.of(receiver));
             given(getUserUseCase.getUserById(userId)).willReturn(requester);
 

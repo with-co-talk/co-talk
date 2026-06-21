@@ -1,11 +1,11 @@
 package com.cotalk.application.service.friend;
 
 import com.cotalk.domain.entity.FriendRequest;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import com.cotalk.domain.port.inbound.friend.GetReceivedFriendRequestsUseCase;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,11 +39,11 @@ public class GetReceivedFriendRequestsService implements GetReceivedFriendReques
      * 사용자가 받은 대기 중인 친구 요청 목록을 DB 레벨 페이지네이션으로 조회한다.
      *
      * @param receiverId 수신자 ID
-     * @param pageable   페이지네이션 정보
+     * @param query      페이지네이션 정보
      * @return 페이지네이션된 받은 친구 요청 목록
      */
     @Override
-    public Page<FriendRequest> getReceivedFriendRequests(Long receiverId, Pageable pageable) {
-        return friendRequestRepository.findPendingByReceiverId(receiverId, pageable);
+    public PageResult<FriendRequest> getReceivedFriendRequests(Long receiverId, PageQuery query) {
+        return friendRequestRepository.findPendingByReceiverId(receiverId, query);
     }
 }

@@ -19,10 +19,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 import java.util.Optional;
@@ -178,7 +176,7 @@ class AdminServiceTest {
         @DisplayName("Pageable을 사용한 대기 중인 신고 목록 DB 레벨 페이지네이션 조회")
         void should_returnPagedPendingReports_when_pageableProvided() {
             // given
-            Pageable pageable = PageRequest.of(0, 20);
+            PageQuery query = PageQuery.of(0, 20);
             List<Report> reports = List.of(
                     Report.builder()
                             .id(1L)
@@ -190,16 +188,16 @@ class AdminServiceTest {
                             .build()
             );
 
-            Page<Report> reportPage = new PageImpl<>(reports, pageable, 1);
-            given(reportRepository.findByStatus(Report.ReportStatus.PENDING, pageable)).willReturn(reportPage);
+            PageResult<Report> reportPage = new PageResult<>(reports, 0, 20, 1);
+            given(reportRepository.findByStatus(Report.ReportStatus.PENDING, query)).willReturn(reportPage);
 
             // when
-            Page<Report> result = adminService.getPendingReports(pageable);
+            PageResult<Report> result = adminService.getPendingReports(query);
 
             // then
-            assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getContent().get(0).getStatus()).isEqualTo(Report.ReportStatus.PENDING);
-            assertThat(result.getTotalElements()).isEqualTo(1);
+            assertThat(result.content()).hasSize(1);
+            assertThat(result.content().get(0).getStatus()).isEqualTo(Report.ReportStatus.PENDING);
+            assertThat(result.totalElements()).isEqualTo(1);
         }
 
         @Test
@@ -276,7 +274,7 @@ class AdminServiceTest {
         @DisplayName("Pageable을 사용한 전체 사용자 목록 DB 레벨 페이지네이션 조회")
         void should_returnPagedAllUsers_when_pageableProvided() {
             // given
-            Pageable pageable = PageRequest.of(0, 20);
+            PageQuery query = PageQuery.of(0, 20);
             List<User> users = List.of(
                     User.builder()
                             .id(1L)
@@ -286,22 +284,22 @@ class AdminServiceTest {
                             .build()
             );
 
-            Page<User> userPage = new PageImpl<>(users, pageable, 1);
-            given(userRepository.findAll(pageable)).willReturn(userPage);
+            PageResult<User> userPage = new PageResult<>(users, 0, 20, 1);
+            given(userRepository.findAll(query)).willReturn(userPage);
 
             // when
-            Page<User> result = adminService.getAllUsers(pageable);
+            PageResult<User> result = adminService.getAllUsers(query);
 
             // then
-            assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getTotalElements()).isEqualTo(1);
+            assertThat(result.content()).hasSize(1);
+            assertThat(result.totalElements()).isEqualTo(1);
         }
 
         @Test
         @DisplayName("Pageable을 사용한 상태별 사용자 목록 DB 레벨 페이지네이션 조회")
         void should_returnPagedUsersByStatus_when_pageableProvided() {
             // given
-            Pageable pageable = PageRequest.of(0, 20);
+            PageQuery query = PageQuery.of(0, 20);
             List<User> users = List.of(
                     User.builder()
                             .id(1L)
@@ -311,15 +309,15 @@ class AdminServiceTest {
                             .build()
             );
 
-            Page<User> userPage = new PageImpl<>(users, pageable, 1);
-            given(userRepository.findByStatus(User.UserStatus.SUSPENDED, pageable)).willReturn(userPage);
+            PageResult<User> userPage = new PageResult<>(users, 0, 20, 1);
+            given(userRepository.findByStatus(User.UserStatus.SUSPENDED, query)).willReturn(userPage);
 
             // when
-            Page<User> result = adminService.getUsersByStatus(User.UserStatus.SUSPENDED, pageable);
+            PageResult<User> result = adminService.getUsersByStatus(User.UserStatus.SUSPENDED, query);
 
             // then
-            assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getContent().get(0).getStatus()).isEqualTo(User.UserStatus.SUSPENDED);
+            assertThat(result.content()).hasSize(1);
+            assertThat(result.content().get(0).getStatus()).isEqualTo(User.UserStatus.SUSPENDED);
         }
 
         @Test

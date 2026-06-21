@@ -1,6 +1,6 @@
 package com.cotalk.adapter.inbound.rest.dto.admin;
 
-import org.springframework.data.domain.Page;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 
@@ -34,19 +34,19 @@ public record AdminReportsResponse(
     }
 
     /**
-     * Page 객체와 매핑된 DTO 목록으로부터 응답을 생성한다.
+     * PageResult 객체와 매핑된 DTO 목록으로부터 응답을 생성한다.
      *
      * @param reports  신고 DTO 목록
-     * @param pageData Page 메타데이터 소스
+     * @param pageData PageResult 메타데이터 소스
      * @return AdminReportsResponse 인스턴스
      */
-    public static AdminReportsResponse of(List<AdminReportDto> reports, Page<?> pageData) {
+    public static AdminReportsResponse of(List<AdminReportDto> reports, PageResult<?> pageData) {
         return new AdminReportsResponse(
                 reports,
-                pageData.getNumber(),
-                pageData.getSize(),
-                pageData.getTotalElements(),
-                pageData.getTotalPages()
+                pageData.page(),
+                pageData.size(),
+                pageData.totalElements(),
+                pageData.totalPages()
         );
     }
 }

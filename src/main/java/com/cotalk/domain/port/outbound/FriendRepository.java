@@ -2,8 +2,8 @@ package com.cotalk.domain.port.outbound;
 
 import com.cotalk.domain.entity.Friend;
 import com.cotalk.domain.entity.User;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 import java.util.Optional;
@@ -62,11 +62,11 @@ public interface FriendRepository {
      * 사용자의 수락된 친구 목록을 DB 레벨 페이지네이션으로 조회한다.
      * N+1 문제를 방지하기 위해 JOIN을 사용한다.
      *
-     * @param userId   사용자 ID
-     * @param pageable 페이지네이션 정보
+     * @param userId 사용자 ID
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 친구 사용자 정보
      */
-    Page<User> findAcceptedFriendsWithUserData(Long userId, Pageable pageable);
+    PageResult<User> findAcceptedFriendsWithUserData(Long userId, PageQuery query);
 
     /**
      * 친구 관계 존재 여부를 확인한다.

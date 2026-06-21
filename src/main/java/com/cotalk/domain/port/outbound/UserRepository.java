@@ -1,8 +1,8 @@
 package com.cotalk.domain.port.outbound;
 
 import com.cotalk.domain.entity.User;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 import java.util.Optional;
@@ -98,10 +98,10 @@ public interface UserRepository {
     /**
      * 모든 사용자를 DB 레벨 페이지네이션으로 조회한다.
      *
-     * @param pageable 페이지네이션 정보
+     * @param query 페이지네이션 정보
      * @return 페이지네이션된 사용자 목록
      */
-    Page<User> findAll(Pageable pageable);
+    PageResult<User> findAll(PageQuery query);
 
     /**
      * 특정 상태의 사용자 목록을 조회한다.
@@ -114,11 +114,11 @@ public interface UserRepository {
     /**
      * 특정 상태의 사용자 목록을 DB 레벨 페이지네이션으로 조회한다.
      *
-     * @param status   사용자 상태
-     * @param pageable 페이지네이션 정보
+     * @param status 사용자 상태
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 사용자 목록
      */
-    Page<User> findByStatus(User.UserStatus status, Pageable pageable);
+    PageResult<User> findByStatus(User.UserStatus status, PageQuery query);
 
     /**
      * 여러 ID로 사용자 목록을 조회한다.

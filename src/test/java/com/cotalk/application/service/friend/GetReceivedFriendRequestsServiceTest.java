@@ -8,10 +8,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 
@@ -80,7 +78,7 @@ class GetReceivedFriendRequestsServiceTest {
     void should_returnPagedReceivedFriendRequests_when_pageableProvided() {
         // given
         Long receiverId = 1L;
-        Pageable pageable = PageRequest.of(0, 20);
+        PageQuery query = PageQuery.of(0, 20);
 
         FriendRequest request1 = FriendRequest.builder()
                 .id(100L)
@@ -89,16 +87,16 @@ class GetReceivedFriendRequestsServiceTest {
                 .status(FriendRequest.RequestStatus.PENDING)
                 .build();
 
-        Page<FriendRequest> requestPage = new PageImpl<>(List.of(request1), pageable, 1);
-        given(friendRequestRepository.findPendingByReceiverId(receiverId, pageable)).willReturn(requestPage);
+        PageResult<FriendRequest> requestPage = new PageResult<>(List.of(request1), 0, 20, 1);
+        given(friendRequestRepository.findPendingByReceiverId(receiverId, query)).willReturn(requestPage);
 
         // when
-        Page<FriendRequest> result = getReceivedFriendRequestsService.getReceivedFriendRequests(receiverId, pageable);
+        PageResult<FriendRequest> result = getReceivedFriendRequestsService.getReceivedFriendRequests(receiverId, query);
 
         // then
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getId()).isEqualTo(100L);
-        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().get(0).getId()).isEqualTo(100L);
+        assertThat(result.totalElements()).isEqualTo(1);
     }
 
     @Test
@@ -106,7 +104,7 @@ class GetReceivedFriendRequestsServiceTest {
     void should_returnSecondPage_when_pageableWithOffset() {
         // given
         Long receiverId = 1L;
-        Pageable pageable = PageRequest.of(1, 5);
+        PageQuery query = PageQuery.of(1, 5);
 
         FriendRequest request = FriendRequest.builder()
                 .id(106L)
@@ -115,16 +113,16 @@ class GetReceivedFriendRequestsServiceTest {
                 .status(FriendRequest.RequestStatus.PENDING)
                 .build();
 
-        Page<FriendRequest> requestPage = new PageImpl<>(List.of(request), pageable, 10);
-        given(friendRequestRepository.findPendingByReceiverId(receiverId, pageable)).willReturn(requestPage);
+        PageResult<FriendRequest> requestPage = new PageResult<>(List.of(request), 1, 5, 10);
+        given(friendRequestRepository.findPendingByReceiverId(receiverId, query)).willReturn(requestPage);
 
         // when
-        Page<FriendRequest> result = getReceivedFriendRequestsService.getReceivedFriendRequests(receiverId, pageable);
+        PageResult<FriendRequest> result = getReceivedFriendRequestsService.getReceivedFriendRequests(receiverId, query);
 
         // then
-        assertThat(result.getNumber()).isEqualTo(1);
-        assertThat(result.getSize()).isEqualTo(5);
-        assertThat(result.getTotalElements()).isEqualTo(10);
-        assertThat(result.getTotalPages()).isEqualTo(2);
+        assertThat(result.page()).isEqualTo(1);
+        assertThat(result.size()).isEqualTo(5);
+        assertThat(result.totalElements()).isEqualTo(10);
+        assertThat(result.totalPages()).isEqualTo(2);
     }
 }

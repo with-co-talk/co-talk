@@ -5,6 +5,8 @@ import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.entity.ChatRoomSummary;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import com.cotalk.domain.exception.ChatRoomAccessDeniedException;
 import com.cotalk.domain.exception.ChatRoomNotFoundException;
 import com.cotalk.domain.port.inbound.chatroom.GetChatRoomUseCase;
@@ -15,9 +17,6 @@ import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,20 +79,20 @@ public class GetChatRoomsService implements GetChatRoomsUseCase, GetChatRoomUseC
      *
      * <p>배치 쿼리를 사용하여 N+1 쿼리 문제를 해결한다.
      *
-     * @param userId   사용자 ID
-     * @param pageable 페이지네이션 정보
+     * @param userId 사용자 ID
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 채팅방 요약 정보
      */
     @Override
-    public Page<ChatRoomSummary> getChatRooms(Long userId, Pageable pageable) {
+    public PageResult<ChatRoomSummary> getChatRooms(Long userId, PageQuery query) {
         // 1. 채팅방 목록을 페이지네이션하여 조회 (1 query + count query)
-        Page<ChatRoom> chatRoomPage = chatRoomRepository.findByUserId(userId, pageable);
+        PageResult<ChatRoom> chatRoomPage = chatRoomRepository.findByUserId(userId, query);
 
-        if (chatRoomPage.isEmpty()) {
-            return new PageImpl<>(List.of(), pageable, 0);
+        if (chatRoomPage.content().isEmpty()) {
+            return new PageResult<>(List.of(), chatRoomPage.page(), chatRoomPage.size(), chatRoomPage.totalElements());
         }
 
-        List<ChatRoom> chatRooms = chatRoomPage.getContent();
+        List<ChatRoom> chatRooms = chatRoomPage.content();
 
         // 2-7. 배치 데이터 조회 (6 queries)
         ChatRoomSummaryAssembler.BatchData batchData = assembler.loadBatchData(userId, chatRooms);
@@ -101,7 +100,7 @@ public class GetChatRoomsService implements GetChatRoomsUseCase, GetChatRoomUseC
         // 8. ChatRoomSummary 조립 및 정렬
         List<ChatRoomSummary> summaries = assembler.assembleSummaries(chatRooms, batchData);
 
-        return new PageImpl<>(summaries, pageable, chatRoomPage.getTotalElements());
+        return new PageResult<>(summaries, chatRoomPage.page(), chatRoomPage.size(), chatRoomPage.totalElements());
     }
 
     /**

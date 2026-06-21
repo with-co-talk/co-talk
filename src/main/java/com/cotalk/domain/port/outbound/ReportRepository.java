@@ -1,8 +1,8 @@
 package com.cotalk.domain.port.outbound;
 
 import com.cotalk.domain.entity.Report;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 import java.util.Optional;
@@ -76,11 +76,11 @@ public interface ReportRepository {
     /**
      * 특정 상태의 신고를 DB 레벨 페이지네이션으로 조회한다.
      *
-     * @param status   신고 상태
-     * @param pageable 페이지네이션 정보
+     * @param status 신고 상태
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 신고 목록
      */
-    Page<Report> findByStatus(Report.ReportStatus status, Pageable pageable);
+    PageResult<Report> findByStatus(Report.ReportStatus status, PageQuery query);
 
     /**
      * 모든 신고를 조회한다.
@@ -92,10 +92,10 @@ public interface ReportRepository {
     /**
      * 모든 신고를 DB 레벨 페이지네이션으로 조회한다.
      *
-     * @param pageable 페이지네이션 정보
+     * @param query 페이지네이션 정보
      * @return 페이지네이션된 신고 목록
      */
-    Page<Report> findAll(Pageable pageable);
+    PageResult<Report> findAll(PageQuery query);
 
     /**
      * 전체 신고 수를 조회한다.

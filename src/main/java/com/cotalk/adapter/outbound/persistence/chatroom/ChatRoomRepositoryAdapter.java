@@ -3,12 +3,15 @@ package com.cotalk.adapter.outbound.persistence.chatroom;
 import com.cotalk.adapter.outbound.persistence.entity.ChatRoomJpaEntity;
 import com.cotalk.adapter.outbound.persistence.mapper.ChatRoomMapper;
 import com.cotalk.domain.entity.ChatRoom;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.infrastructure.config.CacheConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
@@ -71,13 +74,15 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
     /**
      * 사용자 ID로 참여 중인 채팅방 목록을 페이지네이션하여 조회한다.
      *
-     * @param userId   사용자 ID
-     * @param pageable 페이지네이션 정보
+     * @param userId 사용자 ID
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 채팅방 목록
      */
     @Override
-    public Page<ChatRoom> findByUserId(Long userId, Pageable pageable) {
-        return chatRoomJpaRepository.findByUserId(userId, pageable).map(mapper::toDomain);
+    public PageResult<ChatRoom> findByUserId(Long userId, PageQuery query) {
+        Pageable pageable = PageRequest.of(query.page(), query.size());
+        Page<ChatRoom> page = chatRoomJpaRepository.findByUserId(userId, pageable).map(mapper::toDomain);
+        return new PageResult<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
     /**

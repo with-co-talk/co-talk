@@ -22,10 +22,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -76,8 +74,8 @@ class AdminControllerTest {
                             .build()
             );
 
-            Page<Report> reportPage = new PageImpl<>(reports, PageRequest.of(0, 20), 1);
-            given(adminUseCase.getPendingReports(any(Pageable.class))).willReturn(reportPage);
+            PageResult<Report> reportPage = new PageResult<>(reports, 0, 20, 1);
+            given(adminUseCase.getPendingReports(any(PageQuery.class))).willReturn(reportPage);
 
             // when & then
             mockMvc.perform(get("/api/v1/admin/reports/pending")
@@ -150,8 +148,8 @@ class AdminControllerTest {
                             .build()
             );
 
-            Page<User> userPage = new PageImpl<>(users, PageRequest.of(0, 20), 2);
-            given(adminUseCase.getAllUsers(any(Pageable.class))).willReturn(userPage);
+            PageResult<User> userPage = new PageResult<>(users, 0, 20, 2);
+            given(adminUseCase.getAllUsers(any(PageQuery.class))).willReturn(userPage);
 
             // when & then
             mockMvc.perform(get("/api/v1/admin/users")
