@@ -143,4 +143,45 @@ class EncryptionServiceTest {
         // then
         assertThat(decrypted).isEqualTo(withEmoji);
     }
+
+    @Test
+    @DisplayName("should_평문_그대로_반환_when_암호화_비활성화")
+    void should_returnPlaintext_when_disabled() {
+        // given: 암호화 비활성화
+        AppProperties appProperties = createTestAppProperties(TEST_KEY, false);
+        EncryptionService disabled = new EncryptionService(appProperties);
+
+        // when & then: fail-open으로 평문 그대로 반환 (운영 prod는 enabled=true 강제이므로 영향 없음)
+        assertThat(disabled.isEnabled()).isFalse();
+        assertThat(disabled.encrypt("평문 메시지")).isEqualTo("평문 메시지");
+        assertThat(disabled.decrypt("평문 메시지")).isEqualTo("평문 메시지");
+    }
+
+    @Test
+    @DisplayName("should_경고없이_정상_when_비활성화_test_프로파일")
+    void should_notFail_when_disabledInTestProfile() {
+        // given: 비활성화 + test 프로파일
+        AppProperties appProperties = createTestAppProperties(TEST_KEY, false);
+        org.springframework.mock.env.MockEnvironment env = new org.springframework.mock.env.MockEnvironment();
+        env.setActiveProfiles("test");
+        EncryptionService service = new EncryptionService(appProperties, env);
+
+        // when & then: warnIfDisabled가 test 프로파일에서는 조용히 통과
+        org.assertj.core.api.Assertions.assertThatCode(service::warnIfDisabled)
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("should_경고로그_조건_충족_when_비활성화_비test_프로파일")
+    void should_warn_when_disabledInNonTestProfile() {
+        // given: 비활성화 + dev(비-test) 프로파일
+        AppProperties appProperties = createTestAppProperties(TEST_KEY, false);
+        org.springframework.mock.env.MockEnvironment env = new org.springframework.mock.env.MockEnvironment();
+        env.setActiveProfiles("dev");
+        EncryptionService service = new EncryptionService(appProperties, env);
+
+        // when & then: 비-test 프로파일에서도 예외 없이 WARN 경로를 수행
+        org.assertj.core.api.Assertions.assertThatCode(service::warnIfDisabled)
+                .doesNotThrowAnyException();
+    }
 }
