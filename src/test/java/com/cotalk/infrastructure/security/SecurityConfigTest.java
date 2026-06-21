@@ -155,4 +155,28 @@ class SecurityConfigTest {
                         .param("userId", "1"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    @DisplayName("should_401_반환_when_actuator_prometheus_인증없이_접근")
+    void should_returnUnauthorized_when_actuatorPrometheusWithoutAuth() throws Exception {
+        // when & then: M-4 - prometheus는 더 이상 permitAll이 아님 (ADMIN 전용)
+        mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("should_인증게이트_통과_when_actuator_health_공개유지")
+    void should_passSecurityGate_when_actuatorHealthPublic() throws Exception {
+        // when & then: health는 공개 유지 (인증 401이 아닌, 핸들러 부재로 404)
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("should_인증게이트_통과_when_actuator_info_공개유지")
+    void should_passSecurityGate_when_actuatorInfoPublic() throws Exception {
+        // when & then: info는 공개 유지 (인증 401이 아닌, 핸들러 부재로 404)
+        mockMvc.perform(get("/actuator/info"))
+                .andExpect(status().isNotFound());
+    }
 }

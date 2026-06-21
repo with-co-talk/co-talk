@@ -1,6 +1,7 @@
 package com.cotalk.infrastructure.security;
 
 import com.cotalk.infrastructure.config.properties.AppProperties;
+import jakarta.annotation.PostConstruct;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,6 +55,29 @@ public class SecurityConfig {
             AppProperties appProperties) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.allowedOrigins = appProperties.cors().allowedOrigins().split(",");
+    }
+
+    /**
+     * CORS 설정의 fail-open 위험을 시작 시점에 차단한다.
+     *
+     * <p>{@code allowCredentials=true} 상태에서 허용 오리진에 와일드카드("*")나
+     * "null"이 포함되면 브라우저 보안 모델상 자격증명 포함 요청이 임의 오리진으로
+     * 허용될 수 있다. 배포 설정 오타로 CORS가 조용히 약화되는 것을 막기 위해
+     * 위반 시 즉시 예외를 던져 애플리케이션 기동을 실패시킨다.</p>
+     *
+     * @throws IllegalStateException 허용 오리진에 "*" 또는 "null"이 포함된 경우
+     */
+    @PostConstruct
+    void validateCorsConfiguration() {
+        for (String origin : allowedOrigins) {
+            String normalized = origin == null ? null : origin.trim();
+            if (normalized == null || normalized.equals("*") || normalized.equalsIgnoreCase("null")) {
+                throw new IllegalStateException(
+                        "CORS allowCredentials=true 상태에서 허용 오리진에 와일드카드(\"*\") 또는 \"null\"을 "
+                                + "사용할 수 없습니다. app.cors.allowed-origins에 명시적 오리진을 지정하세요. "
+                                + "현재 값: " + Arrays.toString(allowedOrigins));
+            }
+        }
     }
 
     /**
@@ -128,9 +152,10 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         // 관리자 전용 엔드포인트
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        // /actuator/prometheus 포함 그 외 모든 actuator 엔드포인트는 ADMIN 전용 (메트릭 노출 차단)
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated())
