@@ -43,9 +43,9 @@ Co-Talk 애플리케이션의 메인 소스 코드. 헥사고날 아키텍처(Po
 - `adapter` → `domain` + `application` 의존 가능
 - `infrastructure` → 모든 패키지 의존 가능 (횡단 관심사)
 
-### 엔티티 이중 계층 (리팩토링 진행 중)
-- **완전 분리**: `User` → `DomainBaseEntity`(JPA 없음) + `UserJpaEntity`(persistence 전용) + `UserMapper`
-- **미분리**: `Message`, `ChatRoom` 등 → 아직 `BaseEntity`(JPA 포함) 상속. 향후 분리 예정
+### 엔티티 이중 계층 (분리 완료)
+- 모든 도메인 엔티티가 **완전 분리**되었다: `<Name>`(순수 POJO, `DomainBaseEntity` 상속) + `<Name>JpaEntity`(persistence 전용, `BaseJpaEntity` 상속) + `<Name>Mapper`
+- 도메인은 `jakarta.persistence`/`org.springframework` 프레임워크에 의존하지 않으며 ArchUnit으로 강제된다.
 
 ### 코드 컨벤션
 - Java 25, Effective Java 준수
