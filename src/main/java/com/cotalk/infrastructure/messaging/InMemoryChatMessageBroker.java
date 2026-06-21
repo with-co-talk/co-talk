@@ -80,7 +80,8 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
                 msg.unreadCount(),
                 msg.eventType(),
                 msg.relatedUserId(),
-                msg.relatedUserNickname()
+                msg.relatedUserNickname(),
+                msg.clientMessageId()
         );
     }
 
@@ -137,6 +138,7 @@ public class InMemoryChatMessageBroker implements ChatMessageBroker {
             Integer unreadCount,
             String eventType,
             Long relatedUserId,
-            String relatedUserNickname
+            String relatedUserNickname,
+            String clientMessageId
     ) {}
 }

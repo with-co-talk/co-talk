@@ -64,7 +64,8 @@ class InMemoryChatMessageBrokerTest {
                 1,              // unreadCount
                 null,           // eventType
                 null,           // relatedUserId
-                null            // relatedUserNickname
+                null,           // relatedUserNickname
+                "client-abc-123" // clientMessageId
         );
 
         // when
@@ -80,6 +81,8 @@ class InMemoryChatMessageBrokerTest {
         assertEquals(roomId, capturedMessage.roomId());
         assertEquals("안녕하세요", capturedMessage.content());
         assertEquals("TEXT", capturedMessage.type());
+        // clientMessageId가 브로드캐스트 메시지로 그대로 에코되어야 한다
+        assertEquals("client-abc-123", capturedMessage.clientMessageId());
     }
 
     @Test
@@ -104,7 +107,8 @@ class InMemoryChatMessageBrokerTest {
                 1,   // unreadCount
                 null, // eventType
                 null, // relatedUserId
-                null  // relatedUserNickname
+                null, // relatedUserNickname
+                null  // clientMessageId
         );
 
         // when
@@ -151,7 +155,7 @@ class InMemoryChatMessageBrokerTest {
         ChatBroadcastMessage message = new ChatBroadcastMessage(
                 1L, 1L, "테스트유저", null, roomId, "test", "TEXT",
                 System.currentTimeMillis(), null, null, null, null, null, 1,
-                null, null, null
+                null, null, null, null
         );
 
         // when

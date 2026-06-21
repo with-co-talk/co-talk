@@ -85,7 +85,8 @@ class RedisChatMessageBrokerTest {
                     System.currentTimeMillis(),
                     null, null, null, null, null,  // file fields
                     1,            // unreadCount
-                    null, null, null  // eventType, relatedUserId, relatedUserNickname
+                    null, null, null,  // eventType, relatedUserId, relatedUserNickname
+                    null  // clientMessageId
             );
 
             // when
@@ -122,7 +123,8 @@ class RedisChatMessageBrokerTest {
                     "image/jpeg",
                     "https://storage.example.com/thumb.jpg",
                     1,  // unreadCount
-                    null, null, null  // eventType, relatedUserId, relatedUserNickname
+                    null, null, null,  // eventType, relatedUserId, relatedUserNickname
+                    null  // clientMessageId
             );
 
             // when
@@ -148,7 +150,7 @@ class RedisChatMessageBrokerTest {
             ChatBroadcastMessage message = new ChatBroadcastMessage(
                     100L, 1L, "테스트유저", null, roomId, "test", "TEXT",
                     System.currentTimeMillis(), null, null, null, null, null, 1,
-                    null, null, null
+                    null, null, null, null
             );
             when(mockMapper.writeValueAsString(message))
                     .thenThrow(new JsonProcessingException("Serialization failed") {});

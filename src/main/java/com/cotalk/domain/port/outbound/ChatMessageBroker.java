@@ -102,6 +102,9 @@ public interface ChatMessageBroker {
      * @param eventType         이벤트 유형 (USER_LEFT, USER_JOINED 등, 시스템 메시지인 경우)
      * @param relatedUserId     관련 사용자 ID (나간 사용자, 참여한 사용자 등)
      * @param relatedUserNickname 관련 사용자 닉네임
+     * @param clientMessageId   클라이언트 낙관적 전송(optimistic send) 상관관계 ID.
+     *                          클라이언트가 STOMP 전송 본문에 담아 보내면 그대로 에코한다.
+     *                          영속화하지 않는 일시적(transient) 값이며, 없으면 null이다.
      */
     record ChatBroadcastMessage(
             Long messageId,
@@ -120,6 +123,7 @@ public interface ChatMessageBroker {
             Integer unreadCount,
             String eventType,
             Long relatedUserId,
-            String relatedUserNickname
+            String relatedUserNickname,
+            String clientMessageId
     ) {}
 }

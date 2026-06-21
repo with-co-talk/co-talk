@@ -183,7 +183,8 @@ public class MessageReplyForwardService implements MessageReplyForwardUseCase {
                 message.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
                 fileUrl, message.getFileName(), message.getFileSize(),
                 message.getFileContentType(), thumbnailUrl,
-                unreadCount, null, null, null);
+                unreadCount, null, null, null,
+                null);  // clientMessageId (해당 경로 없음)
 
         chatMessageBroker.publish(chatRoomId, broadcastMsg);
 

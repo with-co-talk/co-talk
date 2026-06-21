@@ -128,6 +128,42 @@ class BroadcastChatMessageServiceTest {
     }
 
     @Test
+    void should_echoClientMessageId_when_provided() {
+        // given
+        Message message = MessageTestFixture.createTextMessage(1L, 100L, 1L);
+        String senderNickname = "발신자";
+        List<ChatRoomMember> members = List.of(
+                ChatRoomTestFixture.createChatRoomMember(1L, 100L, 1L),
+                ChatRoomTestFixture.createChatRoomMember(2L, 100L, 2L)
+        );
+
+        // when - 클라이언트 상관관계 ID를 전달
+        broadcastChatMessageService.broadcastMessage(message, senderNickname, null, members, "client-tmp-99");
+
+        // then - 브로드캐스트 메시지에 clientMessageId가 그대로 에코되어야 한다
+        ArgumentCaptor<ChatBroadcastMessage> captor = ArgumentCaptor.forClass(ChatBroadcastMessage.class);
+        verify(chatMessageBroker).publish(eq(100L), captor.capture());
+        assertThat(captor.getValue().clientMessageId()).isEqualTo("client-tmp-99");
+    }
+
+    @Test
+    void should_haveNullClientMessageId_when_absent() {
+        // given
+        Message message = MessageTestFixture.createTextMessage(1L, 100L, 1L);
+        List<ChatRoomMember> members = List.of(
+                ChatRoomTestFixture.createChatRoomMember(1L, 100L, 1L)
+        );
+
+        // when - clientMessageId 없는 4-arg 기본 경로
+        broadcastChatMessageService.broadcastMessage(message, "발신자", null, members);
+
+        // then - 부재를 허용하며 null로 전달된다
+        ArgumentCaptor<ChatBroadcastMessage> captor = ArgumentCaptor.forClass(ChatBroadcastMessage.class);
+        verify(chatMessageBroker).publish(eq(100L), captor.capture());
+        assertThat(captor.getValue().clientMessageId()).isNull();
+    }
+
+    @Test
     void should_broadcastMessageWithTimestamp_when_messageHasCreatedAt() {
         // given
         Message message = MessageTestFixture.createTextMessage(1L, 100L, 1L);
