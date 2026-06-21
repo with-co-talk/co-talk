@@ -4,6 +4,7 @@ import com.cotalk.adapter.outbound.persistence.chatroom.ChatRoomMemberRepository
 import com.cotalk.adapter.outbound.persistence.chatroom.ChatRoomRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.mapper.ChatRoomMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.ChatRoomMemberMapper;
+import com.cotalk.adapter.outbound.persistence.mapper.MessageMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.message.MessageRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.message.MessageSearchTokenJpaEntity;
@@ -40,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import({MessageRepositoryAdapter.class, MessageSearchTokenRepositoryAdapter.class, ChatRoomRepositoryAdapter.class, ChatRoomMapper.class,
+@Import({MessageRepositoryAdapter.class, MessageMapper.class, MessageSearchTokenRepositoryAdapter.class, ChatRoomRepositoryAdapter.class, ChatRoomMapper.class,
         ChatRoomMemberRepositoryAdapter.class, ChatRoomMemberMapper.class, UserRepositoryAdapter.class, UserMapper.class, JpaAuditingConfig.class})
 @DisplayName("MessageRepositoryAdapter")
 class MessageRepositoryAdapterTest {

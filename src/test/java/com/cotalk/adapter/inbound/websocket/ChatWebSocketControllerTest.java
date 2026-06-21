@@ -6,7 +6,7 @@ import com.cotalk.adapter.inbound.websocket.dto.FileMessageRequest;
 import com.cotalk.adapter.inbound.websocket.dto.PresencePingRequest;
 import com.cotalk.adapter.inbound.websocket.dto.RemoveReactionRequest;
 import com.cotalk.adapter.inbound.websocket.dto.TypingStatusRequest;
-import com.cotalk.domain.entity.BaseEntity;
+import com.cotalk.domain.entity.DomainBaseEntity;
 import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.MessageReaction;
@@ -97,7 +97,7 @@ class ChatWebSocketControllerTest {
 
     private void setCreatedAt(Object entity, LocalDateTime createdAt) {
         try {
-            Field createdAtField = BaseEntity.class.getDeclaredField("createdAt");
+            Field createdAtField = DomainBaseEntity.class.getDeclaredField("createdAt");
             createdAtField.setAccessible(true);
             createdAtField.set(entity, createdAt);
         } catch (Exception e) {

@@ -1,5 +1,6 @@
 package com.cotalk.adapter.outbound.persistence.message;
 
+import com.cotalk.adapter.outbound.persistence.entity.MessageJpaEntity;
 import com.cotalk.domain.entity.Message;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,11 +13,11 @@ import java.util.Optional;
 
 /**
  * 메시지 JPA 리포지토리.
- * Spring Data JPA를 통해 메시지 데이터에 접근한다.
+ * persistence 계층 전용이며, 도메인 반환은 Adapter에서 매핑한다.
  *
  * @author seunggu.lee
  */
-public interface MessageJpaRepository extends JpaRepository<Message, Long> {
+public interface MessageJpaRepository extends JpaRepository<MessageJpaEntity, Long> {
 
     /**
      * 채팅방 ID로 메시지 목록을 생성일 역순으로 조회한다.
@@ -25,8 +26,8 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @param pageable 페이지 정보
      * @return 메시지 목록
      */
-    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.deleted = false ORDER BY m.createdAt DESC")
-    List<Message> findByChatRoomIdOrderByCreatedAtDesc(@Param("chatRoomId") Long chatRoomId, Pageable pageable);
+    @Query("SELECT m FROM MessageJpaEntity m WHERE m.chatRoomId = :chatRoomId AND m.deleted = false ORDER BY m.createdAt DESC")
+    List<MessageJpaEntity> findByChatRoomIdOrderByCreatedAtDesc(@Param("chatRoomId") Long chatRoomId, Pageable pageable);
 
     /**
      * 채팅방에서 마지막 읽은 시각 이후의 읽지 않은 메시지 수를 조회한다.
@@ -38,7 +39,7 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      */
     @Query("""
         SELECT COUNT(m)
-        FROM Message m
+        FROM MessageJpaEntity m
         WHERE m.chatRoomId = :chatRoomId
           AND m.deleted = false
           AND m.senderId <> :userId
@@ -58,7 +59,7 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      */
     @Query("""
         SELECT COUNT(m)
-        FROM Message m
+        FROM MessageJpaEntity m
         WHERE m.chatRoomId = :chatRoomId
           AND m.deleted = false
           AND m.senderId <> :userId
@@ -76,7 +77,7 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @return 가장 최근 메시지 (Optional)
      */
     @Query(value = "SELECT * FROM messages WHERE chat_room_id = :chatRoomId AND is_deleted = false ORDER BY created_at DESC, id DESC LIMIT 1", nativeQuery = true)
-    Optional<Message> findTopByChatRoomIdOrderByCreatedAtDesc(@Param("chatRoomId") Long chatRoomId);
+    Optional<MessageJpaEntity> findTopByChatRoomIdOrderByCreatedAtDesc(@Param("chatRoomId") Long chatRoomId);
 
     /**
      * 특정 메시지 ID 이전의 메시지 목록을 조회한다.
@@ -86,8 +87,8 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @param pageable 페이지 정보
      * @return 메시지 목록
      */
-    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.id < :beforeMessageId AND m.deleted = false ORDER BY m.id DESC")
-    List<Message> findByChatRoomIdAndIdLessThan(
+    @Query("SELECT m FROM MessageJpaEntity m WHERE m.chatRoomId = :chatRoomId AND m.id < :beforeMessageId AND m.deleted = false ORDER BY m.id DESC")
+    List<MessageJpaEntity> findByChatRoomIdAndIdLessThan(
             @Param("chatRoomId") Long chatRoomId,
             @Param("beforeMessageId") Long beforeMessageId,
             Pageable pageable);
@@ -99,8 +100,8 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @param pageable 페이지 정보
      * @return 메시지 목록
      */
-    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.deleted = false ORDER BY m.id DESC")
-    List<Message> findByChatRoomIdOrderByIdDesc(
+    @Query("SELECT m FROM MessageJpaEntity m WHERE m.chatRoomId = :chatRoomId AND m.deleted = false ORDER BY m.id DESC")
+    List<MessageJpaEntity> findByChatRoomIdOrderByIdDesc(
             @Param("chatRoomId") Long chatRoomId,
             Pageable pageable);
 
@@ -118,7 +119,7 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @return 토큰 조건을 만족하는 메시지 목록 (최신순)
      */
     @Query("""
-        SELECT m FROM Message m
+        SELECT m FROM MessageJpaEntity m
         WHERE m.chatRoomId = :chatRoomId
           AND m.deleted = false
           AND m.id IN (
@@ -129,7 +130,7 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
           )
         ORDER BY m.createdAt DESC
         """)
-    List<Message> searchByTokensInChatRoom(
+    List<MessageJpaEntity> searchByTokensInChatRoom(
             @Param("chatRoomId") Long chatRoomId,
             @Param("tokens") List<String> tokens,
             @Param("tokenCount") long tokenCount,
@@ -148,7 +149,7 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @return 토큰 조건을 만족하는 메시지 목록 (최신순)
      */
     @Query("""
-        SELECT m FROM Message m
+        SELECT m FROM MessageJpaEntity m
         WHERE m.chatRoomId IN (SELECT cm.chatRoomId FROM ChatRoomMemberJpaEntity cm WHERE cm.userId = :userId)
           AND m.deleted = false
           AND m.id IN (
@@ -159,7 +160,7 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
           )
         ORDER BY m.createdAt DESC
         """)
-    List<Message> searchByTokensInUserChatRooms(
+    List<MessageJpaEntity> searchByTokensInUserChatRooms(
             @Param("userId") Long userId,
             @Param("tokens") List<String> tokens,
             @Param("tokenCount") long tokenCount,
@@ -181,7 +182,7 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
             GROUP BY chat_room_id
         ) latest ON m.id = latest.max_id
         """, nativeQuery = true)
-    List<Message> findLastMessagesByRoomIds(@Param("chatRoomIds") List<Long> chatRoomIds);
+    List<MessageJpaEntity> findLastMessagesByRoomIds(@Param("chatRoomIds") List<Long> chatRoomIds);
 
     /**
      * 여러 채팅방의 읽지 않은 메시지 수를 한 번에 조회한다. (N+1 쿼리 방지용 배치 조회)
@@ -214,7 +215,7 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @param excludeUserId 제외할 사용자 ID
      * @return 다른 발신자 ID 목록
      */
-    @Query("SELECT DISTINCT m.senderId FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.senderId <> :excludeUserId AND m.deleted = false")
+    @Query("SELECT DISTINCT m.senderId FROM MessageJpaEntity m WHERE m.chatRoomId = :chatRoomId AND m.senderId <> :excludeUserId AND m.deleted = false")
     List<Long> findDistinctSenderIdsByChatRoomIdExcludingUser(
             @Param("chatRoomId") Long chatRoomId,
             @Param("excludeUserId") Long excludeUserId);
@@ -227,7 +228,7 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @param excludeUserId 제외할 사용자 ID
      * @return 채팅방 ID와 발신자 ID 배열의 목록 (Object[0]=chatRoomId, Object[1]=senderId)
      */
-    @Query("SELECT DISTINCT m.chatRoomId, m.senderId FROM Message m WHERE m.chatRoomId IN :chatRoomIds AND m.senderId <> :excludeUserId AND m.deleted = false")
+    @Query("SELECT DISTINCT m.chatRoomId, m.senderId FROM MessageJpaEntity m WHERE m.chatRoomId IN :chatRoomIds AND m.senderId <> :excludeUserId AND m.deleted = false")
     List<Object[]> findDistinctSenderIdsByChatRoomIdsExcludingUser(
             @Param("chatRoomIds") List<Long> chatRoomIds,
             @Param("excludeUserId") Long excludeUserId);
@@ -288,8 +289,8 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @param pageable 페이지 정보
      * @return 해당 유형의 메시지 목록
      */
-    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.type IN :types AND m.deleted = false ORDER BY m.createdAt DESC")
-    List<Message> findByTypeInChatRoom(
+    @Query("SELECT m FROM MessageJpaEntity m WHERE m.chatRoomId = :chatRoomId AND m.type IN :types AND m.deleted = false ORDER BY m.createdAt DESC")
+    List<MessageJpaEntity> findByTypeInChatRoom(
             @Param("chatRoomId") Long chatRoomId,
             @Param("types") List<Message.MessageType> types,
             Pageable pageable);
@@ -302,8 +303,8 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @param pageable 페이지 정보
      * @return 링크 프리뷰가 있는 메시지 목록
      */
-    @Query("SELECT m FROM Message m WHERE m.chatRoomId = :chatRoomId AND m.linkPreviewUrl IS NOT NULL AND m.deleted = false ORDER BY m.createdAt DESC")
-    List<Message> findMessagesWithLinkPreview(
+    @Query("SELECT m FROM MessageJpaEntity m WHERE m.chatRoomId = :chatRoomId AND m.linkPreviewUrl IS NOT NULL AND m.deleted = false ORDER BY m.createdAt DESC")
+    List<MessageJpaEntity> findMessagesWithLinkPreview(
             @Param("chatRoomId") Long chatRoomId,
             Pageable pageable);
 
@@ -325,6 +326,6 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      * @param pageable 청크 크기(limit) 정보
      * @return id 오름차순 TEXT 미삭제 메시지 목록
      */
-    @Query("SELECT m FROM Message m WHERE m.id > :afterId AND m.type = com.cotalk.domain.entity.Message.MessageType.TEXT AND m.deleted = false ORDER BY m.id ASC")
-    List<Message> findTextMessagesForBackfill(@Param("afterId") long afterId, Pageable pageable);
+    @Query("SELECT m FROM MessageJpaEntity m WHERE m.id > :afterId AND m.type = com.cotalk.domain.entity.Message.MessageType.TEXT AND m.deleted = false ORDER BY m.id ASC")
+    List<MessageJpaEntity> findTextMessagesForBackfill(@Param("afterId") long afterId, Pageable pageable);
 }

@@ -1,5 +1,6 @@
 package com.cotalk.adapter.outbound.persistence;
 
+import com.cotalk.adapter.outbound.persistence.mapper.MessageMapper;
 import com.cotalk.adapter.outbound.persistence.message.MessageRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.message.MessageSearchTokenJpaEntity;
 import com.cotalk.adapter.outbound.persistence.message.MessageSearchTokenJpaRepository;
@@ -33,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import({MessageRepositoryAdapter.class, MessageSearchTokenRepositoryAdapter.class, JpaAuditingConfig.class})
+@Import({MessageRepositoryAdapter.class, MessageMapper.class, MessageSearchTokenRepositoryAdapter.class, JpaAuditingConfig.class})
 @DisplayName("MessageJpaRepository 토큰 조인 검색")
 class MessageJpaRepositoryTest {
 

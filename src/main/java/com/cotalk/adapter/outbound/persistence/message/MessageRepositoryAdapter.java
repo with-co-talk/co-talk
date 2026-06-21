@@ -1,9 +1,12 @@
 package com.cotalk.adapter.outbound.persistence.message;
 
+import com.cotalk.adapter.outbound.persistence.entity.MessageJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.MessageMapper;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -14,7 +17,7 @@ import java.util.Optional;
 
 /**
  * 메시지 영속성 어댑터.
- * JPA를 통해 메시지 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -23,6 +26,7 @@ import java.util.Optional;
 public class MessageRepositoryAdapter implements MessageRepository {
 
     private final MessageJpaRepository messageJpaRepository;
+    private final MessageMapper mapper;
 
     /**
      * 메시지를 저장한다.
@@ -32,7 +36,8 @@ public class MessageRepositoryAdapter implements MessageRepository {
      */
     @Override
     public Message save(Message message) {
-        return messageJpaRepository.save(message);
+        MessageJpaEntity saved = messageJpaRepository.save(mapper.toJpa(message));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -43,7 +48,7 @@ public class MessageRepositoryAdapter implements MessageRepository {
      */
     @Override
     public Optional<Message> findById(Long id) {
-        return messageJpaRepository.findById(id);
+        return messageJpaRepository.findById(id).map(mapper::toDomain);
     }
 
     /**
@@ -56,7 +61,9 @@ public class MessageRepositoryAdapter implements MessageRepository {
      */
     @Override
     public List<Message> findByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId, int page, int size) {
-        return messageJpaRepository.findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, PageRequest.of(page, size));
+        return messageJpaRepository.findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, PageRequest.of(page, size)).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -85,7 +92,7 @@ public class MessageRepositoryAdapter implements MessageRepository {
      */
     @Override
     public Optional<Message> findTopByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId) {
-        return messageJpaRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId);
+        return messageJpaRepository.findTopByChatRoomIdOrderByCreatedAtDesc(chatRoomId).map(mapper::toDomain);
     }
 
     /**
@@ -98,10 +105,13 @@ public class MessageRepositoryAdapter implements MessageRepository {
      */
     @Override
     public List<Message> findByChatRoomIdBeforeMessageId(Long chatRoomId, Long beforeMessageId, int size) {
+        List<MessageJpaEntity> result;
         if (beforeMessageId == null) {
-            return messageJpaRepository.findByChatRoomIdOrderByIdDesc(chatRoomId, PageRequest.of(0, size));
+            result = messageJpaRepository.findByChatRoomIdOrderByIdDesc(chatRoomId, PageRequest.of(0, size));
+        } else {
+            result = messageJpaRepository.findByChatRoomIdAndIdLessThan(chatRoomId, beforeMessageId, PageRequest.of(0, size));
         }
-        return messageJpaRepository.findByChatRoomIdAndIdLessThan(chatRoomId, beforeMessageId, PageRequest.of(0, size));
+        return result.stream().map(mapper::toDomain).toList();
     }
 
     /**
@@ -119,7 +129,9 @@ public class MessageRepositoryAdapter implements MessageRepository {
         if (tokens == null || tokens.isEmpty()) {
             return List.of();
         }
-        return messageJpaRepository.searchByTokensInChatRoom(chatRoomId, tokens, tokenCount, OffsetLimitPageable.of(offset, limit));
+        return messageJpaRepository.searchByTokensInChatRoom(chatRoomId, tokens, tokenCount, OffsetLimitPageable.of(offset, limit)).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -137,7 +149,9 @@ public class MessageRepositoryAdapter implements MessageRepository {
         if (tokens == null || tokens.isEmpty()) {
             return List.of();
         }
-        return messageJpaRepository.searchByTokensInUserChatRooms(userId, tokens, tokenCount, OffsetLimitPageable.of(offset, limit));
+        return messageJpaRepository.searchByTokensInUserChatRooms(userId, tokens, tokenCount, OffsetLimitPageable.of(offset, limit)).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -161,7 +175,9 @@ public class MessageRepositoryAdapter implements MessageRepository {
         if (chatRoomIds == null || chatRoomIds.isEmpty()) {
             return List.of();
         }
-        return messageJpaRepository.findLastMessagesByRoomIds(chatRoomIds);
+        return messageJpaRepository.findLastMessagesByRoomIds(chatRoomIds).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -293,8 +309,10 @@ public class MessageRepositoryAdapter implements MessageRepository {
      * @return 해당 타입의 메시지 목록 (최신순)
      */
     @Override
-    public List<Message> findByTypeInChatRoom(Long chatRoomId, List<Message.MessageType> types, org.springframework.data.domain.Pageable pageable) {
-        return messageJpaRepository.findByTypeInChatRoom(chatRoomId, types, pageable);
+    public List<Message> findByTypeInChatRoom(Long chatRoomId, List<Message.MessageType> types, Pageable pageable) {
+        return messageJpaRepository.findByTypeInChatRoom(chatRoomId, types, pageable).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -305,8 +323,10 @@ public class MessageRepositoryAdapter implements MessageRepository {
      * @return 링크 미리보기가 있는 메시지 목록 (최신순)
      */
     @Override
-    public List<Message> findMessagesWithLinkPreview(Long chatRoomId, org.springframework.data.domain.Pageable pageable) {
-        return messageJpaRepository.findMessagesWithLinkPreview(chatRoomId, pageable);
+    public List<Message> findMessagesWithLinkPreview(Long chatRoomId, Pageable pageable) {
+        return messageJpaRepository.findMessagesWithLinkPreview(chatRoomId, pageable).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**

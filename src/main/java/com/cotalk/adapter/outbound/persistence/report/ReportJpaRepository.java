@@ -101,6 +101,6 @@ public interface ReportJpaRepository extends JpaRepository<ReportJpaEntity, Long
      */
     @Modifying
     @Query("DELETE FROM ReportJpaEntity r WHERE r.reportedMessageId IN " +
-           "(SELECT m.id FROM Message m WHERE m.senderId = :senderId)")
+           "(SELECT m.id FROM MessageJpaEntity m WHERE m.senderId = :senderId)")
     void deleteByReportedMessageSenderId(@Param("senderId") Long senderId);
 }

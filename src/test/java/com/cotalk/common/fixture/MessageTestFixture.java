@@ -1,6 +1,6 @@
 package com.cotalk.common.fixture;
 
-import com.cotalk.domain.entity.BaseEntity;
+import com.cotalk.domain.entity.DomainBaseEntity;
 import com.cotalk.domain.entity.Message;
 
 import java.lang.reflect.Field;
@@ -222,7 +222,7 @@ public class MessageTestFixture {
      */
     private static void setCreatedAt(Message message, LocalDateTime createdAt) {
         try {
-            Field createdAtField = BaseEntity.class.getDeclaredField("createdAt");
+            Field createdAtField = DomainBaseEntity.class.getDeclaredField("createdAt");
             createdAtField.setAccessible(true);
             createdAtField.set(message, createdAt);
         } catch (Exception e) {
