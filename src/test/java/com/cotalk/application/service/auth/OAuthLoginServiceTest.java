@@ -1,6 +1,7 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.exception.DuplicateEmailException;
 import com.cotalk.domain.exception.InvalidCredentialsException;
 import com.cotalk.domain.exception.OAuthVerificationException;
 import com.cotalk.domain.model.Email;
@@ -191,5 +192,27 @@ class OAuthLoginServiceTest {
         assertThat(savedUser.getOauthId()).isEqualTo(oauthId);
         assertThat(savedUser.getNickname()).isNotBlank();
         assertThat(savedUser.getEmail()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("자동가입 시 검증된 이메일이 다른 계정에 이미 존재하면 DuplicateEmailException으로 거부한다(자동연결 금지)")
+    void should_throwDuplicateEmail_when_signUpEmailAlreadyExists() {
+        // given
+        String oauthId = "kakao_67890";
+        User.OAuthProvider provider = User.OAuthProvider.KAKAO;
+        VerifiedOAuthIdentity identity = new VerifiedOAuthIdentity(
+                oauthId, "taken@kakao.com", "카카오유저", null);
+
+        given(oAuthIdentityVerifier.verify(provider, TOKEN)).willReturn(identity);
+        given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
+                .willReturn(Optional.empty());
+        given(userRepository.existsByEmail("taken@kakao.com")).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> oAuthLoginService.loginWithOAuth(provider, TOKEN))
+                .isInstanceOf(DuplicateEmailException.class);
+
+        verify(userRepository, never()).save(any());
+        verify(authTokenPort, never()).generateAccessToken(any());
     }
 }

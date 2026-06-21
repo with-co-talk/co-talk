@@ -1,6 +1,7 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.exception.DuplicateEmailException;
 import com.cotalk.domain.model.Email;
 import com.cotalk.domain.model.VerifiedOAuthIdentity;
 import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase;
@@ -67,10 +68,32 @@ public class OAuthLoginService implements OAuthLoginUseCase {
         return new OAuthLoginResult(token, false, user.getId());
     }
 
+    /**
+     * 신규 사용자를 자동 회원가입한 뒤 로그인한다.
+     *
+     * <p>정책(보안): 조회는 (provider, oauthId)로 이뤄지므로 동일 계정의 재로그인은 위 경로에서
+     * 처리되어 여기에 도달하지 않는다. 따라서 이 경로에서 검증된 이메일이 이미 다른 계정에
+     * 존재한다면, 서로 다른 OAuth 신원이 같은 이메일을 주장하는 충돌 상황이다. 이때 두 계정을
+     * 자동 연결(link)하면 이메일 탈취로 인한 계정 병합 위험이 있으므로, 자동 연결하지 않고
+     * 명시적으로 거부한다(reject-not-link). DB 유니크 제약 위반은
+     * {@link com.cotalk.infrastructure.exception.GlobalExceptionHandler}에서 409로 위생 처리된다.</p>
+     *
+     * @param provider OAuth 제공자
+     * @param identity 검증된 식별 정보
+     * @return 로그인 결과
+     * @throws DuplicateEmailException 검증된 이메일이 이미 다른 계정에 존재하는 경우
+     */
     private OAuthLoginResult signUpAndLogin(User.OAuthProvider provider, VerifiedOAuthIdentity identity) {
+        Email email = resolveEmail(provider, identity);
+        if (userRepository.existsByEmail(email.value())) {
+            log.warn("OAuth 자동가입 거부: 이미 다른 계정에 존재하는 이메일 (provider={}, email={})",
+                    provider, maskEmail(email.value()));
+            throw new DuplicateEmailException();
+        }
+
         User newUser = User.builder()
                 .id(idGenerator.nextId())
-                .email(resolveEmail(provider, identity))
+                .email(email)
                 .nickname(resolveNickname(identity))
                 .avatarUrl(identity.avatarUrl())
                 .oauthProvider(provider)

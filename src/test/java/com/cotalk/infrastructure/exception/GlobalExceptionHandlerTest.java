@@ -30,6 +30,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -758,6 +759,31 @@ class GlobalExceptionHandlerTest {
             assertThat(response.getBody().error()).isEqualTo("요청 값이 올바르지 않습니다.");
             assertThat(response.getBody().error()).doesNotContain("must be greater");
             assertThat(response.getBody().error()).doesNotContain("getChatRoomMembers");
+        }
+    }
+
+    @Nested
+    @DisplayName("DataIntegrityViolationException 처리")
+    class HandleDataIntegrityViolationException {
+
+        @Test
+        @DisplayName("DataIntegrityViolationException은 409 CONFLICT 위생 처리 응답 반환")
+        void should_returnConflictSanitized_when_dataIntegrityViolation() {
+            // given: 프레임워크/JDBC 영문 상세가 섞인 메시지
+            DataIntegrityViolationException exception =
+                    new DataIntegrityViolationException(
+                            "could not execute statement [ERROR: duplicate key value violates unique constraint \"uk_users_email\"]");
+
+            // when
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleDataIntegrityViolation(exception);
+
+            // then
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().code()).isEqualTo("DATA_INTEGRITY_VIOLATION");
+            assertThat(response.getBody().error()).isEqualTo("이미 존재하는 데이터와 충돌합니다.");
+            assertThat(response.getBody().error()).doesNotContain("constraint");
+            assertThat(response.getBody().error()).doesNotContain("duplicate key");
         }
     }
 
