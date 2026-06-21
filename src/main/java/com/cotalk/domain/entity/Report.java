@@ -1,62 +1,50 @@
 package com.cotalk.domain.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
 /**
- * 신고 엔티티.
+ * 신고 도메인 엔티티.
  * 사용자, 메시지, 채팅방에 대한 신고 정보를 나타낸다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "reports")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class Report extends BaseEntity {
+@SuperBuilder
+public class Report extends DomainBaseEntity {
 
-    @Id
     private Long id;
 
-    @Column(name = "reporter_id", nullable = false)
     private Long reporterId;
 
-    @Column(name = "reported_user_id")
     private Long reportedUserId;
 
-    @Column(name = "reported_message_id")
     private Long reportedMessageId;
 
-    @Column(name = "reported_chat_room_id")
     private Long reportedChatRoomId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private ReportType type;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private ReportReason reason;
 
-    @Column(length = 1000)
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     @Builder.Default
     private ReportStatus status = ReportStatus.PENDING;
 
-    @Column(name = "admin_note", length = 1000)
     private String adminNote;
 
-    @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
-    @Column(name = "processed_by")
     private Long processedBy;
 
     /**

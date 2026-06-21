@@ -1,5 +1,6 @@
 package com.cotalk.adapter.outbound.persistence;
 
+import com.cotalk.adapter.outbound.persistence.mapper.DeviceTokenMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.notification.DeviceTokenRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
@@ -53,6 +54,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ActiveProfiles("test")
 @Import({
         DeviceTokenRepositoryAdapter.class,
+        DeviceTokenMapper.class,
         UserRepositoryAdapter.class,
         UserMapper.class,
         JpaAuditingConfig.class,

@@ -1,46 +1,38 @@
 package com.cotalk.domain.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 /**
- * 프로필 이력 엔티티.
+ * 프로필 이력 도메인 엔티티.
  * 사용자의 프로필 사진, 배경화면, 상태메시지 변경 이력을 관리한다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "profile_history", indexes = {
-    @Index(name = "idx_profile_history_user_type", columnList = "userId, type")
-})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class ProfileHistory extends BaseEntity {
+@SuperBuilder
+public class ProfileHistory extends DomainBaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private Long userId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
     private ProfileHistoryType type;
 
-    @Column(length = 500)
     private String url;
 
-    @Column(length = 60)
     private String content;
 
-    @Column(nullable = false)
     @Builder.Default
     private boolean isPrivate = false;
 
-    @Column(nullable = false)
     @Builder.Default
     private boolean isCurrent = false;
 

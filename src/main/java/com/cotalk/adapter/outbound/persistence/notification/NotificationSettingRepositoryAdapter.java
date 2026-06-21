@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.notification;
 
+import com.cotalk.adapter.outbound.persistence.entity.NotificationSettingJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.NotificationSettingMapper;
 import com.cotalk.domain.entity.NotificationSetting;
 import com.cotalk.domain.port.outbound.NotificationSettingRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +12,7 @@ import java.util.Optional;
 
 /**
  * 알림 설정 영속성 어댑터.
- * JPA를 통해 알림 설정 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -19,6 +21,7 @@ import java.util.Optional;
 public class NotificationSettingRepositoryAdapter implements NotificationSettingRepository {
 
     private final NotificationSettingJpaRepository notificationSettingJpaRepository;
+    private final NotificationSettingMapper mapper;
 
     /**
      * 알림 설정을 저장한다.
@@ -28,7 +31,8 @@ public class NotificationSettingRepositoryAdapter implements NotificationSetting
      */
     @Override
     public NotificationSetting save(NotificationSetting setting) {
-        return notificationSettingJpaRepository.save(setting);
+        NotificationSettingJpaEntity saved = notificationSettingJpaRepository.save(mapper.toJpa(setting));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -39,7 +43,7 @@ public class NotificationSettingRepositoryAdapter implements NotificationSetting
      */
     @Override
     public Optional<NotificationSetting> findByUserId(Long userId) {
-        return notificationSettingJpaRepository.findByUserId(userId);
+        return notificationSettingJpaRepository.findByUserId(userId).map(mapper::toDomain);
     }
 
     /**
@@ -50,7 +54,9 @@ public class NotificationSettingRepositoryAdapter implements NotificationSetting
      */
     @Override
     public List<NotificationSetting> findByUserIds(List<Long> userIds) {
-        return notificationSettingJpaRepository.findByUserIdIn(userIds);
+        return notificationSettingJpaRepository.findByUserIdIn(userIds).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**

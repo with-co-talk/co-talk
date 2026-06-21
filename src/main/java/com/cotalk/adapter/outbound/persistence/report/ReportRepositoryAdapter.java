@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.report;
 
+import com.cotalk.adapter.outbound.persistence.entity.ReportJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.ReportMapper;
 import com.cotalk.domain.entity.Report;
 import com.cotalk.domain.port.outbound.ReportRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +14,7 @@ import java.util.Optional;
 
 /**
  * 신고 영속성 어댑터.
- * JPA를 통해 신고 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -21,6 +23,7 @@ import java.util.Optional;
 public class ReportRepositoryAdapter implements ReportRepository {
 
     private final ReportJpaRepository reportJpaRepository;
+    private final ReportMapper mapper;
 
     /**
      * 신고를 저장한다.
@@ -30,7 +33,8 @@ public class ReportRepositoryAdapter implements ReportRepository {
      */
     @Override
     public Report save(Report report) {
-        return reportJpaRepository.save(report);
+        ReportJpaEntity saved = reportJpaRepository.save(mapper.toJpa(report));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -41,7 +45,7 @@ public class ReportRepositoryAdapter implements ReportRepository {
      */
     @Override
     public Optional<Report> findById(Long id) {
-        return reportJpaRepository.findById(id);
+        return reportJpaRepository.findById(id).map(mapper::toDomain);
     }
 
     /**
@@ -52,7 +56,9 @@ public class ReportRepositoryAdapter implements ReportRepository {
      */
     @Override
     public List<Report> findByReporterId(Long reporterId) {
-        return reportJpaRepository.findByReporterId(reporterId);
+        return reportJpaRepository.findByReporterId(reporterId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -63,7 +69,9 @@ public class ReportRepositoryAdapter implements ReportRepository {
      */
     @Override
     public List<Report> findByReportedUserId(Long reportedUserId) {
-        return reportJpaRepository.findByReportedUserId(reportedUserId);
+        return reportJpaRepository.findByReportedUserId(reportedUserId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -98,7 +106,9 @@ public class ReportRepositoryAdapter implements ReportRepository {
      */
     @Override
     public List<Report> findByStatus(Report.ReportStatus status) {
-        return reportJpaRepository.findByStatus(status);
+        return reportJpaRepository.findByStatus(status).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -110,7 +120,7 @@ public class ReportRepositoryAdapter implements ReportRepository {
      */
     @Override
     public Page<Report> findByStatus(Report.ReportStatus status, Pageable pageable) {
-        return reportJpaRepository.findByStatus(status, pageable);
+        return reportJpaRepository.findByStatus(status, pageable).map(mapper::toDomain);
     }
 
     /**
@@ -120,7 +130,9 @@ public class ReportRepositoryAdapter implements ReportRepository {
      */
     @Override
     public List<Report> findAll() {
-        return reportJpaRepository.findAll();
+        return reportJpaRepository.findAll().stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -131,7 +143,7 @@ public class ReportRepositoryAdapter implements ReportRepository {
      */
     @Override
     public Page<Report> findAll(Pageable pageable) {
-        return reportJpaRepository.findAll(pageable);
+        return reportJpaRepository.findAll(pageable).map(mapper::toDomain);
     }
 
     /**

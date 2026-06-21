@@ -1,5 +1,6 @@
 package com.cotalk.adapter.outbound.persistence.report;
 
+import com.cotalk.adapter.outbound.persistence.entity.ReportJpaEntity;
 import com.cotalk.domain.entity.Report;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,11 +13,11 @@ import java.util.List;
 
 /**
  * 신고 JPA 리포지토리.
- * Spring Data JPA를 통해 신고 데이터에 접근한다.
+ * persistence 계층 전용이며, 도메인 반환은 Adapter에서 매핑한다.
  *
  * @author seunggu.lee
  */
-public interface ReportJpaRepository extends JpaRepository<Report, Long> {
+public interface ReportJpaRepository extends JpaRepository<ReportJpaEntity, Long> {
 
     /**
      * 신고자 ID로 신고 목록을 조회한다.
@@ -24,7 +25,7 @@ public interface ReportJpaRepository extends JpaRepository<Report, Long> {
      * @param reporterId 신고자 ID
      * @return 신고 목록
      */
-    List<Report> findByReporterId(Long reporterId);
+    List<ReportJpaEntity> findByReporterId(Long reporterId);
 
     /**
      * 피신고자 ID로 신고 목록을 조회한다.
@@ -32,7 +33,7 @@ public interface ReportJpaRepository extends JpaRepository<Report, Long> {
      * @param reportedUserId 피신고자 ID
      * @return 신고 목록
      */
-    List<Report> findByReportedUserId(Long reportedUserId);
+    List<ReportJpaEntity> findByReportedUserId(Long reportedUserId);
 
     /**
      * 신고자 ID와 피신고자 ID로 신고가 존재하는지 확인한다.
@@ -58,7 +59,7 @@ public interface ReportJpaRepository extends JpaRepository<Report, Long> {
      * @param status 신고 상태
      * @return 신고 목록
      */
-    List<Report> findByStatus(Report.ReportStatus status);
+    List<ReportJpaEntity> findByStatus(Report.ReportStatus status);
 
     /**
      * 특정 상태의 신고 목록을 페이지네이션하여 조회한다.
@@ -67,7 +68,7 @@ public interface ReportJpaRepository extends JpaRepository<Report, Long> {
      * @param pageable 페이지네이션 정보
      * @return 페이지네이션된 신고 목록
      */
-    Page<Report> findByStatus(Report.ReportStatus status, Pageable pageable);
+    Page<ReportJpaEntity> findByStatus(Report.ReportStatus status, Pageable pageable);
 
     /**
      * 특정 상태의 신고 수를 조회한다.
@@ -99,7 +100,7 @@ public interface ReportJpaRepository extends JpaRepository<Report, Long> {
      * @param senderId 메시지 발신자(사용자) ID
      */
     @Modifying
-    @Query("DELETE FROM Report r WHERE r.reportedMessageId IN " +
+    @Query("DELETE FROM ReportJpaEntity r WHERE r.reportedMessageId IN " +
            "(SELECT m.id FROM Message m WHERE m.senderId = :senderId)")
     void deleteByReportedMessageSenderId(@Param("senderId") Long senderId);
 }

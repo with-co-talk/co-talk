@@ -9,9 +9,13 @@ import com.cotalk.adapter.outbound.persistence.friend.BlockRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.friend.FriendRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.friend.FriendRequestRepositoryAdapter;
 import com.cotalk.adapter.outbound.persistence.friend.HiddenFriendRepositoryAdapter;
+import com.cotalk.adapter.outbound.persistence.mapper.DeviceTokenMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.EmailVerificationTokenMapper;
+import com.cotalk.adapter.outbound.persistence.mapper.NotificationSettingMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.PasswordResetTokenMapper;
+import com.cotalk.adapter.outbound.persistence.mapper.ProfileHistoryMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.RefreshTokenMapper;
+import com.cotalk.adapter.outbound.persistence.mapper.ReportMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.TermsAgreementMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.message.MessageReactionRepositoryAdapter;
@@ -103,6 +107,10 @@ import static org.assertj.core.api.Assertions.assertThatCode;
         PasswordResetTokenMapper.class,
         EmailVerificationTokenMapper.class,
         TermsAgreementMapper.class,
+        DeviceTokenMapper.class,
+        NotificationSettingMapper.class,
+        ProfileHistoryMapper.class,
+        ReportMapper.class,
         JpaAuditingConfig.class
 })
 @Sql(scripts = "/sql/delete-account-fk-constraints.sql",
