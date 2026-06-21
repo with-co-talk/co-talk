@@ -37,7 +37,7 @@ class GoogleTokenVerifierTest {
         RestClient restClient = builder.build();
 
         OAuthProperties props = new OAuthProperties(
-                new OAuthProperties.Google(CLIENT_ID), new OAuthProperties.Apple(""));
+                new OAuthProperties.Google(CLIENT_ID), new OAuthProperties.Apple(""), null);
         verifier = new GoogleTokenVerifier(restClient, props);
     }
 
@@ -122,7 +122,7 @@ class GoogleTokenVerifierTest {
     void should_failClosed_when_clientIdUnset() {
         // given
         OAuthProperties emptyProps = new OAuthProperties(
-                new OAuthProperties.Google(""), new OAuthProperties.Apple(""));
+                new OAuthProperties.Google(""), new OAuthProperties.Apple(""), null);
         GoogleTokenVerifier unconfigured = new GoogleTokenVerifier(RestClient.builder().build(), emptyProps);
         String token = tokens.signToken(ISSUER, CLIENT_ID, "google-sub-123",
                 Instant.now().plusSeconds(600), Map.of("email", "user@gmail.com"));
