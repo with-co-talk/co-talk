@@ -82,7 +82,7 @@ public class InviteGroupChatMemberService implements InviteGroupChatMemberUseCas
         // 새로 추가할 멤버만 필터링하여 일괄 저장
         List<ChatRoomMember> newMembers = inviteeIds.stream()
                 .filter(inviteeId -> !existingMemberIds.contains(inviteeId))
-                .map(inviteeId -> ChatRoomMember.builder()
+                .<ChatRoomMember>map(inviteeId -> ChatRoomMember.builder()
                         .id(idGenerator.nextId())
                         .chatRoomId(roomId)
                         .userId(inviteeId)

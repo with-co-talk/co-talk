@@ -149,7 +149,7 @@ public interface MessageJpaRepository extends JpaRepository<Message, Long> {
      */
     @Query("""
         SELECT m FROM Message m
-        WHERE m.chatRoomId IN (SELECT cm.chatRoomId FROM ChatRoomMember cm WHERE cm.userId = :userId)
+        WHERE m.chatRoomId IN (SELECT cm.chatRoomId FROM ChatRoomMemberJpaEntity cm WHERE cm.userId = :userId)
           AND m.deleted = false
           AND m.id IN (
             SELECT t.messageId FROM MessageSearchTokenJpaEntity t

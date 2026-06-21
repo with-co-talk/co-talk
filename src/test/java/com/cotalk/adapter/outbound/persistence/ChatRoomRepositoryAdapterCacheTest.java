@@ -49,7 +49,7 @@ class ChatRoomRepositoryAdapterCacheTest {
         cacheManager.getCache(CacheConfig.CHAT_ROOM_CACHE).clear();
 
         // 테스트 채팅방 생성 (ChatRoom은 ID 자동 생성이 없으므로 명시적으로 설정)
-        savedChatRoom = chatRoomJpaRepository.save(ChatRoom.builder()
+        savedChatRoom = chatRoomRepository.save(ChatRoom.builder()
                 .id(1000L)
                 .name("cache-test-room")
                 .type(ChatRoom.ChatRoomType.DIRECT)

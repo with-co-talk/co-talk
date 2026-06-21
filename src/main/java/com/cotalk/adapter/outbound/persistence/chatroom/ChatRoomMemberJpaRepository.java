@@ -1,6 +1,6 @@
 package com.cotalk.adapter.outbound.persistence.chatroom;
 
-import com.cotalk.domain.entity.ChatRoomMember;
+import com.cotalk.adapter.outbound.persistence.entity.ChatRoomMemberJpaEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -12,11 +12,11 @@ import java.util.Optional;
 
 /**
  * 채팅방 멤버 JPA 리포지토리.
- * Spring Data JPA를 통해 채팅방 멤버 데이터에 접근한다.
+ * persistence 계층 전용이며, 도메인 반환은 Adapter에서 매핑한다.
  *
  * @author seunggu.lee
  */
-public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMember, Long> {
+public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMemberJpaEntity, Long> {
 
     /**
      * 채팅방 ID와 사용자 ID로 채팅방 멤버를 조회한다.
@@ -25,7 +25,7 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * @param userId 사용자 ID
      * @return 채팅방 멤버 (Optional)
      */
-    Optional<ChatRoomMember> findByChatRoomIdAndUserId(Long chatRoomId, Long userId);
+    Optional<ChatRoomMemberJpaEntity> findByChatRoomIdAndUserId(Long chatRoomId, Long userId);
 
     /**
      * 채팅방 ID로 모든 멤버 목록을 조회한다.
@@ -33,7 +33,7 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * @param chatRoomId 채팅방 ID
      * @return 채팅방 멤버 목록
      */
-    List<ChatRoomMember> findByChatRoomId(Long chatRoomId);
+    List<ChatRoomMemberJpaEntity> findByChatRoomId(Long chatRoomId);
 
     /**
      * 사용자 ID로 참여 중인 채팅방 멤버 목록을 조회한다.
@@ -41,7 +41,7 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * @param userId 사용자 ID
      * @return 채팅방 멤버 목록
      */
-    List<ChatRoomMember> findByUserId(Long userId);
+    List<ChatRoomMemberJpaEntity> findByUserId(Long userId);
 
     /**
      * 채팅방에 해당 사용자가 멤버로 존재하는지 확인한다.
@@ -69,7 +69,7 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * @return 업데이트된 행 수
      */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query("UPDATE ChatRoomMember m SET m.lastReadAt = :lastReadAt " +
+    @Query("UPDATE ChatRoomMemberJpaEntity m SET m.lastReadAt = :lastReadAt " +
            "WHERE m.chatRoomId = :chatRoomId AND m.userId = :userId " +
            "AND (m.lastReadAt IS NULL OR m.lastReadAt < :lastReadAt)")
     int updateLastReadAtIfNewer(@Param("chatRoomId") Long chatRoomId,
@@ -88,7 +88,7 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * <p>clearAutomatically=true: 영속성 컨텍스트를 클리어하여 캐시된 이전 값 대신 DB의 최신 값을 읽도록 함</p>
      */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query("UPDATE ChatRoomMember m " +
+    @Query("UPDATE ChatRoomMemberJpaEntity m " +
            "SET m.lastReadMessageId = :lastReadMessageId, m.lastReadAt = :lastReadAt " +
            "WHERE m.chatRoomId = :chatRoomId AND m.userId = :userId " +
            "AND :lastReadMessageId IS NOT NULL " +
@@ -108,7 +108,7 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * @param senderId         발신자 ID (제외할 사용자)
      * @return 읽지 않은 멤버 수
      */
-    @Query("SELECT COUNT(m) FROM ChatRoomMember m " +
+    @Query("SELECT COUNT(m) FROM ChatRoomMemberJpaEntity m " +
            "WHERE m.chatRoomId = :chatRoomId " +
            "AND m.userId != :senderId " +
            "AND (m.lastReadAt IS NULL OR m.lastReadAt < :messageCreatedAt)")
@@ -119,7 +119,7 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
     /**
      * 특정 메시지를 읽지 않은 멤버 수를 조회한다. (messageId 기준)
      */
-    @Query("SELECT COUNT(m) FROM ChatRoomMember m " +
+    @Query("SELECT COUNT(m) FROM ChatRoomMemberJpaEntity m " +
            "WHERE m.chatRoomId = :chatRoomId " +
            "AND m.userId != :senderId " +
            "AND (m.lastReadMessageId IS NULL OR m.lastReadMessageId < :messageId)")
@@ -138,7 +138,7 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * @return 업데이트된 행 수
      */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query("UPDATE ChatRoomMember m SET m.lastReadAt = :lastReadAt " +
+    @Query("UPDATE ChatRoomMemberJpaEntity m SET m.lastReadAt = :lastReadAt " +
            "WHERE m.chatRoomId = :chatRoomId AND m.userId = :userId")
     int updateLastReadAt(@Param("chatRoomId") Long chatRoomId,
                          @Param("userId") Long userId,
@@ -150,7 +150,6 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      *
      * @param chatRoomId 채팅방 ID
      * @param messageIds 메시지 ID 목록
-     * @param senderIds 각 메시지의 발신자 ID 목록 (메시지 순서와 동일)
      * @return 메시지 ID와 읽지 않은 멤버 수 배열의 목록 (Object[0]=messageId, Object[1]=unreadCount)
      */
     @Query(value = """
@@ -173,8 +172,8 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * @param chatRoomIds 채팅방 ID 목록
      * @return 채팅방 멤버 목록
      */
-    @Query("SELECT m FROM ChatRoomMember m WHERE m.userId = :userId AND m.chatRoomId IN :chatRoomIds")
-    List<ChatRoomMember> findByUserIdAndChatRoomIdIn(
+    @Query("SELECT m FROM ChatRoomMemberJpaEntity m WHERE m.userId = :userId AND m.chatRoomId IN :chatRoomIds")
+    List<ChatRoomMemberJpaEntity> findByUserIdAndChatRoomIdIn(
             @Param("userId") Long userId,
             @Param("chatRoomIds") List<Long> chatRoomIds);
 
@@ -186,8 +185,8 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
      * @param chatRoomIds 채팅방 ID 목록
      * @return 상대방 멤버 목록
      */
-    @Query("SELECT m FROM ChatRoomMember m WHERE m.userId != :userId AND m.chatRoomId IN :chatRoomIds")
-    List<ChatRoomMember> findOtherMembersByUserIdAndChatRoomIdIn(
+    @Query("SELECT m FROM ChatRoomMemberJpaEntity m WHERE m.userId != :userId AND m.chatRoomId IN :chatRoomIds")
+    List<ChatRoomMemberJpaEntity> findOtherMembersByUserIdAndChatRoomIdIn(
             @Param("userId") Long userId,
             @Param("chatRoomIds") List<Long> chatRoomIds);
 }

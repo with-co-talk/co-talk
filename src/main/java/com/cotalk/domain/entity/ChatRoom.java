@@ -1,36 +1,33 @@
 package com.cotalk.domain.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 
 /**
- * 채팅방 엔티티.
+ * 채팅방 도메인 엔티티.
  * 1:1 채팅 및 그룹 채팅방 정보를 나타낸다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "chat_rooms")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class ChatRoom extends BaseEntity {
+@SuperBuilder
+public class ChatRoom extends DomainBaseEntity {
 
-    @Id
     private Long id;
 
     private String name;
 
-    @Column(length = 500)
     private String announcement;
 
-    @Column(name = "image_url", length = 2048)
     private String imageUrl;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private ChatRoomType type;
 
     /**
