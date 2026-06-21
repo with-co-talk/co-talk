@@ -95,6 +95,12 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             throw new IllegalArgumentException("유효하지 않은 토큰입니다.");
         }
 
+        // ACCESS 토큰만 허용 (REFRESH 등 다른 토큰 타입으로 인증 우회 차단, HTTP 필터와 동일한 불변식 유지)
+        if (!jwtTokenProvider.isAccessToken(token)) {
+            log.warn("WebSocket connection attempt with non-access token");
+            throw new IllegalArgumentException("유효하지 않은 토큰입니다.");
+        }
+
         Long userId = jwtTokenProvider.getUserIdFromToken(token);
         accessor.setUser(new StompPrincipal(userId.toString()));
 
