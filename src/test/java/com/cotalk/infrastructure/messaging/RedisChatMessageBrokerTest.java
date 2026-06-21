@@ -162,6 +162,55 @@ class RedisChatMessageBrokerTest {
     }
 
     @Nested
+    @DisplayName("Redis 발행 실패(인프라 장애) 시 — graceful degradation")
+    class PublishFailure {
+
+        /**
+         * 직렬화는 성공했으나 {@code redisTemplate.convertAndSend}가 Redis 연결 장애로 던지는 경우.
+         * 브로커는 이 예외를 삼키지 않고 정의된 형태로 표면화해야 하며(여기서는 원 예외 재던짐),
+         * 실패 메트릭({@code recordRedisPublish(type, false)})을 남겨 운영 가시성을 확보해야 한다.
+         * 핵심 계약: 미정의 500이 아니라 호출자가 처리할 수 있는 예외로 surface 된다.
+         */
+        @Test
+        @DisplayName("Redis 발행이 연결 장애로 던지면 예외를 삼키지 않고 표면화하고 실패 메트릭을 남긴다")
+        void should_surfaceException_andRecordFailure_when_redisPublishThrows() {
+            // given
+            Long roomId = 100L;
+            ChatBroadcastMessage message = new ChatBroadcastMessage(
+                    1L, 10L, "테스트유저", null, roomId, "Hello!", "TEXT",
+                    System.currentTimeMillis(), null, null, null, null, null, 1,
+                    null, null, null, null
+            );
+            // 직렬화는 정상, convertAndSend(=실제 Redis I/O)에서 연결 장애 발생
+            doThrow(new org.springframework.data.redis.RedisConnectionFailureException("Redis down"))
+                    .when(redisTemplate).convertAndSend(anyString(), anyString());
+
+            // when & then: 예외가 삼켜지지 않고 표면화되어야 함
+            assertThatThrownBy(() -> broker.publish(roomId, message))
+                    .isInstanceOf(org.springframework.data.redis.RedisConnectionFailureException.class);
+
+            // 실패 메트릭이 기록되어 운영 가시성이 확보되어야 함
+            verify(customMetrics).recordRedisPublish("message", false);
+            verify(customMetrics, never()).recordRedisPublish("message", true);
+        }
+
+        @Test
+        @DisplayName("룸 이벤트 발행이 Redis 장애로 던지면 예외를 표면화하고 실패 메트릭을 남긴다")
+        void should_surfaceException_andRecordFailure_when_roomEventPublishThrows() {
+            // given
+            Long roomId = 200L;
+            doThrow(new org.springframework.data.redis.RedisConnectionFailureException("Redis down"))
+                    .when(redisTemplate).convertAndSend(anyString(), anyString());
+
+            // when & then
+            assertThatThrownBy(() -> broker.publishRoomEvent(roomId, java.util.Map.of("eventType", "USER_LEFT")))
+                    .isInstanceOf(org.springframework.data.redis.RedisConnectionFailureException.class);
+
+            verify(customMetrics).recordRedisPublish("event", false);
+        }
+    }
+
+    @Nested
     @DisplayName("리액션 발행 시")
     class PublishReaction {
 
