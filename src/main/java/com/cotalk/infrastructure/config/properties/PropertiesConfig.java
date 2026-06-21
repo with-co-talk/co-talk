@@ -15,7 +15,8 @@ import org.springframework.context.annotation.Configuration;
         MinioProperties.class,
         FirebaseProperties.class,
         SnowflakeProperties.class,
-        FileUploadProperties.class
+        FileUploadProperties.class,
+        OAuthProperties.class
 })
 public class PropertiesConfig {
 }

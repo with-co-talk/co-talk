@@ -145,6 +145,15 @@ app:
   swagger:
     server-url: ${SWAGGER_SERVER_URL:http://localhost:8080}
     server-description: ${SWAGGER_SERVER_DESCRIPTION:Co-Talk API 서버}
+  oauth:
+    # 소셜 로그인 제공자 토큰을 서버에서 검증하기 위한 설정.
+    # 구글/애플 id_token의 aud(대상) 검증에 사용한다.
+    # 미설정 시 해당 제공자 검증은 fail-closed(거부)되므로, 사용하는 제공자는 반드시 설정해야 한다.
+    # (카카오는 access token으로 userinfo API를 호출하므로 별도 client-id가 필요 없다.)
+    google:
+      client-id: ${GOOGLE_OAUTH_CLIENT_ID:}   # 구글 OAuth 클라이언트 ID
+    apple:
+      client-id: ${APPLE_OAUTH_CLIENT_ID:}    # 애플 서비스 ID (Services ID)
   encryption:
     # AES-256 암호화 키 (32바이트, Base64 인코딩)
     # 프로덕션: 반드시 환경변수로 안전한 키 설정 필요

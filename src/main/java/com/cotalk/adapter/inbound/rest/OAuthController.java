@@ -33,27 +33,23 @@ public class OAuthController {
 
     /**
      * OAuth 제공자를 통해 로그인한다.
+     * 클라이언트가 보낸 제공자 토큰을 서버가 검증하여 식별 정보를 도출하며,
      * 신규 사용자는 자동으로 회원가입 처리된다.
      *
-     * @param request OAuth 로그인 요청 정보 (제공자, OAuth ID, 이메일, 닉네임, 아바타 URL)
+     * @param request OAuth 로그인 요청 정보 (제공자, 제공자 토큰)
      * @return JWT 토큰 정보 및 신규 사용자 여부
      */
-    @Operation(summary = "소셜 로그인", description = "OAuth 제공자(카카오, 구글, 애플)를 통해 로그인합니다. 신규 사용자는 자동으로 회원가입됩니다.")
+    @Operation(summary = "소셜 로그인", description = "OAuth 제공자(카카오, 구글, 애플) 토큰을 서버에서 검증해 로그인합니다. 신규 사용자는 자동으로 회원가입됩니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "로그인 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청")
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "401", description = "제공자 토큰 검증 실패")
     })
     @PostMapping("/login")
     public ResponseEntity<OAuthLoginResponse> loginWithOAuth(@Valid @RequestBody OAuthLoginRequest request) {
         User.OAuthProvider provider = User.OAuthProvider.valueOf(request.provider());
 
-        OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
-                provider,
-                request.oauthId(),
-                request.email(),
-                request.nickname(),
-                request.avatarUrl()
-        );
+        OAuthLoginResult result = oAuthLoginService.loginWithOAuth(provider, request.token());
 
         return ResponseEntity.ok(OAuthLoginResponse.of(
                 result.token(),

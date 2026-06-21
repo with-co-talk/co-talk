@@ -1,12 +1,16 @@
 package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.exception.InvalidCredentialsException;
+import com.cotalk.domain.exception.OAuthVerificationException;
 import com.cotalk.domain.model.Email;
+import com.cotalk.domain.model.VerifiedOAuthIdentity;
 import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
+import com.cotalk.domain.port.outbound.MetricsPort;
+import com.cotalk.domain.port.outbound.OAuthIdentityVerifier;
 import com.cotalk.domain.port.outbound.UserRepository;
-import com.cotalk.infrastructure.metrics.CustomMetrics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -25,6 +30,8 @@ import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class OAuthLoginServiceTest {
+
+    private static final String TOKEN = "provider-token";
 
     @Mock
     private UserRepository userRepository;
@@ -36,21 +43,24 @@ class OAuthLoginServiceTest {
     private IdGenerator idGenerator;
 
     @Mock
-    private CustomMetrics customMetrics;
+    private MetricsPort metricsPort;
+
+    @Mock
+    private OAuthIdentityVerifier oAuthIdentityVerifier;
 
     @InjectMocks
     private OAuthLoginService oAuthLoginService;
 
     @Test
-    @DisplayName("새로운 소셜 로그인 사용자 - 자동 회원가입 후 로그인")
-    void should_signUpAndLogin_when_newOAuthUser() {
+    @DisplayName("검증된 식별 정보로 신규 사용자 자동 회원가입 후 로그인한다")
+    void should_signUpAndLogin_when_verifiedNewOAuthUser() {
         // given
         String oauthId = "kakao_12345";
         User.OAuthProvider provider = User.OAuthProvider.KAKAO;
-        String email = "oauth@kakao.com";
-        String nickname = "카카오유저";
-        String avatarUrl = "https://kakao.com/avatar.png";
+        VerifiedOAuthIdentity identity = new VerifiedOAuthIdentity(
+                oauthId, "oauth@kakao.com", "카카오유저", "https://kakao.com/avatar.png");
 
+        given(oAuthIdentityVerifier.verify(provider, TOKEN)).willReturn(identity);
         given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
                 .willReturn(Optional.empty());
         given(idGenerator.nextId()).willReturn(100L);
@@ -59,8 +69,7 @@ class OAuthLoginServiceTest {
         given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
 
         // when
-        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
-                provider, oauthId, email, nickname, avatarUrl);
+        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(provider, TOKEN);
 
         // then
         assertThat(result.token()).isEqualTo("jwt_token");
@@ -71,17 +80,19 @@ class OAuthLoginServiceTest {
         User savedUser = userCaptor.getValue();
         assertThat(savedUser.getOauthProvider()).isEqualTo(provider);
         assertThat(savedUser.getOauthId()).isEqualTo(oauthId);
-        assertThat(savedUser.getEmail()).isEqualTo(new Email(email));
-        assertThat(savedUser.getNickname()).isEqualTo(nickname);
+        assertThat(savedUser.getEmail()).isEqualTo(new Email("oauth@kakao.com"));
+        assertThat(savedUser.getNickname()).isEqualTo("카카오유저");
         assertThat(savedUser.getPasswordHash()).isNull();
     }
 
     @Test
-    @DisplayName("기존 소셜 로그인 사용자 - 바로 로그인")
-    void should_loginDirectly_when_existingOAuthUser() {
+    @DisplayName("검증된 식별 정보로 기존 사용자를 바로 로그인한다")
+    void should_loginDirectly_when_verifiedExistingOAuthUser() {
         // given
         String oauthId = "kakao_12345";
         User.OAuthProvider provider = User.OAuthProvider.KAKAO;
+        VerifiedOAuthIdentity identity = new VerifiedOAuthIdentity(
+                oauthId, "oauth@kakao.com", "카카오유저", null);
 
         User existingUser = User.builder()
                 .id(100L)
@@ -91,13 +102,13 @@ class OAuthLoginServiceTest {
                 .oauthId(oauthId)
                 .build();
 
+        given(oAuthIdentityVerifier.verify(provider, TOKEN)).willReturn(identity);
         given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
                 .willReturn(Optional.of(existingUser));
         given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
 
         // when
-        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
-                provider, oauthId, "oauth@kakao.com", "카카오유저", null);
+        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(provider, TOKEN);
 
         // then
         assertThat(result.token()).isEqualTo("jwt_token");
@@ -108,112 +119,77 @@ class OAuthLoginServiceTest {
     }
 
     @Test
-    @DisplayName("구글 로그인 성공")
-    void should_loginWithGoogle_when_validInput() {
+    @DisplayName("제공자 토큰 검증에 실패하면 OAuthVerificationException(401)을 던진다")
+    void should_throwOAuthVerificationException_when_tokenVerificationFails() {
         // given
-        String oauthId = "google_12345";
         User.OAuthProvider provider = User.OAuthProvider.GOOGLE;
-        String email = "user@gmail.com";
-        String nickname = "구글유저";
+        given(oAuthIdentityVerifier.verify(provider, TOKEN))
+                .willThrow(new OAuthVerificationException("구글 토큰 검증에 실패했습니다."));
 
-        given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
-                .willReturn(Optional.empty());
-        given(idGenerator.nextId()).willReturn(101L);
-        given(userRepository.save(any(User.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
-        given(authTokenPort.generateAccessToken(any())).willReturn("google_jwt_token");
+        // when & then
+        assertThatThrownBy(() -> oAuthLoginService.loginWithOAuth(provider, TOKEN))
+                .isInstanceOf(OAuthVerificationException.class);
 
-        // when
-        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
-                provider, oauthId, email, nickname, null);
-
-        // then
-        assertThat(result.token()).isEqualTo("google_jwt_token");
-        assertThat(result.isNewUser()).isTrue();
+        verify(userRepository, never()).findByOAuthProviderAndOAuthId(any(), any());
+        verify(authTokenPort, never()).generateAccessToken(any());
     }
 
     @Test
-    @DisplayName("애플 로그인 성공")
-    void should_loginWithApple_when_validInput() {
-        // given
-        String oauthId = "apple_12345";
-        User.OAuthProvider provider = User.OAuthProvider.APPLE;
-        String email = "user@icloud.com";
-        String nickname = "애플유저";
-
-        given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
-                .willReturn(Optional.empty());
-        given(idGenerator.nextId()).willReturn(102L);
-        given(userRepository.save(any(User.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
-        given(authTokenPort.generateAccessToken(any())).willReturn("apple_jwt_token");
-
-        // when
-        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
-                provider, oauthId, email, nickname, null);
-
-        // then
-        assertThat(result.token()).isEqualTo("apple_jwt_token");
-        assertThat(result.isNewUser()).isTrue();
-    }
-
-    @Test
-    @DisplayName("avatarUrl이 null인 경우에도 회원가입이 성공한다")
-    void should_signUp_when_avatarUrlIsNull() {
+    @DisplayName("비활성 계정이면 InvalidCredentialsException을 던진다")
+    void should_throwInvalidCredentials_when_accountInactive() {
         // given
         String oauthId = "kakao_12345";
         User.OAuthProvider provider = User.OAuthProvider.KAKAO;
-        String email = "oauth@kakao.com";
-        String nickname = "카카오유저";
+        VerifiedOAuthIdentity identity = new VerifiedOAuthIdentity(oauthId, "oauth@kakao.com", "카카오유저", null);
 
-        given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
-                .willReturn(Optional.empty());
-        given(idGenerator.nextId()).willReturn(100L);
-        given(userRepository.save(any(User.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
-        given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
-
-        // when
-        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
-                provider, oauthId, email, nickname, null);
-
-        // then
-        assertThat(result.token()).isEqualTo("jwt_token");
-        assertThat(result.isNewUser()).isTrue();
-
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(userCaptor.capture());
-        User savedUser = userCaptor.getValue();
-        assertThat(savedUser.getAvatarUrl()).isNull();
-    }
-
-    @Test
-    @DisplayName("기존 사용자의 avatarUrl이 null이어도 로그인이 성공한다")
-    void should_login_when_existingUserAvatarUrlIsNull() {
-        // given
-        String oauthId = "kakao_12345";
-        User.OAuthProvider provider = User.OAuthProvider.KAKAO;
-
-        User existingUser = User.builder()
+        User inactiveUser = User.builder()
                 .id(100L)
                 .email(new Email("oauth@kakao.com"))
                 .nickname("카카오유저")
                 .oauthProvider(provider)
                 .oauthId(oauthId)
-                .avatarUrl(null)
+                .status(User.UserStatus.SUSPENDED)
                 .build();
 
+        given(oAuthIdentityVerifier.verify(provider, TOKEN)).willReturn(identity);
         given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
-                .willReturn(Optional.of(existingUser));
-        given(authTokenPort.generateAccessToken(any())).willReturn("jwt_token");
+                .willReturn(Optional.of(inactiveUser));
+
+        // when & then
+        assertThatThrownBy(() -> oAuthLoginService.loginWithOAuth(provider, TOKEN))
+                .isInstanceOf(InvalidCredentialsException.class);
+
+        verify(authTokenPort, never()).generateAccessToken(any());
+    }
+
+    @Test
+    @DisplayName("제공자가 이메일/닉네임을 주지 않아도 합성값으로 회원가입에 성공한다(애플 케이스)")
+    void should_signUp_when_emailAndNicknameAbsent() {
+        // given
+        String oauthId = "apple_sub_999";
+        User.OAuthProvider provider = User.OAuthProvider.APPLE;
+        VerifiedOAuthIdentity identity = new VerifiedOAuthIdentity(oauthId, null, null, null);
+
+        given(oAuthIdentityVerifier.verify(provider, TOKEN)).willReturn(identity);
+        given(userRepository.findByOAuthProviderAndOAuthId(provider, oauthId))
+                .willReturn(Optional.empty());
+        given(idGenerator.nextId()).willReturn(101L);
+        given(userRepository.save(any(User.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+        given(authTokenPort.generateAccessToken(any())).willReturn("apple_jwt_token");
 
         // when
-        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(
-                provider, oauthId, "oauth@kakao.com", "카카오유저", null);
+        OAuthLoginUseCase.OAuthLoginResult result = oAuthLoginService.loginWithOAuth(provider, TOKEN);
 
         // then
-        assertThat(result.token()).isEqualTo("jwt_token");
-        assertThat(result.isNewUser()).isFalse();
-        assertThat(result.userId()).isEqualTo(100L);
+        assertThat(result.token()).isEqualTo("apple_jwt_token");
+        assertThat(result.isNewUser()).isTrue();
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        User savedUser = userCaptor.getValue();
+        assertThat(savedUser.getOauthId()).isEqualTo(oauthId);
+        assertThat(savedUser.getNickname()).isNotBlank();
+        assertThat(savedUser.getEmail()).isNotNull();
     }
 }

@@ -2,10 +2,12 @@ package com.cotalk.application.service.auth;
 
 import com.cotalk.domain.entity.User;
 import com.cotalk.domain.model.Email;
+import com.cotalk.domain.model.VerifiedOAuthIdentity;
 import com.cotalk.domain.port.inbound.auth.OAuthLoginUseCase;
 import com.cotalk.domain.port.outbound.AuthTokenPort;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MetricsPort;
+import com.cotalk.domain.port.outbound.OAuthIdentityVerifier;
 import com.cotalk.domain.port.outbound.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * OAuth 로그인 서비스.
  * 소셜 로그인(카카오, 구글, 애플)을 처리하고 신규 사용자인 경우 자동 회원가입을 진행한다.
+ *
+ * <p>보안: 식별 정보(oauthId/email/nickname/avatar)는 클라이언트 입력을 신뢰하지 않고,
+ * 제공자 토큰을 {@link OAuthIdentityVerifier}로 서버 검증하여 도출한 값만 사용한다.</p>
  *
  * @author seunggu.lee
  */
@@ -28,30 +33,26 @@ public class OAuthLoginService implements OAuthLoginUseCase {
     private final AuthTokenPort authTokenPort;
     private final IdGenerator idGenerator;
     private final MetricsPort metricsPort;
+    private final OAuthIdentityVerifier oAuthIdentityVerifier;
 
     /**
      * OAuth 로그인을 처리한다.
-     * 기존 사용자인 경우 바로 로그인하고, 신규 사용자인 경우 자동 회원가입 후 로그인한다.
+     * 제공자 토큰을 검증하여 식별 정보를 도출한 뒤, 기존 사용자인 경우 바로 로그인하고
+     * 신규 사용자인 경우 자동 회원가입 후 로그인한다.
      *
-     * @param provider OAuth 제공자 (KAKAO, GOOGLE, APPLE)
-     * @param oauthId OAuth 제공자가 제공한 사용자 고유 ID
-     * @param email 사용자 이메일
-     * @param nickname 사용자 닉네임
-     * @param avatarUrl 프로필 이미지 URL (선택)
+     * @param provider      OAuth 제공자 (KAKAO, GOOGLE, APPLE)
+     * @param providerToken 제공자 토큰 (카카오: access token, 구글/애플: id_token)
      * @return 로그인 결과 (JWT 토큰, 신규 사용자 여부, 사용자 ID)
      */
-    public OAuthLoginResult loginWithOAuth(
-            User.OAuthProvider provider,
-            String oauthId,
-            String email,
-            String nickname,
-            String avatarUrl) {
+    @Override
+    public OAuthLoginResult loginWithOAuth(User.OAuthProvider provider, String providerToken) {
+        VerifiedOAuthIdentity identity = oAuthIdentityVerifier.verify(provider, providerToken);
 
-        log.debug("OAuth login attempt: provider={}, email={}", provider, maskEmail(email));
+        log.debug("OAuth login attempt: provider={}, email={}", provider, maskEmail(identity.email()));
 
-        return userRepository.findByOAuthProviderAndOAuthId(provider, oauthId)
+        return userRepository.findByOAuthProviderAndOAuthId(provider, identity.oauthId())
                 .map(existingUser -> loginExistingUser(existingUser, provider))
-                .orElseGet(() -> signUpAndLogin(provider, oauthId, email, nickname, avatarUrl));
+                .orElseGet(() -> signUpAndLogin(provider, identity));
     }
 
     private OAuthLoginResult loginExistingUser(User user, User.OAuthProvider provider) {
@@ -66,20 +67,14 @@ public class OAuthLoginService implements OAuthLoginUseCase {
         return new OAuthLoginResult(token, false, user.getId());
     }
 
-    private OAuthLoginResult signUpAndLogin(
-            User.OAuthProvider provider,
-            String oauthId,
-            String email,
-            String nickname,
-            String avatarUrl) {
-
+    private OAuthLoginResult signUpAndLogin(User.OAuthProvider provider, VerifiedOAuthIdentity identity) {
         User newUser = User.builder()
                 .id(idGenerator.nextId())
-                .email(new Email(email))
-                .nickname(nickname)
-                .avatarUrl(avatarUrl)
+                .email(resolveEmail(provider, identity))
+                .nickname(resolveNickname(identity))
+                .avatarUrl(identity.avatarUrl())
                 .oauthProvider(provider)
-                .oauthId(oauthId)
+                .oauthId(identity.oauthId())
                 .build();
 
         User savedUser = userRepository.save(newUser);
@@ -88,8 +83,40 @@ public class OAuthLoginService implements OAuthLoginUseCase {
         metricsPort.incrementUserRegistration();
         metricsPort.incrementLoginSuccess();
         log.info("OAuth sign-up and login successful: userId={}, provider={}, email={}",
-                savedUser.getId(), provider, maskEmail(email));
+                savedUser.getId(), provider, maskEmail(identity.email()));
         return new OAuthLoginResult(token, true, savedUser.getId());
+    }
+
+    /**
+     * 검증된 이메일로 {@link Email} 값 객체를 만든다.
+     * 제공자(특히 애플)가 이메일을 내려주지 않은 경우 합성 이메일을 생성한다.
+     *
+     * @param provider OAuth 제공자
+     * @param identity 검증된 식별 정보
+     * @return 이메일 값 객체
+     */
+    private Email resolveEmail(User.OAuthProvider provider, VerifiedOAuthIdentity identity) {
+        String email = identity.email();
+        if (email == null || email.isBlank()) {
+            String synthesized = provider.name().toLowerCase() + "_" + identity.oauthId() + "@oauth.cotalk.local";
+            log.info("OAuth provider did not return email; using synthesized email for provider={}", provider);
+            return new Email(synthesized);
+        }
+        return new Email(email);
+    }
+
+    /**
+     * 검증된 닉네임을 결정한다. 제공자가 닉네임을 내려주지 않은 경우 기본 닉네임을 생성한다.
+     *
+     * @param identity 검증된 식별 정보
+     * @return 닉네임
+     */
+    private String resolveNickname(VerifiedOAuthIdentity identity) {
+        String nickname = identity.nickname();
+        if (nickname == null || nickname.isBlank()) {
+            return "user_" + identity.oauthId();
+        }
+        return nickname;
     }
 
     /**
