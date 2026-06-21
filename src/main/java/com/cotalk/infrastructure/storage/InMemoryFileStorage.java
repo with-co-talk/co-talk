@@ -131,6 +131,39 @@ public class InMemoryFileStorage implements FileStorage {
     }
 
     /**
+     * 저장된 첨부파일 URL을 단기 만료시간 표기가 포함된 URL로 재발급한다.
+     * <p>
+     * 인메모리 저장소는 실제 서명을 수행하지 않으므로, {@code baseUrl} 기준으로 객체 키를 추출해
+     * {@link #generatePresignedUrl(String, int)} 형태로 재구성한다. {@code baseUrl} 경계를 찾을 수 없으면
+     * 입력값을 그대로 반환한다.
+     * </p>
+     *
+     * @param storedUrl         저장된 첨부파일 URL
+     * @param expirationMinutes URL 만료 시간(분)
+     * @return 만료시간 표기가 포함된 URL. 객체 키를 추출할 수 없으면 {@code storedUrl} 원본
+     */
+    @Override
+    public String presignAttachmentUrl(String storedUrl, int expirationMinutes) {
+        if (storedUrl == null || storedUrl.isBlank()) {
+            return storedUrl;
+        }
+        String marker = baseUrl + "/";
+        int idx = storedUrl.indexOf(marker);
+        if (idx < 0) {
+            return storedUrl;
+        }
+        String afterBase = storedUrl.substring(idx + marker.length());
+        int queryIdx = afterBase.indexOf('?');
+        if (queryIdx >= 0) {
+            afterBase = afterBase.substring(0, queryIdx);
+        }
+        if (afterBase.isBlank()) {
+            return storedUrl;
+        }
+        return generatePresignedUrl(afterBase, expirationMinutes);
+    }
+
+    /**
      * 저장된 파일의 바이트 배열을 반환한다.
      * 테스트 목적으로 제공되는 메서드이다.
      *

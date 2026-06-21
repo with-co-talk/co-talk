@@ -183,6 +183,11 @@ class FileObjectResolverTest {
         }
 
         @Override
+        public String presignAttachmentUrl(String storedUrl, int expirationMinutes) {
+            return storedUrl;
+        }
+
+        @Override
         public Optional<StoredObjectMetadata> getMetadata(String objectKey) {
             return Optional.ofNullable(objects.get(objectKey));
         }

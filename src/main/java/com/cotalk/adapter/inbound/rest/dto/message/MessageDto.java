@@ -53,6 +53,10 @@ public record MessageDto(
 
     /**
      * Message 엔티티로부터 DTO를 생성합니다. (unreadCount, senderNickname, senderAvatarUrl 포함)
+     * <p>
+     * 첨부파일 URL은 엔티티에 저장된 원본 값을 사용합니다. 멤버십 검증 후 재발급된 단기 Pre-signed URL을
+     * 노출하려면 {@link #from(Message, Integer, String, String, String, String)}을 사용하세요(H-1).
+     * </p>
      *
      * @param message         Message 엔티티
      * @param unreadCount     읽지 않은 멤버 수
@@ -61,6 +65,27 @@ public record MessageDto(
      * @return MessageDto 인스턴스
      */
     public static MessageDto from(Message message, Integer unreadCount, String senderNickname, String senderAvatarUrl) {
+        return from(message, unreadCount, senderNickname, senderAvatarUrl,
+                message.getFileUrl(), message.getThumbnailUrl());
+    }
+
+    /**
+     * Message 엔티티로부터 DTO를 생성합니다. (첨부파일 URL을 명시적으로 지정)
+     * <p>
+     * 멤버십이 검증된 읽기 경로에서 재발급한 단기 Pre-signed URL({@code fileUrl}/{@code thumbnailUrl})을
+     * 엔티티에 저장된 원본 URL 대신 클라이언트에 노출하기 위해 사용합니다(H-1).
+     * </p>
+     *
+     * @param message         Message 엔티티
+     * @param unreadCount     읽지 않은 멤버 수
+     * @param senderNickname  발신자 닉네임
+     * @param senderAvatarUrl 발신자 프로필 이미지 URL
+     * @param fileUrl         클라이언트에 노출할 파일 URL (단기 Pre-signed URL)
+     * @param thumbnailUrl    클라이언트에 노출할 썸네일 URL (단기 Pre-signed URL)
+     * @return MessageDto 인스턴스
+     */
+    public static MessageDto from(Message message, Integer unreadCount, String senderNickname, String senderAvatarUrl,
+                                  String fileUrl, String thumbnailUrl) {
         return new MessageDto(
                 message.getId(),
                 message.getSenderId(),
@@ -70,11 +95,11 @@ public record MessageDto(
                 HtmlSanitizer.unescape(message.getContent()),
                 message.getType().name(),
                 message.getCreatedAt(),
-                message.getFileUrl(),
+                fileUrl,
                 message.getFileName(),
                 message.getFileSize(),
                 message.getFileContentType(),
-                message.getThumbnailUrl(),
+                thumbnailUrl,
                 message.getReplyToMessageId(),
                 message.getForwardedFromMessageId(),
                 unreadCount,

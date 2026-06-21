@@ -10,13 +10,14 @@ import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.outbound.ChatMessageBroker;
 import com.cotalk.domain.port.outbound.ChatMessageBroker.ChatBroadcastMessage;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
+import com.cotalk.domain.port.outbound.FileStorage;
 import com.cotalk.domain.port.outbound.IdGenerator;
 import com.cotalk.domain.port.outbound.MessageRepository;
 import com.cotalk.domain.port.outbound.UserEventBroker;
 import com.cotalk.domain.port.outbound.UserEventBroker.ChatListUpdateEvent;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.util.HtmlSanitizer;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +31,6 @@ import java.util.List;
  * @author seunggu.lee
  */
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class MessageReplyForwardService implements MessageReplyForwardUseCase {
 
@@ -40,6 +40,39 @@ public class MessageReplyForwardService implements MessageReplyForwardUseCase {
     private final ChatMessageBroker chatMessageBroker;
     private final UserRepository userRepository;
     private final UserEventBroker userEventBroker;
+    private final FileStorage fileStorage;
+    private final int presignedUrlExpiryMinutes;
+
+    /**
+     * MessageReplyForwardService를 생성한다.
+     *
+     * @param messageRepository         메시지 저장소 포트
+     * @param chatRoomMemberRepository  채팅방 멤버 저장소 포트
+     * @param idGenerator               ID 생성기 포트
+     * @param chatMessageBroker         채팅 메시지 브로커 포트
+     * @param userRepository            사용자 저장소 포트
+     * @param userEventBroker           사용자 이벤트 브로커 포트
+     * @param fileStorage               파일 저장소 포트(첨부파일 Pre-signed URL 재발급용)
+     * @param presignedUrlExpiryMinutes 첨부파일 Pre-signed URL 만료 시간(분)
+     */
+    public MessageReplyForwardService(
+            MessageRepository messageRepository,
+            ChatRoomMemberRepository chatRoomMemberRepository,
+            IdGenerator idGenerator,
+            ChatMessageBroker chatMessageBroker,
+            UserRepository userRepository,
+            UserEventBroker userEventBroker,
+            FileStorage fileStorage,
+            @Value("${minio.presigned-url-expiry-minutes:10}") int presignedUrlExpiryMinutes) {
+        this.messageRepository = messageRepository;
+        this.chatRoomMemberRepository = chatRoomMemberRepository;
+        this.idGenerator = idGenerator;
+        this.chatMessageBroker = chatMessageBroker;
+        this.userRepository = userRepository;
+        this.userEventBroker = userEventBroker;
+        this.fileStorage = fileStorage;
+        this.presignedUrlExpiryMinutes = presignedUrlExpiryMinutes;
+    }
 
     /**
      * 메시지에 답장한다.
@@ -138,12 +171,18 @@ public class MessageReplyForwardService implements MessageReplyForwardUseCase {
         String senderAvatarUrl = sender != null ? sender.getAvatarUrl() : null;
         int unreadCount = Math.max(0, members.size() - 1);
 
+        // 첨부파일 URL은 단기 Pre-signed URL로 재발급해 브로드캐스트한다(H-1). 수신자는 채팅방 멤버로,
+        // WebSocket 구독 자체가 멤버십으로 게이트되어 있으므로 검증된 멤버에게만 전달된다.
+        // presignAttachmentUrl은 null/blank/외부 URL을 그대로 통과시키므로 비-파일 메시지도 안전하다.
+        String fileUrl = fileStorage.presignAttachmentUrl(message.getFileUrl(), presignedUrlExpiryMinutes);
+        String thumbnailUrl = fileStorage.presignAttachmentUrl(message.getThumbnailUrl(), presignedUrlExpiryMinutes);
+
         ChatBroadcastMessage broadcastMsg = new ChatBroadcastMessage(
                 message.getId(), message.getSenderId(), senderNickname, senderAvatarUrl,
                 message.getChatRoomId(), message.getContent(), message.getType().name(),
                 message.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
-                message.getFileUrl(), message.getFileName(), message.getFileSize(),
-                message.getFileContentType(), message.getThumbnailUrl(),
+                fileUrl, message.getFileName(), message.getFileSize(),
+                message.getFileContentType(), thumbnailUrl,
                 unreadCount, null, null, null);
 
         chatMessageBroker.publish(chatRoomId, broadcastMsg);

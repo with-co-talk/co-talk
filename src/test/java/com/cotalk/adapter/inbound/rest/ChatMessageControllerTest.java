@@ -13,10 +13,12 @@ import com.cotalk.domain.port.inbound.message.GetMessageHistoryUseCase;
 import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
+import com.cotalk.domain.port.outbound.FileStorage;
 import com.cotalk.infrastructure.ratelimit.RateLimitTestConfiguration;
 import com.cotalk.infrastructure.security.JwtAuthenticationFilter;
 import com.cotalk.infrastructure.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -33,12 +35,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.Mockito.lenient;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -76,10 +80,21 @@ class ChatMessageControllerTest {
     private GetMediaGalleryUseCase getMediaGalleryUseCase;
 
     @MockitoBean
+    private FileStorage fileStorage;
+
+    @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @BeforeEach
+    void setUpPresignStub() {
+        // 기본적으로 첨부파일 URL을 그대로 통과시켜 기존 검증을 유지한다(실제로는 단기 Pre-signed URL로 재발급).
+        lenient().when(fileStorage.presignAttachmentUrl(anyString(), anyInt()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(fileStorage.presignAttachmentUrl(isNull(), anyInt())).thenReturn(null);
+    }
 
     @Nested
     @DisplayName("메시지 전송 API")
@@ -197,6 +212,46 @@ class ChatMessageControllerTest {
                     .andExpect(jsonPath("$.type").value("FILE"))
                     .andExpect(jsonPath("$.fileUrl").value("https://example.com/file.pdf"));
         }
+
+        @Test
+        @DisplayName("응답의 첨부파일 URL은 저장 원본이 아닌 단기 Pre-signed URL이다 (H-1)")
+        @WithMockCustomUser(userId = 1L)
+        void should_returnPresignedAttachmentUrl_when_sendFileMessage() throws Exception {
+            // given
+            String storedFileUrl = "https://minio.example.com/cotalk/uploads/1/image.png";
+            String storedThumbnailUrl = "https://minio.example.com/cotalk/uploads/1/thumb.png";
+            String presignedFileUrl = "https://minio.example.com/cotalk/uploads/1/image.png?X-Amz-Signature=file";
+            String presignedThumbnailUrl = "https://minio.example.com/cotalk/uploads/1/thumb.png?X-Amz-Signature=thumb";
+
+            SendFileMessageRequest request = SendFileMessageRequest.of(
+                    100L, storedFileUrl, "image.png", 1024L, "image/png", storedThumbnailUrl);
+
+            Message message = Message.builder()
+                    .id(500L)
+                    .senderId(1L)
+                    .chatRoomId(100L)
+                    .type(Message.MessageType.IMAGE)
+                    .fileUrl(storedFileUrl)
+                    .fileName("image.png")
+                    .fileSize(1024L)
+                    .fileContentType("image/png")
+                    .thumbnailUrl(storedThumbnailUrl)
+                    .build();
+            ReflectionTestUtils.setField(message, "createdAt", LocalDateTime.now());
+
+            given(sendMessageUseCase.sendFileMessageAndBroadcast(anyLong(), anyLong(), any()))
+                    .willReturn(message);
+            given(fileStorage.presignAttachmentUrl(eq(storedFileUrl), anyInt())).willReturn(presignedFileUrl);
+            given(fileStorage.presignAttachmentUrl(eq(storedThumbnailUrl), anyInt())).willReturn(presignedThumbnailUrl);
+
+            // when & then: 응답에는 저장 원본이 아니라 단기 Pre-signed URL이 노출되어야 한다
+            mockMvc.perform(post("/api/v1/chat/messages/file")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.fileUrl").value(presignedFileUrl))
+                    .andExpect(jsonPath("$.thumbnailUrl").value(presignedThumbnailUrl));
+        }
     }
 
     @Nested
@@ -217,8 +272,8 @@ class ChatMessageControllerTest {
                     .id(999L).senderId(2L).chatRoomId(roomId).content("이전 메시지").build();
 
             List<GetMessageHistoryUseCase.EnrichedMessage> enriched = List.of(
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자1", null),
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 1, "사용자2", null)
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자1", null, null, null),
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 1, "사용자2", null, null, null)
             );
 
             GetMessageHistoryUseCase.EnrichedMessageHistoryResult result =
@@ -255,8 +310,8 @@ class ChatMessageControllerTest {
                     .id(998L).senderId(1L).chatRoomId(roomId).content("이전 메시지 2").build();
 
             List<GetMessageHistoryUseCase.EnrichedMessage> enriched = List.of(
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자2", null),
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 0, "사용자1", null)
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자2", null, null, null),
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 0, "사용자1", null, null, null)
             );
 
             GetMessageHistoryUseCase.EnrichedMessageHistoryResult result =
@@ -293,8 +348,8 @@ class ChatMessageControllerTest {
                     .id(999L).senderId(2L).chatRoomId(roomId).content("메시지 2").build();
 
             List<GetMessageHistoryUseCase.EnrichedMessage> enriched = List.of(
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자1", null),
-                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 0, "사용자2", null)
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg1, 0, "사용자1", null, null, null),
+                    new GetMessageHistoryUseCase.EnrichedMessage(msg2, 0, "사용자2", null, null, null)
             );
 
             GetMessageHistoryUseCase.EnrichedMessageHistoryResult result =

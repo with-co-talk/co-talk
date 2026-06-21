@@ -18,11 +18,12 @@ import com.cotalk.domain.port.inbound.message.GetMessageHistoryUseCase;
 import com.cotalk.domain.port.inbound.message.MessageReplyForwardUseCase;
 import com.cotalk.domain.port.inbound.message.SendMessageUseCase;
 import com.cotalk.domain.port.inbound.message.UpdateMessageUseCase;
+import com.cotalk.domain.port.outbound.FileStorage;
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -51,7 +52,6 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/chat/messages")
-@RequiredArgsConstructor
 @Tag(name = "채팅 메시지", description = "채팅 메시지 API")
 public class ChatMessageController {
 
@@ -61,6 +61,52 @@ public class ChatMessageController {
     private final DeleteMessageUseCase deleteMessageUseCase;
     private final MessageReplyForwardUseCase messageReplyForwardUseCase;
     private final GetMediaGalleryUseCase getMediaGalleryUseCase;
+    private final FileStorage fileStorage;
+    private final int presignedUrlExpiryMinutes;
+
+    /**
+     * ChatMessageController를 생성합니다.
+     *
+     * @param sendMessageUseCase          메시지 전송 유스케이스
+     * @param getMessageHistoryUseCase    메시지 히스토리 조회 유스케이스
+     * @param updateMessageUseCase        메시지 수정 유스케이스
+     * @param deleteMessageUseCase        메시지 삭제 유스케이스
+     * @param messageReplyForwardUseCase  메시지 답장/전달 유스케이스
+     * @param getMediaGalleryUseCase      미디어 갤러리 조회 유스케이스
+     * @param fileStorage                 파일 저장소 포트(첨부파일 Pre-signed URL 재발급용)
+     * @param presignedUrlExpiryMinutes   첨부파일 Pre-signed URL 만료 시간(분)
+     */
+    public ChatMessageController(
+            SendMessageUseCase sendMessageUseCase,
+            GetMessageHistoryUseCase getMessageHistoryUseCase,
+            UpdateMessageUseCase updateMessageUseCase,
+            DeleteMessageUseCase deleteMessageUseCase,
+            MessageReplyForwardUseCase messageReplyForwardUseCase,
+            GetMediaGalleryUseCase getMediaGalleryUseCase,
+            FileStorage fileStorage,
+            @Value("${minio.presigned-url-expiry-minutes:10}") int presignedUrlExpiryMinutes) {
+        this.sendMessageUseCase = sendMessageUseCase;
+        this.getMessageHistoryUseCase = getMessageHistoryUseCase;
+        this.updateMessageUseCase = updateMessageUseCase;
+        this.deleteMessageUseCase = deleteMessageUseCase;
+        this.messageReplyForwardUseCase = messageReplyForwardUseCase;
+        this.getMediaGalleryUseCase = getMediaGalleryUseCase;
+        this.fileStorage = fileStorage;
+        this.presignedUrlExpiryMinutes = presignedUrlExpiryMinutes;
+    }
+
+    /**
+     * 메시지 엔티티의 첨부파일 URL을 멤버십이 검증된 본인에게 노출할 단기 Pre-signed URL로 재발급하여
+     * 응답 DTO를 생성합니다(H-1). 비-파일 메시지의 null/blank URL은 그대로 통과됩니다.
+     *
+     * @param message 응답으로 변환할 메시지 엔티티
+     * @return 단기 Pre-signed URL이 적용된 응답 DTO
+     */
+    private SendMessageResponse toPresignedResponse(Message message) {
+        String fileUrl = fileStorage.presignAttachmentUrl(message.getFileUrl(), presignedUrlExpiryMinutes);
+        String thumbnailUrl = fileStorage.presignAttachmentUrl(message.getThumbnailUrl(), presignedUrlExpiryMinutes);
+        return SendMessageResponse.from(message, fileUrl, thumbnailUrl);
+    }
 
     /**
      * 채팅방에 텍스트 메시지를 전송합니다.
@@ -76,7 +122,7 @@ public class ChatMessageController {
             @Valid @RequestBody SendMessageRequest request) {
         Message message = sendMessageUseCase.sendTextMessageAndBroadcast(request.chatRoomId(), principal.getUserId(), request.content());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(SendMessageResponse.from(message));
+                .body(toPresignedResponse(message));
     }
 
     /**
@@ -109,7 +155,7 @@ public class ChatMessageController {
                 request.chatRoomId(), principal.getUserId(), command);
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(SendMessageResponse.from(message));
+                .body(toPresignedResponse(message));
     }
 
     /**
@@ -136,7 +182,9 @@ public class ChatMessageController {
                         enriched.message(),
                         enriched.unreadCount(),
                         enriched.senderNickname(),
-                        enriched.senderAvatarUrl()))
+                        enriched.senderAvatarUrl(),
+                        enriched.fileUrl(),
+                        enriched.thumbnailUrl()))
                 .toList();
 
         return ResponseEntity.ok(MessageHistoryResponse.of(messageDtos, result.nextCursor(), result.hasMore()));
@@ -238,7 +286,7 @@ public class ChatMessageController {
         Message message = messageReplyForwardUseCase.replyToMessage(
                 principal.getUserId(), messageId, request.content());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(SendMessageResponse.from(message));
+                .body(toPresignedResponse(message));
     }
 
     /**
@@ -258,6 +306,6 @@ public class ChatMessageController {
         Message message = messageReplyForwardUseCase.forwardMessage(
                 principal.getUserId(), messageId, request.targetChatRoomId());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(SendMessageResponse.from(message));
+                .body(toPresignedResponse(message));
     }
 }
