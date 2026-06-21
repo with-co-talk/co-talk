@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.profile;
 
+import com.cotalk.adapter.outbound.persistence.entity.ProfileHistoryJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.ProfileHistoryMapper;
 import com.cotalk.domain.entity.ProfileHistory;
 import com.cotalk.domain.entity.ProfileHistoryType;
 import com.cotalk.domain.port.outbound.ProfileHistoryRepository;
@@ -11,7 +13,7 @@ import java.util.Optional;
 
 /**
  * 프로필 이력 영속성 어댑터.
- * JPA를 통해 프로필 이력 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -20,35 +22,41 @@ import java.util.Optional;
 public class ProfileHistoryRepositoryAdapter implements ProfileHistoryRepository {
 
     private final ProfileHistoryJpaRepository jpaRepository;
+    private final ProfileHistoryMapper mapper;
 
     @Override
     public ProfileHistory save(ProfileHistory profileHistory) {
-        return jpaRepository.save(profileHistory);
+        ProfileHistoryJpaEntity saved = jpaRepository.save(mapper.toJpa(profileHistory));
+        return mapper.toDomain(saved);
     }
 
     @Override
     public Optional<ProfileHistory> findById(Long id) {
-        return jpaRepository.findById(id);
+        return jpaRepository.findById(id).map(mapper::toDomain);
     }
 
     @Override
     public List<ProfileHistory> findByUserIdAndTypeOrderByCreatedAtDesc(Long userId, ProfileHistoryType type) {
-        return jpaRepository.findByUserIdAndTypeOrderByCreatedAtDesc(userId, type);
+        return jpaRepository.findByUserIdAndTypeOrderByCreatedAtDesc(userId, type).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override
     public List<ProfileHistory> findByUserIdOrderByCreatedAtDesc(Long userId) {
-        return jpaRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        return jpaRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override
     public Optional<ProfileHistory> findByUserIdAndTypeAndIsCurrentTrue(Long userId, ProfileHistoryType type) {
-        return jpaRepository.findByUserIdAndTypeAndIsCurrentTrue(userId, type);
+        return jpaRepository.findByUserIdAndTypeAndIsCurrentTrue(userId, type).map(mapper::toDomain);
     }
 
     @Override
     public void delete(ProfileHistory profileHistory) {
-        jpaRepository.delete(profileHistory);
+        jpaRepository.delete(mapper.toJpa(profileHistory));
     }
 
     @Override

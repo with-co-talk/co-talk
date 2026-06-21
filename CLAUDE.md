@@ -34,14 +34,21 @@ src/main/java/com/cotalk/
 
 ## 의존 방향 (ArchUnit 자동 검증)
 - `domain` → 외부 패키지 의존 금지 (순수 Java + Jakarta Validation만)
+- `domain` → `jakarta.persistence`/`org.springframework` 프레임워크 의존 금지 (ArchUnit 강제, `HtmlSanitizer`의 `org.springframework.web.util`만 예외)
 - `application` → `domain`만 의존
 - `adapter/inbound` → `adapter/outbound` 직접 의존 금지
 
 ## 핵심 설계 패턴
 
-### 엔티티 이중 계층 (리팩토링 진행 중)
-- 완전 분리: `User` → `DomainBaseEntity`(JPA 없음) + `UserJpaEntity`(persistence) + `UserMapper`
-- 미분리: `Message`, `ChatRoom` 등 → `BaseEntity`(JPA 포함) 상속. 향후 분리 예정
+### 엔티티 이중 계층 (분리 완료)
+- 모든 도메인 엔티티가 순수 POJO + JPA 엔티티 + 매퍼로 완전 분리되었다.
+  - 순수 도메인: `domain/entity/<Name>` → `DomainBaseEntity`(JPA 없음, `createdAt`/`updatedAt`) 상속
+  - JPA 엔티티: `adapter/outbound/persistence/entity/<Name>JpaEntity` → `BaseJpaEntity`(`@MappedSuperclass` 감사) 상속, 모든 JPA 매핑 보유
+  - 매퍼: `adapter/outbound/persistence/mapper/<Name>Mapper` (`@Component`, 도메인 ↔ JPA 변환)
+  - 리포지토리 어댑터가 매퍼로 변환하며 도메인 포트를 구현한다.
+- 대상 엔티티(16개): `Message`, `ChatRoom`, `ChatRoomMember`, `Friend`, `FriendRequest`, `Block`, `Report`, `RefreshToken`, `PasswordResetToken`, `EmailVerificationToken`, `DeviceToken`, `NotificationSetting`, `MessageReaction`, `HiddenFriend`, `TermsAgreement`, `ProfileHistory` (+ 기존 `User`).
+- 메시지 암호화: `content`의 `@Convert(EncryptedStringConverter)`는 `MessageJpaEntity`에 위치하며, 컨버터는 `infrastructure.crypto`로 일원화되었다.
+- 페이지네이션: 도메인 포트는 Spring `Page`/`Pageable` 대신 순수 `domain/model/PageQuery`·`PageResult<T>`를 사용하고, persistence 어댑터에서 Spring 타입으로 변환한다.
 
 ### 인프라 환경 전환 (Strategy)
 `@ConditionalOnProperty`로 Redis/InMemory 자동 전환:

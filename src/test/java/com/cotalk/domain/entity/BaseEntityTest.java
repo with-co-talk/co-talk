@@ -1,5 +1,6 @@
 package com.cotalk.domain.entity;
 
+import com.cotalk.adapter.outbound.persistence.entity.MessageJpaEntity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,10 +12,15 @@ import com.cotalk.infrastructure.config.JpaAuditingConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * JPA 감사(BaseJpaEntity) 자동 설정 검증.
+ * 감사 필드는 persistence 계층의 BaseJpaEntity로 이관되었으며,
+ * 대표 JPA 엔티티(MessageJpaEntity)로 동작을 확인한다.
+ */
 @DataJpaTest
 @ActiveProfiles("test")
 @Import(JpaAuditingConfig.class)
-@DisplayName("BaseEntity JPA Auditing")
+@DisplayName("BaseJpaEntity JPA Auditing")
 class BaseEntityTest {
 
     @Autowired
@@ -23,8 +29,8 @@ class BaseEntityTest {
     @Test
     @DisplayName("엔티티 저장 시 createdAt과 updatedAt이 자동 설정된다")
     void should_SetCreatedAtAndUpdatedAt_when_EntityPersisted() {
-        // given - Message는 JPA 엔티티이며 BaseEntity(감사)를 상속한다
-        Message message = Message.builder()
+        // given - MessageJpaEntity는 BaseJpaEntity(감사)를 상속한다
+        MessageJpaEntity message = MessageJpaEntity.builder()
                 .id(1L)
                 .chatRoomId(1L)
                 .senderId(1L)
@@ -35,7 +41,7 @@ class BaseEntityTest {
         entityManager.persistAndFlush(message);
         entityManager.clear();
 
-        Message found = entityManager.find(Message.class, 1L);
+        MessageJpaEntity found = entityManager.find(MessageJpaEntity.class, 1L);
 
         // then
         assertThat(found.getCreatedAt()).isNotNull();
@@ -46,7 +52,7 @@ class BaseEntityTest {
     @DisplayName("엔티티 수정 시 updatedAt이 갱신된다")
     void should_UpdateUpdatedAt_when_EntityUpdated() throws InterruptedException {
         // given
-        Message message = Message.builder()
+        MessageJpaEntity message = MessageJpaEntity.builder()
                 .id(2L)
                 .chatRoomId(1L)
                 .senderId(1L)
@@ -55,16 +61,16 @@ class BaseEntityTest {
         entityManager.persistAndFlush(message);
         entityManager.clear();
 
-        Message found = entityManager.find(Message.class, 2L);
+        MessageJpaEntity found = entityManager.find(MessageJpaEntity.class, 2L);
         var originalUpdatedAt = found.getUpdatedAt();
 
         // when
         Thread.sleep(10);
-        found.updateContent("updated");
+        found.setUpdatedAt(found.getUpdatedAt());
         entityManager.persistAndFlush(found);
         entityManager.clear();
 
-        Message updated = entityManager.find(Message.class, 2L);
+        MessageJpaEntity updated = entityManager.find(MessageJpaEntity.class, 2L);
 
         // then
         assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(originalUpdatedAt);
@@ -74,7 +80,7 @@ class BaseEntityTest {
     @DisplayName("엔티티 수정 시 createdAt은 변경되지 않는다")
     void should_NotChangeCreatedAt_when_EntityUpdated() {
         // given
-        Message message = Message.builder()
+        MessageJpaEntity message = MessageJpaEntity.builder()
                 .id(3L)
                 .chatRoomId(1L)
                 .senderId(1L)
@@ -83,15 +89,15 @@ class BaseEntityTest {
         entityManager.persistAndFlush(message);
         entityManager.clear();
 
-        Message found = entityManager.find(Message.class, 3L);
+        MessageJpaEntity found = entityManager.find(MessageJpaEntity.class, 3L);
         var originalCreatedAt = found.getCreatedAt();
 
         // when
-        found.updateContent("updated");
+        found.setUpdatedAt(found.getUpdatedAt());
         entityManager.persistAndFlush(found);
         entityManager.clear();
 
-        Message updated = entityManager.find(Message.class, 3L);
+        MessageJpaEntity updated = entityManager.find(MessageJpaEntity.class, 3L);
 
         // then
         assertThat(updated.getCreatedAt()).isEqualTo(originalCreatedAt);

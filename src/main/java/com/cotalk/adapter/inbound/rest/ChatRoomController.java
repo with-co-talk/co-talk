@@ -21,8 +21,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -92,9 +92,9 @@ public class ChatRoomController {
             @RequestParam(defaultValue = "20") int size) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
-        Page<ChatRoomSummary> chatRoomPage = getChatRoomsUseCase.getChatRooms(
-                principal.getUserId(), PageRequest.of(safePage, safeSize));
-        List<ChatRoomDto> roomDtos = chatRoomPage.getContent().stream()
+        PageResult<ChatRoomSummary> chatRoomPage = getChatRoomsUseCase.getChatRooms(
+                principal.getUserId(), PageQuery.of(safePage, safeSize));
+        List<ChatRoomDto> roomDtos = chatRoomPage.content().stream()
                 .map(ChatRoomDto::from)
                 .toList();
         return ResponseEntity.ok(ChatRoomsResponse.of(roomDtos, chatRoomPage));

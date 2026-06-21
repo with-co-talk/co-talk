@@ -1,6 +1,8 @@
 package com.cotalk.adapter.outbound.persistence.user;
 
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.adapter.outbound.persistence.entity.UserJpaEntity;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
@@ -97,13 +99,15 @@ public class UserRepositoryAdapter implements UserRepository {
     /**
      * 모든 사용자를 페이지네이션하여 조회한다.
      *
-     * @param pageable 페이지네이션 정보
+     * @param query 페이지네이션 정보
      * @return 페이지네이션된 사용자 목록
      */
     @Override
-    public Page<User> findAll(Pageable pageable) {
-        return userJpaRepository.findAll(pageable)
+    public PageResult<User> findAll(PageQuery query) {
+        Pageable pageable = PageRequest.of(query.page(), query.size());
+        Page<User> page = userJpaRepository.findAll(pageable)
                 .map(userMapper::toDomain);
+        return new PageResult<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
     @Override
@@ -116,14 +120,16 @@ public class UserRepositoryAdapter implements UserRepository {
     /**
      * 특정 상태의 사용자를 페이지네이션하여 조회한다.
      *
-     * @param status   사용자 상태
-     * @param pageable 페이지네이션 정보
+     * @param status 사용자 상태
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 사용자 목록
      */
     @Override
-    public Page<User> findByStatus(User.UserStatus status, Pageable pageable) {
-        return userJpaRepository.findByStatus(status, pageable)
+    public PageResult<User> findByStatus(User.UserStatus status, PageQuery query) {
+        Pageable pageable = PageRequest.of(query.page(), query.size());
+        Page<User> page = userJpaRepository.findByStatus(status, pageable)
                 .map(userMapper::toDomain);
+        return new PageResult<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
     @Override

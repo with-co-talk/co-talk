@@ -1,89 +1,71 @@
 package com.cotalk.domain.entity;
 
 import com.cotalk.domain.constants.MessageConstants;
-import com.cotalk.domain.converter.EncryptedStringConverter;
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
 /**
- * 메시지 엔티티.
+ * 메시지 도메인 엔티티.
  * 채팅방에서 주고받는 메시지 정보를 나타낸다.
  * 텍스트, 이미지, 파일 메시지를 지원한다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "messages")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class Message extends BaseEntity {
+@SuperBuilder
+public class Message extends DomainBaseEntity {
 
     public static final int URL_MAX_LENGTH = 2048;
 
-    @Id
     private Long id;
 
-    @Column(name = "chat_room_id", nullable = false)
     private Long chatRoomId;
 
-    @Column(name = "sender_id", nullable = false)
     private Long senderId;
 
-    @Column(nullable = false, length = 4000)
-    @Convert(converter = EncryptedStringConverter.class)
     private String content;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     @Builder.Default
     private MessageType type = MessageType.TEXT;
 
     // 파일/이미지 메시지용 필드
-    @Column(name = "file_url", length = URL_MAX_LENGTH)
     private String fileUrl;
 
-    @Column(name = "file_name")
     private String fileName;
 
-    @Column(name = "file_size")
     private Long fileSize;
 
-    @Column(name = "file_content_type")
     private String fileContentType;
 
     // 이미지 미리보기용 (썸네일)
-    @Column(name = "thumbnail_url", length = URL_MAX_LENGTH)
     private String thumbnailUrl;
 
     // 답장 기능: 답장 대상 메시지 ID
-    @Column(name = "reply_to_message_id")
     private Long replyToMessageId;
 
     // 전달 기능: 원본 메시지 ID
-    @Column(name = "forwarded_from_message_id")
     private Long forwardedFromMessageId;
 
     // 링크 미리보기 (텍스트 메시지에 URL 포함 시 비동기 수집)
-    @Column(name = "link_preview_url", length = 2048)
     private String linkPreviewUrl;
 
-    @Column(name = "link_preview_title", length = 512)
     private String linkPreviewTitle;
 
-    @Column(name = "link_preview_description", length = 1000)
     private String linkPreviewDescription;
 
-    @Column(name = "link_preview_image_url", length = 2048)
     private String linkPreviewImageUrl;
 
-    @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    @Column(name = "is_deleted", nullable = false)
     @Builder.Default
     private boolean deleted = false;
 

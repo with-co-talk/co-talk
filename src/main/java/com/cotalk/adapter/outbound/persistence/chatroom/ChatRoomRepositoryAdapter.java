@@ -1,12 +1,17 @@
 package com.cotalk.adapter.outbound.persistence.chatroom;
 
+import com.cotalk.adapter.outbound.persistence.entity.ChatRoomJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.ChatRoomMapper;
 import com.cotalk.domain.entity.ChatRoom;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import com.cotalk.domain.port.outbound.ChatRoomRepository;
 import com.cotalk.infrastructure.config.CacheConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
@@ -15,7 +20,7 @@ import java.util.Optional;
 
 /**
  * 채팅방 영속성 어댑터.
- * JPA를 통해 채팅방 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -24,6 +29,7 @@ import java.util.Optional;
 public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
 
     private final ChatRoomJpaRepository chatRoomJpaRepository;
+    private final ChatRoomMapper mapper;
 
     /**
      * 채팅방을 저장한다.
@@ -35,7 +41,8 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
     @CacheEvict(value = CacheConfig.CHAT_ROOM_CACHE, key = "#chatRoom.id", condition = "#chatRoom.id != null")
     @Override
     public ChatRoom save(ChatRoom chatRoom) {
-        return chatRoomJpaRepository.save(chatRoom);
+        ChatRoomJpaEntity saved = chatRoomJpaRepository.save(mapper.toJpa(chatRoom));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -48,7 +55,7 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
     @Cacheable(value = CacheConfig.CHAT_ROOM_CACHE, key = "#id")
     @Override
     public Optional<ChatRoom> findById(Long id) {
-        return chatRoomJpaRepository.findById(id);
+        return chatRoomJpaRepository.findById(id).map(mapper::toDomain);
     }
 
     /**
@@ -59,19 +66,23 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
      */
     @Override
     public List<ChatRoom> findByUserId(Long userId) {
-        return chatRoomJpaRepository.findByUserId(userId);
+        return chatRoomJpaRepository.findByUserId(userId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
      * 사용자 ID로 참여 중인 채팅방 목록을 페이지네이션하여 조회한다.
      *
-     * @param userId   사용자 ID
-     * @param pageable 페이지네이션 정보
+     * @param userId 사용자 ID
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 채팅방 목록
      */
     @Override
-    public Page<ChatRoom> findByUserId(Long userId, Pageable pageable) {
-        return chatRoomJpaRepository.findByUserId(userId, pageable);
+    public PageResult<ChatRoom> findByUserId(Long userId, PageQuery query) {
+        Pageable pageable = PageRequest.of(query.page(), query.size());
+        Page<ChatRoom> page = chatRoomJpaRepository.findByUserId(userId, pageable).map(mapper::toDomain);
+        return new PageResult<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
     /**
@@ -83,7 +94,7 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
      */
     @Override
     public Optional<ChatRoom> findDirectChatRoomByUserIds(Long userId1, Long userId2) {
-        return chatRoomJpaRepository.findDirectChatRoomByUserIds(userId1, userId2);
+        return chatRoomJpaRepository.findDirectChatRoomByUserIds(userId1, userId2).map(mapper::toDomain);
     }
 
     /**
@@ -94,7 +105,7 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
      */
     @Override
     public Optional<ChatRoom> findSelfChatRoomByUserId(Long userId) {
-        return chatRoomJpaRepository.findSelfChatRoomByUserId(userId);
+        return chatRoomJpaRepository.findSelfChatRoomByUserId(userId).map(mapper::toDomain);
     }
 
     /**
@@ -106,7 +117,7 @@ public class ChatRoomRepositoryAdapter implements ChatRoomRepository {
     @CacheEvict(value = CacheConfig.CHAT_ROOM_CACHE, key = "#chatRoom.id")
     @Override
     public void delete(ChatRoom chatRoom) {
-        chatRoomJpaRepository.delete(chatRoom);
+        chatRoomJpaRepository.delete(mapper.toJpa(chatRoom));
     }
 
     /**

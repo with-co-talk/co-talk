@@ -1,48 +1,40 @@
 package com.cotalk.domain.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
 /**
- * 이용약관 동의 엔티티.
+ * 이용약관 동의 도메인 엔티티.
  * 이용약관 및 개인정보처리방침 동의 기록을 나타낸다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "terms_agreements")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class TermsAgreement extends BaseEntity {
+@SuperBuilder
+public class TermsAgreement extends DomainBaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "terms_type", nullable = false)
     private TermsType termsType;
 
-    @Column(name = "terms_version", nullable = false)
     private String termsVersion;
 
-    @Column(nullable = false)
     private boolean agreed;
 
-    @Column(name = "agreed_at")
     private LocalDateTime agreedAt;
 
-    @Column(name = "withdrawn_at")
     private LocalDateTime withdrawnAt;
 
-    @Column(name = "ip_address")
     private String ipAddress;
 
     /**

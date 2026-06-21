@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.notification;
 
+import com.cotalk.adapter.outbound.persistence.entity.DeviceTokenJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.DeviceTokenMapper;
 import com.cotalk.domain.entity.DeviceToken;
 import com.cotalk.domain.port.outbound.DeviceTokenRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +12,7 @@ import java.util.Optional;
 
 /**
  * 디바이스 토큰 영속성 어댑터.
- * JPA를 통해 디바이스 토큰 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -19,6 +21,7 @@ import java.util.Optional;
 public class DeviceTokenRepositoryAdapter implements DeviceTokenRepository {
 
     private final DeviceTokenJpaRepository deviceTokenJpaRepository;
+    private final DeviceTokenMapper mapper;
 
     /**
      * 디바이스 토큰을 저장한다.
@@ -28,7 +31,8 @@ public class DeviceTokenRepositoryAdapter implements DeviceTokenRepository {
      */
     @Override
     public DeviceToken save(DeviceToken deviceToken) {
-        return deviceTokenJpaRepository.save(deviceToken);
+        DeviceTokenJpaEntity saved = deviceTokenJpaRepository.save(mapper.toJpa(deviceToken));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -39,7 +43,8 @@ public class DeviceTokenRepositoryAdapter implements DeviceTokenRepository {
      */
     @Override
     public DeviceToken saveAndFlush(DeviceToken deviceToken) {
-        return deviceTokenJpaRepository.saveAndFlush(deviceToken);
+        DeviceTokenJpaEntity saved = deviceTokenJpaRepository.saveAndFlush(mapper.toJpa(deviceToken));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -50,7 +55,7 @@ public class DeviceTokenRepositoryAdapter implements DeviceTokenRepository {
      */
     @Override
     public Optional<DeviceToken> findById(Long id) {
-        return deviceTokenJpaRepository.findById(id);
+        return deviceTokenJpaRepository.findById(id).map(mapper::toDomain);
     }
 
     /**
@@ -61,7 +66,7 @@ public class DeviceTokenRepositoryAdapter implements DeviceTokenRepository {
      */
     @Override
     public Optional<DeviceToken> findByToken(String token) {
-        return deviceTokenJpaRepository.findByToken(token);
+        return deviceTokenJpaRepository.findByToken(token).map(mapper::toDomain);
     }
 
     /**
@@ -72,7 +77,9 @@ public class DeviceTokenRepositoryAdapter implements DeviceTokenRepository {
      */
     @Override
     public List<DeviceToken> findByUserId(Long userId) {
-        return deviceTokenJpaRepository.findByUserId(userId);
+        return deviceTokenJpaRepository.findByUserId(userId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -83,7 +90,9 @@ public class DeviceTokenRepositoryAdapter implements DeviceTokenRepository {
      */
     @Override
     public List<DeviceToken> findActiveByUserId(Long userId) {
-        return deviceTokenJpaRepository.findActiveByUserId(userId);
+        return deviceTokenJpaRepository.findActiveByUserId(userId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -94,7 +103,9 @@ public class DeviceTokenRepositoryAdapter implements DeviceTokenRepository {
      */
     @Override
     public List<DeviceToken> findActiveByUserIds(List<Long> userIds) {
-        return deviceTokenJpaRepository.findActiveByUserIdIn(userIds);
+        return deviceTokenJpaRepository.findActiveByUserIdIn(userIds).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**

@@ -1,9 +1,12 @@
 package com.cotalk.architecture;
 
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
+import org.springframework.web.util.HtmlUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -11,6 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.equivalentTo;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
@@ -56,6 +62,30 @@ class HexagonalArchitectureTest {
             ArchRule rule = noClasses()
                     .that().resideInAPackage("..domain..")
                     .should().dependOnClassesThat().resideInAPackage(forbiddenPackage);
+
+            rule.check(classes);
+        }
+
+        @Test
+        @DisplayName("Domain은 JPA(jakarta.persistence)/스프링 프레임워크에 의존하지 않는다")
+        void should_notDependOnPersistenceOrFramework_when_inDomainLayer() {
+            // 도메인은 순수 POJO여야 한다. JPA(jakarta.persistence)와 스프링 프레임워크
+            // (org.springframework..) 의존을 금지한다.
+            //
+            // 단, 도메인이 정당하게 사용하는 다음은 허용한다:
+            //   - jakarta.validation.. : 도메인 검증 제약(커스텀 Constraint) — 애초에 금지 대상 아님
+            //   - org.springframework.web.util.HtmlUtils : HtmlSanitizer의 HTML 이스케이프 유틸리티
+            //     (영속성/DI/프레임워크 결합이 아닌 순수 문자열 변환 유틸) — 이 단일 클래스만 허용한다.
+            //     (org.springframework.web.util 패키지 전체를 열어두면 UriComponentsBuilder 등
+            //      실제 프레임워크 타입까지 통과하므로, HtmlUtils 한 클래스로 예외를 한정한다.)
+            DescribedPredicate<JavaClass> forbiddenFrameworkDeps =
+                    resideInAnyPackage("jakarta.persistence..", "org.springframework..")
+                            .and(DescribedPredicate.not(equivalentTo(HtmlUtils.class)))
+                            .as("JPA/스프링 프레임워크(허용된 HtmlUtils 제외)");
+
+            ArchRule rule = noClasses()
+                    .that().resideInAPackage("..domain..")
+                    .should().dependOnClassesThat(forbiddenFrameworkDeps);
 
             rule.check(classes);
         }

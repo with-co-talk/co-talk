@@ -1,8 +1,8 @@
 package com.cotalk.domain.port.inbound.friend;
 
 import com.cotalk.domain.entity.User;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 
@@ -25,9 +25,9 @@ public interface GetFriendListUseCase {
     /**
      * 사용자의 친구 목록을 DB 레벨 페이지네이션으로 조회한다.
      *
-     * @param userId   사용자 ID
-     * @param pageable 페이지네이션 정보
+     * @param userId 사용자 ID
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 친구 목록
      */
-    Page<User> getFriendList(Long userId, Pageable pageable);
+    PageResult<User> getFriendList(Long userId, PageQuery query);
 }

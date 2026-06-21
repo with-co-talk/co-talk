@@ -1,9 +1,14 @@
 package com.cotalk.adapter.outbound.persistence.friend;
 
+import com.cotalk.adapter.outbound.persistence.entity.FriendRequestJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.FriendRequestMapper;
 import com.cotalk.domain.entity.FriendRequest;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import com.cotalk.domain.port.outbound.FriendRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
@@ -12,7 +17,7 @@ import java.util.Optional;
 
 /**
  * 친구 요청 영속성 어댑터.
- * JPA를 통해 친구 요청 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -21,6 +26,7 @@ import java.util.Optional;
 public class FriendRequestRepositoryAdapter implements FriendRequestRepository {
 
     private final FriendRequestJpaRepository friendRequestJpaRepository;
+    private final FriendRequestMapper mapper;
 
     /**
      * 친구 요청을 저장한다.
@@ -30,7 +36,8 @@ public class FriendRequestRepositoryAdapter implements FriendRequestRepository {
      */
     @Override
     public FriendRequest save(FriendRequest friendRequest) {
-        return friendRequestJpaRepository.save(friendRequest);
+        FriendRequestJpaEntity saved = friendRequestJpaRepository.save(mapper.toJpa(friendRequest));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -41,7 +48,7 @@ public class FriendRequestRepositoryAdapter implements FriendRequestRepository {
      */
     @Override
     public Optional<FriendRequest> findById(Long id) {
-        return friendRequestJpaRepository.findById(id);
+        return friendRequestJpaRepository.findById(id).map(mapper::toDomain);
     }
 
     /**
@@ -52,19 +59,24 @@ public class FriendRequestRepositoryAdapter implements FriendRequestRepository {
      */
     @Override
     public List<FriendRequest> findPendingByReceiverId(Long receiverId) {
-        return friendRequestJpaRepository.findByReceiverIdAndStatus(receiverId, FriendRequest.RequestStatus.PENDING);
+        return friendRequestJpaRepository.findByReceiverIdAndStatus(receiverId, FriendRequest.RequestStatus.PENDING).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
      * 수신자 ID로 대기 중인 친구 요청 목록을 DB 레벨 페이지네이션으로 조회한다.
      *
      * @param receiverId 수신자 ID
-     * @param pageable   페이지네이션 정보
+     * @param query      페이지네이션 정보
      * @return 페이지네이션된 대기 중인 친구 요청 목록
      */
     @Override
-    public Page<FriendRequest> findPendingByReceiverId(Long receiverId, Pageable pageable) {
-        return friendRequestJpaRepository.findByReceiverIdAndStatus(receiverId, FriendRequest.RequestStatus.PENDING, pageable);
+    public PageResult<FriendRequest> findPendingByReceiverId(Long receiverId, PageQuery query) {
+        Pageable pageable = PageRequest.of(query.page(), query.size());
+        Page<FriendRequest> page = friendRequestJpaRepository.findByReceiverIdAndStatus(receiverId, FriendRequest.RequestStatus.PENDING, pageable)
+                .map(mapper::toDomain);
+        return new PageResult<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
     /**
@@ -75,19 +87,24 @@ public class FriendRequestRepositoryAdapter implements FriendRequestRepository {
      */
     @Override
     public List<FriendRequest> findPendingByRequesterId(Long requesterId) {
-        return friendRequestJpaRepository.findByRequesterIdAndStatus(requesterId, FriendRequest.RequestStatus.PENDING);
+        return friendRequestJpaRepository.findByRequesterIdAndStatus(requesterId, FriendRequest.RequestStatus.PENDING).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
      * 요청자 ID로 대기 중인 친구 요청 목록을 DB 레벨 페이지네이션으로 조회한다.
      *
      * @param requesterId 요청자 ID
-     * @param pageable    페이지네이션 정보
+     * @param query       페이지네이션 정보
      * @return 페이지네이션된 대기 중인 친구 요청 목록
      */
     @Override
-    public Page<FriendRequest> findPendingByRequesterId(Long requesterId, Pageable pageable) {
-        return friendRequestJpaRepository.findByRequesterIdAndStatus(requesterId, FriendRequest.RequestStatus.PENDING, pageable);
+    public PageResult<FriendRequest> findPendingByRequesterId(Long requesterId, PageQuery query) {
+        Pageable pageable = PageRequest.of(query.page(), query.size());
+        Page<FriendRequest> page = friendRequestJpaRepository.findByRequesterIdAndStatus(requesterId, FriendRequest.RequestStatus.PENDING, pageable)
+                .map(mapper::toDomain);
+        return new PageResult<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
     /**
@@ -124,7 +141,7 @@ public class FriendRequestRepositoryAdapter implements FriendRequestRepository {
      */
     @Override
     public void delete(FriendRequest friendRequest) {
-        friendRequestJpaRepository.delete(friendRequest);
+        friendRequestJpaRepository.delete(mapper.toJpa(friendRequest));
     }
 
     /**

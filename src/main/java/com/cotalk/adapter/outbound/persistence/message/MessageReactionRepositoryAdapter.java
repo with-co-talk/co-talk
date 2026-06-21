@@ -1,5 +1,8 @@
 package com.cotalk.adapter.outbound.persistence.message;
 
+import com.cotalk.adapter.outbound.persistence.entity.MessageReactionJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.MessageReactionMapper;
+import com.cotalk.domain.entity.Emoji;
 import com.cotalk.domain.entity.MessageReaction;
 import com.cotalk.domain.port.outbound.MessageReactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +13,7 @@ import java.util.Optional;
 
 /**
  * 메시지 리액션 영속성 어댑터.
- * JPA를 통해 메시지 리액션 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -19,6 +22,7 @@ import java.util.Optional;
 public class MessageReactionRepositoryAdapter implements MessageReactionRepository {
 
     private final MessageReactionJpaRepository jpaRepository;
+    private final MessageReactionMapper mapper;
 
     /**
      * 메시지 리액션을 저장한다.
@@ -28,7 +32,8 @@ public class MessageReactionRepositoryAdapter implements MessageReactionReposito
      */
     @Override
     public MessageReaction save(MessageReaction reaction) {
-        return jpaRepository.save(reaction);
+        MessageReactionJpaEntity saved = jpaRepository.save(mapper.toJpa(reaction));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -40,8 +45,8 @@ public class MessageReactionRepositoryAdapter implements MessageReactionReposito
      * @return 메시지 리액션 (Optional)
      */
     @Override
-    public Optional<MessageReaction> findByMessageIdAndUserIdAndEmoji(Long messageId, Long userId, com.cotalk.domain.entity.Emoji emoji) {
-        return jpaRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji);
+    public Optional<MessageReaction> findByMessageIdAndUserIdAndEmoji(Long messageId, Long userId, Emoji emoji) {
+        return jpaRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji).map(mapper::toDomain);
     }
 
     /**
@@ -52,7 +57,9 @@ public class MessageReactionRepositoryAdapter implements MessageReactionReposito
      */
     @Override
     public List<MessageReaction> findByMessageId(Long messageId) {
-        return jpaRepository.findByMessageId(messageId);
+        return jpaRepository.findByMessageId(messageId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -62,7 +69,7 @@ public class MessageReactionRepositoryAdapter implements MessageReactionReposito
      */
     @Override
     public void delete(MessageReaction reaction) {
-        jpaRepository.delete(reaction);
+        jpaRepository.delete(mapper.toJpa(reaction));
     }
 
     /**

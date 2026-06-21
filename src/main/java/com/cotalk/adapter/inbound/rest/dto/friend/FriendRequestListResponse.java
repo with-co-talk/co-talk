@@ -1,6 +1,6 @@
 package com.cotalk.adapter.inbound.rest.dto.friend;
 
-import org.springframework.data.domain.Page;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 
@@ -34,19 +34,19 @@ public record FriendRequestListResponse(
     }
 
     /**
-     * Page 객체와 매핑된 DTO 목록으로부터 응답을 생성한다.
+     * PageResult 객체와 매핑된 DTO 목록으로부터 응답을 생성한다.
      *
      * @param requests 친구 요청 DTO 목록
-     * @param pageData Page 메타데이터 소스
+     * @param pageData PageResult 메타데이터 소스
      * @return FriendRequestListResponse 인스턴스
      */
-    public static FriendRequestListResponse of(List<FriendRequestDto> requests, Page<?> pageData) {
+    public static FriendRequestListResponse of(List<FriendRequestDto> requests, PageResult<?> pageData) {
         return new FriendRequestListResponse(
                 requests,
-                pageData.getNumber(),
-                pageData.getSize(),
-                pageData.getTotalElements(),
-                pageData.getTotalPages()
+                pageData.page(),
+                pageData.size(),
+                pageData.totalElements(),
+                pageData.totalPages()
         );
     }
 }

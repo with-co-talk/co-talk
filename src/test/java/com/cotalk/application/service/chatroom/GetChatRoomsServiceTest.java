@@ -15,10 +15,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -444,7 +442,7 @@ class GetChatRoomsServiceTest {
             Long userId = 1L;
             Long otherUserId = 2L;
             Long chatRoomId = 100L;
-            Pageable pageable = PageRequest.of(0, 20);
+            PageQuery query = PageQuery.of(0, 20);
 
             ChatRoom chatRoom = ChatRoom.builder()
                     .id(chatRoomId)
@@ -452,7 +450,7 @@ class GetChatRoomsServiceTest {
                     .type(ChatRoom.ChatRoomType.DIRECT)
                     .build();
 
-            Page<ChatRoom> chatRoomPage = new PageImpl<>(List.of(chatRoom), pageable, 1);
+            PageResult<ChatRoom> chatRoomPage = new PageResult<>(List.of(chatRoom), 0, 20, 1);
 
             ChatRoomSummaryAssembler.BatchData batchData = new ChatRoomSummaryAssembler.BatchData(
                     Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()
@@ -465,21 +463,21 @@ class GetChatRoomsServiceTest {
                     false, false, null
             );
 
-            given(chatRoomRepository.findByUserId(userId, pageable)).willReturn(chatRoomPage);
+            given(chatRoomRepository.findByUserId(userId, query)).willReturn(chatRoomPage);
             given(chatRoomSummaryAssembler.loadBatchData(userId, List.of(chatRoom))).willReturn(batchData);
             given(chatRoomSummaryAssembler.assembleSummaries(List.of(chatRoom), batchData))
                     .willReturn(List.of(expectedSummary));
 
             // when
-            Page<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId, pageable);
+            PageResult<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId, query);
 
             // then
-            assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getTotalElements()).isEqualTo(1);
-            assertThat(result.getNumber()).isZero();
-            assertThat(result.getSize()).isEqualTo(20);
+            assertThat(result.content()).hasSize(1);
+            assertThat(result.totalElements()).isEqualTo(1);
+            assertThat(result.page()).isZero();
+            assertThat(result.size()).isEqualTo(20);
 
-            ChatRoomSummary summary = result.getContent().get(0);
+            ChatRoomSummary summary = result.content().get(0);
             assertThat(summary.id()).isEqualTo(chatRoomId);
             assertThat(summary.name()).isEqualTo("채팅방1");
             assertThat(summary.lastMessage()).isEqualTo("마지막 메시지입니다");
@@ -493,17 +491,17 @@ class GetChatRoomsServiceTest {
         void should_returnEmptyPage_when_noChatRooms() {
             // given
             Long userId = 1L;
-            Pageable pageable = PageRequest.of(0, 20);
-            Page<ChatRoom> emptyPage = new PageImpl<>(List.of(), pageable, 0);
+            PageQuery query = PageQuery.of(0, 20);
+            PageResult<ChatRoom> emptyPage = new PageResult<>(List.of(), 0, 20, 0);
 
-            given(chatRoomRepository.findByUserId(userId, pageable)).willReturn(emptyPage);
+            given(chatRoomRepository.findByUserId(userId, query)).willReturn(emptyPage);
 
             // when
-            Page<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId, pageable);
+            PageResult<ChatRoomSummary> result = getChatRoomsUseCase.getChatRooms(userId, query);
 
             // then
-            assertThat(result.getContent()).isEmpty();
-            assertThat(result.getTotalElements()).isZero();
+            assertThat(result.content()).isEmpty();
+            assertThat(result.totalElements()).isZero();
             // 빈 페이지일 때 assembler가 호출되지 않음
             verify(chatRoomSummaryAssembler, never()).loadBatchData(any(), anyList());
             verify(chatRoomSummaryAssembler, never()).assembleSummaries(anyList(), any());

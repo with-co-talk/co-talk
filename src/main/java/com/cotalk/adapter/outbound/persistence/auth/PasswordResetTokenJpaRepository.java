@@ -1,6 +1,6 @@
 package com.cotalk.adapter.outbound.persistence.auth;
 
-import com.cotalk.domain.entity.PasswordResetToken;
+import com.cotalk.adapter.outbound.persistence.entity.PasswordResetTokenJpaEntity;
 import com.cotalk.domain.model.Email;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -12,11 +12,11 @@ import java.util.Optional;
 
 /**
  * 비밀번호 재설정 토큰 JPA 리포지토리.
- * Spring Data JPA를 통해 비밀번호 재설정 토큰 데이터에 접근한다.
+ * persistence 계층 전용이며, 도메인 반환은 Adapter에서 매핑한다.
  *
  * @author seunggu.lee
  */
-public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordResetToken, Long> {
+public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordResetTokenJpaEntity, Long> {
 
     /**
      * 토큰 값으로 비밀번호 재설정 토큰을 조회한다.
@@ -24,7 +24,7 @@ public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordR
      * @param token 토큰 값
      * @return 비밀번호 재설정 토큰 (Optional)
      */
-    Optional<PasswordResetToken> findByToken(String token);
+    Optional<PasswordResetTokenJpaEntity> findByToken(String token);
 
     /**
      * 이메일로 가장 최근에 발급된 미사용 인증 코드 토큰을 조회한다.
@@ -36,9 +36,9 @@ public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordR
      * @param email 이메일 주소
      * @return 비밀번호 재설정 토큰 (Optional)
      */
-    @Query("SELECT t FROM PasswordResetToken t WHERE t.email = :email AND t.verificationCode IS NOT NULL "
+    @Query("SELECT t FROM PasswordResetTokenJpaEntity t WHERE t.email = :email AND t.verificationCode IS NOT NULL "
             + "AND t.usedAt IS NULL ORDER BY t.id DESC LIMIT 1")
-    Optional<PasswordResetToken> findLatestActiveByEmail(@Param("email") Email email);
+    Optional<PasswordResetTokenJpaEntity> findLatestActiveByEmail(@Param("email") Email email);
 
     /**
      * 사용자 ID로 비밀번호 재설정 토큰을 삭제한다.
@@ -53,7 +53,7 @@ public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordR
      * @param now 현재 시각
      */
     @Modifying
-    @Query("DELETE FROM PasswordResetToken t WHERE t.expiresAt < :now")
+    @Query("DELETE FROM PasswordResetTokenJpaEntity t WHERE t.expiresAt < :now")
     void deleteExpiredTokens(LocalDateTime now);
 
     /**
@@ -68,7 +68,7 @@ public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordR
      * @return 갱신된 행 수(정상 시 1)
      */
     @Modifying(clearAutomatically = true)
-    @Query("UPDATE PasswordResetToken t SET t.failedAttempts = t.failedAttempts + 1 WHERE t.id = :id")
+    @Query("UPDATE PasswordResetTokenJpaEntity t SET t.failedAttempts = t.failedAttempts + 1 WHERE t.id = :id")
     int incrementFailedAttempts(@Param("id") Long id);
 
     /**
@@ -78,6 +78,6 @@ public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordR
      * @param id 대상 토큰 ID
      * @return 현재 실패 횟수 (토큰이 없으면 Optional.empty)
      */
-    @Query("SELECT t.failedAttempts FROM PasswordResetToken t WHERE t.id = :id")
+    @Query("SELECT t.failedAttempts FROM PasswordResetTokenJpaEntity t WHERE t.id = :id")
     Optional<Integer> findFailedAttemptsById(@Param("id") Long id);
 }

@@ -25,9 +25,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 
@@ -64,8 +63,8 @@ public class AdminController {
             @RequestParam(defaultValue = "20") int size) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
-        Page<Report> reportPage = adminUseCase.getPendingReports(PageRequest.of(safePage, safeSize));
-        List<AdminReportDto> reportDtos = reportPage.getContent().stream()
+        PageResult<Report> reportPage = adminUseCase.getPendingReports(PageQuery.of(safePage, safeSize));
+        List<AdminReportDto> reportDtos = reportPage.content().stream()
                 .map(AdminReportDto::from)
                 .toList();
         return ResponseEntity.ok(AdminReportsResponse.of(reportDtos, reportPage));
@@ -134,11 +133,11 @@ public class AdminController {
             @RequestParam(defaultValue = "20") int size) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
-        Pageable pageable = PageRequest.of(safePage, safeSize);
-        Page<User> userPage = status == null
-                ? adminUseCase.getAllUsers(pageable)
-                : adminUseCase.getUsersByStatus(status, pageable);
-        List<AdminUserDto> userDtos = userPage.getContent().stream()
+        PageQuery pageQuery = PageQuery.of(safePage, safeSize);
+        PageResult<User> userPage = status == null
+                ? adminUseCase.getAllUsers(pageQuery)
+                : adminUseCase.getUsersByStatus(status, pageQuery);
+        List<AdminUserDto> userDtos = userPage.content().stream()
                 .map(AdminUserDto::from)
                 .toList();
         return ResponseEntity.ok(AdminUsersResponse.of(userDtos, userPage));

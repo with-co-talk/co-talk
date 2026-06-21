@@ -1,6 +1,6 @@
 package com.cotalk.adapter.outbound.persistence.friend;
 
-import com.cotalk.domain.entity.HiddenFriend;
+import com.cotalk.adapter.outbound.persistence.entity.HiddenFriendJpaEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -8,11 +8,11 @@ import java.util.Optional;
 
 /**
  * 친구 숨김 JPA 리포지토리.
- * Spring Data JPA를 통해 친구 숨김 데이터에 접근한다.
+ * persistence 계층 전용이며, 도메인 반환은 Adapter에서 매핑한다.
  *
  * @author seunggu.lee
  */
-public interface HiddenFriendJpaRepository extends JpaRepository<HiddenFriend, Long> {
+public interface HiddenFriendJpaRepository extends JpaRepository<HiddenFriendJpaEntity, Long> {
 
     /**
      * 사용자 ID와 친구 ID로 친구 숨김 정보를 조회한다.
@@ -21,7 +21,7 @@ public interface HiddenFriendJpaRepository extends JpaRepository<HiddenFriend, L
      * @param friendId 친구 ID
      * @return 친구 숨김 정보 (Optional)
      */
-    Optional<HiddenFriend> findByUserIdAndFriendId(Long userId, Long friendId);
+    Optional<HiddenFriendJpaEntity> findByUserIdAndFriendId(Long userId, Long friendId);
 
     /**
      * 사용자 ID로 친구 숨김 목록을 조회한다.
@@ -29,7 +29,7 @@ public interface HiddenFriendJpaRepository extends JpaRepository<HiddenFriend, L
      * @param userId 사용자 ID
      * @return 친구 숨김 목록
      */
-    List<HiddenFriend> findByUserId(Long userId);
+    List<HiddenFriendJpaEntity> findByUserId(Long userId);
 
     /**
      * 사용자 ID와 친구 ID로 친구 숨김 관계가 존재하는지 확인한다.

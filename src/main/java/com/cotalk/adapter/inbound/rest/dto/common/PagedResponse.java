@@ -1,6 +1,6 @@
 package com.cotalk.adapter.inbound.rest.dto.common;
 
-import org.springframework.data.domain.Page;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 
@@ -29,42 +29,42 @@ public record PagedResponse<T>(
 ) {
 
     /**
-     * Spring Data의 Page 객체로부터 PagedResponse를 생성한다.
+     * 도메인 PageResult 객체로부터 PagedResponse를 생성한다.
      *
      * @param <T>  컨텐츠 요소 타입
-     * @param page Spring Data Page 객체
+     * @param page 도메인 PageResult 객체
      * @return PagedResponse 인스턴스
      */
-    public static <T> PagedResponse<T> from(Page<T> page) {
+    public static <T> PagedResponse<T> from(PageResult<T> page) {
         return new PagedResponse<>(
-                page.getContent(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.isFirst(),
-                page.isLast()
+                page.content(),
+                page.page(),
+                page.size(),
+                page.totalElements(),
+                page.totalPages(),
+                page.page() == 0,
+                page.last()
         );
     }
 
     /**
-     * 컨텐츠 목록과 Page 메타데이터를 조합하여 PagedResponse를 생성한다.
-     * Page의 컨텐츠를 별도로 매핑한 경우 사용한다.
+     * 컨텐츠 목록과 PageResult 메타데이터를 조합하여 PagedResponse를 생성한다.
+     * PageResult의 컨텐츠를 별도로 매핑한 경우 사용한다.
      *
      * @param <T>     컨텐츠 요소 타입
      * @param content 매핑된 컨텐츠 목록
-     * @param page    Spring Data Page 객체 (메타데이터 소스)
+     * @param page    도메인 PageResult 객체 (메타데이터 소스)
      * @return PagedResponse 인스턴스
      */
-    public static <T> PagedResponse<T> of(List<T> content, Page<?> page) {
+    public static <T> PagedResponse<T> of(List<T> content, PageResult<?> page) {
         return new PagedResponse<>(
                 content,
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.isFirst(),
-                page.isLast()
+                page.page(),
+                page.size(),
+                page.totalElements(),
+                page.totalPages(),
+                page.page() == 0,
+                page.last()
         );
     }
 }

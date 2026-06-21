@@ -1,11 +1,16 @@
 package com.cotalk.adapter.outbound.persistence.friend;
 
+import com.cotalk.adapter.outbound.persistence.entity.FriendJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.FriendMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.domain.entity.Friend;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.PageQuery;
+import com.cotalk.domain.model.PageResult;
 import com.cotalk.domain.port.outbound.FriendRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
@@ -14,7 +19,7 @@ import java.util.Optional;
 
 /**
  * 친구 영속성 어댑터.
- * JPA를 통해 친구 관계 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -23,6 +28,7 @@ import java.util.Optional;
 public class FriendRepositoryAdapter implements FriendRepository {
 
     private final FriendJpaRepository friendJpaRepository;
+    private final FriendMapper friendMapper;
     private final UserMapper userMapper;
 
     /**
@@ -33,7 +39,8 @@ public class FriendRepositoryAdapter implements FriendRepository {
      */
     @Override
     public Friend save(Friend friend) {
-        return friendJpaRepository.save(friend);
+        FriendJpaEntity saved = friendJpaRepository.save(friendMapper.toJpa(friend));
+        return friendMapper.toDomain(saved);
     }
 
     /**
@@ -44,7 +51,7 @@ public class FriendRepositoryAdapter implements FriendRepository {
      */
     @Override
     public Optional<Friend> findById(Long id) {
-        return friendJpaRepository.findById(id);
+        return friendJpaRepository.findById(id).map(friendMapper::toDomain);
     }
 
     /**
@@ -56,7 +63,7 @@ public class FriendRepositoryAdapter implements FriendRepository {
      */
     @Override
     public Optional<Friend> findByUserIdAndFriendId(Long userId, Long friendId) {
-        return friendJpaRepository.findByUserIdAndFriendId(userId, friendId);
+        return friendJpaRepository.findByUserIdAndFriendId(userId, friendId).map(friendMapper::toDomain);
     }
 
     /**
@@ -67,7 +74,9 @@ public class FriendRepositoryAdapter implements FriendRepository {
      */
     @Override
     public List<Friend> findAcceptedFriendsByUserId(Long userId) {
-        return friendJpaRepository.findByUserIdAndStatus(userId, Friend.FriendStatus.ACCEPTED);
+        return friendJpaRepository.findByUserIdAndStatus(userId, Friend.FriendStatus.ACCEPTED).stream()
+                .map(friendMapper::toDomain)
+                .toList();
     }
 
     /**
@@ -89,7 +98,7 @@ public class FriendRepositoryAdapter implements FriendRepository {
      */
     @Override
     public void delete(Friend friend) {
-        friendJpaRepository.delete(friend);
+        friendJpaRepository.delete(friendMapper.toJpa(friend));
     }
 
     /**
@@ -110,14 +119,16 @@ public class FriendRepositoryAdapter implements FriendRepository {
      * 사용자의 수락된 친구 목록을 DB 레벨 페이지네이션으로 조회한다.
      * N+1 쿼리를 방지하기 위한 최적화된 조회 메서드이다.
      *
-     * @param userId   사용자 ID
-     * @param pageable 페이지네이션 정보
+     * @param userId 사용자 ID
+     * @param query  페이지네이션 정보
      * @return 페이지네이션된 친구 User 목록
      */
     @Override
-    public Page<User> findAcceptedFriendsWithUserData(Long userId, Pageable pageable) {
-        return friendJpaRepository.findAcceptedFriendsWithUserData(userId, pageable)
+    public PageResult<User> findAcceptedFriendsWithUserData(Long userId, PageQuery query) {
+        Pageable pageable = PageRequest.of(query.page(), query.size());
+        Page<User> page = friendJpaRepository.findAcceptedFriendsWithUserData(userId, pageable)
                 .map(userMapper::toDomain);
+        return new PageResult<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
     /**

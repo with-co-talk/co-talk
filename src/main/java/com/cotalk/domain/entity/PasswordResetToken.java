@@ -1,53 +1,47 @@
 package com.cotalk.domain.entity;
 
 import com.cotalk.domain.model.Email;
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * 비밀번호 재설정 토큰 엔티티.
+ * 비밀번호 재설정 토큰 도메인 엔티티.
  * 사용자의 비밀번호 재설정 요청에 대한 토큰 정보를 나타낸다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "password_reset_tokens")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class PasswordResetToken extends BaseEntity {
+@SuperBuilder
+public class PasswordResetToken extends DomainBaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
     private String token;
 
-    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
     private Email email;
 
-    @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
-    @Column(name = "used_at")
     private LocalDateTime usedAt;
 
-    @Column(name = "verification_code", length = 6)
     private String verificationCode;
 
     /**
      * 인증 코드 입력 실패 횟수.
      * 최대 허용 횟수를 초과하면 토큰이 무효화된다.
      */
-    @Column(name = "failed_attempts", nullable = false)
     @Builder.Default
     private int failedAttempts = 0;
 

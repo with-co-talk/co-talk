@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.friend;
 
+import com.cotalk.adapter.outbound.persistence.entity.HiddenFriendJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.HiddenFriendMapper;
 import com.cotalk.domain.entity.HiddenFriend;
 import com.cotalk.domain.port.outbound.HiddenFriendRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +12,7 @@ import java.util.Optional;
 
 /**
  * 친구 숨김 영속성 어댑터.
- * JPA를 통해 친구 숨김 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -19,6 +21,7 @@ import java.util.Optional;
 public class HiddenFriendRepositoryAdapter implements HiddenFriendRepository {
 
     private final HiddenFriendJpaRepository hiddenFriendJpaRepository;
+    private final HiddenFriendMapper mapper;
 
     /**
      * 친구 숨김 정보를 저장한다.
@@ -28,7 +31,8 @@ public class HiddenFriendRepositoryAdapter implements HiddenFriendRepository {
      */
     @Override
     public HiddenFriend save(HiddenFriend hiddenFriend) {
-        return hiddenFriendJpaRepository.save(hiddenFriend);
+        HiddenFriendJpaEntity saved = hiddenFriendJpaRepository.save(mapper.toJpa(hiddenFriend));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -39,7 +43,7 @@ public class HiddenFriendRepositoryAdapter implements HiddenFriendRepository {
      */
     @Override
     public Optional<HiddenFriend> findById(Long id) {
-        return hiddenFriendJpaRepository.findById(id);
+        return hiddenFriendJpaRepository.findById(id).map(mapper::toDomain);
     }
 
     /**
@@ -51,7 +55,7 @@ public class HiddenFriendRepositoryAdapter implements HiddenFriendRepository {
      */
     @Override
     public Optional<HiddenFriend> findByUserIdAndFriendId(Long userId, Long friendId) {
-        return hiddenFriendJpaRepository.findByUserIdAndFriendId(userId, friendId);
+        return hiddenFriendJpaRepository.findByUserIdAndFriendId(userId, friendId).map(mapper::toDomain);
     }
 
     /**
@@ -62,7 +66,9 @@ public class HiddenFriendRepositoryAdapter implements HiddenFriendRepository {
      */
     @Override
     public List<HiddenFriend> findByUserId(Long userId) {
-        return hiddenFriendJpaRepository.findByUserId(userId);
+        return hiddenFriendJpaRepository.findByUserId(userId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -84,7 +90,7 @@ public class HiddenFriendRepositoryAdapter implements HiddenFriendRepository {
      */
     @Override
     public void delete(HiddenFriend hiddenFriend) {
-        hiddenFriendJpaRepository.delete(hiddenFriend);
+        hiddenFriendJpaRepository.delete(mapper.toJpa(hiddenFriend));
     }
 
     /**

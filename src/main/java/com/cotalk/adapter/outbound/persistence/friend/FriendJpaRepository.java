@@ -1,5 +1,6 @@
 package com.cotalk.adapter.outbound.persistence.friend;
 
+import com.cotalk.adapter.outbound.persistence.entity.FriendJpaEntity;
 import com.cotalk.adapter.outbound.persistence.entity.UserJpaEntity;
 import com.cotalk.domain.entity.Friend;
 import org.springframework.data.domain.Page;
@@ -13,11 +14,11 @@ import java.util.Optional;
 
 /**
  * 친구 JPA 리포지토리.
- * Spring Data JPA를 통해 친구 관계 데이터에 접근한다.
+ * persistence 계층 전용이며, 도메인 반환은 Adapter에서 매핑한다.
  *
  * @author seunggu.lee
  */
-public interface FriendJpaRepository extends JpaRepository<Friend, Long> {
+public interface FriendJpaRepository extends JpaRepository<FriendJpaEntity, Long> {
 
     /**
      * 사용자 ID와 친구 ID로 친구 관계를 조회한다.
@@ -26,7 +27,7 @@ public interface FriendJpaRepository extends JpaRepository<Friend, Long> {
      * @param friendId 친구 ID
      * @return 친구 관계 (Optional)
      */
-    Optional<Friend> findByUserIdAndFriendId(Long userId, Long friendId);
+    Optional<FriendJpaEntity> findByUserIdAndFriendId(Long userId, Long friendId);
 
     /**
      * 사용자 ID와 상태로 친구 목록을 조회한다.
@@ -35,7 +36,7 @@ public interface FriendJpaRepository extends JpaRepository<Friend, Long> {
      * @param status 친구 상태
      * @return 친구 목록
      */
-    List<Friend> findByUserIdAndStatus(Long userId, Friend.FriendStatus status);
+    List<FriendJpaEntity> findByUserIdAndStatus(Long userId, Friend.FriendStatus status);
 
     /**
      * 사용자 ID와 친구 ID로 친구 관계가 존재하는지 확인한다.
@@ -63,10 +64,10 @@ public interface FriendJpaRepository extends JpaRepository<Friend, Long> {
      */
     @Query("SELECT u FROM UserJpaEntity u " +
            "WHERE u.id IN (" +
-           "  SELECT f.friendId FROM Friend f " +
+           "  SELECT f.friendId FROM FriendJpaEntity f " +
            "  WHERE f.userId = :userId AND f.status = 'ACCEPTED'" +
            ") AND u.id NOT IN (" +
-           "  SELECT h.friendId FROM HiddenFriend h " +
+           "  SELECT h.friendId FROM HiddenFriendJpaEntity h " +
            "  WHERE h.userId = :userId" +
            ")")
     List<UserJpaEntity> findAcceptedFriendsWithUserData(@Param("userId") Long userId);
@@ -81,10 +82,10 @@ public interface FriendJpaRepository extends JpaRepository<Friend, Long> {
      */
     @Query("SELECT u FROM UserJpaEntity u " +
            "WHERE u.id IN (" +
-           "  SELECT f.friendId FROM Friend f " +
+           "  SELECT f.friendId FROM FriendJpaEntity f " +
            "  WHERE f.userId = :userId AND f.status = 'ACCEPTED'" +
            ") AND u.id NOT IN (" +
-           "  SELECT h.friendId FROM HiddenFriend h " +
+           "  SELECT h.friendId FROM HiddenFriendJpaEntity h " +
            "  WHERE h.userId = :userId" +
            ")")
     Page<UserJpaEntity> findAcceptedFriendsWithUserData(@Param("userId") Long userId, Pageable pageable);

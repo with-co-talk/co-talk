@@ -18,7 +18,7 @@
 | `validation/` | Bean Validation 커스텀 어노테이션 |
 | `service/` | 도메인 서비스 |
 | `constants/` | 도메인 상수 |
-| `converter/` | 도메인 값 변환기 |
+| `model/` | 값 객체 (Email, PageQuery, PageResult 등) |
 | `util/` | 도메인 유틸 (HtmlSanitizer 등) |
 
 ## 주요 파일
@@ -27,12 +27,13 @@
 | 파일 | 설명 |
 |------|------|
 | `entity/User.java` | 사용자 엔티티. `DomainBaseEntity` 상속(JPA 없음), `Email` 값 객체, 상태 전이 메서드 |
-| `entity/Message.java` | 메시지 엔티티. 암호화(`EncryptedStringConverter`), 소프트 삭제, 링크 미리보기, 답장/전달 |
+| `entity/Message.java` | 메시지 엔티티(순수 POJO). 소프트 삭제, 링크 미리보기, 답장/전달. `content` 암호화는 `MessageJpaEntity`의 `@Convert`(`infrastructure.crypto.EncryptedStringConverter`)가 담당 |
 | `entity/ChatRoom.java` | 채팅방 엔티티. DIRECT/GROUP/SELF 3타입, 이름/공지 유효성 규칙 내장 |
 | `entity/ChatRoomMember.java` | 채팅방 멤버십. 권한(OWNER/ADMIN/MEMBER), 읽음 위치 추적 |
 | `entity/Friend.java` | 양방향 친구 관계 |
-| `entity/BaseEntity.java` | JPA 매핑 포함 공통 베이스 (미분리 엔티티용, 향후 제거 예정) |
-| `entity/DomainBaseEntity.java` | 순수 도메인 베이스 (JPA 없음). 완전 분리된 엔티티용 |
+| `entity/DomainBaseEntity.java` | 순수 도메인 베이스 (JPA 없음, `createdAt`/`updatedAt`). 모든 도메인 엔티티가 상속 |
+
+> 모든 도메인 엔티티는 순수 POJO이며 JPA 매핑은 `adapter/outbound/persistence/entity/<Name>JpaEntity` + `<Name>Mapper`에 위치한다. JPA 감사 베이스는 persistence 계층의 `BaseJpaEntity`가 담당한다.
 
 ### 포트
 | 파일 | 설명 |

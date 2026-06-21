@@ -1,5 +1,6 @@
 package com.cotalk.adapter.outbound.persistence.message;
 
+import com.cotalk.adapter.outbound.persistence.mapper.MessageMapper;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.port.outbound.MessageSearchBackfillPort;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class MessageSearchBackfillAdapter implements MessageSearchBackfillPort {
 
     private final MessageJpaRepository messageJpaRepository;
     private final MessageSearchTokenJpaRepository messageSearchTokenJpaRepository;
+    private final MessageMapper messageMapper;
 
     /**
      * TEXT(미삭제) 메시지를 id 오름차순 커서 청크로 조회한다.
@@ -33,7 +35,9 @@ public class MessageSearchBackfillAdapter implements MessageSearchBackfillPort {
      */
     @Override
     public List<Message> findTextMessagesForBackfill(long afterId, int chunkSize) {
-        return messageJpaRepository.findTextMessagesForBackfill(afterId, PageRequest.of(0, chunkSize));
+        return messageJpaRepository.findTextMessagesForBackfill(afterId, PageRequest.of(0, chunkSize)).stream()
+                .map(messageMapper::toDomain)
+                .toList();
     }
 
     /**

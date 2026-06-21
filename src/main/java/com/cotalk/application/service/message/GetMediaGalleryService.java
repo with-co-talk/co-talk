@@ -2,6 +2,7 @@ package com.cotalk.application.service.message;
 
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.entity.User;
+import com.cotalk.domain.model.PageQuery;
 import com.cotalk.domain.port.inbound.message.GetMediaGalleryUseCase;
 import com.cotalk.domain.port.outbound.FileStorage;
 import com.cotalk.domain.port.outbound.MessageRepository;
@@ -9,8 +10,6 @@ import com.cotalk.domain.port.outbound.UserRepository;
 import com.cotalk.domain.validator.ChatRoomMemberValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,15 +76,15 @@ public class GetMediaGalleryService implements GetMediaGalleryUseCase {
         // 권한 체크: 채팅방 멤버인지 확인
         chatRoomMemberValidator.validateMembership(chatRoomId, userId);
 
-        Pageable pageable = PageRequest.of(page, size);
+        PageQuery query = PageQuery.of(page, size);
         List<Message> messages;
 
         switch (type.toUpperCase()) {
             case "PHOTO" -> messages = messageRepository.findByTypeInChatRoom(
-                    chatRoomId, List.of(Message.MessageType.IMAGE), pageable);
+                    chatRoomId, List.of(Message.MessageType.IMAGE), query);
             case "FILE" -> messages = messageRepository.findByTypeInChatRoom(
-                    chatRoomId, List.of(Message.MessageType.FILE), pageable);
-            case "LINK" -> messages = messageRepository.findMessagesWithLinkPreview(chatRoomId, pageable);
+                    chatRoomId, List.of(Message.MessageType.FILE), query);
+            case "LINK" -> messages = messageRepository.findMessagesWithLinkPreview(chatRoomId, query);
             default -> throw new IllegalArgumentException("지원하지 않는 미디어 유형입니다: " + type);
         }
 

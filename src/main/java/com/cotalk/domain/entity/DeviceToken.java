@@ -1,46 +1,35 @@
 package com.cotalk.domain.entity;
 
-import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 
 /**
- * 디바이스 토큰 엔티티.
+ * 디바이스 토큰 도메인 엔티티.
  * 사용자의 푸시 알림용 디바이스 토큰 정보를 나타낸다.
  * FCM (Android/Web) 및 APNs (iOS) 토큰을 저장한다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "device_tokens",
-        indexes = {
-                @Index(name = "idx_device_token_user_id", columnList = "user_id"),
-                @Index(name = "idx_device_token_token", columnList = "token", unique = true)
-        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class DeviceToken extends BaseEntity {
+@SuperBuilder
+public class DeviceToken extends DomainBaseEntity {
 
-    @Id
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false, unique = true)
     private String token;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "device_type", nullable = false, length = 20)
     private DeviceType deviceType;
 
-    @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
 

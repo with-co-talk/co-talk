@@ -1,44 +1,38 @@
 package com.cotalk.domain.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
 /**
- * 채팅방 멤버 엔티티.
+ * 채팅방 멤버 도메인 엔티티.
  * 채팅방에 참여한 사용자의 정보를 나타낸다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "chat_room_members", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"chat_room_id", "user_id"})
-})
-@AttributeOverride(name = "createdAt", column = @Column(name = "joined_at", nullable = false, updatable = false))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class ChatRoomMember extends BaseEntity {
+@SuperBuilder
+public class ChatRoomMember extends DomainBaseEntity {
 
-    @Id
     private Long id;
 
-    @Column(name = "chat_room_id", nullable = false)
     private Long chatRoomId;
 
-    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     @Builder.Default
     private MemberRole role = MemberRole.MEMBER;
 
     private LocalDateTime lastReadAt;
 
-    @Column(name = "last_read_message_id")
     private Long lastReadMessageId;
 
     /**
@@ -55,7 +49,7 @@ public class ChatRoomMember extends BaseEntity {
 
     /**
      * 참여 시간을 반환한다.
-     * BaseEntity의 createdAt을 joinedAt으로 사용한다.
+     * DomainBaseEntity의 createdAt을 joinedAt으로 사용한다.
      *
      * @return 참여 시간
      */

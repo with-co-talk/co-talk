@@ -1,7 +1,5 @@
 package com.cotalk.infrastructure.crypto;
 
-import com.cotalk.domain.converter.EncryptionPortHolder;
-import com.cotalk.domain.port.outbound.EncryptionPort;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,25 +17,11 @@ public class EncryptionServiceHolder {
     /**
      * EncryptionServiceHolder 생성자.
      * Spring이 이 컴포넌트를 생성할 때 EncryptionService를 정적 필드에 저장한다.
-     * 동시에 Domain layer의 EncryptionPortHolder에도 포트 구현체를 설정한다.
      *
      * @param encryptionService 암호화 서비스
      */
     public EncryptionServiceHolder(EncryptionService encryptionService) {
         EncryptionServiceHolder.encryptionService = encryptionService;
-
-        // Domain layer의 EncryptionPortHolder에도 설정
-        EncryptionPortHolder.setEncryptionPort(new EncryptionPort() {
-            @Override
-            public String encrypt(String plainText) {
-                return encryptionService.encrypt(plainText);
-            }
-
-            @Override
-            public String decrypt(String encryptedText) {
-                return encryptionService.decrypt(encryptedText);
-            }
-        });
     }
 
     /**

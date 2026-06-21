@@ -1,6 +1,6 @@
 package com.cotalk.adapter.inbound.rest.dto.chatroom;
 
-import org.springframework.data.domain.Page;
+import com.cotalk.domain.model.PageResult;
 
 import java.util.List;
 
@@ -34,19 +34,19 @@ public record ChatRoomsResponse(
     }
 
     /**
-     * Page 객체와 매핑된 DTO 목록으로부터 응답을 생성합니다.
+     * PageResult 객체와 매핑된 DTO 목록으로부터 응답을 생성합니다.
      *
      * @param rooms    채팅방 DTO 목록
-     * @param pageData Page 메타데이터 소스
+     * @param pageData PageResult 메타데이터 소스
      * @return ChatRoomsResponse 인스턴스
      */
-    public static ChatRoomsResponse of(List<ChatRoomDto> rooms, Page<?> pageData) {
+    public static ChatRoomsResponse of(List<ChatRoomDto> rooms, PageResult<?> pageData) {
         return new ChatRoomsResponse(
                 rooms,
-                pageData.getNumber(),
-                pageData.getSize(),
-                pageData.getTotalElements(),
-                pageData.getTotalPages()
+                pageData.page(),
+                pageData.size(),
+                pageData.totalElements(),
+                pageData.totalPages()
         );
     }
 }

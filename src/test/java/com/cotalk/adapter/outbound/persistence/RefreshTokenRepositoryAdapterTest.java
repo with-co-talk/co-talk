@@ -1,6 +1,7 @@
 package com.cotalk.adapter.outbound.persistence;
 
 import com.cotalk.adapter.outbound.persistence.refreshtoken.RefreshTokenRepositoryAdapter;
+import com.cotalk.adapter.outbound.persistence.mapper.RefreshTokenMapper;
 import com.cotalk.adapter.outbound.persistence.mapper.UserMapper;
 import com.cotalk.adapter.outbound.persistence.user.UserRepositoryAdapter;
 import com.cotalk.domain.entity.RefreshToken;
@@ -29,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import({RefreshTokenRepositoryAdapter.class, UserRepositoryAdapter.class, UserMapper.class, JpaAuditingConfig.class})
+@Import({RefreshTokenRepositoryAdapter.class, RefreshTokenMapper.class, UserRepositoryAdapter.class, UserMapper.class, JpaAuditingConfig.class})
 @DisplayName("RefreshTokenRepositoryAdapter")
 class RefreshTokenRepositoryAdapterTest {
 

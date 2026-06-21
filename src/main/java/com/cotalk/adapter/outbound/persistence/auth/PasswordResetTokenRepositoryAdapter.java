@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.auth;
 
+import com.cotalk.adapter.outbound.persistence.entity.PasswordResetTokenJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.PasswordResetTokenMapper;
 import com.cotalk.domain.entity.PasswordResetToken;
 import com.cotalk.domain.model.Email;
 import com.cotalk.domain.port.outbound.PasswordResetTokenRepository;
@@ -20,6 +22,7 @@ import java.util.Optional;
 public class PasswordResetTokenRepositoryAdapter implements PasswordResetTokenRepository {
 
     private final PasswordResetTokenJpaRepository jpaRepository;
+    private final PasswordResetTokenMapper mapper;
 
     /**
      * 비밀번호 재설정 토큰을 저장한다.
@@ -29,7 +32,8 @@ public class PasswordResetTokenRepositoryAdapter implements PasswordResetTokenRe
      */
     @Override
     public PasswordResetToken save(PasswordResetToken token) {
-        return jpaRepository.save(token);
+        PasswordResetTokenJpaEntity saved = jpaRepository.save(mapper.toJpa(token));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -40,7 +44,7 @@ public class PasswordResetTokenRepositoryAdapter implements PasswordResetTokenRe
      */
     @Override
     public Optional<PasswordResetToken> findByToken(String token) {
-        return jpaRepository.findByToken(token);
+        return jpaRepository.findByToken(token).map(mapper::toDomain);
     }
 
     /**
@@ -51,7 +55,7 @@ public class PasswordResetTokenRepositoryAdapter implements PasswordResetTokenRe
      */
     @Override
     public Optional<PasswordResetToken> findLatestActiveByEmail(String email) {
-        return jpaRepository.findLatestActiveByEmail(new Email(email));
+        return jpaRepository.findLatestActiveByEmail(new Email(email)).map(mapper::toDomain);
     }
 
     /**

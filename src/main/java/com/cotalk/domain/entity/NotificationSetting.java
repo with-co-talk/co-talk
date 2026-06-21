@@ -1,62 +1,54 @@
 package com.cotalk.domain.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalTime;
 
 /**
- * 알림 설정 엔티티.
+ * 알림 설정 도메인 엔티티.
  * 사용자의 푸시 알림 설정 정보를 나타낸다.
+ * 순수 도메인 모델이며 JPA 어노테이션은 persistence 계층에만 존재한다.
  *
  * @author seunggu.lee
  */
-@Entity
-@Table(name = "notification_settings")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
-public class NotificationSetting extends BaseEntity {
+@SuperBuilder
+public class NotificationSetting extends DomainBaseEntity {
 
-    @Id
     private Long id;
 
-    @Column(name = "user_id", nullable = false, unique = true)
     private Long userId;
 
-    @Column(name = "message_notification", nullable = false)
     @Builder.Default
     private boolean messageNotification = true;
 
-    @Column(name = "friend_request_notification", nullable = false)
     @Builder.Default
     private boolean friendRequestNotification = true;
 
-    @Column(name = "group_invite_notification", nullable = false)
     @Builder.Default
     private boolean groupInviteNotification = true;
 
-    @Column(name = "notification_preview_mode", nullable = false, length = 20)
     @Builder.Default
     private String notificationPreviewMode = "NAME_AND_MESSAGE";
 
-    @Column(name = "sound_enabled", nullable = false)
     @Builder.Default
     private boolean soundEnabled = true;
 
-    @Column(name = "vibration_enabled", nullable = false)
     @Builder.Default
     private boolean vibrationEnabled = true;
 
-    @Column(name = "do_not_disturb_enabled", nullable = false)
     @Builder.Default
     private boolean doNotDisturbEnabled = false;
 
-    @Column(name = "do_not_disturb_start")
     private String doNotDisturbStart;
 
-    @Column(name = "do_not_disturb_end")
     private String doNotDisturbEnd;
 
     /**

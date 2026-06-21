@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.auth;
 
+import com.cotalk.adapter.outbound.persistence.entity.PasswordResetTokenJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.PasswordResetTokenMapper;
 import com.cotalk.domain.entity.PasswordResetToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,10 +32,14 @@ class PasswordResetTokenRepositoryAdapterTest {
     @Mock
     private PasswordResetTokenJpaRepository jpaRepository;
 
+    @Mock
+    private PasswordResetTokenMapper mapper;
+
     @InjectMocks
     private PasswordResetTokenRepositoryAdapter adapter;
 
     private PasswordResetToken token;
+    private PasswordResetTokenJpaEntity jpaEntity;
 
     @BeforeEach
     void setUp() {
@@ -42,6 +48,12 @@ class PasswordResetTokenRepositoryAdapterTest {
                 .userId(100L)
                 .token("reset-token-123")
                 .expiresAt(LocalDateTime.now().plusHours(1))
+                .build();
+        jpaEntity = PasswordResetTokenJpaEntity.builder()
+                .id(1L)
+                .userId(100L)
+                .token("reset-token-123")
+                .expiresAt(token.getExpiresAt())
                 .build();
     }
 
@@ -53,14 +65,16 @@ class PasswordResetTokenRepositoryAdapterTest {
         @DisplayName("토큰을 저장하고 반환한다")
         void should_saveToken_when_tokenProvided() {
             // given
-            when(jpaRepository.save(token)).thenReturn(token);
+            when(mapper.toJpa(token)).thenReturn(jpaEntity);
+            when(jpaRepository.save(jpaEntity)).thenReturn(jpaEntity);
+            when(mapper.toDomain(jpaEntity)).thenReturn(token);
 
             // when
             PasswordResetToken result = adapter.save(token);
 
             // then
             assertThat(result).isEqualTo(token);
-            verify(jpaRepository).save(token);
+            verify(jpaRepository).save(jpaEntity);
         }
     }
 
@@ -73,7 +87,8 @@ class PasswordResetTokenRepositoryAdapterTest {
         void should_findToken_when_tokenExists() {
             // given
             String tokenValue = "reset-token-123";
-            when(jpaRepository.findByToken(tokenValue)).thenReturn(Optional.of(token));
+            when(jpaRepository.findByToken(tokenValue)).thenReturn(Optional.of(jpaEntity));
+            when(mapper.toDomain(jpaEntity)).thenReturn(token);
 
             // when
             Optional<PasswordResetToken> result = adapter.findByToken(tokenValue);

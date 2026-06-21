@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.auth;
 
+import com.cotalk.adapter.outbound.persistence.entity.EmailVerificationTokenJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.EmailVerificationTokenMapper;
 import com.cotalk.domain.entity.EmailVerificationToken;
 import com.cotalk.domain.port.outbound.EmailVerificationTokenRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import java.util.Optional;
 public class EmailVerificationTokenRepositoryAdapter implements EmailVerificationTokenRepository {
 
     private final EmailVerificationTokenJpaRepository jpaRepository;
+    private final EmailVerificationTokenMapper mapper;
 
     /**
      * 이메일 인증 토큰을 저장한다.
@@ -28,7 +31,8 @@ public class EmailVerificationTokenRepositoryAdapter implements EmailVerificatio
      */
     @Override
     public EmailVerificationToken save(EmailVerificationToken token) {
-        return jpaRepository.save(token);
+        EmailVerificationTokenJpaEntity saved = jpaRepository.save(mapper.toJpa(token));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -39,7 +43,7 @@ public class EmailVerificationTokenRepositoryAdapter implements EmailVerificatio
      */
     @Override
     public Optional<EmailVerificationToken> findByToken(String token) {
-        return jpaRepository.findByToken(token);
+        return jpaRepository.findByToken(token).map(mapper::toDomain);
     }
 
     /**
@@ -50,7 +54,7 @@ public class EmailVerificationTokenRepositoryAdapter implements EmailVerificatio
      */
     @Override
     public Optional<EmailVerificationToken> findLatestByUserId(Long userId) {
-        return jpaRepository.findLatestByUserId(userId);
+        return jpaRepository.findLatestByUserId(userId).map(mapper::toDomain);
     }
 
     /**

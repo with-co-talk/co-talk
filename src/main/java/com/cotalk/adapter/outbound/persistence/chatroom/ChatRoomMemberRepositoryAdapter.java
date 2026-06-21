@@ -1,5 +1,7 @@
 package com.cotalk.adapter.outbound.persistence.chatroom;
 
+import com.cotalk.adapter.outbound.persistence.entity.ChatRoomMemberJpaEntity;
+import com.cotalk.adapter.outbound.persistence.mapper.ChatRoomMemberMapper;
 import com.cotalk.domain.entity.ChatRoomMember;
 import com.cotalk.domain.port.outbound.ChatRoomMemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +15,7 @@ import java.util.Optional;
 
 /**
  * 채팅방 멤버 영속성 어댑터.
- * JPA를 통해 채팅방 멤버 데이터를 저장하고 조회한다.
+ * JPA 엔티티와 도메인 간 매핑을 수행하며, 도메인 포트를 구현한다.
  *
  * @author seunggu.lee
  */
@@ -22,6 +24,7 @@ import java.util.Optional;
 public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository {
 
     private final ChatRoomMemberJpaRepository chatRoomMemberJpaRepository;
+    private final ChatRoomMemberMapper mapper;
 
     /**
      * 채팅방 멤버를 저장한다.
@@ -31,7 +34,8 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
      */
     @Override
     public ChatRoomMember save(ChatRoomMember member) {
-        return chatRoomMemberJpaRepository.save(member);
+        ChatRoomMemberJpaEntity saved = chatRoomMemberJpaRepository.save(mapper.toJpa(member));
+        return mapper.toDomain(saved);
     }
 
     /**
@@ -42,7 +46,12 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
      */
     @Override
     public List<ChatRoomMember> saveAll(List<ChatRoomMember> members) {
-        return chatRoomMemberJpaRepository.saveAll(members);
+        List<ChatRoomMemberJpaEntity> jpaEntities = members.stream()
+                .map(mapper::toJpa)
+                .toList();
+        return chatRoomMemberJpaRepository.saveAll(jpaEntities).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -54,7 +63,7 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
      */
     @Override
     public Optional<ChatRoomMember> findByChatRoomIdAndUserId(Long chatRoomId, Long userId) {
-        return chatRoomMemberJpaRepository.findByChatRoomIdAndUserId(chatRoomId, userId);
+        return chatRoomMemberJpaRepository.findByChatRoomIdAndUserId(chatRoomId, userId).map(mapper::toDomain);
     }
 
     /**
@@ -65,7 +74,9 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
      */
     @Override
     public List<ChatRoomMember> findByChatRoomId(Long chatRoomId) {
-        return chatRoomMemberJpaRepository.findByChatRoomId(chatRoomId);
+        return chatRoomMemberJpaRepository.findByChatRoomId(chatRoomId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -76,7 +87,9 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
      */
     @Override
     public List<ChatRoomMember> findByUserId(Long userId) {
-        return chatRoomMemberJpaRepository.findByUserId(userId);
+        return chatRoomMemberJpaRepository.findByUserId(userId).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -98,7 +111,7 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
      */
     @Override
     public void delete(ChatRoomMember member) {
-        chatRoomMemberJpaRepository.delete(member);
+        chatRoomMemberJpaRepository.delete(mapper.toJpa(member));
     }
 
     /**
@@ -202,7 +215,9 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
         if (chatRoomIds == null || chatRoomIds.isEmpty()) {
             return List.of();
         }
-        return chatRoomMemberJpaRepository.findByUserIdAndChatRoomIdIn(userId, chatRoomIds);
+        return chatRoomMemberJpaRepository.findByUserIdAndChatRoomIdIn(userId, chatRoomIds).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     /**
@@ -217,6 +232,8 @@ public class ChatRoomMemberRepositoryAdapter implements ChatRoomMemberRepository
         if (chatRoomIds == null || chatRoomIds.isEmpty()) {
             return List.of();
         }
-        return chatRoomMemberJpaRepository.findOtherMembersByUserIdAndChatRoomIdIn(userId, chatRoomIds);
+        return chatRoomMemberJpaRepository.findOtherMembersByUserIdAndChatRoomIdIn(userId, chatRoomIds).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 }
