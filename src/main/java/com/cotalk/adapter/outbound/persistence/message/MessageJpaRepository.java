@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,36 +17,6 @@ import java.util.Optional;
  * @author seunggu.lee
  */
 public interface MessageJpaRepository extends JpaRepository<MessageJpaEntity, Long> {
-
-    /**
-     * 채팅방 ID로 메시지 목록을 생성일 역순으로 조회한다.
-     *
-     * @param chatRoomId 채팅방 ID
-     * @param pageable 페이지 정보
-     * @return 메시지 목록
-     */
-    @Query("SELECT m FROM MessageJpaEntity m WHERE m.chatRoomId = :chatRoomId AND m.deleted = false ORDER BY m.createdAt DESC")
-    List<MessageJpaEntity> findByChatRoomIdOrderByCreatedAtDesc(@Param("chatRoomId") Long chatRoomId, Pageable pageable);
-
-    /**
-     * 채팅방에서 마지막 읽은 시각 이후의 읽지 않은 메시지 수를 조회한다.
-     *
-     * @param chatRoomId 채팅방 ID
-     * @param userId 사용자 ID (본인 메시지 제외)
-     * @param lastReadAt 마지막 읽은 시각
-     * @return 읽지 않은 메시지 수
-     */
-    @Query("""
-        SELECT COUNT(m)
-        FROM MessageJpaEntity m
-        WHERE m.chatRoomId = :chatRoomId
-          AND m.deleted = false
-          AND m.senderId <> :userId
-          AND (:lastReadAt IS NULL OR m.createdAt > :lastReadAt)
-        """)
-    long countUnreadMessages(@Param("chatRoomId") Long chatRoomId,
-                             @Param("userId") Long userId,
-                             @Param("lastReadAt") LocalDateTime lastReadAt);
 
     /**
      * 채팅방에서 마지막 읽은 메시지 ID 이후의 읽지 않은 메시지 수를 조회한다.

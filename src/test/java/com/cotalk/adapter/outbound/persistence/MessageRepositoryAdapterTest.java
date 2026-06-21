@@ -28,7 +28,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -160,28 +159,6 @@ class MessageRepositoryAdapterTest {
         }
 
         @Test
-        @DisplayName("채팅방 ID로 메시지 목록을 역순으로 조회한다")
-        void should_findMessages_when_chatRoomIdProvided() {
-            // given
-            for (int i = 1; i <= 5; i++) {
-                messageRepository.save(Message.builder()
-                        .id(10000L + i)
-                        .chatRoomId(chatRoom.getId())
-                        .senderId(user1.getId())
-                        .content("메시지 " + i)
-                        .type(MessageType.TEXT)
-                        .build());
-            }
-
-            // when
-            List<Message> messages = messageRepository.findByChatRoomIdOrderByCreatedAtDesc(
-                    chatRoom.getId(), 0, 3);
-
-            // then
-            assertThat(messages).hasSize(3);
-        }
-
-        @Test
         @DisplayName("가장 최근 메시지를 조회한다")
         void should_findLatestMessage_when_chatRoomIdProvided() {
             // given - 단일 메시지만 저장 (Optional 반환을 위해)
@@ -217,57 +194,6 @@ class MessageRepositoryAdapterTest {
     @Nested
     @DisplayName("읽지 않은 메시지 카운트 시")
     class CountUnread {
-
-        @Test
-        @DisplayName("마지막 읽은 시간 이후의 메시지 수를 반환한다")
-        void should_countUnreadMessages_when_lastReadAtProvided() {
-            // given
-            LocalDateTime baseTime = LocalDateTime.of(2024, 1, 1, 12, 0);
-
-            for (int i = 1; i <= 5; i++) {
-                messageRepository.save(Message.builder()
-                        .id(10000L + i)
-                        .chatRoomId(chatRoom.getId())
-                        .senderId(user1.getId())
-                        .content("메시지 " + i)
-                        .type(MessageType.TEXT)
-                        .build());
-            }
-
-            // when
-            long unreadCount = messageRepository.countUnreadMessages(
-                    chatRoom.getId(), user2.getId(), baseTime);
-
-            // then
-            assertThat(unreadCount).isGreaterThanOrEqualTo(0);
-        }
-
-        @Test
-        @DisplayName("마지막 읽은 시간이 null이면 모든 메시지를 카운트한다")
-        void should_countAllMessages_when_lastReadAtIsNull() {
-            // given
-            messageRepository.save(Message.builder()
-                    .id(10001L)
-                    .chatRoomId(chatRoom.getId())
-                    .senderId(user1.getId())
-                    .content("메시지 1")
-                    .type(MessageType.TEXT)
-                    .build());
-            messageRepository.save(Message.builder()
-                    .id(10002L)
-                    .chatRoomId(chatRoom.getId())
-                    .senderId(user1.getId())
-                    .content("메시지 2")
-                    .type(MessageType.TEXT)
-                    .build());
-
-            // when - user2의 관점에서 user1이 보낸 메시지 카운트
-            long unreadCount = messageRepository.countUnreadMessages(
-                    chatRoom.getId(), user2.getId(), null);
-
-            // then - null이면 모든 메시지가 카운트됨 (본인 메시지 제외)
-            assertThat(unreadCount).isEqualTo(2);
-        }
 
         @Test
         @DisplayName("마지막 읽은 메시지 ID 이후의 메시지 수를 반환한다")

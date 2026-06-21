@@ -10,7 +10,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,34 +49,6 @@ public class MessageRepositoryAdapter implements MessageRepository {
     @Override
     public Optional<Message> findById(Long id) {
         return messageJpaRepository.findById(id).map(mapper::toDomain);
-    }
-
-    /**
-     * 채팅방 ID로 메시지 목록을 생성일 역순으로 조회한다.
-     *
-     * @param chatRoomId 채팅방 ID
-     * @param page 페이지 번호
-     * @param size 페이지 크기
-     * @return 메시지 목록
-     */
-    @Override
-    public List<Message> findByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId, int page, int size) {
-        return messageJpaRepository.findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, PageRequest.of(page, size)).stream()
-                .map(mapper::toDomain)
-                .toList();
-    }
-
-    /**
-     * 채팅방에서 읽지 않은 메시지 수를 조회한다.
-     *
-     * @param chatRoomId 채팅방 ID
-     * @param userId 사용자 ID
-     * @param lastReadAt 마지막 읽은 시각
-     * @return 읽지 않은 메시지 수
-     */
-    @Override
-    public long countUnreadMessages(Long chatRoomId, Long userId, LocalDateTime lastReadAt) {
-        return messageJpaRepository.countUnreadMessages(chatRoomId, userId, lastReadAt);
     }
 
     @Override

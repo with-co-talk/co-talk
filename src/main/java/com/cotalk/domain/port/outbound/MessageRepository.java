@@ -3,7 +3,6 @@ package com.cotalk.domain.port.outbound;
 import com.cotalk.domain.entity.Message;
 import com.cotalk.domain.model.PageQuery;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -11,6 +10,10 @@ import java.util.Optional;
 /**
  * 메시지 레포지토리 포트.
  * 채팅 메시지 데이터 저장 및 조회를 위한 인터페이스를 정의한다.
+ *
+ * <p><b>정렬 권위(ordering authority):</b> 안 읽음 수 집계와 히스토리 조회는 모두
+ * 메시지 ID(단조 증가 Snowflake)를 단일 정렬·비교 기준으로 사용한다. {@code createdAt}
+ * 기반 비교나 offset 페이지네이션은 사용하지 않는다(커서 기반 + ID 비교로 일원화).</p>
  *
  * @author seunggu.lee
  */
@@ -31,26 +34,6 @@ public interface MessageRepository {
      * @return 조회된 메시지 (Optional)
      */
     Optional<Message> findById(Long id);
-
-    /**
-     * 채팅방의 메시지를 생성일시 역순으로 페이징 조회한다.
-     *
-     * @param chatRoomId 채팅방 ID
-     * @param page       페이지 번호 (0부터 시작)
-     * @param size       페이지 크기
-     * @return 메시지 목록 (최신순)
-     */
-    List<Message> findByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId, int page, int size);
-
-    /**
-     * 채팅방에서 특정 시점 이후의 읽지 않은 메시지 수를 조회한다.
-     *
-     * @param chatRoomId 채팅방 ID
-     * @param userId     사용자 ID
-     * @param lastReadAt 마지막 읽은 시간
-     * @return 읽지 않은 메시지 수
-     */
-    long countUnreadMessages(Long chatRoomId, Long userId, LocalDateTime lastReadAt);
 
     /**
      * 채팅방에서 마지막 읽은 메시지 ID 이후의 읽지 않은 메시지 수를 조회한다.
