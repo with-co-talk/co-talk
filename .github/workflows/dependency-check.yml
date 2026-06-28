@@ -1,0 +1,68 @@
+name: Dependency CVE Scan (OWASP A06)
+
+# 의존성 취약점(CVE) 스캔.
+# - PR / main push 시 OWASP Dependency-Check 를 실행한다.
+# - CVSS 7.0 이상 취약점 발견 시 빌드를 실패시킨다(-PdependencyCheckCI=true).
+# - 주 1회 스케줄 실행으로 신규 공개 CVE를 조기에 탐지한다.
+#
+# [필수] 메인테이너는 리포지토리 Secret 에 NVD_API_KEY 를 추가해야 한다.
+#   - 발급: https://nvd.nist.gov/developers/request-an-api-key
+#   - 키가 없으면 NVD DB 갱신이 매우 느려지고 rate-limit 으로 실패할 수 있다.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # 매주 월요일 03:00 UTC (KST 12:00) — 신규 CVE 탐지
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # NVD 데이터 캐시(다운로드 시간 단축). 주 단위 키로 갱신.
+      - name: Cache NVD database
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/dependency-check-data
+          key: nvd-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            nvd-${{ runner.os }}-
+
+      - name: Run OWASP Dependency-Check (CVSS >= 7.0 fails build)
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: ./gradlew dependencyCheckAnalyze -PdependencyCheckCI=true --no-daemon
+
+      - name: Upload Dependency-Check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: build/reports/dependency-check-report.*
+          if-no-files-found: ignore
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: build/reports/dependency-check-report.sarif

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OWASP Dependency-Check 오탐(false positive) 억제 파일.
+
+  - 빌드(`dependencyCheckAnalyze`)가 오탐으로 실패할 때, 근거를 남기고 여기에 추가한다.
+  - 모든 억제 항목은 반드시 <notes>에 사유/판단 근거/검토일을 기록한다.
+  - 실제 취약점을 숨기는 용도로 쓰지 말 것. 우선순위는 "의존성 버전 업"이다.
+
+  문법 참고: https://jeremylong.github.io/DependencyCheck/general/suppression.html
+
+  예시(주석 처리됨):
+  <suppress>
+    <notes><![CDATA[
+      false positive: <라이브러리>는 취약한 <컴포넌트>를 포함하지 않음. 검토일 2026-06-28.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/com\.example/.*$</packageUrl>
+    <cve>CVE-0000-00000</cve>
+  </suppress>
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+</suppressions>
