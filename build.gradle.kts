@@ -3,6 +3,8 @@ plugins {
     jacoco
     id("org.springframework.boot") version "3.5.6"
     id("io.spring.dependency-management") version "1.1.7"
+    // OWASP Dependency-Check: 의존성 CVE 스캔 (OWASP A06). dependencyCheckAnalyze 태스크 제공.
+    id("org.owasp.dependencycheck") version "12.1.0"
 }
 
 group = "com.cotalk"
@@ -176,5 +178,43 @@ tasks.jacocoTestCoverageVerification {
                 "*.CoTalkApplication"
             )
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// OWASP Dependency-Check (의존성 CVE 스캔, OWASP A06)
+//
+// - `./gradlew dependencyCheckAnalyze` 로 의존성 트리의 알려진 CVE를 스캔한다.
+// - 기본 `test` 태스크와 분리되어 있어 일반 개발 빌드 속도에 영향을 주지 않는다.
+// - 빌드 실패 게이트(failBuildOnCVSS)는 CI에서만 활성화한다:
+//     로컬:  게이트 비활성(11.0) → NVD DB가 없어도 개발 빌드가 깨지지 않음
+//     CI  :  `-PdependencyCheckCI=true` 전달 시 CVSS 7.0 이상에서 빌드 실패
+// - NVD API 키는 환경변수 NVD_API_KEY 로 주입한다(없으면 느리지만 동작).
+// ----------------------------------------------------------------------------
+val dependencyCheckCI = providers.gradleProperty("dependencyCheckCI").orNull == "true"
+
+dependencyCheck {
+    // CI에서만 빌드 실패 게이트 적용. 로컬은 11.0(=사실상 비활성)으로 개발 빌드 보호.
+    failBuildOnCVSS = if (dependencyCheckCI) 7.0f else 11.0f
+
+    // 문서화된 오탐(false positive) 억제 파일
+    suppressionFile = "owasp-suppressions.xml"
+
+    // NVD API 키(있으면 빠름, 없으면 느리지만 동작)
+    providers.environmentVariable("NVD_API_KEY").orNull?.let { nvd.apiKey = it }
+
+    // 테스트 전용 의존성은 런타임 위협이 아니므로 스캔 범위에서 제외
+    scanConfigurations = configurations
+        .filter { it.name.startsWith("runtimeClasspath") || it.name.startsWith("compileClasspath") }
+        .map { it.name }
+
+    // 리포트 포맷(HTML + SARIF: CI/보안 도구 연동 용이)
+    formats = listOf("HTML", "SARIF")
+
+    // 오래된 분석기로 인한 오탐/잡음 감소
+    analyzers.apply {
+        assemblyEnabled = false
+        nodeAuditEnabled = false
+        nodeEnabled = false
     }
 }
