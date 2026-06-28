@@ -112,7 +112,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        String keyString = generateKey(request, limit);
+        String keyString = generateKey(request, limit, path);
         byte[] key = keyString.getBytes(StandardCharsets.UTF_8);
         Bucket bucket = resolveBucket(key, limit);
         boolean consumed = bucket.tryConsume(1);
@@ -251,11 +251,23 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      * Rate Limit 키를 생성한다.
      * 사용자별 제한이면 사용자 ID, 아니면 클라이언트 IP를 기준으로 키를 생성한다.
      *
+     * <p>버킷 키의 엔드포인트 식별자는 raw 요청 URI가 아니라 매칭 단계에서 사용한
+     * 정규화/해석된 엔드포인트 식별자({@code endpointId})를 사용한다. 이로써
+     * {@code /api/v1/auth/login}, {@code /api/v1/auth/login/},
+     * {@code /api/v1/auth/login;jsessionid=...} 같은 URI 변형이 동일 클라이언트에 대해
+     * 서로 다른 버킷을 만들어 throttle을 우회(브루트포스 증폭)하는 것을 차단한다.
+     * 매칭된 엔드포인트 설정 경로({@link RateLimitProperties.EndpointRateLimit#getPath()})를
+     * 우선 사용하고, 없으면 해석된 매칭 경로로 대체한다.</p>
+     *
      * @param request HTTP 요청
      * @param limit Rate Limit 설정
+     * @param matchedPath 매칭 단계에서 해석된 경로(폴백용)
      * @return Rate Limit 키 문자열
      */
-    private String generateKey(HttpServletRequest request, RateLimitProperties.EndpointRateLimit limit) {
+    private String generateKey(HttpServletRequest request, RateLimitProperties.EndpointRateLimit limit, String matchedPath) {
+        String endpointId = (limit.getPath() != null && !limit.getPath().isBlank())
+                ? limit.getPath()
+                : matchedPath;
         if (limit.isPerUser()) {
             // 사용자별 제한
             Optional<Long> userId = extractToken(request)
@@ -263,12 +275,12 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                     .map(jwtTokenProvider::getUserIdFromToken);
 
             if (userId.isPresent()) {
-                return "rate-limit:user:" + userId.get() + ":" + request.getRequestURI();
+                return "rate-limit:user:" + userId.get() + ":" + endpointId;
             }
         }
         // IP별 제한
         String ip = getClientIpAddress(request);
-        return "rate-limit:ip:" + ip + ":" + request.getRequestURI();
+        return "rate-limit:ip:" + ip + ":" + endpointId;
     }
 
     /**

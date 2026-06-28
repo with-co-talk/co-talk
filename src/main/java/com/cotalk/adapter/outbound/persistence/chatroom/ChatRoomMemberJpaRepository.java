@@ -99,24 +99,6 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
                                        @Param("lastReadMessageId") Long lastReadMessageId);
 
     /**
-     * 특정 메시지를 읽지 않은 멤버 수를 조회한다.
-     * 메시지 생성 시간보다 lastReadAt이 이전이거나 null인 멤버의 수를 반환한다.
-     * 발신자는 제외한다.
-     *
-     * @param chatRoomId       채팅방 ID
-     * @param messageCreatedAt 메시지 생성 시간
-     * @param senderId         발신자 ID (제외할 사용자)
-     * @return 읽지 않은 멤버 수
-     */
-    @Query("SELECT COUNT(m) FROM ChatRoomMemberJpaEntity m " +
-           "WHERE m.chatRoomId = :chatRoomId " +
-           "AND m.userId != :senderId " +
-           "AND (m.lastReadAt IS NULL OR m.lastReadAt < :messageCreatedAt)")
-    int countUnreadMembers(@Param("chatRoomId") Long chatRoomId,
-                           @Param("messageCreatedAt") LocalDateTime messageCreatedAt,
-                           @Param("senderId") Long senderId);
-
-    /**
      * 특정 메시지를 읽지 않은 멤버 수를 조회한다. (messageId 기준)
      */
     @Query("SELECT COUNT(m) FROM ChatRoomMemberJpaEntity m " +
