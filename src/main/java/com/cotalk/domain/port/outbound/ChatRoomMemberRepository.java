@@ -105,18 +105,6 @@ public interface ChatRoomMemberRepository {
     int updateLastReadMessageIdIfNewer(Long chatRoomId, Long userId, LocalDateTime lastReadAt, Long lastReadMessageId);
 
     /**
-     * 특정 메시지를 읽지 않은 멤버 수를 조회한다.
-     * 메시지 생성 시간보다 lastReadAt이 이전이거나 null인 멤버의 수를 반환한다.
-     * 발신자는 제외한다.
-     *
-     * @param chatRoomId       채팅방 ID
-     * @param messageCreatedAt 메시지 생성 시간
-     * @param senderId         발신자 ID (제외할 사용자)
-     * @return 읽지 않은 멤버 수
-     */
-    int countUnreadMembers(Long chatRoomId, LocalDateTime messageCreatedAt, Long senderId);
-
-    /**
      * 특정 메시지를 읽지 않은 멤버 수를 조회한다. (messageId 기준)
      * 발신자는 제외한다.
      *
