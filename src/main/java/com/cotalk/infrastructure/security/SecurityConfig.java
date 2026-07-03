@@ -153,9 +153,14 @@ public class SecurityConfig {
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                        // Prometheus 스크랩 전용. 앱 레벨에서는 permitAll이지만 공개 노출은
+                        // nginx 엣지에서 /actuator/prometheus를 404로 차단한다(docker/nginx/nginx.conf).
+                        // Prometheus는 도커 내부망에서 app:8080으로 직접 스크랩하므로 nginx 차단에 영향받지 않는다.
+                        // (M-4: 이전엔 ADMIN 전용이었으나, 무인증 스크랩과의 충돌을 엣지 차단으로 대체)
+                        .requestMatchers("/actuator/prometheus").permitAll()
                         // 관리자 전용 엔드포인트
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        // /actuator/prometheus 포함 그 외 모든 actuator 엔드포인트는 ADMIN 전용 (메트릭 노출 차단)
+                        // 그 외 모든 actuator 엔드포인트(metrics, caches 등)는 ADMIN 전용 (민감 정보 노출 차단)
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated())

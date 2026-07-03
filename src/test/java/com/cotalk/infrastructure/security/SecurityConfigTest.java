@@ -157,10 +157,20 @@ class SecurityConfigTest {
     }
 
     @Test
-    @DisplayName("should_401_반환_when_actuator_prometheus_인증없이_접근")
-    void should_returnUnauthorized_when_actuatorPrometheusWithoutAuth() throws Exception {
-        // when & then: M-4 - prometheus는 더 이상 permitAll이 아님 (ADMIN 전용)
+    @DisplayName("should_인증게이트_통과_when_actuator_prometheus_무인증_스크랩허용")
+    void should_passSecurityGate_when_actuatorPrometheusWithoutAuth() throws Exception {
+        // when & then: prometheus는 무인증 스크랩 허용(permitAll). 공개 노출은 nginx 엣지에서 차단한다.
+        // health/info와 동일하게 @WebMvcTest 슬라이스에 actuator 핸들러가 없어 catch-all에 의해
+        // 500으로 매핑된다. 핵심은 401(인증 차단)이 아니라는 점 → permitAll 검증.
         mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    @DisplayName("should_401_반환_when_actuator_metrics_인증없이_접근")
+    void should_returnUnauthorized_when_actuatorMetricsWithoutAuth() throws Exception {
+        // when & then: metrics 등 그 외 actuator 엔드포인트는 여전히 ADMIN 전용 → 무인증 시 401.
+        mockMvc.perform(get("/actuator/metrics"))
                 .andExpect(status().isUnauthorized());
     }
 
