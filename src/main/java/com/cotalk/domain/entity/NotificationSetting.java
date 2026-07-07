@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 
 /**
  * 알림 설정 도메인 엔티티.
@@ -131,8 +132,16 @@ public class NotificationSetting extends DomainBaseEntity {
             return false;
         }
 
-        LocalTime start = LocalTime.parse(doNotDisturbStart);
-        LocalTime end = LocalTime.parse(doNotDisturbEnd);
+        LocalTime start;
+        LocalTime end;
+        try {
+            start = LocalTime.parse(doNotDisturbStart);
+            end = LocalTime.parse(doNotDisturbEnd);
+        } catch (DateTimeParseException e) {
+            // 검증 도입 이전에 저장된 손상 형식이 푸시 발송(특히 벌크 필터)
+            // 경로를 중단시키지 않도록 "설정 미비 = 허용"과 동일하게 취급한다.
+            return false;
+        }
 
         if (start.isBefore(end)) {
             // 같은 날 범위 (예: 09:00 ~ 18:00)
