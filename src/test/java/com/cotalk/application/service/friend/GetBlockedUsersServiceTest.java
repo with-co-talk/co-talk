@@ -13,11 +13,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.Optional;
 
 import static com.cotalk.common.fixture.UserTestFixture.createUser;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class GetBlockedUsersServiceTest {
@@ -32,7 +34,7 @@ class GetBlockedUsersServiceTest {
     private GetBlockedUsersService getBlockedUsersService;
 
     @Test
-    @DisplayName("차단한 사용자 목록 조회 성공")
+    @DisplayName("차단한 사용자 목록 조회 성공 - 배치 조회 1회로 처리(N+1 금지)")
     void should_returnBlockedUsers_when_validBlockerId() {
         // given
         Long blockerId = 1L;
@@ -46,8 +48,9 @@ class GetBlockedUsersServiceTest {
         User blockedUser2 = createUser(blockedId2, "blocked2@test.com", "차단유저2");
 
         given(blockRepository.findByBlockerId(blockerId)).willReturn(List.of(block1, block2));
-        given(userRepository.findById(blockedId1)).willReturn(Optional.of(blockedUser1));
-        given(userRepository.findById(blockedId2)).willReturn(Optional.of(blockedUser2));
+        // 배치 조회 결과가 요청 순서와 달라도 차단 목록 순서를 보존해야 한다
+        given(userRepository.findAllById(List.of(blockedId1, blockedId2)))
+                .willReturn(List.of(blockedUser2, blockedUser1));
 
         // when
         List<User> result = getBlockedUsersService.getBlockedUsers(blockerId);
@@ -56,6 +59,7 @@ class GetBlockedUsersServiceTest {
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getNickname()).isEqualTo("차단유저1");
         assertThat(result.get(1).getNickname()).isEqualTo("차단유저2");
+        verify(userRepository, never()).findById(anyLong());
     }
 
     @Test
@@ -87,8 +91,9 @@ class GetBlockedUsersServiceTest {
         User blockedUser1 = createUser(blockedId1, "blocked1@test.com", "차단유저1");
 
         given(blockRepository.findByBlockerId(blockerId)).willReturn(List.of(block1, block2));
-        given(userRepository.findById(blockedId1)).willReturn(Optional.of(blockedUser1));
-        given(userRepository.findById(blockedId2)).willReturn(Optional.empty()); // 삭제된 사용자
+        // 삭제된 사용자는 배치 조회 결과에 포함되지 않는다
+        given(userRepository.findAllById(List.of(blockedId1, blockedId2)))
+                .willReturn(List.of(blockedUser1));
 
         // when
         List<User> result = getBlockedUsersService.getBlockedUsers(blockerId);
