@@ -149,7 +149,7 @@ public class WebSocketEventListener {
         try {
             Long userId = Long.parseLong(userIdStr);
             chatRoomPresenceTracker.markActive(roomId, userId, sessionId);
-            log.info(
+            log.debug(
                     "[WS] SUBSCRIBE sessionId={}, subscriptionId={}, userId={}, destination={}, roomId={}",
                     sessionId, subscriptionId, userId, destination, roomId
             );
@@ -188,7 +188,7 @@ public class WebSocketEventListener {
         try {
             Long userId = Long.parseLong(userIdStr);
             chatRoomPresenceTracker.markInactive(roomId, userId, sessionId);
-            log.info(
+            log.debug(
                     "[WS] UNSUBSCRIBE sessionId={}, subscriptionId={}, userId={}, roomId={}",
                     sessionId, subscriptionId, userId, roomId
             );
@@ -209,7 +209,7 @@ public class WebSocketEventListener {
         }
         for (Long roomId : roomsBySubscription.values()) {
             chatRoomPresenceTracker.markInactive(roomId, userId, sessionId);
-            log.info("[WS] DISCONNECT cleanup sessionId={}, userId={}, roomId={}", sessionId, userId, roomId);
+            log.debug("[WS] DISCONNECT cleanup sessionId={}, userId={}, roomId={}", sessionId, userId, roomId);
         }
         chatRoomPresenceTracker.clearSession(userId, sessionId);
     }

@@ -86,7 +86,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
         int updated = chatRoomMemberRepository.updateLastReadMessageIdIfNewer(chatRoomId, userId, now, lastReadMessageId);
 
         if (updated > 0) {
-            log.info("Marked as read: userId={}, chatRoomId={}, lastReadAt={}", userId, chatRoomId, now);
+            log.debug("Marked as read: userId={}, chatRoomId={}, lastReadAt={}", userId, chatRoomId, now);
         } else {
             log.debug("No DB update occurred: userId={}, chatRoomId={} (lastReadAt already newer or same)", userId, chatRoomId);
         }
@@ -118,7 +118,7 @@ public class MarkAsReadService implements MarkAsReadUseCase {
                     .map(ChatRoomMember::getLastReadMessageId)
                     .orElse(lastReadMessageId); // 조회 실패 시 계산한 값 사용
         }
-        log.info("Publishing chat list update after markAsRead: chatRoomId={}, userId={}, updated={}, lastReadMessageId={}", 
+        log.debug("Publishing chat list update after markAsRead: chatRoomId={}, userId={}, updated={}, lastReadMessageId={}", 
                 chatRoomId, userId, updated, currentLastReadMessageId);
         publishChatListUpdate(chatRoomId, userId, now, currentLastReadMessageId);
     }

@@ -109,7 +109,7 @@ public class AddMessageReactionService implements AddMessageReactionUseCase {
         try {
             MessageReaction reaction = MessageReaction.create(messageId, userId, emoji);
             MessageReaction saved = reactionRepository.save(reaction);
-            log.info("Message reaction added: messageId={}, userId={}, emoji={}", messageId, userId, emoji);
+            log.debug("Message reaction added: messageId={}, userId={}, emoji={}", messageId, userId, emoji);
             return saved;
         } catch (DataIntegrityViolationException e) {
             // 동시성으로 인한 중복 - 기존 반응 반환

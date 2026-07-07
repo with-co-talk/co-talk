@@ -66,7 +66,7 @@ public class MessageBroadcastService {
                                   List<ChatRoomMember> members) {
         int unreadCount = Math.max(0, members.size() - 1);
 
-        log.info("[MessageBroadcastService] broadcastToRedis roomId={}, messageId={}, senderId={}, type={}",
+        log.debug("[MessageBroadcastService] broadcastToRedis roomId={}, messageId={}, senderId={}, type={}",
                 message.getChatRoomId(), message.getId(), message.getSenderId(), message.getType());
 
         // 첨부파일 URL은 단기 Pre-signed URL로 재발급해 브로드캐스트한다(H-1). 수신자는 채팅방 멤버로,
