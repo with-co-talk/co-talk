@@ -8,6 +8,7 @@ import com.cotalk.domain.port.inbound.notification.UpdateNotificationSettingUseC
 import com.cotalk.infrastructure.security.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -58,7 +59,7 @@ public class NotificationSettingController {
     @PutMapping
     public ResponseEntity<NotificationSettingResponse> updateNotificationSetting(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @RequestBody UpdateNotificationSettingRequest request) {
+            @Valid @RequestBody UpdateNotificationSettingRequest request) {
 
         NotificationSetting setting = updateNotificationSettingUseCase.updateNotificationSetting(
                 principal.getUserId(),

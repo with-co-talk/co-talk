@@ -119,4 +119,87 @@ class NotificationSettingControllerTest {
                 .andExpect(jsonPath("$.doNotDisturbEnabled").value(true))
                 .andExpect(jsonPath("$.doNotDisturbStart").value("22:00"));
     }
+
+    @Test
+    @DisplayName("방해 금지 시간이 HH:mm 형식이 아니면 400을 반환한다")
+    @WithMockCustomUser(userId = 100L)
+    void should_return400_when_doNotDisturbTimeFormatInvalid() throws Exception {
+        // 저장은 통과하고 푸시 발송 경로의 LocalTime.parse()에서
+        // 지연 폭발(500)하던 입력을 저장 시점에 거부해야 한다.
+        String requestBody = """
+                {
+                    "doNotDisturbEnabled": true,
+                    "doNotDisturbStart": "25:99",
+                    "doNotDisturbEnd": "07:00"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notifications/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("방해 금지 시간에 콜론 없는 값이 오면 400을 반환한다")
+    @WithMockCustomUser(userId = 100L)
+    void should_return400_when_doNotDisturbTimeMissingColon() throws Exception {
+        String requestBody = """
+                {
+                    "doNotDisturbEnabled": true,
+                    "doNotDisturbStart": "0900",
+                    "doNotDisturbEnd": "07:00"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notifications/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("미리보기 모드에 허용되지 않은 값이 오면 400을 반환한다")
+    @WithMockCustomUser(userId = 100L)
+    void should_return400_when_previewModeInvalid() throws Exception {
+        String requestBody = """
+                {
+                    "notificationPreviewMode": "EVERYTHING"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/notifications/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("허용된 미리보기 모드는 정상 처리된다")
+    @WithMockCustomUser(userId = 100L)
+    void should_updateSetting_when_previewModeValid() throws Exception {
+        // given
+        Long userId = 100L;
+        NotificationSetting updatedSetting = NotificationSetting.builder()
+                .id(1L)
+                .userId(userId)
+                .notificationPreviewMode("NAME_ONLY")
+                .build();
+
+        given(updateNotificationSettingUseCase.updateNotificationSetting(
+                eq(userId), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .willReturn(updatedSetting);
+
+        String requestBody = """
+                {
+                    "notificationPreviewMode": "NAME_ONLY"
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(put("/api/v1/notifications/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk());
+    }
 }
