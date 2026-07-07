@@ -48,7 +48,7 @@ public class RemoveMessageReactionService implements RemoveMessageReactionUseCas
                 .orElseThrow(() -> new MessageReactionNotFoundException(messageId, userId, emojiString));
 
         reactionRepository.delete(reaction);
-        log.info("Message reaction removed: messageId={}, userId={}, emoji={}", messageId, userId, emoji);
+        log.debug("Message reaction removed: messageId={}, userId={}, emoji={}", messageId, userId, emoji);
     }
 
     /**

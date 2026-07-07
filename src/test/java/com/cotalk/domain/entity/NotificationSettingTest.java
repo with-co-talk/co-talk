@@ -5,6 +5,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -208,6 +210,40 @@ class NotificationSettingTest {
             assertThat(setting.isDoNotDisturbEnabled()).isTrue();
             assertThat(setting.getDoNotDisturbStart()).isEqualTo("23:00");
             assertThat(setting.getDoNotDisturbEnd()).isEqualTo("06:00");
+        }
+    }
+
+    @Nested
+    @DisplayName("방해 금지 시간대 판별 시")
+    class IsInDoNotDisturbTime {
+
+        @Test
+        @DisplayName("자정을 넘는 범위에서 시간대 내이면 true를 반환한다")
+        void should_returnTrue_when_nowWithinOvernightRange() {
+            // given
+            NotificationSetting setting = NotificationSettingTestFixture.createWithDoNotDisturb(1L, 100L, "23:00", "07:00");
+
+            // when & then
+            assertThat(setting.isInDoNotDisturbTime(LocalTime.of(0, 30))).isTrue();
+            assertThat(setting.isInDoNotDisturbTime(LocalTime.of(12, 0))).isFalse();
+        }
+
+        @Test
+        @DisplayName("저장된 시간 형식이 손상돼도 예외 대신 false를 반환한다")
+        void should_returnFalse_when_storedTimeFormatCorrupted() {
+            // 검증 도입 이전에 저장된 잘못된 형식이 푸시 발송(특히 벌크 필터)
+            // 경로 전체를 중단시키지 않아야 한다. 설정 미비 = 허용과 동일하게 취급.
+            NotificationSetting corrupted = NotificationSettingTestFixture.createWithDoNotDisturb(1L, 100L, "25:99", "07:00");
+
+            assertThat(corrupted.isInDoNotDisturbTime(LocalTime.of(0, 30))).isFalse();
+        }
+
+        @Test
+        @DisplayName("콜론 없는 손상 형식도 예외 대신 false를 반환한다")
+        void should_returnFalse_when_storedTimeMissingColon() {
+            NotificationSetting corrupted = NotificationSettingTestFixture.createWithDoNotDisturb(1L, 100L, "2300", "0700");
+
+            assertThat(corrupted.isInDoNotDisturbTime(LocalTime.of(23, 30))).isFalse();
         }
     }
 }

@@ -10,6 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 차단 사용자 목록 조회 유스케이스 구현체.
@@ -27,7 +31,8 @@ public class GetBlockedUsersService implements GetBlockedUsersUseCase {
 
     /**
      * 차단한 사용자 목록을 조회한다.
-     * 차단 관계를 조회하고 해당 사용자 정보를 반환한다.
+     * 차단 관계를 조회한 뒤 사용자 정보를 배치로 한 번에 조회하며(N+1 방지),
+     * 차단 관계 순서를 보존하고 삭제된 사용자는 결과에서 제외한다.
      *
      * @param blockerId 차단 목록을 조회할 사용자 ID
      * @return 차단한 사용자 목록
@@ -35,11 +40,19 @@ public class GetBlockedUsersService implements GetBlockedUsersUseCase {
     @Override
     public List<User> getBlockedUsers(Long blockerId) {
         List<Block> blocks = blockRepository.findByBlockerId(blockerId);
+        if (blocks.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> blockedIds = blocks.stream()
+                .map(Block::getBlockedId)
+                .toList();
+        Map<Long, User> usersById = userRepository.findAllById(blockedIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
 
         return blocks.stream()
-                .map(block -> userRepository.findById(block.getBlockedId()))
-                .filter(java.util.Optional::isPresent)
-                .map(java.util.Optional::get)
+                .map(block -> usersById.get(block.getBlockedId()))
+                .filter(Objects::nonNull)
                 .toList();
     }
 }
