@@ -12,14 +12,84 @@ on:
         type: choice
         options: [deploy, rollback]
 
+permissions:
+  contents: read
+  packages: read
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
 jobs:
-  deploy:
+  # 빌드 서버: 이미지를 만들어 GHCR에 올린다. 여기서만 소스 코드를 만진다.
+  build:
     runs-on: self-hosted
     if: github.event.inputs.action != 'rollback'
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.ref }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve image reference
+        id: image
+        run: echo "ref=${IMAGE}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to GHCR
+        run: |
+          # docker login을 쓰지 않는다. Docker Desktop CLI는 로그인 시 config.json에
+          # credsStore=osxkeychain을 다시 써넣는데, launchd 러너는 login keychain에
+          # 접근할 수 없어 이후 pull/push가 전부 실패한다. 그래서 잡 전용
+          # DOCKER_CONFIG에 auths를 직접 기록한다(prepare_build_docker_config와 같은 이유).
+          # buildx 등 CLI 플러그인은 링크로 유지한다.
+          # runner 컨텍스트는 잡 레벨 env에서 쓸 수 없다. RUNNER_TEMP는 스텝
+          # 셸의 기본 환경변수라 여기서 잡고 GITHUB_ENV로 이후 스텝에 넘긴다.
+          DOCKER_CONFIG="${RUNNER_TEMP}/docker-ghcr"
+          mkdir -p "$DOCKER_CONFIG"
+          ln -sfn "${HOME}/.docker/cli-plugins" "${DOCKER_CONFIG}/cli-plugins"
+          printf '{"auths":{"ghcr.io":{"auth":"%s"}}}' \
+            "$(printf '%s:%s' "${{ github.actor }}" "${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')" \
+            > "${DOCKER_CONFIG}/config.json"
+          chmod 600 "${DOCKER_CONFIG}/config.json"
+          echo "DOCKER_CONFIG=${DOCKER_CONFIG}" >> "$GITHUB_ENV"
+
+      - name: Build and push image
+        run: |
+          docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null || docker buildx use ci-builder
+          docker buildx build --push -t "${IMAGE}:${GITHUB_SHA}" -t "${IMAGE}:latest" .
+
+  # 배포 서버: 소스를 빌드하지 않고 GHCR에서 이미지를 받아 띄운다.
+  deploy:
+    needs: build
+    runs-on: self-hosted
+    if: github.event.inputs.action != 'rollback'
+    env:
+      COTALK_IMAGE: ${{ needs.build.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GHCR
+        run: |
+          # docker login을 쓰지 않는다. Docker Desktop CLI는 로그인 시 config.json에
+          # credsStore=osxkeychain을 다시 써넣는데, launchd 러너는 login keychain에
+          # 접근할 수 없어 이후 pull/push가 전부 실패한다. 그래서 잡 전용
+          # DOCKER_CONFIG에 auths를 직접 기록한다(prepare_build_docker_config와 같은 이유).
+          # buildx 등 CLI 플러그인은 링크로 유지한다.
+          # runner 컨텍스트는 잡 레벨 env에서 쓸 수 없다. RUNNER_TEMP는 스텝
+          # 셸의 기본 환경변수라 여기서 잡고 GITHUB_ENV로 이후 스텝에 넘긴다.
+          DOCKER_CONFIG="${RUNNER_TEMP}/docker-ghcr"
+          mkdir -p "$DOCKER_CONFIG"
+          ln -sfn "${HOME}/.docker/cli-plugins" "${DOCKER_CONFIG}/cli-plugins"
+          printf '{"auths":{"ghcr.io":{"auth":"%s"}}}' \
+            "$(printf '%s:%s' "${{ github.actor }}" "${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')" \
+            > "${DOCKER_CONFIG}/config.json"
+          chmod 600 "${DOCKER_CONFIG}/config.json"
+          echo "DOCKER_CONFIG=${DOCKER_CONFIG}" >> "$GITHUB_ENV"
 
       - name: Create .env from secrets
         run: |

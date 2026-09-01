@@ -113,6 +113,29 @@ CRED
 }
 
 # ===========================================
+# Image Acquisition
+# ===========================================
+# COTALK_IMAGE가 지정되면 레지스트리에서 받아 로컬 태그를 붙인다(CI 배포 경로).
+# 지정되지 않으면 기존처럼 로컬에서 빌드한다(수동 실행/로컬 개발 경로).
+acquire_image() {
+    local local_tag=$1
+
+    if [ -n "${COTALK_IMAGE:-}" ]; then
+        log_info "Pulling ${COTALK_IMAGE}..."
+        docker pull "$COTALK_IMAGE"
+        docker tag "$COTALK_IMAGE" "$local_tag"
+        log_success "Image pulled: ${COTALK_IMAGE} -> ${local_tag}"
+        return
+    fi
+
+    log_info "Building ${local_tag} image..."
+    prepare_build_docker_config
+    docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null || docker buildx use ci-builder
+    docker buildx build --load -t "$local_tag" "${PROJECT_ROOT}"
+    log_success "Image built: ${local_tag}"
+}
+
+# ===========================================
 # Dependency Check
 # ===========================================
 check_dependencies() {
@@ -323,11 +346,7 @@ bootstrap() {
         return 0
     fi
 
-    log_info "Building cotalk-app:stable image..."
-    prepare_build_docker_config
-    docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null || docker buildx use ci-builder
-    docker buildx build --load -t cotalk-app:stable "${PROJECT_ROOT}"
-    log_success "Image built: cotalk-app:stable"
+    acquire_image cotalk-app:stable
 
     # minio는 NAS(192.168.219.104:9000)에서 외부 운영하므로 여기서 띄우지 않는다.
     log_info "Starting infrastructure services (postgres, redis)..."
@@ -362,11 +381,7 @@ deploy_canary() {
     check_dependencies
     check_runtime_env
 
-    log_info "Building cotalk-app:canary image..."
-    prepare_build_docker_config
-    docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null || docker buildx use ci-builder
-    docker buildx build --load -t cotalk-app:canary "${PROJECT_ROOT}"
-    log_success "Image built: cotalk-app:canary"
+    acquire_image cotalk-app:canary
 
     log_info "Stopping previous canary container if exists..."
     docker stop co-talk-app-canary 2>/dev/null || true
